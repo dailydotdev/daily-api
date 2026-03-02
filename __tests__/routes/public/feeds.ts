@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
+import { Post, PostType } from '../../../src/entity/posts/Post';
 
 const state = setupPublicApiTests();
 
@@ -233,5 +234,46 @@ describe('GET /public/v1/feeds/source/:source', () => {
         }),
       });
     }
+  });
+
+  it('should return posts ordered by createdAt desc', async () => {
+    const now = Date.now();
+    await state.con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { score: 999, createdAt: new Date(now - 20_000) });
+    await state.con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { score: 1, createdAt: new Date(now - 10_000) });
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/source/a')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data[0]).toMatchObject({
+      id: 'p4',
+    });
+  });
+
+  it('should include non-article supported post types', async () => {
+    await state.con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { type: PostType.Share });
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/source/a')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'p4',
+          type: PostType.Share,
+        }),
+      ]),
+    );
   });
 });

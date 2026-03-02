@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
 import { getUserGrowthBookInstance } from '../../growthbook';
+import { postTypes } from '../../entity/posts/Post';
 import {
   parseLimit,
   ensureDbConnection,
@@ -14,8 +15,8 @@ const DEFAULT_FEED_VERSION = 1;
 
 // GraphQL query for the "For You" personalized feed
 const FORYOU_FEED_QUERY = `
-  query PublicApiFeed($first: Int, $after: String, $version: Int) {
-    feed(first: $first, after: $after, ranking: POPULARITY, version: $version) {
+  query PublicApiFeed($first: Int, $after: String, $version: Int, $supportedTypes: [String!]) {
+    feed(first: $first, after: $after, ranking: POPULARITY, version: $version, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -28,8 +29,8 @@ const FORYOU_FEED_QUERY = `
 
 // GraphQL query for popular feed (anonymous feed with popularity ranking)
 const POPULAR_FEED_QUERY = `
-  query PublicApiPopularFeed($first: Int, $after: String, $filters: FiltersInput) {
-    anonymousFeed(first: $first, after: $after, ranking: POPULARITY, filters: $filters) {
+  query PublicApiPopularFeed($first: Int, $after: String, $filters: FiltersInput, $supportedTypes: [String!]) {
+    anonymousFeed(first: $first, after: $after, ranking: POPULARITY, filters: $filters, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -42,8 +43,8 @@ const POPULAR_FEED_QUERY = `
 
 // GraphQL query for most discussed feed
 const MOST_DISCUSSED_FEED_QUERY = `
-  query PublicApiMostDiscussedFeed($first: Int, $after: String, $period: Int, $tag: String, $source: ID) {
-    mostDiscussedFeed(first: $first, after: $after, period: $period, tag: $tag, source: $source) {
+  query PublicApiMostDiscussedFeed($first: Int, $after: String, $period: Int, $tag: String, $source: ID, $supportedTypes: [String!]) {
+    mostDiscussedFeed(first: $first, after: $after, period: $period, tag: $tag, source: $source, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -56,8 +57,8 @@ const MOST_DISCUSSED_FEED_QUERY = `
 
 // GraphQL query for tag feed
 const TAG_FEED_QUERY = `
-  query PublicApiTagFeed($tag: String!, $first: Int, $after: String) {
-    tagFeed(tag: $tag, first: $first, after: $after, ranking: POPULARITY) {
+  query PublicApiTagFeed($tag: String!, $first: Int, $after: String, $supportedTypes: [String!]) {
+    tagFeed(tag: $tag, first: $first, after: $after, ranking: TIME, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -70,8 +71,8 @@ const TAG_FEED_QUERY = `
 
 // GraphQL query for source feed
 const SOURCE_FEED_QUERY = `
-  query PublicApiSourceFeed($source: ID!, $first: Int, $after: String) {
-    sourceFeed(source: $source, first: $first, after: $after, ranking: POPULARITY) {
+  query PublicApiSourceFeed($source: ID!, $first: Int, $after: String, $supportedTypes: [String!]) {
+    sourceFeed(source: $source, first: $first, after: $after, ranking: TIME, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -162,6 +163,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             version: feedVersion,
+            supportedTypes: postTypes,
           },
         },
         (json) => {
@@ -236,6 +238,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             filters,
+            supportedTypes: postTypes,
           },
         },
         (json) => {
@@ -330,6 +333,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             period,
             tag: tag ?? null,
             source: source ?? null,
+            supportedTypes: postTypes,
           },
         },
         (json) => {
@@ -408,6 +412,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             tag,
             first: limit,
             after: cursor ?? null,
+            supportedTypes: postTypes,
           },
         },
         (json) => {
@@ -486,6 +491,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             source,
             first: limit,
             after: cursor ?? null,
+            supportedTypes: postTypes,
           },
         },
         (json) => {
