@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Keyword, KeywordStatus, Post, PostType, User } from '../entity';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
 
 const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
 const SITEMAP_LIMIT = 50_000;
@@ -54,27 +54,61 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
 const getTagSitemapUrl = (prefix: string, value: string): string =>
   `${prefix}/tags/${value}`;
 
-const buildPostsSitemapQuery = (con: DataSource): SelectQueryBuilder<Post> =>
-  con
+const streamReplicaQuery = async <T>(
+  con: DataSource,
+  buildQuery: (source: EntityManager) => SelectQueryBuilder<T>,
+): Promise<NodeJS.ReadableStream> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    const input = await buildQuery(queryRunner.manager).stream();
+    let released = false;
+
+    const releaseRunner = async (): Promise<void> => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      await queryRunner.release();
+    };
+
+    input.once('end', () => void releaseRunner());
+    input.once('error', () => void releaseRunner());
+    input.once('close', () => void releaseRunner());
+
+    return input;
+  } catch (error) {
+    await queryRunner.release();
+    throw error;
+  }
+};
+
+const buildPostsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  source
     .createQueryBuilder()
     .select('p.slug', 'slug')
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
-    .where('type NOT IN (:...types)', { types: [PostType.Welcome] })
-    .andWhere('NOT private')
-    .andWhere('NOT banned')
-    .andWhere('NOT deleted')
+    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .andWhere('NOT p.private')
+    .andWhere('NOT p.banned')
+    .andWhere('NOT p.deleted')
     .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
     .andWhere('(u.id is null or u.reputation > 10)')
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
 
-const buildTagsSitemapQuery = (con: DataSource): SelectQueryBuilder<Keyword> =>
-  con
+const buildTagsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Keyword> =>
+  source
     .createQueryBuilder()
     .select('k.value', 'value')
     .from(Keyword, 'k')
-    .where('status = :status', { status: KeywordStatus.Allow })
+    .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
     .limit(SITEMAP_LIMIT);
 
@@ -96,7 +130,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/posts.txt', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await buildPostsSitemapQuery(con).stream();
+    const input = await streamReplicaQuery(con, buildPostsSitemapQuery);
     const stream = toSitemapTextStream(input, (row) =>
       getPostSitemapUrl(prefix, row.slug),
     );
@@ -110,7 +144,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/posts.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await buildPostsSitemapQuery(con).stream();
+    const input = await streamReplicaQuery(con, buildPostsSitemapQuery);
 
     return res
       .type('application/xml')
@@ -125,7 +159,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/tags.txt', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await buildTagsSitemapQuery(con).stream();
+    const input = await streamReplicaQuery(con, buildTagsSitemapQuery);
     const stream = toSitemapTextStream(input, (row) =>
       getTagSitemapUrl(prefix, row.value),
     );
@@ -139,7 +173,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/tags.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await buildTagsSitemapQuery(con).stream();
+    const input = await streamReplicaQuery(con, buildTagsSitemapQuery);
 
     return res
       .type('application/xml')

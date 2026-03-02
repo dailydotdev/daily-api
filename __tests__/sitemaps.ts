@@ -57,6 +57,14 @@ const postsFixture: DeepPartial<Post>[] = [
     createdAt: new Date(now.getTime() - 4000),
     type: PostType.Collection,
   },
+  {
+    id: 'p6',
+    shortId: 'p6',
+    title: 'P6',
+    sourceId: 'a',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Welcome,
+  },
 ];
 
 beforeAll(async () => {
@@ -104,6 +112,7 @@ describe('GET /sitemaps/posts.xml', () => {
     expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
     expect(res.text).not.toContain('/posts/p2-p2');
     expect(res.text).not.toContain('/posts/p3-p3');
+    expect(res.text).not.toContain('/posts/p6-p6');
   });
 });
 
