@@ -15,6 +15,7 @@ describe('GET /public/v1/posts/:id', () => {
     expect(body.data).toMatchObject({
       id: 'p1',
       title: 'P1',
+      content: null,
     });
   });
 
