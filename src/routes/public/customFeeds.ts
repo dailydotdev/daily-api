@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
+import { postTypes } from '../../entity/posts/Post';
 import {
   parseLimit,
   ensureDbConnection,
@@ -12,6 +13,8 @@ import {
   FeedConnection,
   PostNode,
 } from './common';
+
+const FEED_SUPPORTED_TYPES = postTypes;
 
 // GraphQL queries
 const ADVANCED_SETTINGS_QUERY = `
@@ -44,8 +47,8 @@ const GET_FEED_QUERY = `
 `;
 
 const CUSTOM_FEED_POSTS_QUERY = `
-  query PublicApiCustomFeed($feedId: ID!, $first: Int, $after: String, $ranking: Ranking, $version: Int) {
-    customFeed(feedId: $feedId, first: $first, after: $after, ranking: $ranking, version: $version) {
+  query PublicApiCustomFeed($feedId: ID!, $first: Int, $after: String, $ranking: Ranking, $version: Int, $supportedTypes: [String!]) {
+    customFeed(feedId: $feedId, first: $first, after: $after, ranking: $ranking, version: $version, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -402,6 +405,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             after: cursor ?? null,
             ranking: 'POPULARITY',
             version: 1,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
