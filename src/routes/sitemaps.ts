@@ -55,9 +55,7 @@ const getPostSitemapUrl = (slug: string): string =>
 const getTagSitemapUrl = (value: string): string =>
   `${getSitemapUrlPrefix()}/tags/${value}`;
 
-const buildPostsSitemapQuery = (
-  con: DataSource,
-): SelectQueryBuilder<Post> =>
+const buildPostsSitemapQuery = (con: DataSource): SelectQueryBuilder<Post> =>
   con
     .createQueryBuilder()
     .select('p.slug', 'slug')
@@ -72,9 +70,7 @@ const buildPostsSitemapQuery = (
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
 
-const buildTagsSitemapQuery = (
-  con: DataSource,
-): SelectQueryBuilder<Keyword> =>
+const buildTagsSitemapQuery = (con: DataSource): SelectQueryBuilder<Keyword> =>
   con
     .createQueryBuilder()
     .select('k.value', 'value')
@@ -101,7 +97,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/posts.txt', async (req, res) => {
     const con = await createOrGetConnection();
     const input = await buildPostsSitemapQuery(con).stream();
-    const stream = toSitemapTextStream(input, (row) => getPostSitemapUrl(row.slug));
+    const stream = toSitemapTextStream(input, (row) =>
+      getPostSitemapUrl(row.slug),
+    );
 
     return res
       .type('text/plain')
@@ -122,7 +120,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/tags.txt', async (req, res) => {
     const con = await createOrGetConnection();
     const input = await buildTagsSitemapQuery(con).stream();
-    const stream = toSitemapTextStream(input, (row) => getTagSitemapUrl(row.value));
+    const stream = toSitemapTextStream(input, (row) =>
+      getTagSitemapUrl(row.value),
+    );
 
     return res
       .type('text/plain')

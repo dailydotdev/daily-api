@@ -99,15 +99,9 @@ describe('GET /sitemaps/posts.xml', () => {
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/p1-p1</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/p4-p4</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/p5-p5</loc>',
-    );
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p4-p4</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
     expect(res.text).not.toContain('/posts/p2-p2');
     expect(res.text).not.toContain('/posts/p3-p3');
   });
@@ -154,7 +148,9 @@ describe('GET /sitemaps/tags.xml', () => {
 
 describe('GET /sitemaps/index.xml', () => {
   it('should return sitemap index xml', async () => {
-    const res = await request(app.server).get('/sitemaps/index.xml').expect(200);
+    const res = await request(app.server)
+      .get('/sitemaps/index.xml')
+      .expect(200);
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toBeTruthy();
