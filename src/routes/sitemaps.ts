@@ -235,20 +235,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       );
   });
 
-  fastify.get('/agents.txt', async (_, res) => {
-    const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildAgentsSitemapQuery);
-    const stream = toSitemapTextStream(input, (row) =>
-      getAgentSitemapUrl(prefix, row.entity),
-    );
-
-    return res
-      .type('text/plain')
-      .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(stream);
-  });
-
   fastify.get('/index.xml', async (_, res) => {
     return res
       .type('application/xml')

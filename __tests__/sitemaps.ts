@@ -238,17 +238,3 @@ describe('GET /sitemaps/agents.xml', () => {
     expect(res.text).not.toContain('/agents/not_in_arena');
   });
 });
-
-describe('GET /sitemaps/agents.txt', () => {
-  it('should return arena entity pages as text', async () => {
-    const res = await request(app.server)
-      .get('/sitemaps/agents.txt')
-      .expect(200);
-
-    expect(res.header['content-type']).toEqual('text/plain');
-    expect(res.header['cache-control']).toBeTruthy();
-    expect(res.text).toEqual(`http://localhost:5002/agents/claude_code
-http://localhost:5002/agents/gpt_4_1
-`);
-  });
-});
