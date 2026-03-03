@@ -9,9 +9,8 @@ import {
 } from 'typeorm';
 import type { User } from './user';
 import { UserFeedbackCategory } from '@dailydotdev/schema';
-import type { FeedbackClientInfo } from '../common/schema/feedback';
-
-export type { FeedbackClientInfo };
+import type { z } from 'zod';
+import type { feedbackClientInfoSchema } from '../common/schema/feedback';
 
 export enum FeedbackStatus {
   Pending = 0,
@@ -65,7 +64,7 @@ export class Feedback {
   userAgent: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  clientInfo: FeedbackClientInfo | null;
+  clientInfo: z.infer<typeof feedbackClientInfoSchema> | null;
 
   @Column({ type: 'jsonb', nullable: true })
   classification: FeedbackClassification | null;

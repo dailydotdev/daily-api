@@ -1,10 +1,13 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
-import type { FeedbackClientInfo } from '../entity/Feedback';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
 import { ValidationError } from 'apollo-server-errors';
-import { feedbackInputSchema } from '../common/schema/feedback';
+import type { z } from 'zod';
+import {
+  feedbackClientInfoSchema,
+  feedbackInputSchema,
+} from '../common/schema/feedback';
 import { ZodError } from 'zod/v4';
 import { GQLEmptyResponse } from './common';
 
@@ -13,7 +16,7 @@ interface GQLFeedbackInput {
   description: string;
   pageUrl?: string;
   userAgent?: string;
-  clientInfo?: FeedbackClientInfo;
+  clientInfo?: z.infer<typeof feedbackClientInfoSchema>;
   screenshotUrl?: string;
 }
 

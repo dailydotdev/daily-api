@@ -5,10 +5,9 @@ import {
   UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 
-import type {
-  FeedbackClassification,
-  FeedbackClientInfo,
-} from '../../entity/Feedback';
+import type { FeedbackClassification } from '../../entity/Feedback';
+import type { z } from 'zod';
+import type { feedbackClientInfoSchema } from '../../common/schema/feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
 import {
   getCategoryDisplayName,
@@ -55,7 +54,7 @@ interface CreateFeedbackIssueInput {
   description: string;
   pageUrl?: string | null;
   userAgent?: string | null;
-  clientInfo?: FeedbackClientInfo | null;
+  clientInfo?: z.infer<typeof feedbackClientInfoSchema> | null;
   classification: FeedbackClassification | null;
   screenshotUrl?: string | null;
 }

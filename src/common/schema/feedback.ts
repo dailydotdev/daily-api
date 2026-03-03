@@ -13,8 +13,6 @@ export const feedbackClientInfoSchema = z.object({
   theme: z.string().nullish(),
 });
 
-export type FeedbackClientInfo = z.infer<typeof feedbackClientInfoSchema>;
-
 export const feedbackInputSchema = z.object({
   category: feedbackCategorySchema,
   description: z
