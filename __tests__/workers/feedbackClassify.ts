@@ -187,6 +187,34 @@ describe('feedbackClassify worker', () => {
     expect(mockCreateFeedbackIssue).not.toHaveBeenCalled();
   });
 
+  it('should handle feedback without clientInfo for backward compatibility', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Old client without clientInfo',
+      pageUrl: 'https://example.com',
+      userAgent: 'Mozilla/5.0',
+      status: FeedbackStatus.Pending,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.status).toBe(FeedbackStatus.Accepted);
+
+    expect(mockCreateFeedbackIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: 'Mozilla/5.0',
+        clientInfo: null,
+      }),
+    );
+  });
+
   it('should keep new category values when creating Linear issue', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
