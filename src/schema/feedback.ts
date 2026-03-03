@@ -1,5 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
+import type { FeedbackClientInfo } from '../entity/Feedback';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
 import { ValidationError } from 'apollo-server-errors';
@@ -12,10 +13,23 @@ interface GQLFeedbackInput {
   description: string;
   pageUrl?: string;
   userAgent?: string;
+  clientInfo?: FeedbackClientInfo;
   screenshotUrl?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Client environment info for debugging context
+  """
+  input FeedbackClientInfoInput {
+    viewport: String
+    screen: String
+    timezone: String
+    language: String
+    platform: String
+    theme: String
+  }
+
   """
   Input for submitting user feedback
   """
@@ -39,6 +53,11 @@ export const typeDefs = /* GraphQL */ `
     Browser user agent for debugging context
     """
     userAgent: String
+
+    """
+    Structured client environment info for debugging context
+    """
+    clientInfo: FeedbackClientInfoInput
 
     """
     Optional screenshot URL (client uploads to Cloudinary)
@@ -101,6 +120,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
+        clientInfo: input.clientInfo || null,
         screenshotUrl,
         status: FeedbackStatus.Pending,
         flags: {},

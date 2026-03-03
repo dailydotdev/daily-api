@@ -5,7 +5,10 @@ import {
   UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 
-import type { FeedbackClassification } from '../../entity/Feedback';
+import type {
+  FeedbackClassification,
+  FeedbackClientInfo,
+} from '../../entity/Feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
 import {
   getCategoryDisplayName,
@@ -51,6 +54,8 @@ interface CreateFeedbackIssueInput {
   category: number;
   description: string;
   pageUrl?: string | null;
+  userAgent?: string | null;
+  clientInfo?: FeedbackClientInfo | null;
   classification: FeedbackClassification | null;
   screenshotUrl?: string | null;
 }
@@ -123,6 +128,42 @@ const sanitizeForLinear = (content: string): string =>
     .replace(/<([^>]+)>/g, '&lt;$1&gt;') // Escape HTML-like tags and @ mentions
     .slice(0, 2000);
 
+const buildClientEnvironmentSection = (
+  input: CreateFeedbackIssueInput,
+): string => {
+  const rows: [string, string][] = [];
+
+  if (input.userAgent) {
+    rows.push(['User Agent', sanitizeForLinear(input.userAgent)]);
+  }
+
+  const info = input.clientInfo;
+  if (info) {
+    if (info.viewport) rows.push(['Viewport', info.viewport]);
+    if (info.screen) rows.push(['Screen', info.screen]);
+    if (info.timezone) rows.push(['Timezone', info.timezone]);
+    if (info.platform) rows.push(['Platform', info.platform]);
+    if (info.language) rows.push(['Language', info.language]);
+    if (info.theme) rows.push(['Theme', info.theme]);
+  }
+
+  if (rows.length === 0) {
+    return '';
+  }
+
+  const tableRows = rows
+    .map(([field, value]) => `| **${field}** | ${value} |`)
+    .join('\n');
+
+  return `### Client Environment
+
+| Field | Value |
+|-------|-------|
+${tableRows}
+
+`;
+};
+
 const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
   const { classification } = input;
   const sanitizedDescription = sanitizeForLinear(input.description);
@@ -156,6 +197,7 @@ const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
 | **Tags** | ${tagsDisplay} |
 | **Page URL** | ${input.pageUrl || 'N/A'} |
 
+${buildClientEnvironmentSection(input)}
 ### User's Description
 
 \`\`\`

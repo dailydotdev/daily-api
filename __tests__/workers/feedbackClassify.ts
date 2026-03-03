@@ -76,6 +76,14 @@ describe('feedbackClassify worker', () => {
       description: 'Test feedback description',
       pageUrl: 'https://example.com',
       userAgent: 'Mozilla/5.0',
+      clientInfo: {
+        viewport: '1920x1080',
+        screen: '2560x1440',
+        timezone: 'America/New_York',
+        language: 'en-US',
+        platform: 'MacIntel',
+        theme: 'dark',
+      },
       status: FeedbackStatus.Pending,
       flags: {},
     });
@@ -98,6 +106,20 @@ describe('feedbackClassify worker', () => {
     });
     expect(updated?.linearIssueId).toBe('linear-issue-123');
     expect(updated?.linearIssueUrl).toBe('https://linear.app/issue/123');
+
+    expect(mockCreateFeedbackIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userAgent: 'Mozilla/5.0',
+        clientInfo: {
+          viewport: '1920x1080',
+          screen: '2560x1440',
+          timezone: 'America/New_York',
+          language: 'en-US',
+          platform: 'MacIntel',
+          theme: 'dark',
+        },
+      }),
+    );
   });
 
   it('should skip processing if feedback is already spam', async () => {

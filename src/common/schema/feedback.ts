@@ -13,5 +13,15 @@ export const feedbackInputSchema = z.object({
     .max(2000),
   pageUrl: z.string().nullish(),
   userAgent: z.string().nullish(),
+  clientInfo: z
+    .object({
+      viewport: z.string().nullish(),
+      screen: z.string().nullish(),
+      timezone: z.string().nullish(),
+      language: z.string().nullish(),
+      platform: z.string().nullish(),
+      theme: z.string().nullish(),
+    })
+    .nullish(),
   screenshotUrl: z.url().nullish(),
 });

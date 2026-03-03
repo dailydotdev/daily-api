@@ -29,6 +29,15 @@ export type FeedbackClassification = {
   suggestedTeam?: string;
 };
 
+export type FeedbackClientInfo = Partial<{
+  viewport: string;
+  screen: string;
+  timezone: string;
+  language: string;
+  platform: string;
+  theme: string;
+}>;
+
 export type FeedbackFlags = Partial<{
   vordr: boolean;
   slackNotifiedAt: string; // ISO timestamp
@@ -60,6 +69,9 @@ export class Feedback {
 
   @Column({ type: 'text', nullable: true })
   userAgent: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  clientInfo: FeedbackClientInfo | null;
 
   @Column({ type: 'jsonb', nullable: true })
   classification: FeedbackClassification | null;
