@@ -56,9 +56,6 @@ declare global {
       POST_SCRAPER_ORIGIN: string;
       YGGDRASIL_ORIGIN?: string;
       YGGDRASIL_SENTIMENT_ORIGIN: string;
-      AGENTS_DIGEST_SENTIMENT_GROUP_ID?: string;
-      AGENTS_DIGEST_CHANNEL?: string;
-      AGENTS_DIGEST_MIN_HIGHLIGHT_SCORE?: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;

@@ -8,49 +8,32 @@ import {
   FreeformPost,
   Post,
   PostOrigin,
+  PostRelation,
+  PostRelationType,
   PostType,
-  Source,
 } from '../entity';
 import { generateShortId } from '../ids';
 import { getBragiClient } from '../integrations/bragi/clients';
 import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
-import { notifyContentRequested } from '../common/pubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { markdown } from '../common/markdown';
 import { Cron } from './cron';
 
-const DIGEST_CHANNEL = process.env.AGENTS_DIGEST_CHANNEL || 'vibes';
+const DIGEST_CHANNEL = 'vibes';
 const DIGEST_LOOKBACK_HOURS = 24;
-const DEFAULT_MIN_HIGHLIGHT_SCORE = 0.65;
+const MIN_HIGHLIGHT_SCORE = 0.65;
+const SENTIMENT_GROUP_IDS = [
+  '385404b4-f0f4-4e81-a338-bdca851eca31',
+  '970ab2c9-f845-4822-82f0-02169713b814',
+];
 
 type VibesPostRow = {
   title: string | null;
   summary: string | null;
+  content: string | null;
 };
 
 const toDigestDate = (date: Date): string => date.toISOString().slice(0, 10);
-
-const getGroupId = (): string => {
-  const groupId = process.env.AGENTS_DIGEST_SENTIMENT_GROUP_ID;
-  if (!groupId) {
-    throw new Error('missing AGENTS_DIGEST_SENTIMENT_GROUP_ID');
-  }
-  return groupId;
-};
-
-const getMinHighlightScore = (): number => {
-  const raw = process.env.AGENTS_DIGEST_MIN_HIGHLIGHT_SCORE;
-  if (!raw) {
-    return DEFAULT_MIN_HIGHLIGHT_SCORE;
-  }
-
-  const parsed = Number(raw);
-  if (Number.isNaN(parsed)) {
-    return DEFAULT_MIN_HIGHLIGHT_SCORE;
-  }
-
-  return parsed;
-};
 
 const toLikes = (
   metrics: {
@@ -78,19 +61,26 @@ const findVibesPosts = async ({
     return queryRunner.manager
       .getRepository(Post)
       .createQueryBuilder('post')
+      .leftJoin(
+        PostRelation,
+        'relation',
+        `relation."relatedPostId" = post.id AND relation.type = :relationType`,
+        {
+          relationType: PostRelationType.Collection,
+        },
+      )
       .select('post.title', 'title')
       .addSelect('post.summary', 'summary')
+      .addSelect('post.content', 'content')
       .where('post.createdAt >= :from', { from })
       .andWhere('post.deleted = false')
-      .andWhere('post.type != :collectionType', {
-        collectionType: PostType.Collection,
-      })
       .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
+      .andWhere('relation."relatedPostId" IS NULL')
       .orderBy('post.createdAt', 'DESC')
       .getRawMany<VibesPostRow>();
   });
 
-const upsertDailyDigestPost = async ({
+const createDailyDigestPost = async ({
   con,
   now,
   title,
@@ -101,44 +91,7 @@ const upsertDailyDigestPost = async ({
   title: string;
   content: string;
 }): Promise<FreeformPost> => {
-  const source = await con.getRepository(Source).findOneBy({
-    id: AGENTS_DIGEST_SOURCE,
-  });
-  if (!source) {
-    throw new Error(`source not found: ${AGENTS_DIGEST_SOURCE}`);
-  }
-
-  const dayStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-
   const repo = con.getRepository(FreeformPost);
-  const existing = await repo
-    .createQueryBuilder('post')
-    .where('post.sourceId = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
-    .andWhere('post.type = :type', { type: PostType.Freeform })
-    .andWhere('post.createdAt >= :dayStart', { dayStart })
-    .andWhere('post.createdAt < :dayEnd', { dayEnd })
-    .orderBy('post.createdAt', 'DESC')
-    .getOne();
-
-  if (existing) {
-    existing.title = title;
-    existing.content = content;
-    existing.contentHtml = markdown.render(content);
-    existing.metadataChangedAt = now;
-    existing.visible = true;
-    existing.showOnFeed = true;
-    existing.flags = {
-      ...existing.flags,
-      visible: true,
-      private: source.private,
-      showOnFeed: true,
-    };
-    return repo.save(existing);
-  }
-
   const postId = await generateShortId();
   return repo.save(
     repo.create({
@@ -151,14 +104,13 @@ const upsertDailyDigestPost = async ({
       contentHtml: markdown.render(content),
       visible: true,
       visibleAt: now,
-      private: source.private,
+      private: false,
       showOnFeed: true,
-      origin: PostOrigin.Crawler,
-      score: Math.floor(now.getTime() / (1000 * 60)),
+      origin: PostOrigin.UserGenerated,
       metadataChangedAt: now,
       flags: {
         visible: true,
-        private: source.private,
+        private: false,
         showOnFeed: true,
       },
     }),
@@ -173,20 +125,27 @@ const cron: Cron = {
       now.getTime() - DIGEST_LOOKBACK_HOURS * 60 * 60 * 1000,
     );
 
-    const highlights = await yggdrasilSentimentClient.getHighlights({
-      groupId: getGroupId(),
-      from: from.toISOString(),
-      to: now.toISOString(),
-      minHighlightScore: getMinHighlightScore(),
-      orderBy: 'recency',
-    });
-    const vibesPosts = await findVibesPosts({
-      con,
-      from,
-      channel: DIGEST_CHANNEL,
-    });
+    const [highlightResponses, vibesPosts] = await Promise.all([
+      Promise.all(
+        SENTIMENT_GROUP_IDS.map((groupId) =>
+          yggdrasilSentimentClient.getHighlights({
+            groupId,
+            from: from.toISOString(),
+            to: now.toISOString(),
+            minHighlightScore: MIN_HIGHLIGHT_SCORE,
+            orderBy: 'recency',
+          }),
+        ),
+      ),
+      findVibesPosts({
+        con,
+        from,
+        channel: DIGEST_CHANNEL,
+      }),
+    ]);
+    const highlights = highlightResponses.flatMap((response) => response.items);
 
-    if (!highlights.items.length && !vibesPosts.length) {
+    if (!highlights.length && !vibesPosts.length) {
       logger.info(
         { from, to: now },
         'agents digest skipped due to empty input',
@@ -199,7 +158,7 @@ const cron: Cron = {
       bragiClient.instance.generateSentimentDigest(
         new SentimentDigestRequest({
           date: toDigestDate(now),
-          sentimentItems: highlights.items.map(
+          sentimentItems: highlights.map(
             (item) =>
               new SentimentDigestItem({
                 text: item.text || '',
@@ -211,7 +170,7 @@ const cron: Cron = {
             (post) =>
               new SentimentDigestPost({
                 title: post.title || '',
-                summary: post.summary || '',
+                summary: post.content || post.summary || '',
               }),
           ),
         }),
@@ -222,24 +181,17 @@ const cron: Cron = {
       throw new Error('bragi digest response is missing title or content');
     }
 
-    const post = await upsertDailyDigestPost({
+    const post = await createDailyDigestPost({
       con,
       now,
       title: generated.title,
       content: generated.content,
     });
 
-    await notifyContentRequested(logger, {
-      id: post.id,
-      title: post.title || '',
-      content: post.content || '',
-      post_type: PostType.Freeform,
-    });
-
     logger.info(
       {
         postId: post.id,
-        highlights: highlights.items.length,
+        highlights: highlights.length,
         vibesPosts: vibesPosts.length,
       },
       'agents digest post prepared and sent for yggdrasil processing',

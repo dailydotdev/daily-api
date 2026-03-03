@@ -6,19 +6,15 @@ import {
   AGENTS_DIGEST_SOURCE,
   CollectionPost,
   FreeformPost,
+  PostRelation,
+  PostRelationType,
   PostType,
   Source,
 } from '../../src/entity';
 import { getBragiClient } from '../../src/integrations/bragi/clients';
 import { yggdrasilSentimentClient } from '../../src/integrations/yggdrasil/clients';
-import { notifyContentRequested } from '../../src/common/pubsub';
 import { crons } from '../../src/cron/index';
 import { doNotFake, expectSuccessfulCron, saveFixtures } from '../helpers';
-
-jest.mock('../../src/common/pubsub', () => ({
-  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
-  notifyContentRequested: jest.fn(),
-}));
 
 jest.mock('../../src/integrations/yggdrasil/clients', () => ({
   yggdrasilSentimentClient: {
@@ -39,8 +35,6 @@ const getHighlightsMock =
 const getBragiClientMock = getBragiClient as jest.MockedFunction<
   typeof getBragiClient
 >;
-const notifyContentRequestedMock =
-  notifyContentRequested as jest.MockedFunction<typeof notifyContentRequested>;
 
 const bragiGenerateMock = jest.fn();
 
@@ -82,10 +76,6 @@ beforeEach(async () => {
     .useFakeTimers({ doNotFake })
     .setSystemTime(new Date('2026-03-03T10:00:00.000Z'));
 
-  process.env.AGENTS_DIGEST_SENTIMENT_GROUP_ID = 'sentiment-group';
-  process.env.AGENTS_DIGEST_MIN_HIGHLIGHT_SCORE = '0.8';
-  process.env.AGENTS_DIGEST_CHANNEL = 'vibes';
-
   setupBragiMock();
   getHighlightsMock.mockResolvedValue({
     items: [],
@@ -103,7 +93,7 @@ describe('agentsDigest cron', () => {
     expect(registeredCron).toBeDefined();
   });
 
-  it('should generate daily digest post and notify content requested', async () => {
+  it('should generate daily digest post', async () => {
     await saveFixtures(con, Source, sourceFixtures);
     await saveFixtures(con, FreeformPost, [
       {
@@ -135,22 +125,34 @@ describe('agentsDigest cron', () => {
         contentMeta: { channels: ['vibes'] },
       },
     ]);
+    await saveFixtures(con, PostRelation, [
+      {
+        postId: 'collection-1',
+        relatedPostId: 'vibes-1',
+        type: PostRelationType.Collection,
+      },
+    ]);
 
-    getHighlightsMock.mockResolvedValue({
-      items: [
-        {
-          provider: 'x',
-          external_item_id: '1',
-          url: 'https://x.com/item/1',
-          text: 'Highlight text',
-          author: { handle: 'author1' },
-          metrics: { like_count: 42 },
-          created_at: '2026-03-03T08:00:00.000Z',
-          sentiments: [],
-        },
-      ],
-      cursor: null,
-    });
+    getHighlightsMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            provider: 'x',
+            external_item_id: '1',
+            url: 'https://x.com/item/1',
+            text: 'Highlight text',
+            author: { handle: 'author1' },
+            metrics: { like_count: 42 },
+            created_at: '2026-03-03T08:00:00.000Z',
+            sentiments: [],
+          },
+        ],
+        cursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        cursor: null,
+      });
     bragiGenerateMock.mockResolvedValue(
       new SentimentDigestResponse({
         id: 'digest-1',
@@ -161,10 +163,22 @@ describe('agentsDigest cron', () => {
 
     await expectSuccessfulCron(cron);
 
-    expect(getHighlightsMock).toHaveBeenCalledWith(
+    expect(getHighlightsMock).toHaveBeenCalledTimes(2);
+    expect(getHighlightsMock).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        groupId: 'sentiment-group',
-        minHighlightScore: 0.8,
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        minHighlightScore: 0.65,
+        orderBy: 'recency',
+        from: expect.any(String),
+        to: expect.any(String),
+      }),
+    );
+    expect(getHighlightsMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        groupId: '970ab2c9-f845-4822-82f0-02169713b814',
+        minHighlightScore: 0.65,
         orderBy: 'recency',
         from: expect.any(String),
         to: expect.any(String),
@@ -182,8 +196,8 @@ describe('agentsDigest cron', () => {
     });
     expect(digestRequest.posts).toHaveLength(1);
     expect(digestRequest.posts[0]).toMatchObject({
-      title: 'Vibes post',
-      summary: 'Vibes summary',
+      title: 'Collection post',
+      summary: 'Collection content',
     });
 
     const digestPosts = await con.getRepository(FreeformPost).find({
@@ -199,37 +213,17 @@ describe('agentsDigest cron', () => {
       showOnFeed: true,
       visible: true,
     });
-
-    expect(notifyContentRequestedMock).toHaveBeenCalledTimes(1);
-    expect(notifyContentRequestedMock).toHaveBeenCalledWith(expect.anything(), {
-      id: digestPosts[0].id,
-      title: 'Daily vibes digest',
-      content: 'Digest body',
-      post_type: PostType.Freeform,
-    });
   });
 
   it('should skip generation when no highlights and no channel posts', async () => {
     await expectSuccessfulCron(cron);
 
     expect(bragiGenerateMock).not.toHaveBeenCalled();
-    expect(notifyContentRequestedMock).not.toHaveBeenCalled();
   });
 
-  it('should update existing same-day digest post', async () => {
+  it('should create a new digest post every run', async () => {
     await saveFixtures(con, Source, sourceFixtures);
     await saveFixtures(con, FreeformPost, [
-      {
-        id: 'ex-digest',
-        shortId: 'ex-digest',
-        sourceId: AGENTS_DIGEST_SOURCE,
-        title: 'Old title',
-        content: 'Old content',
-        contentHtml: '<p>Old content</p>',
-        type: PostType.Freeform,
-        createdAt: new Date('2026-03-03T01:00:00.000Z'),
-        metadataChangedAt: new Date('2026-03-03T01:00:00.000Z'),
-      },
       {
         id: 'vibes-2',
         shortId: 'vibes-2',
@@ -245,21 +239,26 @@ describe('agentsDigest cron', () => {
       },
     ]);
 
-    getHighlightsMock.mockResolvedValue({
-      items: [
-        {
-          provider: 'x',
-          external_item_id: '2',
-          url: 'https://x.com/item/2',
-          text: 'Another highlight',
-          author: { handle: 'author2' },
-          metrics: { like_count: 5 },
-          created_at: '2026-03-03T08:00:00.000Z',
-          sentiments: [],
-        },
-      ],
-      cursor: null,
-    });
+    getHighlightsMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            provider: 'x',
+            external_item_id: '2',
+            url: 'https://x.com/item/2',
+            text: 'Another highlight',
+            author: { handle: 'author2' },
+            metrics: { like_count: 5 },
+            created_at: '2026-03-03T08:00:00.000Z',
+            sentiments: [],
+          },
+        ],
+        cursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        cursor: null,
+      });
     bragiGenerateMock.mockResolvedValue(
       new SentimentDigestResponse({
         id: 'digest-2',
@@ -278,7 +277,6 @@ describe('agentsDigest cron', () => {
     });
     expect(digestPosts).toHaveLength(1);
     expect(digestPosts[0]).toMatchObject({
-      id: 'ex-digest',
       title: 'Updated title',
       content: 'Updated content',
       showOnFeed: true,
