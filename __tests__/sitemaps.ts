@@ -5,7 +5,7 @@ import nock from 'nock';
 import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { Keyword, Post, PostType, Source } from '../src/entity';
+import { Keyword, KeywordStatus, Post, PostType, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
@@ -88,6 +88,25 @@ http://localhost:5002/posts/p5-p5
   });
 });
 
+describe('GET /sitemaps/posts.xml', () => {
+  it('should return posts sitemap as xml', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/posts.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p4-p4</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
+    expect(res.text).not.toContain('/posts/p2-p2');
+    expect(res.text).not.toContain('/posts/p3-p3');
+  });
+});
+
 describe('GET /sitemaps/tags.txt', () => {
   it('should return tags ordered alphabetically', async () => {
     const res = await request(app.server).get('/sitemaps/tags.txt').expect(200);
@@ -99,5 +118,53 @@ http://localhost:5002/tags/golang
 http://localhost:5002/tags/rust
 http://localhost:5002/tags/webdev
 `);
+  });
+});
+
+describe('GET /sitemaps/tags.xml', () => {
+  it('should return tags sitemap as xml', async () => {
+    await con.getRepository(Keyword).save({
+      value: 'web&ai',
+      occurrences: 1,
+      status: KeywordStatus.Allow,
+    });
+
+    const res = await request(app.server).get('/sitemaps/tags.xml').expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/development</loc>',
+    );
+    expect(res.text).toContain('<loc>http://localhost:5002/tags/webdev</loc>');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/web&amp;ai</loc>',
+    );
+    expect(res.text).not.toContain('/tags/web-development');
+    expect(res.text).not.toContain('/tags/politics');
+    expect(res.text).not.toContain('/tags/pending');
+  });
+});
+
+describe('GET /sitemaps/index.xml', () => {
+  it('should return sitemap index xml', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/index.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/posts.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
+    );
   });
 });

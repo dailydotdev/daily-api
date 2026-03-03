@@ -80,6 +80,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 Allow: /devcards/
 Allow: /graphql
 Allow: /boot
+Allow: /sitemaps/
+Sitemap: https://app.daily.dev/api/sitemaps/index.xml
 Disallow: /`),
   );
 
