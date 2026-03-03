@@ -32,6 +32,7 @@ describe('feedbackUpdatedSlack worker', () => {
     await con.getRepository(User).save({
       id: '1',
       name: 'Test User',
+      email: 'test@daily.dev',
       username: 'testuser',
       image: 'https://daily.dev/test.jpg',
     });
@@ -68,6 +69,17 @@ describe('feedbackUpdatedSlack worker', () => {
 
     expect(postMessageMock).toHaveBeenCalledTimes(1);
     expect(updateMessageMock).not.toHaveBeenCalled();
+    const [{ blocks }] = postMessageMock.mock.calls[0];
+    const emailFieldSection = blocks?.find(
+      (block) =>
+        block.type === 'section' &&
+        'fields' in block &&
+        block.fields?.some(
+          (field) =>
+            field.type === 'mrkdwn' && field.text === '*Email:*\ntest@daily.dev',
+        ),
+    );
+    expect(emailFieldSection).toBeDefined();
 
     const updated = await con
       .getRepository(Feedback)

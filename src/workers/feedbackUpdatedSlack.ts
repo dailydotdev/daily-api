@@ -70,6 +70,13 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
           },
         ];
 
+        if (user?.email) {
+          fields.push({
+            type: 'mrkdwn',
+            text: `*Email:*\n${user.email}`,
+          });
+        }
+
         if (classification?.sentiment) {
           fields.push({
             type: 'mrkdwn',
