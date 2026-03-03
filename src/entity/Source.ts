@@ -58,6 +58,8 @@ export const BRIEFING_SOURCE = 'briefing';
 
 export const DIGEST_SOURCE = 'digest';
 
+export const AGENTS_DIGEST_SOURCE = 'agents_digest';
+
 @Entity()
 @Index('IDX_source_activ_priva_img_name_handl_type', [
   'active',

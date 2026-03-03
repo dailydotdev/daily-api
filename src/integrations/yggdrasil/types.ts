@@ -25,6 +25,9 @@ export type HighlightsParams = {
   limit?: number;
   after?: string;
   orderBy?: 'score' | 'recency';
+  minHighlightScore?: number;
+  from?: string;
+  to?: string;
 };
 
 export type SentimentAnnotation = {

@@ -162,4 +162,15 @@ export const crons: Cron[] = [
     name: 'update-achievement-rarity',
     schedule: '0 3 * * *',
   },
+  {
+    name: 'agents-digest',
+    schedule: '15 3 * * *',
+    limits: {
+      memory: '1Gi',
+    },
+    requests: {
+      cpu: '250m',
+      memory: '1Gi',
+    },
+  },
 ];
