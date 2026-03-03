@@ -76,7 +76,8 @@ describe('feedbackUpdatedSlack worker', () => {
         'fields' in block &&
         block.fields?.some(
           (field) =>
-            field.type === 'mrkdwn' && field.text === '*Email:*\ntest@daily.dev',
+            field.type === 'mrkdwn' &&
+            field.text === '*Email:*\ntest@daily.dev',
         ),
     );
     expect(emailFieldSection).toBeDefined();
