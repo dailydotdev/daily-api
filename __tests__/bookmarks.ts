@@ -109,13 +109,11 @@ describe('mutation addBookmarks', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.addBookmarks).toHaveLength(2);
 
-    const actual = await con
-      .getRepository(Bookmark)
-      .find({
-        where: { userId: loggedUser },
-        select: ['postId', 'userId'],
-        order: { postId: 'ASC' },
-      });
+    const actual = await con.getRepository(Bookmark).find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+      order: { postId: 'ASC' },
+    });
     expect(actual).toMatchSnapshot();
 
     const bookmarks = await con.getRepository(Bookmark).find();
@@ -146,13 +144,11 @@ describe('mutation addBookmarks', () => {
       variables: { data: { postIds: ['p1', 'p3', 'p100'] } },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con
-      .getRepository(Bookmark)
-      .find({
-        where: { userId: loggedUser },
-        select: ['postId', 'userId'],
-        order: { postId: 'ASC' },
-      });
+    const actual = await con.getRepository(Bookmark).find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+      order: { postId: 'ASC' },
+    });
     expect(actual).toMatchSnapshot();
   });
 
