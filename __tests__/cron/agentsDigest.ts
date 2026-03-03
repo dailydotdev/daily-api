@@ -221,9 +221,20 @@ describe('agentsDigest cron', () => {
     expect(bragiGenerateMock).not.toHaveBeenCalled();
   });
 
-  it('should create a new digest post every run', async () => {
+  it('should use last digest createdAt as window start and create a new post', async () => {
     await saveFixtures(con, Source, sourceFixtures);
     await saveFixtures(con, FreeformPost, [
+      {
+        id: 'prev-digest',
+        shortId: 'prev-digest',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        title: 'Previous digest',
+        content: 'Previous content',
+        contentHtml: '<p>Previous content</p>',
+        type: PostType.Freeform,
+        createdAt: new Date('2026-03-03T09:30:00.000Z'),
+        metadataChangedAt: new Date('2026-03-03T09:30:00.000Z'),
+      },
       {
         id: 'vibes-2',
         shortId: 'vibes-2',
@@ -269,14 +280,22 @@ describe('agentsDigest cron', () => {
 
     await expectSuccessfulCron(cron);
 
+    expect(getHighlightsMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        from: '2026-03-03T09:30:00.000Z',
+      }),
+    );
+
     const digestPosts = await con.getRepository(FreeformPost).find({
       where: {
         sourceId: AGENTS_DIGEST_SOURCE,
         type: PostType.Freeform,
       },
     });
-    expect(digestPosts).toHaveLength(1);
-    expect(digestPosts[0]).toMatchObject({
+    expect(digestPosts).toHaveLength(2);
+    const latestPost = digestPosts.find((post) => post.id !== 'prev-digest');
+    expect(latestPost).toMatchObject({
       title: 'Updated title',
       content: 'Updated content',
       showOnFeed: true,

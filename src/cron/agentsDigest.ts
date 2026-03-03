@@ -80,6 +80,32 @@ const findVibesPosts = async ({
       .getRawMany<VibesPostRow>();
   });
 
+const getDigestWindowStart = async ({
+  con,
+  now,
+}: {
+  con: Parameters<Cron['handler']>[0];
+  now: Date;
+}): Promise<Date> => {
+  const fallback = new Date(
+    now.getTime() - DIGEST_LOOKBACK_HOURS * 60 * 60 * 1000,
+  );
+
+  const lastDigest = await con
+    .getRepository(FreeformPost)
+    .createQueryBuilder('post')
+    .where('post.sourceId = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
+    .andWhere('post.type = :type', { type: PostType.Freeform })
+    .orderBy('post.createdAt', 'DESC')
+    .getOne();
+
+  if (!lastDigest?.createdAt) {
+    return fallback;
+  }
+
+  return lastDigest.createdAt > fallback ? lastDigest.createdAt : fallback;
+};
+
 const createDailyDigestPost = async ({
   con,
   now,
@@ -121,9 +147,10 @@ const cron: Cron = {
   name: 'agents-digest',
   handler: async (con, logger) => {
     const now = new Date();
-    const from = new Date(
-      now.getTime() - DIGEST_LOOKBACK_HOURS * 60 * 60 * 1000,
-    );
+    const from = await getDigestWindowStart({
+      con,
+      now,
+    });
 
     const [highlightResponses, vibesPosts] = await Promise.all([
       Promise.all(
