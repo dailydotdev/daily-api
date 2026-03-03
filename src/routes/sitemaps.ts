@@ -1,5 +1,12 @@
 import { FastifyInstance } from 'fastify';
-import { Keyword, KeywordStatus, Post, PostType, User } from '../entity';
+import {
+  Keyword,
+  KeywordStatus,
+  Post,
+  PostType,
+  SentimentEntity,
+  User,
+} from '../entity';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import {
@@ -11,6 +18,10 @@ import {
 
 const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
 const SITEMAP_LIMIT = 50_000;
+const ARENA_SITEMAP_GROUP_IDS = [
+  '385404b4-f0f4-4e81-a338-bdca851eca31',
+  '970ab2c9-f845-4822-82f0-02169713b814',
+];
 
 const escapeXml = (value: string): string =>
   value
@@ -58,6 +69,9 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
 
 const getTagSitemapUrl = (prefix: string, value: string): string =>
   `${prefix}/tags/${value}`;
+
+const getAgentSitemapUrl = (prefix: string, entity: string): string =>
+  `${prefix}/agents/${encodeURIComponent(entity)}`;
 
 const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
@@ -117,6 +131,19 @@ const buildTagsSitemapQuery = (
     .orderBy('value', 'ASC')
     .limit(SITEMAP_LIMIT);
 
+const buildAgentsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<SentimentEntity> =>
+  source
+    .createQueryBuilder()
+    .select('se.entity', 'entity')
+    .from(SentimentEntity, 'se')
+    .where('se."groupId" IN (:...groupIds)', {
+      groupIds: ARENA_SITEMAP_GROUP_IDS,
+    })
+    .orderBy('se.entity', 'ASC')
+    .limit(SITEMAP_LIMIT);
+
 const getSitemapIndexXml = (): string => {
   const prefix = getSitemapUrlPrefix();
 
@@ -127,6 +154,9 @@ const getSitemapIndexXml = (): string => {
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/agents.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
 };
@@ -186,6 +216,21 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(
         toSitemapUrlSetStream(input, (row) =>
           getTagSitemapUrl(prefix, row.value),
+        ),
+      );
+  });
+
+  fastify.get('/agents.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildAgentsSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(input, (row) =>
+          getAgentSitemapUrl(prefix, row.entity),
         ),
       );
   });
