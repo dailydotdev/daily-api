@@ -194,7 +194,7 @@ export const notificationTitleMap: Record<
   campaign_squad_completed: () => `Your Squad boost has ended`,
   campaign_post_first_milestone: () => `Your post boost is live!`,
   campaign_squad_first_milestone: () => `Your Squad boost is live!`,
-  briefing_ready: () => `<strong>Your daily briefing is ready</strong>`,
+  briefing_ready: () => `<strong>Your presidential briefing is ready</strong>`,
   user_follow: (ctx: NotificationUserContext) => {
     return `<strong>${ctx.user.name || ctx.user.username}</strong> is now following you`;
   },
@@ -204,7 +204,7 @@ export const notificationTitleMap: Record<
   in_app_purchases: systemTitle,
   new_opportunity_match: () => `New job match waiting for you`,
   rematched_opportunity: () =>
-    `Updated job match: requirements changed in your favor`,
+    `You've been re-matched based on updated job requirements`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post reached ${formatMetricValue(ctx.analytics.impressions)} impressions`;
   },

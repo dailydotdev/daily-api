@@ -1166,6 +1166,9 @@ describe('generateNotification', () => {
     expect(actual.notification.title).toEqual(
       `<b>${ctx.source.name}</b> is now featured in the Squads directory`,
     );
+    expect(actual.notification.description).toEqual(
+      'Your squad is now discoverable by all daily.dev users',
+    );
   });
 
   it('should generate promoted_to_admin notification', () => {
@@ -1192,6 +1195,9 @@ describe('generateNotification', () => {
     expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
       `You're now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.description).toEqual(
+      'You can now manage members, moderate posts, and configure squad settings',
     );
     expect(actual.notification.targetUrl).toEqual(url.toString());
   });
@@ -1244,6 +1250,9 @@ describe('generateNotification', () => {
     expect(actual.notification.icon).toEqual('User');
     expect(actual.notification.title).toEqual(
       `You're now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.description).toEqual(
+      'You can now moderate posts and manage members in this squad',
     );
     expect(actual.notification.targetUrl).toEqual(url.toString());
   });
@@ -2015,6 +2024,7 @@ describe('user follow notifications', () => {
       `http://localhost:5002/${user.username}`,
     );
     expect(actual.attachments!.length).toEqual(0);
+    expect(actual.notification.description).toBeFalsy();
     expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/ido.jpg',
@@ -2024,6 +2034,38 @@ describe('user follow notifications', () => {
         type: 'user',
       },
     ]);
+  });
+
+  it('should use title in description when user has a title', async () => {
+    const user = {
+      ...usersFixture[0],
+      title: 'Senior Engineer at Acme',
+    };
+    const type = NotificationType.UserFollow;
+    const ctx: NotificationUserContext = {
+      userIds: ['2'],
+      user: user as Reference<User>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.description).toEqual(
+      'Ido, Senior Engineer at Acme',
+    );
+  });
+
+  it('should fall back to bio in description when user has no title', async () => {
+    const user = {
+      ...usersFixture[0],
+      bio: 'Open source enthusiast',
+    };
+    const type = NotificationType.UserFollow;
+    const ctx: NotificationUserContext = {
+      userIds: ['2'],
+      user: user as Reference<User>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.description).toEqual('Open source enthusiast');
   });
 });
 
