@@ -5,7 +5,15 @@ import nock from 'nock';
 import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { Keyword, KeywordStatus, Post, PostType, Source } from '../src/entity';
+import {
+  Keyword,
+  KeywordStatus,
+  Post,
+  PostType,
+  SentimentEntity,
+  SentimentGroup,
+  Source,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
@@ -59,6 +67,42 @@ const postsFixture: DeepPartial<Post>[] = [
   },
 ];
 
+const sentimentGroupsFixture: DeepPartial<SentimentGroup>[] = [
+  {
+    id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+    name: 'Coding Agents',
+  },
+  {
+    id: '970ab2c9-f845-4822-82f0-02169713b814',
+    name: 'LLMs',
+  },
+  {
+    id: '11111111-1111-1111-1111-111111111111',
+    name: 'Other Group',
+  },
+];
+
+const sentimentEntitiesFixture: DeepPartial<SentimentEntity>[] = [
+  {
+    groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+    entity: 'claude_code',
+    name: 'Claude Code',
+    logo: 'https://example.com/claude.png',
+  },
+  {
+    groupId: '970ab2c9-f845-4822-82f0-02169713b814',
+    entity: 'gpt_4_1',
+    name: 'GPT 4.1',
+    logo: 'https://example.com/gpt.png',
+  },
+  {
+    groupId: '11111111-1111-1111-1111-111111111111',
+    entity: 'not_in_arena',
+    name: 'Not In Arena',
+    logo: 'https://example.com/other.png',
+  },
+];
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   app = await appFunc();
@@ -67,6 +111,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   nock.cleanAll();
+  await saveFixtures(con, SentimentGroup, sentimentGroupsFixture);
+  await saveFixtures(con, SentimentEntity, sentimentEntitiesFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await con.getRepository(Post).insert(postsFixture);
@@ -166,5 +212,29 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
+    );
+  });
+});
+
+describe('GET /sitemaps/agents.xml', () => {
+  it('should return arena entity pages sitemap as xml', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/agents.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/agents/claude_code</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
+    );
+    expect(res.text).not.toContain('/agents/not_in_arena');
   });
 });
