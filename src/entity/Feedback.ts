@@ -9,6 +9,9 @@ import {
 } from 'typeorm';
 import type { User } from './user';
 import { UserFeedbackCategory } from '@dailydotdev/schema';
+import type { FeedbackClientInfo } from '../common/schema/feedback';
+
+export type { FeedbackClientInfo };
 
 export enum FeedbackStatus {
   Pending = 0,
@@ -28,15 +31,6 @@ export type FeedbackClassification = {
   hasPromptInjection?: boolean;
   suggestedTeam?: string;
 };
-
-export type FeedbackClientInfo = Partial<{
-  viewport: string;
-  screen: string;
-  timezone: string;
-  language: string;
-  platform: string;
-  theme: string;
-}>;
 
 export type FeedbackFlags = Partial<{
   vordr: boolean;
