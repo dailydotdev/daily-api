@@ -131,28 +131,26 @@ const sanitizeForLinear = (content: string): string =>
 const buildClientEnvironmentSection = (
   input: CreateFeedbackIssueInput,
 ): string => {
-  const rows: [string, string][] = [];
+  const { clientInfo: info } = input;
 
-  if (input.userAgent) {
-    rows.push(['User Agent', sanitizeForLinear(input.userAgent)]);
-  }
+  const entries: [string, string | undefined | null][] = [
+    ['User Agent', input.userAgent],
+    ['Viewport', info?.viewport],
+    ['Screen', info?.screen],
+    ['Timezone', info?.timezone],
+    ['Platform', info?.platform],
+    ['Language', info?.language],
+    ['Theme', info?.theme],
+  ];
 
-  const info = input.clientInfo;
-  if (info) {
-    if (info.viewport) rows.push(['Viewport', info.viewport]);
-    if (info.screen) rows.push(['Screen', info.screen]);
-    if (info.timezone) rows.push(['Timezone', info.timezone]);
-    if (info.platform) rows.push(['Platform', info.platform]);
-    if (info.language) rows.push(['Language', info.language]);
-    if (info.theme) rows.push(['Theme', info.theme]);
-  }
+  const rows = entries.filter((entry): entry is [string, string] => !!entry[1]);
 
   if (rows.length === 0) {
     return '';
   }
 
   const tableRows = rows
-    .map(([field, value]) => `| **${field}** | ${value} |`)
+    .map(([field, value]) => `| **${field}** | ${sanitizeForLinear(value)} |`)
     .join('\n');
 
   return `### Client Environment
