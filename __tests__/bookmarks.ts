@@ -111,7 +111,11 @@ describe('mutation addBookmarks', () => {
 
     const actual = await con
       .getRepository(Bookmark)
-      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+      .find({
+        where: { userId: loggedUser },
+        select: ['postId', 'userId'],
+        order: { postId: 'ASC' },
+      });
     expect(actual).toMatchSnapshot();
 
     const bookmarks = await con.getRepository(Bookmark).find();
@@ -131,6 +135,7 @@ describe('mutation addBookmarks', () => {
     const actual = await repo.find({
       where: { userId: loggedUser },
       select: ['postId', 'userId'],
+      order: { postId: 'ASC' },
     });
     expect(actual).toMatchSnapshot();
   });
@@ -143,7 +148,11 @@ describe('mutation addBookmarks', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Bookmark)
-      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+      .find({
+        where: { userId: loggedUser },
+        select: ['postId', 'userId'],
+        order: { postId: 'ASC' },
+      });
     expect(actual).toMatchSnapshot();
   });
 
