@@ -11,6 +11,7 @@ import {
   checkAchievementProgress,
 } from '../common/achievement';
 import { FastifyBaseLogger } from 'fastify';
+import { isProd } from '../common/utils';
 
 const checkBriefReadAchievement = async (
   con: DataSource,
@@ -239,9 +240,12 @@ const worker: Worker = {
       }
     });
 
-    // Check BriefRead achievement outside the transaction
-    if (didSave && data.userId && data.postId) {
-      await checkBriefReadAchievement(con, logger, data.postId, data.userId);
+    // disabled in prod to see if it impacts add-views-v2 processing
+    if (!isProd) {
+      // Check BriefRead achievement outside the transaction
+      if (didSave && data.userId && data.postId) {
+        await checkBriefReadAchievement(con, logger, data.postId, data.userId);
+      }
     }
   },
 };
