@@ -301,9 +301,7 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       ),
     ).toBeTruthy();
-    expect(actual.notification.title).toEqual(
-      'Your boosted post just wrapped up!',
-    );
+    expect(actual.notification.title).toEqual('Your post boost has ended');
     expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/ido.jpg',
@@ -342,9 +340,7 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d481',
       ),
     ).toBeTruthy();
-    expect(actual.notification.title).toEqual(
-      'Your boosted Squad just wrapped up!',
-    );
+    expect(actual.notification.title).toEqual('Your Squad boost has ended');
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
@@ -563,7 +559,7 @@ describe('generateNotification', () => {
       },
       userIds: [userId],
     };
-    const title = `<b>Oh no! Your 10 day streak has been broken</b>`;
+    const title = `<b>Your 10-day streak was broken</b>`;
     const actual = generateNotificationV2(type, ctx);
 
     expect(actual.notification.type).toEqual(type);
@@ -1104,10 +1100,7 @@ describe('generateNotification', () => {
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
     );
-    // When post is deleted, title should not mention commenting
-    expect(actual.notification.title).toEqual(
-      'Your squad <b>A</b> is <span class="text-theme-color-cabbage">growing</span>! <b>Tsahi</b> has joined the squad.',
-    );
+    expect(actual.notification.title).toEqual('<b>Tsahi</b> joined <b>A</b>');
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
@@ -1171,7 +1164,7 @@ describe('generateNotification', () => {
     expect(actual.notification.targetUrl).toEqual(squadsFeaturedPage);
     expect(actual.notification.icon).toEqual('Bell');
     expect(actual.notification.title).toEqual(
-      `Congratulations! <b>${ctx.source.name}</b> is now officially featured on the Squads directory`,
+      `<b>${ctx.source.name}</b> is now featured in the Squads directory`,
     );
   });
 
@@ -1198,7 +1191,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
-      `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
+      `You're now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(url.toString());
   });
@@ -1250,7 +1243,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('User');
     expect(actual.notification.title).toEqual(
-      `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
+      `You're now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(url.toString());
   });
@@ -1542,7 +1535,7 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.referenceId).toEqual(post.id);
     expect(actual.notification.referenceType).toEqual('post_moderation');
     expect(actual.notification.title).toEqual(
-      'Tsahi just posted in A. This post is waiting for your review before it gets published on the squad.',
+      '<b>Tsahi</b> submitted a post in <b>A</b> for review',
     );
     expect(actual.notification.description).toBeFalsy();
     expect(actual.notification.targetUrl).toEqual(
@@ -1599,7 +1592,7 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.referenceId).toEqual(post.id);
     expect(actual.notification.referenceType).toEqual('post_moderation');
     expect(actual.notification.title).toEqual(
-      'Your post in A was not approved for the following reason: Other. Please review the feedback and consider making changes before resubmitting.',
+      "Your post in <b>A</b> wasn't approved: Other",
     );
     expect(actual.notification.description).toEqual('Lacks value.');
     expect(actual.notification.targetUrl).toEqual(
@@ -1648,7 +1641,7 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
     expect(actual.notification.title).toEqual(
-      'Woohoo! Your post has been approved and is now live in A. Check it out!',
+      'Your post in <b>A</b> has been <span class="text-theme-color-cabbage">approved</span> and is now live',
     );
     expect(actual.notification.description).toBeFalsy();
     expect(actual.notification.targetUrl).toEqual(
@@ -1977,7 +1970,7 @@ describe('digest notifications', () => {
     const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.title).toEqual(
-      '<strong>Your personalized digest is ready!</strong> Here are the top posts curated for you.',
+      '<strong>Your personalized digest is ready</strong>',
     );
     expect(actual.userIds).toEqual(['1']);
     expect(actual.notification.public).toEqual(true);
@@ -2080,7 +2073,7 @@ describe('post analytics notifications', () => {
       },
     ]);
     expect(actual.notification.title).toEqual(
-      'Your post has reached 12,101 impressions so far. <span class="text-text-link">View more analytics</span>',
+      'Your post reached 12,101 impressions',
     );
   });
 
@@ -2102,7 +2095,7 @@ describe('post analytics notifications', () => {
     const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.title).toEqual(
-      'Your post has reached 120.1K impressions so far. <span class="text-text-link">View more analytics</span>',
+      'Your post reached 120.1K impressions',
     );
   });
 });
@@ -2233,7 +2226,7 @@ describe('warm intro notifications', () => {
     expect(actual.notification.referenceType).toEqual('opportunity');
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.title).toEqual(
-      `We just sent an intro email to you and <b>${recruiter.name}</b> from <b>${organization.name}</b>!`,
+      `Intro email sent to you and <b>${recruiter.name}</b> from <b>${organization.name}</b>`,
     );
     expect(actual.notification.description).toEqual(
       `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
@@ -2293,7 +2286,7 @@ describe('parsed_cv_profile notifications', () => {
         type: 'user',
       },
     ]);
-    expect(actual.notification.title).toContain('Great news');
+    expect(actual.notification.title).toContain('CV has been parsed');
   });
 
   it('should notify when parsed CV profile failed', async () => {
@@ -2324,7 +2317,7 @@ describe('parsed_cv_profile notifications', () => {
     ]);
 
     expect(actual.notification.title).toBe(
-      "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.",
+      "We couldn't parse your CV. You can add experience manually in <u>your profile</u>",
     );
   });
 });

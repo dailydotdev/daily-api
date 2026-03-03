@@ -51,8 +51,7 @@ import { generateCampaignPostNotification } from '../common/campaign/post';
 import { generateCampaignSquadNotification } from '../common/campaign/source';
 
 const systemTitle = () => undefined;
-const feedbackCancelledTitle =
-  "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!";
+const feedbackCancelledTitle = 'Your feedback has been reviewed';
 
 const getPostOrSharedPostTitle = (
   ctx: NotificationPostContext,
@@ -74,9 +73,9 @@ export const notificationTitleMap: Record<
 > = {
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
-    `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
+    `Your scouted link is now <span class="text-theme-color-cabbage">live</span> on the feed`,
   article_picked: () =>
-    `Congrats! <b>Your post</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
+    `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post.`,
   article_upvote_milestone: (
@@ -89,7 +88,7 @@ export const notificationTitleMap: Record<
   source_approved: (
     ctx: NotificationSourceRequestContext & NotificationSourceContext,
   ) =>
-    `<b>The source you suggested was</b> <span class="text-theme-color-cabbage">approved!</span> Posts from ${ctx.source.name} will start appearing in the daily.dev feed in the next few days!`,
+    `<b>${ctx.source.name}</b> was <span class="text-theme-color-cabbage">approved</span>. Posts will appear on the feed soon`,
   source_rejected: systemTitle,
   comment_mention: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">mentioned you</span> in a comment.`,
@@ -108,13 +107,7 @@ export const notificationTitleMap: Record<
     ctx: NotificationPostContext &
       NotificationSourceContext &
       NotificationDoneByContext,
-  ) => {
-    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>!`;
-    // Don't mention commenting when welcome post is deleted
-    return ctx.post.deleted
-      ? `${baseMessage} <b>${ctx.doneBy.name}</b> has joined the squad.`
-      : `${baseMessage} Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`;
-  },
+  ) => `<b>${ctx.doneBy.name}</b> joined <b>${ctx.source.name}</b>`,
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -122,89 +115,88 @@ export const notificationTitleMap: Record<
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
   squad_featured: (ctx: NotificationSourceContext) =>
-    `Congratulations! <b>${ctx.source.name}</b> is now officially featured on the Squads directory`,
+    `<b>${ctx.source.name}</b> is now featured in the Squads directory`,
   squad_subscribe_to_notification: (ctx: NotificationSourceContext) =>
-    `Congrats on your first post on <b>${ctx.source.name}</b>. Subscribe to get updates about activity in your squad.`,
+    `Subscribe to <b>${ctx.source.name}</b> notifications to stay in the loop`,
   promoted_to_admin: (ctx: NotificationSourceContext) =>
-    `Congratulations! You are now an <span class="text-theme-color-cabbage">admin</span> of <b>${ctx.source.name}</b>`,
+    `You're now an <span class="text-theme-color-cabbage">admin</span> of <b>${ctx.source.name}</b>`,
   demoted_to_member: (ctx: NotificationSourceMemberRoleContext) =>
     `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
   promoted_to_moderator: (ctx: NotificationSourceContext) =>
-    `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${ctx.source.name}</b>`,
+    `You're now a <span class="text-theme-color-cabbage">moderator</span> in <b>${ctx.source.name}</b>`,
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
-  dev_card_unlocked: () => 'DevCard unlocked!',
+    `<b>${ctx.post.title}</b> collection has been updated`,
+  dev_card_unlocked: () => 'Your DevCard is ready to generate',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
     `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
+  ) => `New post in <b>${ctx.source.name}</b>`,
   squad_public_approved: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
-    `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
+    `<b>${ctx.source.name}</b> is now <span class="text-theme-color-cabbage">public</span>`,
   squad_public_rejected: systemTitle,
   squad_public_submitted: systemTitle,
   streak_reset_restore: (ctx: NotificationStreakRestoreContext) =>
-    `<b>Oh no! Your ${ctx.restore.amount} day streak has been broken</b>`,
+    `<b>Your ${ctx.restore.amount}-day streak was broken</b>`,
   user_post_added: (ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;
 
-    return `New post from <b>${userName}</b>, check it out now!`;
+    return `New post from <b>${userName}</b>`;
   },
   user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
     const keyword =
       (ctx.keyword.flags as KeywordFlags)?.title || ctx.keyword.value;
-    return `Great news! You've earned the top reader badge in ${keyword}.`;
+    return `You earned the <span class="text-theme-color-cabbage">Top Reader</span> badge in ${keyword}`;
   },
   source_post_approved: (ctx: NotificationPostContext) =>
-    `Woohoo! Your post has been approved and is now live in ${ctx.source.name}. Check it out!`,
+    `Your post in <b>${ctx.source.name}</b> has been <span class="text-theme-color-cabbage">approved</span> and is now live`,
   source_post_rejected: (ctx: NotificationPostModerationContext) => {
     const reason = ctx.post.rejectionReason
       ? rejectReason[ctx.post.rejectionReason]
       : rejectReason.OTHER;
-    return `Your post in ${ctx.source.name} was not approved for the following reason: ${reason}. Please review the feedback and consider making changes before resubmitting.`;
+    return `Your post in <b>${ctx.source.name}</b> wasn't approved: ${reason}`;
   },
   source_post_submitted: (ctx: NotificationPostModerationContext) =>
-    `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
+    `<b>${ctx.user.name}</b> submitted a post in <b>${ctx.source.name}</b> for review`,
   user_gifted_plus: (ctx: NotificationGiftPlusContext) => {
     const isGifterTarget = ctx.userIds.includes(ctx.gifter.id);
     return isGifterTarget
-      ? `You've made someone's day! 🎉 Your Plus membership gift to ${ctx.recipient.username} has been delivered successfully.`
-      : `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`;
+      ? `Your Plus gift to <b>${ctx.recipient.username}</b> has been delivered`
+      : `<b>${ctx.gifter.username}</b> gifted you a year of daily.dev Plus`;
   },
   user_received_award: (ctx: NotificationAwardContext) => {
     if (ctx.source) {
       if (ctx.transaction.valueIncFees === 0) {
-        return `Your ${ctx.source.name} Squad just received an Award from ${ctx.sender.username}!`;
+        return `<b>${ctx.sender.username}</b> sent your <b>${ctx.source.name}</b> Squad an Award`;
       }
       const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
-      return `Your ${ctx.source.name} Squad just received +${coreAmount} Cores from ${ctx.sender.username} as an Award!`;
+      return `<b>${ctx.sender.username}</b> awarded your <b>${ctx.source.name}</b> Squad +${coreAmount} Cores`;
     }
 
     if (ctx.transaction.valueIncFees === 0) {
-      return `You just received an Award from ${ctx.sender.username}! Keep creating great content!`;
+      return `<b>${ctx.sender.username}</b> sent you an Award`;
     }
 
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
-    return `You just received +${coreAmount} Cores from ${ctx.sender.username} as an Award! Keep creating great content!`;
+    return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores`;
   },
   organization_member_joined: ({
     user,
     organization,
   }: NotificationOrganizationContext) => {
-    return `<strong>Your team is growing!</strong> ${user.name} just joined your organization ${organization.name}. They now have access to daily.dev Plus ✧`;
+    return `<b>${user.name}</b> joined <b>${organization.name}</b>`;
   },
-  campaign_post_completed: () => `Your boosted post just wrapped up!`,
-  campaign_squad_completed: () => `Your boosted Squad just wrapped up!`,
+  campaign_post_completed: () => `Your post boost has ended`,
+  campaign_squad_completed: () => `Your Squad boost has ended`,
   campaign_post_first_milestone: () => `Your post boost is live!`,
   campaign_squad_first_milestone: () => `Your Squad boost is live!`,
-  briefing_ready: () =>
-    `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
+  briefing_ready: () => `<strong>Your daily briefing is ready</strong>`,
   user_follow: (ctx: NotificationUserContext) => {
-    return `<strong>${ctx.user.name || ctx.user.username}</strong> started following you.`;
+    return `<strong>${ctx.user.name || ctx.user.username}</strong> is now following you`;
   },
   marketing: systemTitle,
   new_user_welcome: systemTitle,
@@ -212,25 +204,25 @@ export const notificationTitleMap: Record<
   in_app_purchases: systemTitle,
   new_opportunity_match: () => `New job match waiting for you`,
   rematched_opportunity: () =>
-    `Job requirements changed, and you've been re-matched with a job`,
+    `Updated job match: requirements changed in your favor`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
-    return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
+    return `Your post reached ${formatMetricValue(ctx.analytics.impressions)} impressions`;
   },
   poll_result: (ctx: NotificationPostContext) =>
     `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
-    `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
+    `Intro email sent to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>`,
   parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
     if (ctx.status === 'success') {
-      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your public profile</u>! You can control the experience visibility in your profile settings.`;
+      return `Your CV has been parsed and experience added to <u>your profile</u>`;
     }
 
-    return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
+    return `We couldn't parse your CV. You can add experience manually in <u>your profile</u>`;
   },
   recruiter_new_candidate: (ctx: NotificationRecruiterNewCandidateContext) =>
-    `<b>${ctx.candidate.name || ctx.candidate.username}</b> <span class="text-theme-color-cabbage">accepted</span> your job opportunity!`,
+    `<b>${ctx.candidate.name || ctx.candidate.username}</b> <span class="text-theme-color-cabbage">accepted</span> your opportunity`,
   recruiter_opportunity_live: (
     ctx: NotificationRecruiterOpportunityLiveContext,
   ) =>
@@ -244,12 +236,11 @@ export const notificationTitleMap: Record<
   ) =>
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
   feedback_resolved: () =>
-    `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
+    `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>`,
   feedback_cancelled: () => feedbackCancelledTitle,
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
-  digest_ready: () =>
-    `<strong>Your personalized digest is ready!</strong> Here are the top posts curated for you.`,
+  digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
 };
 
 export const generateNotificationMap: Record<
@@ -451,6 +442,7 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source)
+      .description('Your squad is now discoverable by all daily.dev users')
       .uniqueKey(format(new Date(), 'dd-MM-yyyy')),
   squad_subscribe_to_notification: (builder, ctx: NotificationSourceContext) =>
     builder
@@ -464,6 +456,9 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Star)
       .referenceSource(ctx.source)
+      .description(
+        'You can now manage members, moderate posts, and configure squad settings',
+      )
       .targetUrl(notificationsLink)
       .setTargetUrlParameter([
         ['promoted', 'true'],
@@ -482,6 +477,9 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.User)
       .referenceSource(ctx.source)
+      .description(
+        'You can now moderate posts and manage members in this squad',
+      )
       .targetUrl(notificationsLink)
       .setTargetUrlParameter([
         ['promoted', 'true'],
@@ -559,7 +557,8 @@ export const generateNotificationMap: Record<
       .referenceOrganization(ctx.organization)
       .targetUrl(getOrganizationPermalink(ctx.organization))
       .icon(NotificationIcon.Bell)
-      .avatarOrganization(ctx.organization),
+      .avatarOrganization(ctx.organization)
+      .description('They now have access to daily.dev Plus'),
   campaign_post_completed: generateCampaignPostNotification,
   campaign_squad_completed: generateCampaignSquadNotification,
   campaign_post_first_milestone: generateCampaignPostNotification,
@@ -576,11 +575,16 @@ export const generateNotificationMap: Record<
       .uniqueKey(ctx.post.id);
   },
   user_follow: (builder, ctx: NotificationUserContext) => {
-    return builder
+    const userName = ctx.user.name || ctx.user.username;
+    const desc = ctx.user.title
+      ? `${userName}, ${ctx.user.title}`
+      : ctx.user.bio || '';
+    const base = builder
       .icon(NotificationIcon.Bell)
       .referenceUser(ctx.user)
       .avatarUser(ctx.user)
       .targetUser(ctx.user);
+    return desc ? base.description(desc) : base;
   },
   marketing: (builder) => builder.systemNotification(),
   new_user_welcome: (builder) => builder.systemNotification(),
