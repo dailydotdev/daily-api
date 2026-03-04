@@ -7,6 +7,7 @@ import {
 } from '../common';
 import { generateAndStoreNotificationsV2 } from '../notifications';
 import {
+  cleanupDigestReadyNotifications,
   NotificationPreferenceStatus,
   NotificationType,
 } from '../notifications/common';
@@ -152,6 +153,8 @@ const digestTypeToFunctionMap: Record<
           ad,
           adIndex: digestFeature.adIndex,
         });
+
+        await cleanupDigestReadyNotifications(con.manager, user.id);
 
         const postCtx = await buildPostContext(con, digestPostId);
 

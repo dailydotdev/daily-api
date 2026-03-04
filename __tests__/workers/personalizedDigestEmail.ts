@@ -903,7 +903,7 @@ describe('personalizedDigestEmail worker', () => {
     );
   });
 
-  it('should create new notification when DigestPost already exists from previous run', async () => {
+  it('should cleanup old digest_ready notification when creating new one', async () => {
     const oldDate = new Date('2020-01-01');
     const existingPostId = 'prev-digest';
 
@@ -922,7 +922,7 @@ describe('personalizedDigestEmail worker', () => {
       },
     });
 
-    await con.getRepository(NotificationV2).insert({
+    const oldNotification = await con.getRepository(NotificationV2).save({
       type: NotificationType.DigestReady,
       public: true,
       icon: 'Bell',
@@ -931,6 +931,12 @@ describe('personalizedDigestEmail worker', () => {
       referenceId: existingPostId,
       referenceType: 'post',
       uniqueKey: oldDate.toString(),
+    });
+
+    await con.getRepository(UserNotification).insert({
+      notificationId: oldNotification.id,
+      userId: '1',
+      createdAt: oldDate,
     });
 
     const personalizedDigest = await con
@@ -950,7 +956,14 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(NotificationV2)
       .findBy({ type: NotificationType.DigestReady });
 
-    expect(notifications).toHaveLength(2);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].id).not.toBe(oldNotification.id);
+
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .findBy({ userId: '1', notificationId: oldNotification.id });
+
+    expect(userNotifications).toHaveLength(0);
   });
 
   it('should truncate long posts summary', async () => {
