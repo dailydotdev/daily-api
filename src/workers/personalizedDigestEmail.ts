@@ -2,6 +2,7 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
+  isProd,
   sendEmail,
   triggerTypedEvent,
 } from '../common';
@@ -144,28 +145,36 @@ const digestTypeToFunctionMap: Record<
 
     await dedupedSend(
       async () => {
-        const digestPostId = await upsertDigestPost({
-          con,
-          userId: user.id,
-          postIds,
-          sourceIds,
-          ad,
-          adIndex: digestFeature.adIndex,
-        });
+        if (!isProd) {
+          const digestPostId = await upsertDigestPost({
+            con,
+            userId: user.id,
+            postIds,
+            sourceIds,
+            ad,
+            adIndex: digestFeature.adIndex,
+          });
 
+<<<<<<< Updated upstream
         const postCtx = await buildPostContext(con, digestPostId);
+=======
+          await cleanupDigestReadyNotifications(con.manager, user.id);
 
-        if (postCtx) {
-          await generateAndStoreNotificationsV2(con.manager, [
-            {
-              type: NotificationType.DigestReady,
-              ctx: {
-                ...postCtx,
-                userIds: [user.id],
-                sendAtMs: emailSendTimestamp,
+          const postCtx = await buildPostContext(con, digestPostId);
+>>>>>>> Stashed changes
+
+          if (postCtx) {
+            await generateAndStoreNotificationsV2(con.manager, [
+              {
+                type: NotificationType.DigestReady,
+                ctx: {
+                  ...postCtx,
+                  userIds: [user.id],
+                  sendAtMs: emailSendTimestamp,
+                },
               },
-            },
-          ]);
+            ]);
+          }
         }
 
         const emailPref =
