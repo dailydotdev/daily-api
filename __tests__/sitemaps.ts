@@ -16,6 +16,7 @@ import {
   Source,
 } from '../src/entity';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
+import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
@@ -220,6 +221,9 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
     );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
+    );
   });
 });
 
@@ -297,6 +301,58 @@ describe('GET /sitemaps/agents-digest.xml', () => {
     ).toBeLessThan(
       res.text.indexOf('<loc>http://localhost:5002/posts/ad2-ad2</loc>'),
     );
+  });
+});
+
+describe('GET /sitemaps/squads.xml', () => {
+  it('should return public squads with publicThreshold as xml sitemap', async () => {
+    await con
+      .getRepository(Source)
+      .update(
+        { id: 'm' },
+        { flags: updateFlagsStatement<Source>({ publicThreshold: true }) },
+      );
+
+    const res = await request(app.server)
+      .get('/sitemaps/squads.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=14400, s-maxage=14400',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/squads/moderatedsquad</loc>',
+    );
+    expect(res.text).not.toContain('/squads/squad');
+  });
+
+  it('should exclude squads without publicThreshold', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/squads.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/squads/moderatedsquad');
+    expect(res.text).not.toContain('/squads/squad');
+  });
+
+  it('should exclude inactive squads even with publicThreshold', async () => {
+    await con.getRepository(Source).update(
+      { id: 'm' },
+      {
+        active: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+
+    const res = await request(app.server)
+      .get('/sitemaps/squads.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/squads/moderatedsquad');
   });
 });
 

@@ -5,6 +5,8 @@ import {
   Post,
   PostType,
   SentimentEntity,
+  Source,
+  SourceType,
   User,
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
@@ -77,6 +79,9 @@ const getTagSitemapUrl = (prefix: string, value: string): string =>
 
 const getAgentSitemapUrl = (prefix: string, entity: string): string =>
   `${prefix}/agents/${encodeURIComponent(entity)}`;
+
+const getSquadSitemapUrl = (prefix: string, handle: string): string =>
+  `${prefix}/squads/${encodeURIComponent(handle)}`;
 
 const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
@@ -180,6 +185,21 @@ const buildAgentsDigestSitemapQuery = (
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
 
+const buildSquadsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Source> =>
+  source
+    .createQueryBuilder()
+    .select('s.handle', 'handle')
+    .addSelect('s."createdAt"', 'lastmod')
+    .from(Source, 's')
+    .where('s.type = :type', { type: SourceType.Squad })
+    .andWhere('s.active = true')
+    .andWhere('s.private = false')
+    .andWhere(`(s.flags->>'publicThreshold')::boolean IS TRUE`)
+    .orderBy('s."createdAt"', 'DESC')
+    .limit(SITEMAP_LIMIT);
+
 const getSitemapIndexXml = (): string => {
   const prefix = getSitemapUrlPrefix();
 
@@ -199,6 +219,9 @@ const getSitemapIndexXml = (): string => {
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/squads.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
 };
@@ -343,6 +366,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(
         toSitemapUrlSetStream(input, (row) =>
           getPostSitemapUrl(prefix, row.slug),
+        ),
+      );
+  });
+
+  fastify.get('/squads.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildSquadsSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getSquadSitemapUrl(prefix, row.handle),
+          getSitemapRowLastmod,
         ),
       );
   });
