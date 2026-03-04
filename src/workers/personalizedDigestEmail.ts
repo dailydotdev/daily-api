@@ -8,6 +8,7 @@ import {
 import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
 import {
+  cleanupDigestReadyNotifications,
   NotificationPreferenceStatus,
   NotificationType,
 } from '../notifications/common';
@@ -161,7 +162,10 @@ const digestTypeToFunctionMap: Record<
             });
           });
 
-          const postCtx = await buildPostContext(con, digestPostId);
+          const [postCtx] = await Promise.all([
+            buildPostContext(con, digestPostId),
+            cleanupDigestReadyNotifications(con.manager, user.id),
+          ]);
 
           if (postCtx) {
             await generateAndStoreNotificationsV2(con.manager, [

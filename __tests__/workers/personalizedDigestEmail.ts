@@ -903,7 +903,7 @@ describe('personalizedDigestEmail worker', () => {
     );
   });
 
-  it('should create new notification when DigestPost already exists from previous run', async () => {
+  it('should cleanup old digest_ready notification when creating new one', async () => {
     const oldDate = new Date('2020-01-01');
     const existingPostId = 'prev-digest';
 
@@ -922,7 +922,7 @@ describe('personalizedDigestEmail worker', () => {
       },
     });
 
-    await con.getRepository(NotificationV2).insert({
+    const oldNotification = await con.getRepository(NotificationV2).save({
       type: NotificationType.DigestReady,
       public: true,
       icon: 'Bell',
@@ -931,6 +931,29 @@ describe('personalizedDigestEmail worker', () => {
       referenceId: existingPostId,
       referenceType: 'post',
       uniqueKey: oldDate.toString(),
+    });
+
+    await con.getRepository(UserNotification).insert({
+      notificationId: oldNotification.id,
+      userId: '1',
+      createdAt: oldDate,
+    });
+
+    const otherUserNotification = await con.getRepository(NotificationV2).save({
+      type: NotificationType.DigestReady,
+      public: true,
+      icon: 'Bell',
+      title: 'Other user digest',
+      targetUrl: `http://localhost:5002/posts/other`,
+      referenceId: existingPostId,
+      referenceType: 'post',
+      uniqueKey: 'other-key',
+    });
+
+    await con.getRepository(UserNotification).insert({
+      notificationId: otherUserNotification.id,
+      userId: '2',
+      createdAt: oldDate,
     });
 
     const personalizedDigest = await con
@@ -951,6 +974,24 @@ describe('personalizedDigestEmail worker', () => {
       .findBy({ type: NotificationType.DigestReady });
 
     expect(notifications).toHaveLength(2);
+    expect(
+      notifications.find((n) => n.id === oldNotification.id),
+    ).toBeUndefined();
+    expect(
+      notifications.find((n) => n.id === otherUserNotification.id),
+    ).toBeDefined();
+
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .findBy({ userId: '1', notificationId: oldNotification.id });
+
+    expect(userNotifications).toHaveLength(0);
+
+    const otherUserNotifications = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ id: otherUserNotification.id });
+
+    expect(otherUserNotifications).not.toBeNull();
   });
 
   it('should truncate long posts summary', async () => {
