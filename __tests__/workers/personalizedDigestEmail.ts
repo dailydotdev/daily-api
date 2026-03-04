@@ -939,6 +939,23 @@ describe('personalizedDigestEmail worker', () => {
       createdAt: oldDate,
     });
 
+    const otherUserNotification = await con.getRepository(NotificationV2).save({
+      type: NotificationType.DigestReady,
+      public: true,
+      icon: 'Bell',
+      title: 'Other user digest',
+      targetUrl: `http://localhost:5002/posts/other`,
+      referenceId: existingPostId,
+      referenceType: 'post',
+      uniqueKey: 'other-key',
+    });
+
+    await con.getRepository(UserNotification).insert({
+      notificationId: otherUserNotification.id,
+      userId: '2',
+      createdAt: oldDate,
+    });
+
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -956,14 +973,25 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(NotificationV2)
       .findBy({ type: NotificationType.DigestReady });
 
-    expect(notifications).toHaveLength(1);
-    expect(notifications[0].id).not.toBe(oldNotification.id);
+    expect(notifications).toHaveLength(2);
+    expect(
+      notifications.find((n) => n.id === oldNotification.id),
+    ).toBeUndefined();
+    expect(
+      notifications.find((n) => n.id === otherUserNotification.id),
+    ).toBeDefined();
 
     const userNotifications = await con
       .getRepository(UserNotification)
       .findBy({ userId: '1', notificationId: oldNotification.id });
 
     expect(userNotifications).toHaveLength(0);
+
+    const otherUserNotifications = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ id: otherUserNotification.id });
+
+    expect(otherUserNotifications).not.toBeNull();
   });
 
   it('should truncate long posts summary', async () => {
