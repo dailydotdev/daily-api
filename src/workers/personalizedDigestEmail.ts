@@ -147,37 +147,33 @@ const digestTypeToFunctionMap: Record<
     await dedupedSend(
       async () => {
         if (remoteConfig.vars.digestPostEnabled) {
-          const digestPostId = await con.transaction(async (manager) => {
-            await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
-              `digest_post:${user.id}`,
-            ]);
-
-            return upsertDigestPost({
-              con: manager,
-              userId: user.id,
-              postIds,
-              sourceIds,
-              ad,
-              adIndex: digestFeature.adIndex,
-            });
+          const digestPostId = await upsertDigestPost({
+            con,
+            userId: user.id,
+            postIds,
+            sourceIds,
+            ad,
+            adIndex: digestFeature.adIndex,
           });
 
-          const [postCtx] = await Promise.all([
-            buildPostContext(con, digestPostId),
-            cleanupDigestReadyNotifications(con.manager, user.id),
-          ]);
-
-          if (postCtx) {
-            await generateAndStoreNotificationsV2(con.manager, [
-              {
-                type: NotificationType.DigestReady,
-                ctx: {
-                  ...postCtx,
-                  userIds: [user.id],
-                  sendAtMs: emailSendTimestamp,
-                },
-              },
+          if (digestPostId) {
+            const [postCtx] = await Promise.all([
+              buildPostContext(con, digestPostId),
+              cleanupDigestReadyNotifications(con.manager, user.id),
             ]);
+
+            if (postCtx) {
+              await generateAndStoreNotificationsV2(con.manager, [
+                {
+                  type: NotificationType.DigestReady,
+                  ctx: {
+                    ...postCtx,
+                    userIds: [user.id],
+                    sendAtMs: emailSendTimestamp,
+                  },
+                },
+              ]);
+            }
           }
         }
 

@@ -39,6 +39,7 @@ import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../../src/integrations/feed/types';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { DigestPost } from '../../src/entity/posts/DigestPost';
+import { DIGEST_SOURCE } from '../../src/entity/Source';
 import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { NotificationType } from '../../src/notifications/common';
@@ -101,6 +102,7 @@ jest.mock('../../src/common/typedPubsub', () => ({
 let con: DataSource;
 let nockScope: nock.Scope;
 let nockBody: Record<string, string> = {};
+const digestStubId = 'digest-stub-1';
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -127,6 +129,15 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixtureWithAddedData);
   await con.getRepository(UserPersonalizedDigest).save({
     userId: '1',
+  });
+
+  await con.getRepository(DigestPost).insert({
+    id: digestStubId,
+    shortId: digestStubId,
+    authorId: '1',
+    private: true,
+    visible: false,
+    sourceId: DIGEST_SOURCE,
   });
 
   const mockedPostIds = postsFixtureWithAddedData
@@ -577,7 +588,7 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(0);
   });
 
-  it('should create DigestPost when generating digest email', async () => {
+  it('should update DigestPost stub when generating digest email', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -587,7 +598,8 @@ describe('personalizedDigestEmail worker', () => {
     const digestPostBefore = await con
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
-    expect(digestPostBefore).toBeNull();
+    expect(digestPostBefore).not.toBeNull();
+    expect(digestPostBefore!.visible).toBeFalsy();
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
@@ -602,6 +614,7 @@ describe('personalizedDigestEmail worker', () => {
     if (!digestPost) {
       throw new Error('DigestPost not found');
     }
+    expect(digestPost.id).toBe(digestStubId);
     expect(digestPost.type).toBe(PostType.Digest);
     expect(digestPost.authorId).toBe('1');
     expect(digestPost.private).toBeTruthy();
@@ -809,7 +822,7 @@ describe('personalizedDigestEmail worker', () => {
     expect(digestPost.flags.ad).toBeNull();
   });
 
-  it('should not create DigestPost when no posts returned from feed', async () => {
+  it('should not update DigestPost stub when no posts returned from feed', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -838,13 +851,42 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
 
-    expect(digestPost).toBeNull();
+    expect(digestPost).not.toBeNull();
+    expect(digestPost!.visible).toBeFalsy();
 
     const notification = await con
       .getRepository(NotificationV2)
       .findOneBy({ type: NotificationType.DigestReady });
 
     expect(notification).toBeNull();
+  });
+
+  it('should log warning and skip notification when DigestPost stub does not exist', async () => {
+    await con.getRepository(DigestPost).delete({ id: digestStubId });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeNull();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+    expect(notification).toBeNull();
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it('should update existing DigestPost flags on subsequent digest generation', async () => {
@@ -906,30 +948,27 @@ describe('personalizedDigestEmail worker', () => {
 
   it('should cleanup old digest_ready notification when creating new one', async () => {
     const oldDate = new Date('2020-01-01');
-    const existingPostId = 'prev-digest';
 
-    await con.getRepository(DigestPost).insert({
-      id: existingPostId,
-      shortId: existingPostId,
-      authorId: '1',
-      private: true,
-      visible: true,
-      sourceId: 'digest',
-      metadataChangedAt: oldDate,
-      flags: {
-        digestPostIds: ['old-1', 'old-2'],
-        collectionSources: ['old-source'],
-        ad: null,
+    await con.getRepository(DigestPost).update(
+      { id: digestStubId },
+      {
+        visible: true,
+        metadataChangedAt: oldDate,
+        flags: {
+          digestPostIds: ['old-1', 'old-2'],
+          collectionSources: ['old-source'],
+          ad: null,
+        },
       },
-    });
+    );
 
     const oldNotification = await con.getRepository(NotificationV2).save({
       type: NotificationType.DigestReady,
       public: true,
       icon: 'Bell',
       title: 'Previous digest',
-      targetUrl: `http://localhost:5002/posts/${existingPostId}`,
-      referenceId: existingPostId,
+      targetUrl: `http://localhost:5002/posts/${digestStubId}`,
+      referenceId: digestStubId,
       referenceType: 'post',
       uniqueKey: oldDate.toString(),
     });
@@ -946,7 +985,7 @@ describe('personalizedDigestEmail worker', () => {
       icon: 'Bell',
       title: 'Other user digest',
       targetUrl: `http://localhost:5002/posts/other`,
-      referenceId: existingPostId,
+      referenceId: digestStubId,
       referenceType: 'post',
       uniqueKey: 'other-key',
     });
