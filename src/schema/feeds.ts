@@ -468,7 +468,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Optional content curation filter
       """
-      contentCuration: String
+      contentCuration: [String!]
 
       """
       Paginate after opaque cursor
@@ -1431,7 +1431,7 @@ const feedResolverCursor = feedResolver<
 
 type ChannelFeedArgs = ConnectionArguments & {
   channel: string;
-  contentCuration?: string;
+  contentCuration?: string[];
   supportedTypes?: string[];
 };
 
@@ -1466,8 +1466,8 @@ const channelFeedResolver = feedResolver<
         offset: 0,
         channel: args.channel,
         cursor: page.cursor,
-        allowed_content_curations: args.contentCuration
-          ? [args.contentCuration]
+        allowed_content_curations: args.contentCuration?.length
+          ? args.contentCuration
           : undefined,
         allowed_post_types: args.supportedTypes,
       }),
