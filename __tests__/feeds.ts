@@ -2214,6 +2214,16 @@ describe('query channelFeed', () => {
       ${feedFields()}
     }
   }`;
+  const channel = 'devops';
+  const first = 2;
+
+  const queryChannelFeed = async (variables: {
+    channel: string;
+    first: number;
+    after?: string;
+    supportedTypes?: string[];
+    contentCuration?: string[];
+  }) => client.query(QUERY, { variables });
 
   it('should proxy channel feed to feed service', async () => {
     const cursor = base64('10');
@@ -2235,77 +2245,65 @@ describe('query channelFeed', () => {
         cursor: base64('12'),
       });
 
-    const res = await client.query(QUERY, {
-      variables: {
-        channel: 'devops',
-        contentCuration: ['news'],
-        first: 2,
-        after: cursor,
-        supportedTypes: ['article'],
-      },
+    const res = await queryChannelFeed({
+      channel,
+      contentCuration: ['news'],
+      first,
+      after: cursor,
+      supportedTypes: ['article'],
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.channelFeed.edges).toHaveLength(2);
   });
 
-  it('should forward multiple content curations to feed service', async () => {
-    nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
-        expect(body).toMatchObject({
-          feed_config_name: FeedConfigName.Channel,
-          channel: 'frontend',
-          page_size: 2,
-          offset: 0,
-          allowed_content_curations: ['news', 'tutorial'],
+  it.each([
+    {
+      name: 'forward multiple content curations',
+      contentCuration: ['news', 'tutorial'],
+      expectedAllowedContentCurations: ['news', 'tutorial'],
+    },
+    {
+      name: 'omit content curation filter when empty array is provided',
+      contentCuration: [],
+      expectedAllowedContentCurations: undefined,
+    },
+    {
+      name: 'omit content curation filter when not provided',
+      contentCuration: undefined,
+      expectedAllowedContentCurations: undefined,
+    },
+  ])(
+    'should $name',
+    async ({ contentCuration, expectedAllowedContentCurations }) => {
+      nock('http://localhost:6000')
+        .post('/feed.json', (body) => {
+          expect(body).toMatchObject({
+            feed_config_name: FeedConfigName.Channel,
+            channel,
+            page_size: first,
+            offset: 0,
+          });
+          expect(body.allowed_content_curations).toEqual(
+            expectedAllowedContentCurations,
+          );
+          return true;
+        })
+        .reply(200, {
+          data: [{ post_id: 'p1' }],
+          cursor: base64('1'),
         });
-        return true;
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-        cursor: base64('2'),
+
+      const res = await queryChannelFeed({
+        channel,
+        contentCuration,
+        first,
       });
 
-    const res = await client.query(QUERY, {
-      variables: {
-        channel: 'frontend',
-        contentCuration: ['news', 'tutorial'],
-        first: 2,
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.channelFeed.edges).toHaveLength(2);
-  });
-
-  it('should not send content curation filter for empty array', async () => {
-    nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
-        expect(body).toMatchObject({
-          feed_config_name: FeedConfigName.Channel,
-          channel: 'devops',
-          page_size: 2,
-          offset: 0,
-        });
-        expect(body.allowed_content_curations).toBeUndefined();
-        return true;
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }],
-        cursor: base64('1'),
-      });
-
-    const res = await client.query(QUERY, {
-      variables: {
-        channel: 'devops',
-        contentCuration: [],
-        first: 2,
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.channelFeed.edges).toHaveLength(1);
-  });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.channelFeed.edges).toHaveLength(1);
+    },
+  );
 });
 
 describe('query similarPostsFeed', () => {
