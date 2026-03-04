@@ -35,6 +35,7 @@ const keysToDrop = (
 
 const worker: Worker = {
   subscription: 'api.experiment-allocated',
+  maxMessages: 10,
   handler: async (message): Promise<void> => {
     const data: Data = messageToJson(message);
     await ioRedisPool.execute(async (client) => {
