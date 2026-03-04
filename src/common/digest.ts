@@ -35,39 +35,27 @@ export const upsertDigestPost = async ({
     ad: adSnapshot,
   };
 
-  const repo = con.getRepository(DigestPost);
-  const existing = await repo.findOneBy({
-    authorId: userId,
-    sourceId: DIGEST_SOURCE,
-  });
-
-  if (existing) {
-    await repo
-      .createQueryBuilder()
-      .update()
-      .set({
-        flags: () => 'flags || :flagsJson',
-        metadataChangedAt: new Date(),
-      })
-      .where({ id: existing.id })
-      .setParameter('flagsJson', JSON.stringify(flags))
-      .execute();
-    return existing.id;
-  }
-
   const postId = await generateShortId();
+  const repo = con.getRepository(DigestPost);
 
-  const post = repo.create({
-    id: postId,
-    shortId: postId,
-    authorId: userId,
-    private: true,
-    visible: true,
-    sourceId: DIGEST_SOURCE,
-    flags,
-  });
+  const result = await repo
+    .createQueryBuilder()
+    .insert()
+    .into(DigestPost)
+    .values({
+      id: postId,
+      shortId: postId,
+      authorId: userId,
+      private: true,
+      visible: true,
+      sourceId: DIGEST_SOURCE,
+      flags,
+    })
+    .onConflict(
+      `("authorId", "sourceId") WHERE "type" = 'digest' DO UPDATE SET "flags" = post."flags" || EXCLUDED."flags", "metadataChangedAt" = NOW()`,
+    )
+    .returning('"id"')
+    .execute();
 
-  await repo.insert(post);
-
-  return postId;
+  return result.raw[0].id;
 };
