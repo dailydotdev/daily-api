@@ -3,7 +3,6 @@ import { DigestPost } from '../entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../entity/Source';
 import { generateShortId } from '../ids';
 import type { SkadiAd } from '../integrations/skadi';
-import { updateFlagsStatement } from './utils';
 
 type DigestAdSnapshot = {
   type: string;
@@ -43,10 +42,16 @@ export const upsertDigestPost = async ({
   });
 
   if (existing) {
-    await repo.update(existing.id, {
-      flags: updateFlagsStatement<DigestPost>(flags),
-      metadataChangedAt: new Date(),
-    });
+    await repo
+      .createQueryBuilder()
+      .update()
+      .set({
+        flags: () => 'flags || :flagsJson',
+        metadataChangedAt: new Date(),
+      })
+      .where({ id: existing.id })
+      .setParameter('flagsJson', JSON.stringify(flags))
+      .execute();
     return existing.id;
   }
 
