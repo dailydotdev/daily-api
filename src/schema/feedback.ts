@@ -6,7 +6,7 @@ import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
 import { User } from '../entity/user/User';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, type FindOptionsWhere, type EntityManager } from 'typeorm';
 import type { z } from 'zod';
 import {
   feedbackClientInfoSchema,
@@ -200,6 +200,64 @@ const mapRepliesByFeedbackId = ({
   return repliesByFeedbackId;
 };
 
+const fetchFeedbackConnectionNodes = async ({
+  manager,
+  where,
+  page,
+  includeUsers,
+}: {
+  manager: EntityManager;
+  where: FindOptionsWhere<Feedback>;
+  page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
+  includeUsers?: boolean;
+}): Promise<{ nodes: GQLFeedbackItem[]; total: number }> => {
+  const [feedbackItems, feedbackTotal] = await manager
+    .getRepository(Feedback)
+    .findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: page.limit,
+      skip: page.offset,
+    });
+
+  const feedbackIds = feedbackItems.map((feedback) => feedback.id);
+  const replies = feedbackIds.length
+    ? await manager.getRepository(FeedbackReply).find({
+        where: { feedbackId: In(feedbackIds) },
+        order: { createdAt: 'ASC' },
+      })
+    : [];
+
+  const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
+
+  let usersById: Map<string, GQLFeedbackUser> | undefined;
+  if (includeUsers) {
+    const userIds = [...new Set(feedbackItems.map((item) => item.userId))];
+    const users = userIds.length
+      ? await manager.getRepository(User).find({
+          where: { id: In(userIds) },
+          select: ['id', 'name', 'username', 'image'],
+        })
+      : [];
+    usersById = new Map(users.map((user) => [user.id, user]));
+  }
+
+  return {
+    nodes: feedbackItems.map((feedback) => ({
+      id: feedback.id,
+      category: feedback.category,
+      description: feedback.description,
+      status: feedback.status,
+      screenshotUrl: feedback.screenshotUrl,
+      createdAt: feedback.createdAt,
+      updatedAt: feedback.updatedAt,
+      replies: repliesByFeedbackId.get(feedback.id) ?? [],
+      user: usersById?.get(feedback.userId),
+    })),
+    total: feedbackTotal,
+  };
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     userFeedback: async (
@@ -211,42 +269,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const { nodes, total } = await queryReadReplica(
         ctx.con,
-        async ({ queryRunner }) => {
-          const [feedbackItems, feedbackTotal] = await queryRunner.manager
-            .getRepository(Feedback)
-            .findAndCount({
-              where: { userId: ctx.userId },
-              order: { createdAt: 'DESC' },
-              take: page.limit,
-              skip: page.offset,
-            });
-
-          const feedbackIds = feedbackItems.map((feedback) => feedback.id);
-          const replies = feedbackIds.length
-            ? await queryRunner.manager.getRepository(FeedbackReply).find({
-                where: {
-                  feedbackId: In(feedbackIds),
-                },
-                order: { createdAt: 'ASC' },
-              })
-            : [];
-
-          const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
-
-          return {
-            nodes: feedbackItems.map((feedback) => ({
-              id: feedback.id,
-              category: feedback.category,
-              description: feedback.description,
-              status: feedback.status,
-              screenshotUrl: feedback.screenshotUrl,
-              createdAt: feedback.createdAt,
-              updatedAt: feedback.updatedAt,
-              replies: repliesByFeedbackId.get(feedback.id) ?? [],
-            })),
-            total: feedbackTotal,
-          };
-        },
+        ({ queryRunner }) =>
+          fetchFeedbackConnectionNodes({
+            manager: queryRunner.manager,
+            where: { userId: ctx.userId },
+            page,
+          }),
       );
 
       return connectionFromNodes(
@@ -281,54 +309,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const { nodes, total } = await queryReadReplica(
         ctx.con,
-        async ({ queryRunner }) => {
-          const [feedbackItems, feedbackTotal] = await queryRunner.manager
-            .getRepository(Feedback)
-            .findAndCount({
-              where,
-              order: { createdAt: 'DESC' },
-              take: page.limit,
-              skip: page.offset,
-            });
-
-          const feedbackIds = feedbackItems.map((feedback) => feedback.id);
-          const replies = feedbackIds.length
-            ? await queryRunner.manager.getRepository(FeedbackReply).find({
-                where: {
-                  feedbackId: In(feedbackIds),
-                },
-                order: { createdAt: 'ASC' },
-              })
-            : [];
-
-          const userIds = [
-            ...new Set(feedbackItems.map((item) => item.userId)),
-          ];
-          const users = userIds.length
-            ? await queryRunner.manager.getRepository(User).find({
-                where: { id: In(userIds) },
-                select: ['id', 'name', 'username', 'image'],
-              })
-            : [];
-
-          const usersById = new Map(users.map((user) => [user.id, user]));
-          const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
-
-          return {
-            nodes: feedbackItems.map((feedback) => ({
-              id: feedback.id,
-              category: feedback.category,
-              description: feedback.description,
-              status: feedback.status,
-              screenshotUrl: feedback.screenshotUrl,
-              createdAt: feedback.createdAt,
-              updatedAt: feedback.updatedAt,
-              replies: repliesByFeedbackId.get(feedback.id) ?? [],
-              user: usersById.get(feedback.userId),
-            })),
-            total: feedbackTotal,
-          };
-        },
+        ({ queryRunner }) =>
+          fetchFeedbackConnectionNodes({
+            manager: queryRunner.manager,
+            where,
+            page,
+            includeUsers: true,
+          }),
       );
 
       return connectionFromNodes(

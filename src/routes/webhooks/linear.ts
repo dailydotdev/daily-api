@@ -23,6 +23,7 @@ import {
   CioTransactionalMessageTemplateId,
   sendEmail,
 } from '../../common/mailing';
+import { z } from 'zod';
 
 // Linear state name to FeedbackStatus mapping
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
@@ -97,10 +98,16 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           return res.status(200).send({ success: true });
         }
 
+        const authorEmail = comment.user?.email?.trim();
+        const safeAuthorEmail =
+          authorEmail && z.email().safeParse(authorEmail).success
+            ? authorEmail
+            : null;
+
         const parsedReply = feedbackReplySchema.safeParse({
           body: commentBody.replace(replyPrefix, '').trim(),
           authorName: comment.user?.name ?? null,
-          authorEmail: comment.user?.email ?? null,
+          authorEmail: safeAuthorEmail,
         });
 
         if (!parsedReply.success) {

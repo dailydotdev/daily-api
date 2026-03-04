@@ -495,6 +495,37 @@ describe('POST /webhooks/linear', () => {
         }),
       );
     });
+
+    it('should create reply when author email is invalid and fallback to support reply_to', async () => {
+      const feedback = await createFeedback();
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'comment-123',
+          body: '@reply Shared an update for this',
+          issue: { id: 'linear-issue-123' },
+          user: { name: 'Chris', email: 'invalid-email' },
+        },
+      };
+
+      await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      const replies = await con.getRepository(FeedbackReply).findBy({
+        feedbackId: feedback.id,
+      });
+      expect(replies).toHaveLength(1);
+      expect(replies[0].authorEmail).toBeNull();
+      expect(mailing.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reply_to: 'support@daily.dev',
+        }),
+      );
+    });
   });
 
   describe('idempotency', () => {

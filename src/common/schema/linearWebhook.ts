@@ -28,7 +28,7 @@ export const linearCommentDataSchema = z.object({
   user: z
     .object({
       name: z.string(),
-      email: z.email().optional(),
+      email: z.string().optional(),
     })
     .optional(),
 });
