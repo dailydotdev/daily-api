@@ -50,13 +50,17 @@ const toSitemapTextStream = (
 const toSitemapUrlSetStream = (
   input: NodeJS.ReadableStream,
   getUrl: (row: Record<string, string>) => string,
+  getLastmod?: (row: Record<string, string>) => string | undefined,
 ): Readable =>
   Readable.from(
     (async function* () {
       yield '<?xml version="1.0" encoding="UTF-8"?>\n';
       yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       for await (const row of input as AsyncIterable<Record<string, string>>) {
-        yield `  <url><loc>${escapeXml(getUrl(row))}</loc></url>\n`;
+        const lastmod = getLastmod?.(row);
+        yield lastmod
+          ? `  <url><loc>${escapeXml(getUrl(row))}</loc><lastmod>${escapeXml(lastmod)}</lastmod></url>\n`
+          : `  <url><loc>${escapeXml(getUrl(row))}</loc></url>\n`;
       }
       yield '</urlset>';
     })(),
@@ -110,6 +114,7 @@ const buildPostsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
@@ -121,12 +126,30 @@ const buildPostsSitemapQuery = (
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
 
+const buildEvergreenSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  source
+    .createQueryBuilder()
+    .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
+    .from(Post, 'p')
+    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .andWhere('NOT p.private')
+    .andWhere('NOT p.banned')
+    .andWhere('NOT p.deleted')
+    .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
+    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 50 })
+    .orderBy('p.upvotes', 'DESC')
+    .limit(SITEMAP_LIMIT);
+
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Keyword> =>
   source
     .createQueryBuilder()
     .select('k.value', 'value')
+    .addSelect('k."updatedAt"', 'lastmod')
     .from(Keyword, 'k')
     .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
@@ -166,6 +189,9 @@ const getSitemapIndexXml = (): string => {
     <loc>${escapeXml(`${prefix}/api/sitemaps/posts.xml`)}</loc>
   </sitemap>
   <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/evergreen.xml`)}</loc>
+  </sitemap>
+  <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
   </sitemap>
   <sitemap>
@@ -175,6 +201,40 @@ const getSitemapIndexXml = (): string => {
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
+};
+
+export const getSitemapRowLastmod = (
+  row: Record<string, string | Date | null | undefined>,
+): string | undefined => {
+  const rawLastmod = row.lastmod;
+
+  if (!rawLastmod) {
+    return undefined;
+  }
+
+  if (rawLastmod instanceof Date) {
+    if (Number.isNaN(rawLastmod.getTime())) {
+      return undefined;
+    }
+
+    return rawLastmod.toISOString();
+  }
+
+  const normalizedLastmod = rawLastmod.includes('T')
+    ? rawLastmod
+    : rawLastmod.replace(' ', 'T');
+  const withTimezone =
+    normalizedLastmod.endsWith('Z') ||
+    /[+-]\d{2}:?\d{2}$/.test(normalizedLastmod)
+      ? normalizedLastmod
+      : `${normalizedLastmod}Z`;
+  const timestamp = new Date(withTimezone);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    return undefined;
+  }
+
+  return timestamp.toISOString();
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -201,8 +261,27 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getPostSitemapUrl(prefix, row.slug),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get('/evergreen.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildEvergreenSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
         ),
       );
   });
@@ -230,8 +309,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getTagSitemapUrl(prefix, row.value),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getTagSitemapUrl(prefix, row.value),
+          getSitemapRowLastmod,
         ),
       );
   });
