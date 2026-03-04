@@ -2209,7 +2209,7 @@ describe('query randomTrendingPosts', () => {
 });
 
 describe('query channelFeed', () => {
-  const QUERY = `query ChannelFeed($channel: String!, $contentCuration: String, $first: Int, $after: String, $supportedTypes: [String!]) {
+  const QUERY = `query ChannelFeed($channel: String!, $contentCuration: [String!], $first: Int, $after: String, $supportedTypes: [String!]) {
     channelFeed(channel: $channel, contentCuration: $contentCuration, first: $first, after: $after, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
@@ -2238,7 +2238,7 @@ describe('query channelFeed', () => {
     const res = await client.query(QUERY, {
       variables: {
         channel: 'devops',
-        contentCuration: 'news',
+        contentCuration: ['news'],
         first: 2,
         after: cursor,
         supportedTypes: ['article'],
@@ -2247,6 +2247,64 @@ describe('query channelFeed', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.channelFeed.edges).toHaveLength(2);
+  });
+
+  it('should forward multiple content curations to feed service', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body).toMatchObject({
+          feed_config_name: FeedConfigName.Channel,
+          channel: 'frontend',
+          page_size: 2,
+          offset: 0,
+          allowed_content_curations: ['news', 'tutorial'],
+        });
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: base64('2'),
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        channel: 'frontend',
+        contentCuration: ['news', 'tutorial'],
+        first: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelFeed.edges).toHaveLength(2);
+  });
+
+  it('should not send content curation filter for empty array', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body).toMatchObject({
+          feed_config_name: FeedConfigName.Channel,
+          channel: 'devops',
+          page_size: 2,
+          offset: 0,
+        });
+        expect(body.allowed_content_curations).toBeUndefined();
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+        cursor: base64('1'),
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        channel: 'devops',
+        contentCuration: [],
+        first: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelFeed.edges).toHaveLength(1);
   });
 });
 
