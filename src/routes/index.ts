@@ -120,12 +120,12 @@ https://app.daily.dev`,
 
   // Debugging endpoint
   fastify.post('/e', (req, res) => {
-    req.log.debug({ body: req.body }, 'events received');
+    req.log.debug({ reqBody: req.body }, 'events received');
     return res.status(204).send();
   });
 
   fastify.post('/e/x', (req, res) => {
-    req.log.debug({ body: req.body }, 'allocation received');
+    req.log.debug({ reqBody: req.body }, 'allocation received');
     return res.status(204).send();
   });
 

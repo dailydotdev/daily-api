@@ -204,7 +204,7 @@ export default async function app(
                 'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
               ) {
                 app.log.debug(
-                  { body: ctx?.reply?.request?.body },
+                  { gqlQuery: ctx?.reply?.request?.body },
                   'unknown query',
                 );
               } else if (error.originalError instanceof BrokenCircuitError) {
@@ -222,7 +222,7 @@ export default async function app(
                 app.log.warn(
                   {
                     err: error.originalError,
-                    body: ctx?.reply?.request?.body,
+                    gqlQuery: ctx?.reply?.request?.body,
                   },
                   'unexpected graphql error',
                 );
