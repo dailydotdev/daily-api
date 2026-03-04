@@ -2,10 +2,10 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
-  isProd,
   sendEmail,
   triggerTypedEvent,
 } from '../common';
+import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
 import {
   NotificationPreferenceStatus,
@@ -145,14 +145,20 @@ const digestTypeToFunctionMap: Record<
 
     await dedupedSend(
       async () => {
-        if (!isProd) {
-          const digestPostId = await upsertDigestPost({
-            con,
-            userId: user.id,
-            postIds,
-            sourceIds,
-            ad,
-            adIndex: digestFeature.adIndex,
+        if (remoteConfig.vars.digestPostEnabled) {
+          const digestPostId = await con.transaction(async (manager) => {
+            await manager.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
+              `digest_post:${user.id}`,
+            ]);
+
+            return upsertDigestPost({
+              con: manager,
+              userId: user.id,
+              postIds,
+              sourceIds,
+              ad,
+              adIndex: digestFeature.adIndex,
+            });
           });
 
           const postCtx = await buildPostContext(con, digestPostId);

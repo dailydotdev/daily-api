@@ -47,6 +47,7 @@ jest.mock('../src/remoteConfig', () => ({
         recruiter: 'pro_recruiter',
       },
       recruiterChannelInviteUsers: ['U013C30NE3V'],
+      digestPostEnabled: true,
     } as typeof remoteConfig.vars,
     validLanguages: {
       en: 'English',
