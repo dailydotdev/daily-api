@@ -203,7 +203,7 @@ const getSitemapIndexXml = (): string => {
 </sitemapindex>`;
 };
 
-const getSitemapRowLastmod = (
+export const getSitemapRowLastmod = (
   row: Record<string, string>,
 ): string | undefined => {
   if (!row.lastmod) {

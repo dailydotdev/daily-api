@@ -15,6 +15,7 @@ import {
   SentimentGroup,
   Source,
 } from '../src/entity';
+import { getSitemapRowLastmod } from '../src/routes/sitemaps';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
@@ -296,5 +297,15 @@ describe('GET /sitemaps/agents-digest.xml', () => {
     ).toBeLessThan(
       res.text.indexOf('<loc>http://localhost:5002/posts/ad2-ad2</loc>'),
     );
+  });
+});
+
+describe('getSitemapRowLastmod', () => {
+  it('should normalize pg timestamp format to ISO-8601', () => {
+    const normalizedLastmod = getSitemapRowLastmod({
+      lastmod: '2024-01-01 12:00:00.123456',
+    });
+
+    expect(normalizedLastmod).toEqual('2024-01-01T12:00:00.123Z');
   });
 });
