@@ -164,13 +164,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'agents-digest',
-    schedule: '15 3 * * *',
-    limits: {
-      memory: '1Gi',
-    },
-    requests: {
-      cpu: '250m',
-      memory: '1Gi',
-    },
+    schedule: '17 4 * * *',
   },
 ];
