@@ -308,4 +308,12 @@ describe('getSitemapRowLastmod', () => {
 
     expect(normalizedLastmod).toEqual('2024-01-01T12:00:00.123Z');
   });
+
+  it('should return ISO format for Date lastmod values', () => {
+    const normalizedLastmod = getSitemapRowLastmod({
+      lastmod: new Date('2024-01-01T12:00:00.123Z'),
+    });
+
+    expect(normalizedLastmod).toEqual('2024-01-01T12:00:00.123Z');
+  });
 });

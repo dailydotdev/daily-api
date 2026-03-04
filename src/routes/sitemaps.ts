@@ -204,15 +204,25 @@ const getSitemapIndexXml = (): string => {
 };
 
 export const getSitemapRowLastmod = (
-  row: Record<string, string>,
+  row: Record<string, string | Date | null | undefined>,
 ): string | undefined => {
-  if (!row.lastmod) {
+  const rawLastmod = row.lastmod;
+
+  if (!rawLastmod) {
     return undefined;
   }
 
-  const normalizedLastmod = row.lastmod.includes('T')
-    ? row.lastmod
-    : row.lastmod.replace(' ', 'T');
+  if (rawLastmod instanceof Date) {
+    if (Number.isNaN(rawLastmod.getTime())) {
+      return undefined;
+    }
+
+    return rawLastmod.toISOString();
+  }
+
+  const normalizedLastmod = rawLastmod.includes('T')
+    ? rawLastmod
+    : rawLastmod.replace(' ', 'T');
   const withTimezone =
     normalizedLastmod.endsWith('Z') ||
     /[+-]\d{2}:?\d{2}$/.test(normalizedLastmod)
