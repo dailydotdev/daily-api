@@ -65,6 +65,31 @@ const postsFixture: DeepPartial<Post>[] = [
     createdAt: new Date(now.getTime() - 4000),
     type: PostType.Collection,
   },
+  {
+    id: 'ad1',
+    shortId: 'ad1',
+    title: 'AD1',
+    sourceId: 'agents_digest',
+    createdAt: new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000),
+    type: PostType.Welcome,
+  },
+  {
+    id: 'ad2',
+    shortId: 'ad2',
+    title: 'AD2',
+    sourceId: 'agents_digest',
+    createdAt: new Date(now.getTime() - 92 * 24 * 60 * 60 * 1000),
+    type: PostType.Welcome,
+  },
+  {
+    id: 'ad3',
+    shortId: 'ad3',
+    title: 'AD3',
+    sourceId: 'agents_digest',
+    createdAt: new Date(now.getTime() - 93 * 24 * 60 * 60 * 1000),
+    type: PostType.Welcome,
+    deleted: true,
+  },
 ];
 
 const sentimentGroupsFixture: DeepPartial<SentimentGroup>[] = [
@@ -215,6 +240,9 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
     );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
+    );
   });
 });
 
@@ -236,5 +264,31 @@ describe('GET /sitemaps/agents.xml', () => {
       '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
     );
     expect(res.text).not.toContain('/agents/not_in_arena');
+  });
+});
+
+describe('GET /sitemaps/agents-digest.xml', () => {
+  it('should return agents digest posts sitemap as xml', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/agents-digest.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/ad1-ad1</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/ad2-ad2</loc>',
+    );
+    expect(res.text).not.toContain('/posts/ad3-ad3');
+    expect(
+      res.text.indexOf('<loc>http://localhost:5002/posts/ad1-ad1</loc>'),
+    ).toBeLessThan(
+      res.text.indexOf('<loc>http://localhost:5002/posts/ad2-ad2</loc>'),
+    );
   });
 });
