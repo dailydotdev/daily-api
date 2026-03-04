@@ -19,10 +19,23 @@ export const linearIssueSchema = z.object({
   state: linearIssueStateSchema.optional(),
 });
 
-// Linear webhook payload schema for Issue events
-export const linearWebhookPayloadSchema = z.object({
+export const linearCommentDataSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  issue: z.object({
+    id: z.string(),
+  }),
+  user: z
+    .object({
+      name: z.string(),
+      email: z.email().optional(),
+    })
+    .optional(),
+});
+
+const linearIssueWebhookPayloadSchema = z.object({
   action: z.enum(linearWebhookActions),
-  type: z.string(),
+  type: z.literal('Issue'),
   data: linearIssueSchema,
   updatedFrom: z
     .object({
@@ -30,6 +43,18 @@ export const linearWebhookPayloadSchema = z.object({
     })
     .optional(),
 });
+
+const linearCommentWebhookPayloadSchema = z.object({
+  action: z.literal('create'),
+  type: z.literal('Comment'),
+  data: linearCommentDataSchema,
+});
+
+// Linear webhook payload schema for feedback issue status/replies
+export const linearWebhookPayloadSchema = z.discriminatedUnion('type', [
+  linearIssueWebhookPayloadSchema,
+  linearCommentWebhookPayloadSchema,
+]);
 
 export type LinearWebhookPayload = z.infer<typeof linearWebhookPayloadSchema>;
 export type LinearIssueState = z.infer<typeof linearIssueStateSchema>;
