@@ -6,6 +6,7 @@ import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
+  AGENTS_DIGEST_SOURCE,
   Keyword,
   KeywordStatus,
   Post,
@@ -64,31 +65,6 @@ const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 4000),
     type: PostType.Collection,
-  },
-  {
-    id: 'ad1',
-    shortId: 'ad1',
-    title: 'AD1',
-    sourceId: 'agents_digest',
-    createdAt: new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000),
-    type: PostType.Welcome,
-  },
-  {
-    id: 'ad2',
-    shortId: 'ad2',
-    title: 'AD2',
-    sourceId: 'agents_digest',
-    createdAt: new Date(now.getTime() - 92 * 24 * 60 * 60 * 1000),
-    type: PostType.Welcome,
-  },
-  {
-    id: 'ad3',
-    shortId: 'ad3',
-    title: 'AD3',
-    sourceId: 'agents_digest',
-    createdAt: new Date(now.getTime() - 93 * 24 * 60 * 60 * 1000),
-    type: PostType.Welcome,
-    deleted: true,
   },
 ];
 
@@ -269,12 +245,42 @@ describe('GET /sitemaps/agents.xml', () => {
 
 describe('GET /sitemaps/agents-digest.xml', () => {
   it('should return agents digest posts sitemap as xml', async () => {
+    await con.getRepository(Post).insert([
+      {
+        id: 'ad1',
+        shortId: 'ad1',
+        title: 'AD1',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: now,
+        type: PostType.Digest,
+      },
+      {
+        id: 'ad2',
+        shortId: 'ad2',
+        title: 'AD2',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: new Date(now.getTime() - 1000),
+        type: PostType.Digest,
+      },
+      {
+        id: 'ad3',
+        shortId: 'ad3',
+        title: 'AD3',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: new Date(now.getTime() - 2000),
+        type: PostType.Digest,
+        deleted: true,
+      },
+    ]);
+
     const res = await request(app.server)
       .get('/sitemaps/agents-digest.xml')
       .expect(200);
 
     expect(res.header['content-type']).toContain('application/xml');
-    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=14400, s-maxage=14400',
+    );
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
