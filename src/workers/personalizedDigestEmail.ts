@@ -144,31 +144,29 @@ const digestTypeToFunctionMap: Record<
 
     await dedupedSend(
       async () => {
-        await con.transaction(async (entityManager) => {
-          const digestPostId = await upsertDigestPost({
-            con: entityManager,
-            userId: user.id,
-            postIds,
-            sourceIds,
-            ad,
-            adIndex: digestFeature.adIndex,
-          });
-
-          const postCtx = await buildPostContext(entityManager, digestPostId);
-
-          if (postCtx) {
-            await generateAndStoreNotificationsV2(entityManager, [
-              {
-                type: NotificationType.DigestReady,
-                ctx: {
-                  ...postCtx,
-                  userIds: [user.id],
-                  sendAtMs: emailSendTimestamp,
-                },
-              },
-            ]);
-          }
+        const digestPostId = await upsertDigestPost({
+          con,
+          userId: user.id,
+          postIds,
+          sourceIds,
+          ad,
+          adIndex: digestFeature.adIndex,
         });
+
+        const postCtx = await buildPostContext(con, digestPostId);
+
+        if (postCtx) {
+          await generateAndStoreNotificationsV2(con.manager, [
+            {
+              type: NotificationType.DigestReady,
+              ctx: {
+                ...postCtx,
+                userIds: [user.id],
+                sendAtMs: emailSendTimestamp,
+              },
+            },
+          ]);
+        }
 
         const emailPref =
           user.notificationFlags?.[NotificationType.BriefingReady]?.email ??
