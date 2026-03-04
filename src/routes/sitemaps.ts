@@ -50,13 +50,17 @@ const toSitemapTextStream = (
 const toSitemapUrlSetStream = (
   input: NodeJS.ReadableStream,
   getUrl: (row: Record<string, string>) => string,
+  getLastmod?: (row: Record<string, string>) => string | undefined,
 ): Readable =>
   Readable.from(
     (async function* () {
       yield '<?xml version="1.0" encoding="UTF-8"?>\n';
       yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       for await (const row of input as AsyncIterable<Record<string, string>>) {
-        yield `  <url><loc>${escapeXml(getUrl(row))}</loc></url>\n`;
+        const lastmod = getLastmod?.(row);
+        yield lastmod
+          ? `  <url><loc>${escapeXml(getUrl(row))}</loc><lastmod>${escapeXml(lastmod)}</lastmod></url>\n`
+          : `  <url><loc>${escapeXml(getUrl(row))}</loc></url>\n`;
       }
       yield '</urlset>';
     })(),
@@ -110,6 +114,7 @@ const buildPostsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
@@ -121,12 +126,30 @@ const buildPostsSitemapQuery = (
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
 
+const buildEvergreenSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  source
+    .createQueryBuilder()
+    .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
+    .from(Post, 'p')
+    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .andWhere('NOT p.private')
+    .andWhere('NOT p.banned')
+    .andWhere('NOT p.deleted')
+    .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
+    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 50 })
+    .orderBy('p.upvotes', 'DESC')
+    .limit(SITEMAP_LIMIT);
+
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Keyword> =>
   source
     .createQueryBuilder()
     .select('k.value', 'value')
+    .addSelect('k."updatedAt"', 'lastmod')
     .from(Keyword, 'k')
     .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
@@ -159,22 +182,40 @@ const buildAgentsDigestSitemapQuery = (
 
 const getSitemapIndexXml = (): string => {
   const prefix = getSitemapUrlPrefix();
+  const now = new Date().toISOString();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/posts.xml`)}</loc>
+    <lastmod>${escapeXml(now)}</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/evergreen.xml`)}</loc>
+    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
+    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents.xml`)}</loc>
+    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
+};
+
+const getSitemapRowLastmod = (
+  row: Record<string, string>,
+): string | undefined => {
+  if (!row.lastmod) {
+    return undefined;
+  }
+
+  return row.lastmod;
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -201,8 +242,27 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getPostSitemapUrl(prefix, row.slug),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get('/evergreen.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildEvergreenSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
         ),
       );
   });
@@ -230,8 +290,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getTagSitemapUrl(prefix, row.value),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getTagSitemapUrl(prefix, row.value),
+          getSitemapRowLastmod,
         ),
       );
   });
