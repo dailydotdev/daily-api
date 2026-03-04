@@ -182,25 +182,20 @@ const buildAgentsDigestSitemapQuery = (
 
 const getSitemapIndexXml = (): string => {
   const prefix = getSitemapUrlPrefix();
-  const now = new Date().toISOString();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/posts.xml`)}</loc>
-    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/evergreen.xml`)}</loc>
-    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
-    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents.xml`)}</loc>
-    <lastmod>${escapeXml(now)}</lastmod>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
@@ -215,7 +210,21 @@ const getSitemapRowLastmod = (
     return undefined;
   }
 
-  return row.lastmod;
+  const normalizedLastmod = row.lastmod.includes('T')
+    ? row.lastmod
+    : row.lastmod.replace(' ', 'T');
+  const withTimezone =
+    normalizedLastmod.endsWith('Z') ||
+    /[+-]\d{2}:?\d{2}$/.test(normalizedLastmod)
+      ? normalizedLastmod
+      : `${normalizedLastmod}Z`;
+  const timestamp = new Date(withTimezone);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    return undefined;
+  }
+
+  return timestamp.toISOString();
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
