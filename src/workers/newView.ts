@@ -64,7 +64,7 @@ const addView = async (con: EntityManager, entity: View): Promise<boolean> => {
     !existing ||
     entity.timestamp.getTime() - existing.timestamp.getTime() > ONE_WEEK
   ) {
-    await repo.save(entity);
+    await repo.insert(entity);
     return true;
   }
   return false;
