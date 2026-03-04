@@ -159,6 +159,7 @@ jest.mock('../src/growthbook', () => {
 
   return {
     ...actual,
+    loadFeatures: jest.fn(),
     getUserGrowthBookInstance: () => ({
       getFeatureValue: (featureId: string, defaultValue: unknown) =>
         featureId === actual.features.profileCompletionPostGate.id &&
