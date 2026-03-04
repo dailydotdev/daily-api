@@ -7,6 +7,7 @@ import {
   SentimentEntity,
   User,
 } from '../entity';
+import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import {
@@ -144,6 +145,18 @@ const buildAgentsSitemapQuery = (
     .orderBy('se.entity', 'ASC')
     .limit(SITEMAP_LIMIT);
 
+const buildAgentsDigestSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  source
+    .createQueryBuilder()
+    .select('p.slug', 'slug')
+    .from(Post, 'p')
+    .where('p."sourceId" = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
+    .andWhere('NOT p.deleted')
+    .orderBy('p."createdAt"', 'DESC')
+    .limit(SITEMAP_LIMIT);
+
 const getSitemapIndexXml = (): string => {
   const prefix = getSitemapUrlPrefix();
 
@@ -157,6 +170,9 @@ const getSitemapIndexXml = (): string => {
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
 };
@@ -231,6 +247,21 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(
         toSitemapUrlSetStream(input, (row) =>
           getAgentSitemapUrl(prefix, row.entity),
+        ),
+      );
+  });
+
+  fastify.get('/agents-digest.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildAgentsDigestSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(input, (row) =>
+          getPostSitemapUrl(prefix, row.slug),
         ),
       );
   });

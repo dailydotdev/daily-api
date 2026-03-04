@@ -6,6 +6,7 @@ import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
+  AGENTS_DIGEST_SOURCE,
   Keyword,
   KeywordStatus,
   Post,
@@ -215,6 +216,9 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
     );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
+    );
   });
 });
 
@@ -236,5 +240,61 @@ describe('GET /sitemaps/agents.xml', () => {
       '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
     );
     expect(res.text).not.toContain('/agents/not_in_arena');
+  });
+});
+
+describe('GET /sitemaps/agents-digest.xml', () => {
+  it('should return agents digest posts sitemap as xml', async () => {
+    await con.getRepository(Post).insert([
+      {
+        id: 'ad1',
+        shortId: 'ad1',
+        title: 'AD1',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: now,
+        type: PostType.Digest,
+      },
+      {
+        id: 'ad2',
+        shortId: 'ad2',
+        title: 'AD2',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: new Date(now.getTime() - 1000),
+        type: PostType.Digest,
+      },
+      {
+        id: 'ad3',
+        shortId: 'ad3',
+        title: 'AD3',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        createdAt: new Date(now.getTime() - 2000),
+        type: PostType.Digest,
+        deleted: true,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/agents-digest.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=14400, s-maxage=14400',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/ad1-ad1</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/ad2-ad2</loc>',
+    );
+    expect(res.text).not.toContain('/posts/ad3-ad3');
+    expect(
+      res.text.indexOf('<loc>http://localhost:5002/posts/ad1-ad1</loc>'),
+    ).toBeLessThan(
+      res.text.indexOf('<loc>http://localhost:5002/posts/ad2-ad2</loc>'),
+    );
   });
 });

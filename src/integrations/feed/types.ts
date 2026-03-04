@@ -10,7 +10,7 @@ export type FeedResponse = {
 
 export enum FeedConfigName {
   Personalise = 'personalise',
-  Channel = 'channel',
+  Channel = 'channel_v1',
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
