@@ -155,13 +155,7 @@ const digestTypeToFunctionMap: Record<
             adIndex: digestFeature.adIndex,
           });
 
-<<<<<<< Updated upstream
-        const postCtx = await buildPostContext(con, digestPostId);
-=======
-          await cleanupDigestReadyNotifications(con.manager, user.id);
-
           const postCtx = await buildPostContext(con, digestPostId);
->>>>>>> Stashed changes
 
           if (postCtx) {
             await generateAndStoreNotificationsV2(con.manager, [
