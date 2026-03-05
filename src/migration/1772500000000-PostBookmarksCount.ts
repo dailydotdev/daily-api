@@ -26,7 +26,7 @@ export class PostBookmarksCount1772500000000 implements MigrationInterface {
       CREATE OR REPLACE TRIGGER increment_post_bookmark_count_create_trigger
         AFTER INSERT ON "bookmark"
         FOR EACH ROW
-        EXECUTE PROCEDURE increment_post_bookmark_count()
+        EXECUTE FUNCTION increment_post_bookmark_count()
     `);
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION decrement_post_bookmark_count()
@@ -44,7 +44,7 @@ export class PostBookmarksCount1772500000000 implements MigrationInterface {
       CREATE OR REPLACE TRIGGER decrement_post_bookmark_count_delete_trigger
         AFTER DELETE ON "bookmark"
         FOR EACH ROW
-        EXECUTE PROCEDURE decrement_post_bookmark_count()
+        EXECUTE FUNCTION decrement_post_bookmark_count()
     `);
     await queryRunner.query(`
       UPDATE post
