@@ -190,12 +190,12 @@ const getBootQuery = (req: FastifyRequest): BootQuery =>
 const getBootReferrer = (req: FastifyRequest): string | undefined =>
   unwrapArray(getBootQuery(req).referrer);
 
-const getBootApp = (req: FastifyRequest): string | undefined =>
-  unwrapArray(req.headers.app as string | string[] | undefined);
+const getBootAppPlatform = (req: FastifyRequest): string | undefined =>
+  unwrapArray(req.headers.app as string | string[] | undefined) ??
+  unwrapArray(getBootQuery(req).app_platform);
 
 const isExtensionBootRequest = (req: FastifyRequest): boolean =>
-  getBootApp(req) === 'extension' ||
-  unwrapArray(getBootQuery(req).app_platform) === 'extension';
+  getBootAppPlatform(req) === 'extension';
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
   generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);

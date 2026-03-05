@@ -604,6 +604,30 @@ describe('logged in boot', () => {
     );
   });
 
+  it('should return lastExtensionUse from user flags', async () => {
+    const lastExtensionUse = new Date('2026-01-15T10:20:30.000Z');
+
+    mockLoggedIn();
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: updateFlagsStatement({
+          lastExtensionUse,
+        }),
+      },
+    );
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.flags.lastExtensionUse).toEqual(
+      lastExtensionUse.toISOString(),
+    );
+  });
+
   it('should set hasLocationSet to true when user has location date flag', async () => {
     await con.getRepository(User).save({
       ...usersFixture[0],
