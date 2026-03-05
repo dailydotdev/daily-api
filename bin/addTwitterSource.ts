@@ -97,6 +97,7 @@ const start = async (): Promise<void> => {
       status: 'processing',
       options: {
         twitter_account: { username: profile.username },
+        audience_fit: { threshold: 0.4 },
       },
     });
     return;
@@ -126,6 +127,9 @@ const start = async (): Promise<void> => {
     options: {
       twitter_account: {
         username: profile.username,
+      },
+      audience_fit: {
+        threshold: 0.4,
       },
     },
   };
