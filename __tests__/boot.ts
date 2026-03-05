@@ -541,6 +541,7 @@ describe('logged in boot', () => {
     expect(
       new Date(user.flags.lastExtensionUse as Date).getTime(),
     ).toBeGreaterThanOrEqual(requestStart);
+    expect(user.inc).toBeGreaterThan(0);
   });
 
   it('should not set lastExtensionUse when app header is not extension', async () => {
