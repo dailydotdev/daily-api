@@ -226,7 +226,7 @@ const updateLastExtensionUse = async ({
       flags: updateFlagsStatement<User>({
         lastExtensionUse: new Date(),
       }),
-      inc: Math.floor(Date.now() / 1000),
+      inc: () => 'inc + 1',
     },
   );
 };
