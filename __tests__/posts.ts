@@ -676,6 +676,31 @@ describe('numReposts field', () => {
   });
 });
 
+describe('numBookmarks field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      numBookmarks
+    }
+  }`;
+
+  it('should return the total number of bookmarks from post analytics', async () => {
+    await con.getRepository(PostAnalytics).save({
+      id: 'p1',
+      bookmarks: 7,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.numBookmarks).toEqual(7);
+  });
+
+  it('should return 0 when post analytics does not exist', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.numBookmarks).toEqual(0);
+  });
+});
+
 describe('domain field', () => {
   const QUERY = `{
     post(id: "p1") {
