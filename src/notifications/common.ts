@@ -568,22 +568,19 @@ export const cleanupDigestReadyNotifications = async (
 ) => {
   const subQuery = con
     .createQueryBuilder()
+    .subQuery()
     .select('un."notificationId"')
     .from(UserNotification, 'un')
-    .innerJoin(NotificationV2, 'n', 'n.id = un."notificationId"')
     .where('un."userId" = :userId')
-    .andWhere('n.type = :type')
     .getQuery();
 
   await con
     .createQueryBuilder()
     .delete()
     .from(NotificationV2)
-    .where(`id IN (${subQuery})`)
-    .setParameters({
-      userId,
-      type: NotificationType.DigestReady,
-    })
+    .where('type = :type', { type: NotificationType.DigestReady })
+    .andWhere(`id IN ${subQuery}`)
+    .setParameter('userId', userId)
     .execute();
 };
 
