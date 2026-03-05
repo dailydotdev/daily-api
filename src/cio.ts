@@ -494,6 +494,14 @@ export async function identifyAnonymousFunnelSubscription({
   email: string;
   claimedSub: boolean;
 }): Promise<void> {
+  if (process.env.NODE_ENV === 'development') {
+    return;
+  }
+
+  if (!process.env.CIO_SITE_ID || !process.env.CIO_API_KEY) {
+    return;
+  }
+
   try {
     await cio.identify(email, {
       funnel: true,
@@ -511,6 +519,14 @@ export async function destroyAnonymousFunnelSubscription({
   cio: TrackClient;
   email: string;
 }): Promise<void> {
+  if (process.env.NODE_ENV === 'development') {
+    return;
+  }
+
+  if (!process.env.CIO_SITE_ID || !process.env.CIO_API_KEY) {
+    return;
+  }
+
   try {
     await cio.destroy(email);
   } catch (err) {

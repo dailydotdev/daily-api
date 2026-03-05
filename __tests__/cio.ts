@@ -1,4 +1,8 @@
-import { identifyUserOpportunities } from '../src/cio';
+import {
+  destroyAnonymousFunnelSubscription,
+  identifyAnonymousFunnelSubscription,
+  identifyUserOpportunities,
+} from '../src/cio';
 import { OpportunityMatchStatus } from '../src/entity/opportunities/types';
 import type { ConnectionManager } from '../src/entity';
 import type { TrackClient } from 'customerio-node';
@@ -146,5 +150,93 @@ describe('identifyUserOpportunities', () => {
         }),
       }),
     );
+  });
+});
+
+describe('anonymous funnel subscription', () => {
+  const originalSiteId = process.env.CIO_SITE_ID;
+  const originalApiKey = process.env.CIO_API_KEY;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.CIO_SITE_ID = originalSiteId;
+    process.env.CIO_API_KEY = originalApiKey;
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('should skip identify when cio credentials are missing', async () => {
+    delete process.env.CIO_SITE_ID;
+    delete process.env.CIO_API_KEY;
+
+    const mockCioIdentify = jest.fn();
+
+    const mockCio = {
+      identify: mockCioIdentify,
+    } as unknown as TrackClient;
+
+    await identifyAnonymousFunnelSubscription({
+      cio: mockCio,
+      email: 'test@example.com',
+      claimedSub: false,
+    });
+
+    expect(mockCioIdentify).not.toHaveBeenCalled();
+  });
+
+  it('should skip identify in development', async () => {
+    process.env.CIO_SITE_ID = 'test-site-id';
+    process.env.CIO_API_KEY = 'test-api-key';
+    process.env.NODE_ENV = 'development';
+
+    const mockCioIdentify = jest.fn();
+
+    const mockCio = {
+      identify: mockCioIdentify,
+    } as unknown as TrackClient;
+
+    await identifyAnonymousFunnelSubscription({
+      cio: mockCio,
+      email: 'test@example.com',
+      claimedSub: false,
+    });
+
+    expect(mockCioIdentify).not.toHaveBeenCalled();
+  });
+
+  it('should skip destroy when cio credentials are missing', async () => {
+    delete process.env.CIO_SITE_ID;
+    delete process.env.CIO_API_KEY;
+
+    const mockCioDestroy = jest.fn();
+
+    const mockCio = {
+      destroy: mockCioDestroy,
+    } as unknown as TrackClient;
+
+    await destroyAnonymousFunnelSubscription({
+      cio: mockCio,
+      email: 'test@example.com',
+    });
+
+    expect(mockCioDestroy).not.toHaveBeenCalled();
+  });
+
+  it('should skip destroy in development', async () => {
+    process.env.CIO_SITE_ID = 'test-site-id';
+    process.env.CIO_API_KEY = 'test-api-key';
+    process.env.NODE_ENV = 'development';
+
+    const mockCioDestroy = jest.fn();
+
+    const mockCio = {
+      destroy: mockCioDestroy,
+    } as unknown as TrackClient;
+
+    await destroyAnonymousFunnelSubscription({
+      cio: mockCio,
+      email: 'test@example.com',
+    });
+
+    expect(mockCioDestroy).not.toHaveBeenCalled();
   });
 });
