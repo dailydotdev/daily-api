@@ -662,9 +662,6 @@ const obj = new GraphORM({
       numReposts: {
         select: 'reposts',
       },
-      numBookmarks: {
-        select: 'bookmarks',
-      },
       publication: {
         alias: { field: 'source', type: 'Source' },
       },
@@ -1713,6 +1710,11 @@ const obj = new GraphORM({
   PostAnalyticsPublic: {
     from: 'PostAnalytics',
     fields: {
+      bookmarks: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
       impressions: {
         rawSelect: true,
         select: (_, alias) => {
