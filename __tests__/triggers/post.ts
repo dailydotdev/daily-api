@@ -3,6 +3,7 @@ import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
 import {
   ArticlePost,
+  Bookmark,
   Source,
   SharePost,
   Post,
@@ -188,6 +189,59 @@ describe('trigger post_stats_updated_at_update_trigger', () => {
     expect(afterPost.statsUpdatedAt.getTime()).toEqual(
       beforePost.statsUpdatedAt.getTime(),
     );
+  });
+});
+
+describe('bookmark count triggers', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should increment post bookmarks on bookmark insert', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(beforePost.bookmarks).toBe(0);
+
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: '1',
+      listId: null,
+    });
+
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.bookmarks).toBe(1);
+  });
+
+  it('should decrement post bookmarks on bookmark delete', async () => {
+    const repo = con.getRepository(Post);
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: '1',
+      listId: null,
+    });
+
+    const bookmarkedPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(bookmarkedPost.bookmarks).toBe(1);
+
+    await con.getRepository(Bookmark).delete({ postId: 'p1', userId: '1' });
+
+    const afterDeletePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterDeletePost.bookmarks).toBe(0);
+  });
+
+  it('should not decrement post bookmarks below zero', async () => {
+    const repo = con.getRepository(Post);
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: '1',
+      listId: null,
+    });
+    await repo.update({ id: 'p1' }, { bookmarks: 0 });
+
+    await con.getRepository(Bookmark).delete({ postId: 'p1', userId: '1' });
+
+    const afterDeletePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterDeletePost.bookmarks).toBe(0);
   });
 });
 
