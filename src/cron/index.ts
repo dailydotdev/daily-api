@@ -30,6 +30,7 @@ import { userProfileUpdatedSync } from './userProfileUpdatedSync';
 import expireSuperAgentTrial from './expireSuperAgentTrial';
 import updateAchievementRarity from './updateAchievementRarity';
 import backfillGearCategory from './backfillGearCategory';
+import agentsDigest from './agentsDigest';
 
 export const crons: Cron[] = [
   updateViews,
@@ -63,4 +64,5 @@ export const crons: Cron[] = [
   expireSuperAgentTrial,
   updateAchievementRarity,
   backfillGearCategory,
+  agentsDigest,
 ];

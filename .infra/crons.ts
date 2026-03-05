@@ -162,4 +162,8 @@ export const crons: Cron[] = [
     name: 'update-achievement-rarity',
     schedule: '0 3 * * *',
   },
+  {
+    name: 'agents-digest',
+    schedule: '17 4 * * *',
+  },
 ];

@@ -159,6 +159,7 @@ jest.mock('../src/growthbook', () => {
 
   return {
     ...actual,
+    loadFeatures: jest.fn(),
     getUserGrowthBookInstance: () => ({
       getFeatureValue: (featureId: string, defaultValue: unknown) =>
         featureId === actual.features.profileCompletionPostGate.id &&
@@ -11370,6 +11371,7 @@ describe('query userPostsWithAnalytics', () => {
             analytics {
               id
               impressions
+              bookmarks
               reputation
               upvotes
             }
@@ -11415,6 +11417,7 @@ describe('query userPostsWithAnalytics', () => {
           id: `${item.id}-upwa`,
           impressions: 100,
           impressionsAds: 50,
+          bookmarks: 12,
           reputation: 25,
           upvotes: 10,
         }),
@@ -11437,6 +11440,7 @@ describe('query userPostsWithAnalytics', () => {
       id: expect.stringContaining('-upwa'),
       analytics: {
         impressions: 150,
+        bookmarks: 12,
         reputation: 25,
         upvotes: 10,
       },

@@ -1710,6 +1710,11 @@ const obj = new GraphORM({
   PostAnalyticsPublic: {
     from: 'PostAnalytics',
     fields: {
+      bookmarks: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
       impressions: {
         rawSelect: true,
         select: (_, alias) => {

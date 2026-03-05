@@ -17,6 +17,7 @@ import {
   GenerateRecruiterEmailResponse,
   ParseFeedbackResponse,
   Pipelines,
+  SentimentDigestResponse,
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
@@ -95,6 +96,12 @@ export const getBragiClient = (
           new GenerateRecruiterEmailResponse({
             id: 'mock-id',
             emailBody: '',
+          }),
+        generateSentimentDigest: async () =>
+          new SentimentDigestResponse({
+            id: 'mock-id',
+            title: 'Mock sentiment digest',
+            content: 'Mock digest content',
           }),
         classifyRejectionFeedback: async () =>
           new ClassifyRejectionFeedbackResponse({

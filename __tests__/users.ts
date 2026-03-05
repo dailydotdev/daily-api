@@ -4524,6 +4524,36 @@ describe('mutation deleteUser', () => {
     expect(post.authorId).toEqual(null);
   });
 
+  it('should delete digest posts on user deletion', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).save({
+      id: '1',
+      name: 'User Source',
+      image: 'https://daily.dev/1.jpg',
+      handle: 'user1',
+      active: true,
+      private: false,
+    });
+
+    await con.getRepository(Post).save({
+      id: 'pdigest1',
+      shortId: 'spdigest1',
+      title: 'Digest Post',
+      sourceId: '1',
+      authorId: '1',
+      type: PostType.Digest,
+      createdAt: new Date(),
+    });
+
+    await client.mutate(MUTATION);
+
+    const deletedDigest = await con
+      .getRepository(Post)
+      .findOneBy({ id: 'pdigest1' });
+    expect(deletedDigest).toBeNull();
+  });
+
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
 

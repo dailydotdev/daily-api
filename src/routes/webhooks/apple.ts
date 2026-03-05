@@ -46,7 +46,7 @@ const handleNotifcationRequest = async (
     logger.error(
       {
         environment,
-        body: request.body,
+        reqBody: request.body,
         provider: SubscriptionProvider.AppleStoreKit,
       },
       "Missing 'signedPayload' in request body",

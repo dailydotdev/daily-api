@@ -5,8 +5,10 @@ import {
   sendEmail,
   triggerTypedEvent,
 } from '../common';
+import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
 import {
+  cleanupDigestReadyNotifications,
   NotificationPreferenceStatus,
   NotificationType,
 } from '../notifications/common';
@@ -144,9 +146,9 @@ const digestTypeToFunctionMap: Record<
 
     await dedupedSend(
       async () => {
-        await con.transaction(async (entityManager) => {
+        if (remoteConfig.vars.digestPostEnabled) {
           const digestPostId = await upsertDigestPost({
-            con: entityManager,
+            con,
             userId: user.id,
             postIds,
             sourceIds,
@@ -154,21 +156,26 @@ const digestTypeToFunctionMap: Record<
             adIndex: digestFeature.adIndex,
           });
 
-          const postCtx = await buildPostContext(entityManager, digestPostId);
-
-          if (postCtx) {
-            await generateAndStoreNotificationsV2(entityManager, [
-              {
-                type: NotificationType.DigestReady,
-                ctx: {
-                  ...postCtx,
-                  userIds: [user.id],
-                  sendAtMs: emailSendTimestamp,
-                },
-              },
+          if (digestPostId) {
+            const [postCtx] = await Promise.all([
+              buildPostContext(con, digestPostId),
+              cleanupDigestReadyNotifications(con.manager, user.id),
             ]);
+
+            if (postCtx) {
+              await generateAndStoreNotificationsV2(con.manager, [
+                {
+                  type: NotificationType.DigestReady,
+                  ctx: {
+                    ...postCtx,
+                    userIds: [user.id],
+                    sendAtMs: emailSendTimestamp,
+                  },
+                },
+              ]);
+            }
           }
-        });
+        }
 
         const emailPref =
           user.notificationFlags?.[NotificationType.BriefingReady]?.email ??
