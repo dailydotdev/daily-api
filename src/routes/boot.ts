@@ -190,7 +190,11 @@ const getBootQuery = (req: FastifyRequest): BootQuery =>
 const getBootReferrer = (req: FastifyRequest): string | undefined =>
   unwrapArray(getBootQuery(req).referrer);
 
+const getBootApp = (req: FastifyRequest): string | undefined =>
+  unwrapArray(req.headers.app as string | string[] | undefined);
+
 const isExtensionBootRequest = (req: FastifyRequest): boolean =>
+  getBootApp(req) === 'extension' ||
   unwrapArray(getBootQuery(req).app_platform) === 'extension';
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
@@ -735,6 +739,7 @@ const loggedInBoot = async ({
         defaultFeedId: isPlus ? user.defaultFeedId : null,
         flags: {
           showPlusGift: Boolean(user?.flags?.showPlusGift),
+          lastExtensionUse: user?.flags?.lastExtensionUse ?? null,
         },
         balance,
         subscriptionFlags: {

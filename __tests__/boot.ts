@@ -155,6 +155,7 @@ const LOGGED_IN_BODY = {
     defaultFeedId: null,
     flags: {
       showPlusGift: false,
+      lastExtensionUse: null,
     },
     balance: {
       amount: 0,
@@ -517,13 +518,14 @@ describe('logged in boot', () => {
     });
   });
 
-  it('should set lastExtensionUse when app_platform is extension', async () => {
+  it('should set lastExtensionUse when app header is extension', async () => {
     const userId = '1';
     const requestStart = Date.now();
 
     mockLoggedIn(userId);
     await request(app.server)
-      .get(`${BASE_PATH}?app_platform=extension`)
+      .get(BASE_PATH)
+      .set('app', 'extension')
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
@@ -541,7 +543,7 @@ describe('logged in boot', () => {
     ).toBeGreaterThanOrEqual(requestStart);
   });
 
-  it('should not set lastExtensionUse when app_platform is not extension', async () => {
+  it('should not set lastExtensionUse when app header is not extension', async () => {
     const userId = '1';
 
     mockLoggedIn(userId);
@@ -561,12 +563,13 @@ describe('logged in boot', () => {
     expect(user.flags.lastExtensionUse).toBeFalsy();
   });
 
-  it('should write lastExtensionUse only once per day', async () => {
+  it('should write lastExtensionUse only once per day for extension app header', async () => {
     const userId = '1';
 
     mockLoggedIn(userId);
     await request(app.server)
-      .get(`${BASE_PATH}?app_platform=extension`)
+      .get(BASE_PATH)
+      .set('app', 'extension')
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
@@ -583,7 +586,8 @@ describe('logged in boot', () => {
 
     mockLoggedIn(userId);
     await request(app.server)
-      .get(`${BASE_PATH}?app_platform=extension`)
+      .get(BASE_PATH)
+      .set('app', 'extension')
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
