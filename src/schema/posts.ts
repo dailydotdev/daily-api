@@ -1105,10 +1105,10 @@ export const typeDefs = /* GraphQL */ `
 
   type PostAnalyticsPublic {
     id: ID!
-    impressions: Int!
+    impressions: Int
     bookmarks: Int!
-    reputation: Int!
-    upvotes: Int!
+    reputation: Int
+    upvotes: Int
   }
 
   type PostAnalyticsHistory {
