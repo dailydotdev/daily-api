@@ -662,11 +662,6 @@ const obj = new GraphORM({
       numReposts: {
         select: 'reposts',
       },
-      numBookmarks: {
-        select: (_, alias) =>
-          `COALESCE((SELECT pa.bookmarks FROM post_analytics pa WHERE pa.id = ${alias}.id), 0)`,
-        rawSelect: true,
-      },
       publication: {
         alias: { field: 'source', type: 'Source' },
       },

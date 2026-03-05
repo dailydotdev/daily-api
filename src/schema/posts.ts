@@ -191,7 +191,6 @@ export interface GQLPost {
   numComments: number;
   numAwards: number;
   numReposts: number;
-  numBookmarks: number;
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
@@ -702,11 +701,6 @@ export const typeDefs = /* GraphQL */ `
     Total number of reposts
     """
     numReposts: Int!
-
-    """
-    Total number of bookmarks
-    """
-    numBookmarks: Int!
 
     """
     Permanent link to the comments of the post
