@@ -18,7 +18,7 @@ const onNotificationsChange = async (
 
 const worker: Worker = {
   subscription: 'api.cdc-notifications',
-  maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
+  maxMessages: 10,
   handler: async (message, con, logger): Promise<void> => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
