@@ -1463,6 +1463,7 @@ describe('query post', () => {
             bookmarks
             impressions
             reputation
+            upvotes
           }
         }
       }
@@ -1479,6 +1480,7 @@ describe('query post', () => {
         impressions: 110,
         impressionsAds: 310,
         reputation: 5,
+        upvotes: 17,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1493,6 +1495,7 @@ describe('query post', () => {
           bookmarks: 7,
           impressions: 420,
           reputation: 5,
+          upvotes: 17,
         },
       });
     });
@@ -1508,6 +1511,7 @@ describe('query post', () => {
         impressions: 110,
         impressionsAds: 310,
         reputation: 9,
+        upvotes: 21,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1522,6 +1526,7 @@ describe('query post', () => {
           bookmarks: 3,
           impressions: 420,
           reputation: 9,
+          upvotes: 21,
         },
       });
     });
@@ -1535,6 +1540,7 @@ describe('query post', () => {
         impressions: 110,
         impressionsAds: 310,
         reputation: 13,
+        upvotes: 31,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1549,6 +1555,7 @@ describe('query post', () => {
           bookmarks: 11,
           impressions: null,
           reputation: null,
+          upvotes: null,
         },
       });
     });

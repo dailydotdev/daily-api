@@ -887,9 +887,6 @@ const obj = new GraphORM({
           return {
             id: value.id,
             bookmarks: value.bookmarks,
-            impressions: null,
-            reputation: null,
-            upvotes: null,
           };
         },
       },
