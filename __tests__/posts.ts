@@ -676,6 +676,22 @@ describe('numReposts field', () => {
   });
 });
 
+describe('numBookmarks field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      numBookmarks
+    }
+  }`;
+
+  it('should return the total number of bookmarks', async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { bookmarks: 7 });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.numBookmarks).toEqual(7);
+  });
+});
+
 describe('domain field', () => {
   const QUERY = `{
     post(id: "p1") {

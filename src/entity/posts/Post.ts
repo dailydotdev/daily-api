@@ -352,6 +352,10 @@ export class Post {
   @Index('IDX_post_awards')
   awards: number;
 
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_bookmarks')
+  bookmarks: number;
+
   @Column({ type: 'text', nullable: true })
   summary?: string;
 
