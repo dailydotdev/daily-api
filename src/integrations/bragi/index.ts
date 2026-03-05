@@ -1,1 +1,1 @@
-export { getBragiClient } from './clients';
+export { getBragiClient, getBragiProxyClient } from './clients';
