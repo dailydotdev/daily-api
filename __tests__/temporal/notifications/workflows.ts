@@ -27,7 +27,7 @@ jest.mock('../../../src/temporal/client', () => ({
 
 beforeAll(async () => {
   testEnv = await TestWorkflowEnvironment.createTimeSkipping();
-});
+}, 15_000);
 
 afterAll(async () => {
   await testEnv?.teardown();
