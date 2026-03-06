@@ -21,27 +21,25 @@ const cron: Cron = {
         },
       });
       if (keywords.length) {
+        const keywordValues = keywords.map(({ value }) => value);
         await entityManager.query(
           `update post
            set "tagsStr" = res.tags
            from (
                   select pk."postId",
-                         array_to_string((array_agg(pk.keyword
-                                                    order by pk.keyword asc, pk.keyword)),
+                         array_to_string(array_agg(pk.keyword order by pk.keyword asc, pk.keyword),
                                          ',') as tags
                   from post_keyword pk
                   where pk.status = 'allow'
+                    and pk."postId" in (
+                      select pk2."postId"
+                      from post_keyword pk2
+                      where pk2.keyword = any($1)
+                    )
                   group by pk."postId"
                 ) as res
-           where post.id = res."postId"
-             and exists(
-             select keyword
-             from post_keyword pk
-             where pk."postId" = post.id
-               and pk.keyword in (${keywords
-                 .map(({ value }) => `'${value}'`)
-                 .join(',')})
-             )`,
+           where post.id = res."postId"`,
+          [keywordValues],
         );
       }
       if (!checkpoint) {

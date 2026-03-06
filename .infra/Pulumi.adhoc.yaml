@@ -105,3 +105,5 @@ config:
   api:temporal:
     chain: ''
     key: ''
+secretsprovider: gcpkms://projects/daily-ops/locations/global/keyRings/pulumi/cryptoKeys/adhoc-secrets
+encryptedkey: CiQAUBCtsAuGPHI7MeeWrccjf/ydEN57pW/AH+8NWsRvdPXM6e8SSABTzSDRfy71YqxOXL5RHxmOL5aU0fwHtiyHj4R5XRZbwtTUivxPk0qEIMtvbQSBCu7NE6CSd+uvaq5B/yz0DU8FWvGuYUzJXQ==

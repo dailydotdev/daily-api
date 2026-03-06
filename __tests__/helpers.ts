@@ -176,10 +176,13 @@ export const initializeGraphQLTesting = async (
   return { app, client };
 };
 
-export const disposeGraphQLTesting = async ({
-  app,
-}: GraphQLTestingState): Promise<void> => {
-  await app.close();
+export const disposeGraphQLTesting = async (
+  state: GraphQLTestingState | undefined,
+): Promise<void> => {
+  if (!state?.app) {
+    return;
+  }
+  await state.app.close();
 };
 
 export const authorizeRequest = (

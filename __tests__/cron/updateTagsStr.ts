@@ -61,3 +61,62 @@ it('should update post tagsStr with the all recently updated keywords', async ()
   });
   expect(posts).toMatchSnapshot();
 });
+
+it('should remove denied keyword from tagsStr', async () => {
+  const now = new Date();
+  const checkpoint = new Date(now.getTime() - 1000 * 600);
+  await con.getRepository(Checkpoint).save({
+    key: 'last_tags_str_update',
+    timestamp: checkpoint,
+  });
+  // Set up keywords: javascript=allow, webdev=allow
+  await con.getRepository(Keyword).save([
+    { value: 'javascript', occurrences: 10, status: 'allow' },
+    { value: 'webdev', occurrences: 5, status: 'allow' },
+  ]);
+  await con.getRepository(PostKeyword).save([
+    { keyword: 'javascript', postId: 'p1' },
+    { keyword: 'webdev', postId: 'p1' },
+  ]);
+  // Verify initial state
+  const postBefore = await con
+    .getRepository(Post)
+    .findOne({ select: ['id', 'tagsStr'], where: { id: 'p1' } });
+  expect(postBefore?.tagsStr).toBe('javascript,webdev');
+
+  // Now deny webdev — trigger propagates to post_keyword
+  await con.getRepository(Keyword).save({ value: 'webdev', status: 'deny' });
+
+  await expectSuccessfulCron(cron);
+  const postAfter = await con
+    .getRepository(Post)
+    .findOne({ select: ['id', 'tagsStr'], where: { id: 'p1' } });
+  expect(postAfter?.tagsStr).toBe('javascript');
+});
+
+it('should not update posts unrelated to changed keywords', async () => {
+  const now = new Date();
+  const checkpoint = new Date(now.getTime() - 1000 * 600);
+  await con.getRepository(Checkpoint).save({
+    key: 'last_tags_str_update',
+    timestamp: checkpoint,
+  });
+  await con
+    .getRepository(Keyword)
+    .save([{ value: 'python', occurrences: 10, status: 'allow' }]);
+  await con
+    .getRepository(PostKeyword)
+    .save([{ keyword: 'python', postId: 'p3' }]);
+  // p1 has tagsStr from fixture, p3 gets python
+  const p1Before = await con
+    .getRepository(Post)
+    .findOne({ select: ['id', 'tagsStr'], where: { id: 'p1' } });
+
+  await expectSuccessfulCron(cron);
+
+  const p1After = await con
+    .getRepository(Post)
+    .findOne({ select: ['id', 'tagsStr'], where: { id: 'p1' } });
+  // p1 should be untouched — python keyword is not on p1
+  expect(p1After?.tagsStr).toBe(p1Before?.tagsStr);
+});

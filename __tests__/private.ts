@@ -32,6 +32,8 @@ import { OpportunityUser } from '../src/entity/opportunities/user';
 import { OpportunityUserType } from '../src/entity/opportunities/types';
 import { QuestionFeedback } from '../src/entity/questions/QuestionFeedback';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
+import { DigestPost } from '../src/entity/posts/DigestPost';
+import { DIGEST_SOURCE } from '../src/entity/Source';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -304,6 +306,31 @@ describe('POST /p/newUser', () => {
     expect(users[0].email).toEqual(usersFixture[0].email);
     expect(users[0].infoConfirmed).toBeTruthy();
     expect(users[0].createdAt).not.toBeNull();
+  });
+
+  it('should create a DigestPost stub when adding a new user', async () => {
+    await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: usersFixture[0].id });
+
+    expect(digestPost).not.toBeNull();
+    expect(digestPost!.sourceId).toBe(DIGEST_SOURCE);
+    expect(digestPost!.visible).toBeFalsy();
+    expect(digestPost!.private).toBeTruthy();
   });
 
   it('should allow underscore in username', async () => {

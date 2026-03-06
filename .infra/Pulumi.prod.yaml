@@ -225,6 +225,14 @@ config:
       secure: AAABALeVUcWiTAIPqO9Ut85Q8eX5bIh/cUy/NDjOi4lSMQ/D04V92IxQCpXjzITm1CKybCpcIp+nMQiNvimDdmvGy/gLisyMyqEERKbrFw3nHV8Dsm6TadNoUSACPfNB9sDgOtQjn+VaPHVp6AtLhDnndUhVYUVja2rFUf3Acqjs8qt8alwoPMJscNRmvu3AgcB4zBY6m2M4vJ8J/2Cj5Q==
     slackUserFeedbackChannelId:
       secure: AAABAGKs8XRmYMur5FnCQtTg7eN0Qs7N9xb8IAk8M0Qzs4xflQe78dioAA==
+    twitterConsumerSecret:
+      secure: AAABAAdfWTuNJYi3sVLhyGZ73TTuzdkCLEOQhlziYE+1eQ1qzh47fHdhokV3/7G/LiJZODEO4I1t/ScqVBD7diQwLDjzyujzHCm19KSk4MKO1g==
+    twitterConsumerKey:
+      secure: AAABAINTZbV4brTCyGDOzCvTfsuVfm2BUJGcCE7NnbBJZPMYolCkmxXtk42M4Ra9rtFRBoSJxV2m
+    twitterAccessTokenKey:
+      secure: AAABAMYZ/g6SWqP4xuuJtIY2ZfOKVAIVwBDYtw+wsrGTggagtXyb0vAcHcVwl4jeVRw8tE8evlNgN4pageF6/j3tosILmfZQbD71gmokI3SFHA==
+    twitterAccessTokenSecret:
+      secure: AAABAF71uphNf9oOztAZ2giIqCygD5m4VgejUPif+Fgs2U/y0NuQNY6754aEuIj5eXsrO2JfmMX0nnQqwVYe0Tvb3yyXTUREyYW9wRc=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

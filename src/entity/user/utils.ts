@@ -25,7 +25,10 @@ import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { logger } from '../../logger';
 import { User, type UserSubscriptionFlags } from './User';
 import { Feed } from '../Feed';
+import { DigestPost } from '../posts/DigestPost';
+import { DIGEST_SOURCE } from '../Source';
 import { remoteConfig } from '../../remoteConfig';
+import { generateShortId } from '../../ids';
 import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
@@ -305,6 +308,16 @@ const safeInsertUser = async (
           },
         },
       );
+
+      const digestPostId = await generateShortId();
+      await entityManager.getRepository(DigestPost).insert({
+        id: digestPostId,
+        shortId: digestPostId,
+        authorId: newUserId,
+        private: true,
+        visible: false,
+        sourceId: DIGEST_SOURCE,
+      });
     });
 
     req.log.info(`Created profile for user with ID: ${data.id}`);

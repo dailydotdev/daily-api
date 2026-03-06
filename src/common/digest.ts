@@ -1,15 +1,36 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import { DigestPost } from '../entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../entity/Source';
-import { generateShortId } from '../ids';
+import { logger } from '../logger';
 import type { SkadiAd } from '../integrations/skadi';
-import { updateFlagsStatement } from './utils';
 
 type DigestAdSnapshot = {
   type: string;
   index: number;
 } & SkadiAd;
 
+/**
+ * Update digest post with latest data.
+ *
+ * Currently always updates because post is created on user creation.
+ *
+ * @param {({
+ *   con: DataSource | EntityManager;
+ *   userId: string;
+ *   postIds: string[];
+ *   sourceIds: string[];
+ *   ad: ({ type: string } & SkadiAd) | null;
+ *   adIndex: number;
+ * })} {
+ *   con,
+ *   userId,
+ *   postIds,
+ *   sourceIds,
+ *   ad,
+ *   adIndex,
+ * }
+ * @return {*}  {(Promise<string | null>)}
+ */
 export const upsertDigestPost = async ({
   con,
   userId,
@@ -24,7 +45,7 @@ export const upsertDigestPost = async ({
   sourceIds: string[];
   ad: ({ type: string } & SkadiAd) | null;
   adIndex: number;
-}): Promise<string> => {
+}): Promise<string | null> => {
   let adSnapshot: DigestAdSnapshot | null = null;
   if (ad) {
     adSnapshot = { ...ad, index: adIndex };
@@ -36,33 +57,31 @@ export const upsertDigestPost = async ({
     ad: adSnapshot,
   };
 
-  const repo = con.getRepository(DigestPost);
-  const existing = await repo.findOneBy({
-    authorId: userId,
-    sourceId: DIGEST_SOURCE,
-  });
+  const result = await con
+    .getRepository(DigestPost)
+    .createQueryBuilder()
+    .update(DigestPost)
+    .set({
+      flags: () => `flags || :flags`,
+      visible: true,
+      metadataChangedAt: () => 'NOW()',
+    })
+    .where(
+      '"authorId" = :userId AND "sourceId" = :sourceId AND "type" = \'digest\'',
+      {
+        userId,
+        sourceId: DIGEST_SOURCE,
+      },
+    )
+    .setParameter('flags', JSON.stringify(flags))
+    .returning('"id"')
+    .execute();
 
-  if (existing) {
-    await repo.update(existing.id, {
-      flags: updateFlagsStatement<DigestPost>(flags),
-      metadataChangedAt: new Date(),
-    });
-    return existing.id;
+  if (!result.affected || result.affected === 0) {
+    logger.warn({ userId }, 'DigestPost stub not found for user');
+
+    return null;
   }
 
-  const postId = await generateShortId();
-
-  const post = repo.create({
-    id: postId,
-    shortId: postId,
-    authorId: userId,
-    private: true,
-    visible: true,
-    sourceId: DIGEST_SOURCE,
-    flags,
-  });
-
-  await repo.insert(post);
-
-  return postId;
+  return result.raw[0].id;
 };

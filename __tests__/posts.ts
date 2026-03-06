@@ -159,6 +159,7 @@ jest.mock('../src/growthbook', () => {
 
   return {
     ...actual,
+    loadFeatures: jest.fn(),
     getUserGrowthBookInstance: () => ({
       getFeatureValue: (featureId: string, defaultValue: unknown) =>
         featureId === actual.features.profileCompletionPostGate.id &&
@@ -1434,7 +1435,10 @@ describe('query post', () => {
         post(id: $id) {
           id
           analytics {
+            bookmarks
             impressions
+            reputation
+            upvotes
           }
         }
       }
@@ -1447,8 +1451,11 @@ describe('query post', () => {
 
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 7,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 5,
+        upvotes: 17,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1459,7 +1466,12 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: { impressions: 420 },
+        analytics: {
+          bookmarks: 7,
+          impressions: 420,
+          reputation: 5,
+          upvotes: 17,
+        },
       });
     });
 
@@ -1470,8 +1482,11 @@ describe('query post', () => {
 
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 3,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 9,
+        upvotes: 21,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1482,15 +1497,25 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: { impressions: 420 },
+        analytics: {
+          bookmarks: 3,
+          impressions: 420,
+          reputation: 9,
+          upvotes: 21,
+        },
       });
     });
 
-    it('should return null if user is not author or scout', async () => {
+    it('should hide impressions and reputation for non-author users', async () => {
+      loggedUser = '2';
+
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 11,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 13,
+        upvotes: 31,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1501,7 +1526,12 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: null,
+        analytics: {
+          bookmarks: 11,
+          impressions: null,
+          reputation: null,
+          upvotes: null,
+        },
       });
     });
   });
@@ -11370,6 +11400,7 @@ describe('query userPostsWithAnalytics', () => {
             analytics {
               id
               impressions
+              bookmarks
               reputation
               upvotes
             }
@@ -11415,6 +11446,7 @@ describe('query userPostsWithAnalytics', () => {
           id: `${item.id}-upwa`,
           impressions: 100,
           impressionsAds: 50,
+          bookmarks: 12,
           reputation: 25,
           upvotes: 10,
         }),
@@ -11437,6 +11469,7 @@ describe('query userPostsWithAnalytics', () => {
       id: expect.stringContaining('-upwa'),
       analytics: {
         impressions: 150,
+        bookmarks: 12,
         reputation: 25,
         upvotes: 10,
       },
