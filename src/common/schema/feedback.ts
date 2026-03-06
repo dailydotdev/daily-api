@@ -25,3 +25,9 @@ export const feedbackInputSchema = z.object({
   clientInfo: feedbackClientInfoSchema.nullish(),
   screenshotUrl: z.url().nullish(),
 });
+
+export const feedbackReplySchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+  authorName: z.string().trim().max(100).nullish(),
+  authorEmail: z.email().nullish(),
+});

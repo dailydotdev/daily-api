@@ -1,24 +1,58 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
+import { FeedbackReply } from '../entity/FeedbackReply';
 import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
-import { ValidationError } from 'apollo-server-errors';
+import { User } from '../entity/user/User';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import type { Connection, ConnectionArguments } from 'graphql-relay';
+import { In, type FindOptionsWhere, type EntityManager } from 'typeorm';
 import type { z } from 'zod';
 import {
   feedbackClientInfoSchema,
   feedbackInputSchema,
 } from '../common/schema/feedback';
-import { ZodError } from 'zod/v4';
-import { GQLEmptyResponse } from './common';
+import { ZodError } from 'zod';
+import {
+  connectionFromNodes,
+  GQLEmptyResponse,
+  offsetPageGenerator,
+} from './common';
+import { Roles } from '../roles';
+import { queryReadReplica } from '../common/queryReadReplica';
 
-interface GQLFeedbackInput {
+type GQLFeedbackInput = {
   category: number;
   description: string;
   pageUrl?: string;
   userAgent?: string;
   clientInfo?: z.infer<typeof feedbackClientInfoSchema>;
   screenshotUrl?: string;
-}
+};
+
+type GQLFeedbackReply = Pick<
+  FeedbackReply,
+  'id' | 'body' | 'authorName' | 'createdAt'
+>;
+
+type GQLFeedbackUser = Pick<User, 'id' | 'name' | 'username' | 'image'>;
+
+type GQLFeedbackItem = Pick<
+  Feedback,
+  | 'id'
+  | 'category'
+  | 'description'
+  | 'status'
+  | 'screenshotUrl'
+  | 'createdAt'
+  | 'updatedAt'
+> & {
+  replies: GQLFeedbackReply[];
+  user?: GQLFeedbackUser;
+};
+
+const feedbackPageGenerator = offsetPageGenerator<GQLFeedbackItem>(20, 50);
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -83,6 +117,59 @@ export const typeDefs = /* GraphQL */ `
     feedbackId: ID
   }
 
+  type FeedbackReply {
+    id: ID!
+    body: String!
+    authorName: String
+    createdAt: DateTime!
+  }
+
+  type FeedbackUser {
+    id: ID!
+    name: String
+    username: String
+    image: String
+  }
+
+  type FeedbackItem {
+    id: ID!
+    category: ProtoEnumValue!
+    description: String!
+    status: Int!
+    screenshotUrl: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    replies: [FeedbackReply!]!
+    user: FeedbackUser
+  }
+
+  type FeedbackEdge {
+    node: FeedbackItem!
+    cursor: String!
+  }
+
+  type FeedbackConnection {
+    pageInfo: PageInfo!
+    edges: [FeedbackEdge!]!
+  }
+
+  extend type Query {
+    """
+    Get authenticated user's own feedback (cursor-paginated)
+    """
+    userFeedback(first: Int, after: String): FeedbackConnection! @auth
+
+    """
+    Get all feedback (moderator only, cursor-paginated, filterable)
+    """
+    feedbackList(
+      first: Int
+      after: String
+      status: Int
+      category: ProtoEnumValue
+    ): FeedbackConnection! @auth
+  }
+
   extend type Mutation {
     """
     Submit user feedback (rate limited to 10 per day)
@@ -93,14 +180,164 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const mapRepliesByFeedbackId = ({
+  replies,
+}: {
+  replies: FeedbackReply[];
+}): Map<string, GQLFeedbackReply[]> => {
+  const repliesByFeedbackId = new Map<string, GQLFeedbackReply[]>();
+
+  for (const reply of replies) {
+    const existing = repliesByFeedbackId.get(reply.feedbackId) ?? [];
+    existing.push({
+      id: reply.id,
+      body: reply.body,
+      authorName: reply.authorName,
+      createdAt: reply.createdAt,
+    });
+    repliesByFeedbackId.set(reply.feedbackId, existing);
+  }
+
+  return repliesByFeedbackId;
+};
+
+const fetchFeedbackConnectionNodes = async ({
+  manager,
+  where,
+  page,
+  includeUsers,
+}: {
+  manager: EntityManager;
+  where: FindOptionsWhere<Feedback>;
+  page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
+  includeUsers?: boolean;
+}): Promise<{ nodes: GQLFeedbackItem[]; total: number }> => {
+  const [feedbackItems, feedbackTotal] = await manager
+    .getRepository(Feedback)
+    .findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take: page.limit,
+      skip: page.offset,
+    });
+
+  const feedbackIds = feedbackItems.map((feedback) => feedback.id);
+  const replies = feedbackIds.length
+    ? await manager.getRepository(FeedbackReply).find({
+        where: { feedbackId: In(feedbackIds) },
+        order: { createdAt: 'ASC' },
+      })
+    : [];
+
+  const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
+
+  let usersById: Map<string, GQLFeedbackUser> | undefined;
+  if (includeUsers) {
+    const userIds = [...new Set(feedbackItems.map((item) => item.userId))];
+    const users = userIds.length
+      ? await manager.getRepository(User).find({
+          where: { id: In(userIds) },
+          select: ['id', 'name', 'username', 'image'],
+        })
+      : [];
+    usersById = new Map(users.map((user) => [user.id, user]));
+  }
+
+  return {
+    nodes: feedbackItems.map((feedback) => ({
+      id: feedback.id,
+      category: feedback.category,
+      description: feedback.description,
+      status: feedback.status,
+      screenshotUrl: feedback.screenshotUrl,
+      createdAt: feedback.createdAt,
+      updatedAt: feedback.updatedAt,
+      replies: repliesByFeedbackId.get(feedback.id) ?? [],
+      user: usersById?.get(feedback.userId),
+    })),
+    total: feedbackTotal,
+  };
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
+  Query: {
+    userFeedback: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+    ): Promise<Connection<GQLFeedbackItem>> => {
+      const page = feedbackPageGenerator.connArgsToPage(args);
+
+      const { nodes, total } = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          fetchFeedbackConnectionNodes({
+            manager: queryRunner.manager,
+            where: { userId: ctx.userId },
+            page,
+          }),
+      );
+
+      return connectionFromNodes(
+        args,
+        nodes,
+        undefined,
+        page,
+        feedbackPageGenerator,
+        total,
+      );
+    },
+    feedbackList: async (
+      _,
+      args: ConnectionArguments & {
+        status?: FeedbackStatus;
+        category?: UserFeedbackCategory;
+      },
+      ctx: AuthContext,
+    ): Promise<Connection<GQLFeedbackItem>> => {
+      if (!ctx.roles.includes(Roles.Moderator)) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      const page = feedbackPageGenerator.connArgsToPage(args);
+
+      const where: Partial<Pick<Feedback, 'status' | 'category'>> = {};
+
+      if (args.status !== undefined) {
+        where.status = args.status;
+      }
+
+      if (args.category !== undefined) {
+        where.category = args.category;
+      }
+
+      const { nodes, total } = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          fetchFeedbackConnectionNodes({
+            manager: queryRunner.manager,
+            where,
+            page,
+            includeUsers: true,
+          }),
+      );
+
+      return connectionFromNodes(
+        args,
+        nodes,
+        undefined,
+        page,
+        feedbackPageGenerator,
+        total,
+      );
+    },
+  },
   Mutation: {
     submitFeedback: async (
       _,
       { input }: { input: GQLFeedbackInput },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      // Validate input with Zod
       try {
         feedbackInputSchema.parse(input);
       } catch (err) {
@@ -114,8 +351,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const screenshotUrl = input.screenshotUrl || null;
 
-      // Create feedback record
-      // CDC will pick this up and handle classification via PubSub
       const feedbackRepo = ctx.con.getRepository(Feedback);
       const feedback = await feedbackRepo.save({
         userId: ctx.userId,
@@ -129,7 +364,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         flags: {},
       });
 
-      // Create ContentImage record to link screenshot to feedback
       if (screenshotUrl) {
         await ctx.con.getRepository(ContentImage).save({
           url: screenshotUrl,

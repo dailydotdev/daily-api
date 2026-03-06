@@ -2,18 +2,28 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../../db';
 import { Feedback, FeedbackStatus } from '../../entity/Feedback';
+import { FeedbackReply } from '../../entity/FeedbackReply';
+import { User } from '../../entity/user/User';
 import { logger } from '../../logger';
 import { WebhookPayload } from '../../types';
 import {
   linearWebhookPayloadSchema,
   type LinearWebhookPayload,
 } from '../../common/schema/linearWebhook';
+import { feedbackReplySchema } from '../../common/schema/feedback';
 import {
   generateNotificationV2,
   storeNotificationBundleV2,
+  type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
 } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
+import {
+  baseNotificationEmailData,
+  CioTransactionalMessageTemplateId,
+  sendEmail,
+} from '../../common/mailing';
+import { z } from 'zod';
 
 // Linear state name to FeedbackStatus mapping
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
@@ -77,12 +87,76 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
 
       const payload = parseResult.data;
 
+      const con = await createOrGetConnection();
+
+      if (payload.type === 'Comment') {
+        const comment = payload.data;
+        const commentBody = comment.body.trim();
+        const replyPrefix = /^@reply\b/i;
+
+        if (!replyPrefix.test(commentBody)) {
+          return res.status(200).send({ success: true });
+        }
+
+        const authorEmail = comment.user?.email?.trim();
+        const safeAuthorEmail =
+          authorEmail && z.email().safeParse(authorEmail).success
+            ? authorEmail
+            : null;
+
+        const parsedReply = feedbackReplySchema.safeParse({
+          body: commentBody.replace(replyPrefix, '').trim(),
+          authorName: comment.user?.name ?? null,
+          authorEmail: safeAuthorEmail,
+        });
+
+        if (!parsedReply.success) {
+          return res.status(200).send({ success: true });
+        }
+
+        const feedback = await con.getRepository(Feedback).findOne({
+          where: { linearIssueId: comment.issue.id },
+          select: ['id', 'description', 'userId'],
+        });
+
+        if (!feedback) {
+          return res.status(200).send({ success: true });
+        }
+
+        const reply = await con.getRepository(FeedbackReply).save({
+          feedbackId: feedback.id,
+          body: parsedReply.data.body,
+          authorName: parsedReply.data.authorName ?? null,
+          authorEmail: parsedReply.data.authorEmail ?? null,
+        });
+
+        const user = await con.getRepository(User).findOne({
+          where: { id: feedback.userId },
+          select: ['id', 'email'],
+        });
+
+        if (user?.email && CioTransactionalMessageTemplateId.FeedbackReply) {
+          await sendEmail({
+            ...baseNotificationEmailData,
+            transactional_message_id:
+              CioTransactionalMessageTemplateId.FeedbackReply,
+            reply_to: reply.authorEmail || 'support@daily.dev',
+            identifiers: { id: feedback.userId },
+            to: user.email,
+            message_data: {
+              author_name: reply.authorName || 'daily.dev team',
+              reply_body: reply.body,
+              feedback_description: feedback.description.slice(0, 200),
+              feedback_url: `${process.env.COMMENTS_PREFIX}/settings/feedback`,
+            },
+          });
+        }
+
+        return res.status(200).send({ success: true });
+      }
+
       // Only handle Issue update events with state changes
-      if (
-        payload.type !== 'Issue' ||
-        payload.action !== 'update' ||
-        !payload.updatedFrom?.stateId
-      ) {
+      if (payload.action !== 'update' || !payload.updatedFrom?.stateId) {
         return res.status(200).send({ success: true });
       }
 
@@ -98,8 +172,6 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
         // State not mapped, ignore
         return res.status(200).send({ success: true });
       }
-
-      const con = await createOrGetConnection();
 
       // Find feedback by Linear issue ID
       const feedback = await con.getRepository(Feedback).findOne({
@@ -124,7 +196,9 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
 
         const notificationType = feedbackStatusToNotificationType[newStatus];
         if (notificationType) {
-          const ctx: NotificationFeedbackResolvedContext = {
+          const ctx:
+            | NotificationFeedbackResolvedContext
+            | NotificationFeedbackCancelledContext = {
             userIds: [feedback.userId],
             feedbackId: feedback.id,
             feedbackDescription: feedback.description,
