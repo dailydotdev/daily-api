@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import createOrGetConnection from '../../db';
 import { Feedback, FeedbackStatus } from '../../entity/Feedback';
 import { FeedbackReply } from '../../entity/FeedbackReply';
@@ -23,9 +24,7 @@ import {
   CioTransactionalMessageTemplateId,
   sendEmail,
 } from '../../common/mailing';
-import { z } from 'zod';
 
-// Linear state name to FeedbackStatus mapping
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
   Done: FeedbackStatus.Completed,
   Canceled: FeedbackStatus.Cancelled,
@@ -36,6 +35,38 @@ const feedbackStatusToNotificationType: Partial<
 > = {
   [FeedbackStatus.Completed]: NotificationType.FeedbackResolved,
   [FeedbackStatus.Cancelled]: NotificationType.FeedbackCancelled,
+};
+
+const logLinearWebhookDebug = ({
+  message,
+  payload,
+  extra,
+}: {
+  message: string;
+  payload?: Pick<LinearWebhookPayload, 'action' | 'type'>;
+  extra?: Record<string, unknown>;
+}): void => {
+  logger.debug(
+    {
+      action: payload?.action,
+      type: payload?.type,
+      ...extra,
+    },
+    message,
+  );
+};
+
+const getLinearIssueId = ({
+  payload,
+}: {
+  payload: LinearWebhookPayload;
+}): string | null => {
+  switch (payload.type) {
+    case 'Issue':
+      return payload.data.id;
+    case 'Comment':
+      return payload.data.issue?.id ?? payload.data.issueId ?? null;
+  }
 };
 
 const verifyLinearSignature = (
@@ -81,20 +112,51 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
 
       const parseResult = linearWebhookPayloadSchema.safeParse(req.body);
       if (!parseResult.success) {
-        req.log.debug({ error: parseResult.error }, 'Invalid webhook payload');
+        logLinearWebhookDebug({
+          message: 'linear webhook payload rejected',
+          extra: {
+            issues: parseResult.error.issues,
+            action:
+              typeof req.body === 'object' && req.body
+                ? (req.body as { action?: unknown }).action
+                : undefined,
+            type:
+              typeof req.body === 'object' && req.body
+                ? (req.body as { type?: unknown }).type
+                : undefined,
+          },
+        });
         return res.status(200).send({ success: true });
       }
 
       const payload = parseResult.data;
-
-      const con = await createOrGetConnection();
+      const issueId = getLinearIssueId({ payload });
 
       if (payload.type === 'Comment') {
         const comment = payload.data;
         const commentBody = comment.body.trim();
         const replyPrefix = /^@reply\b/i;
+        const isReplyCommand = replyPrefix.test(commentBody);
 
-        if (!replyPrefix.test(commentBody)) {
+        if (!issueId) {
+          logLinearWebhookDebug({
+            message: 'linear comment webhook missing issue id',
+            payload,
+            extra: { commentId: comment.id },
+          });
+          return res.status(200).send({ success: true });
+        }
+
+        if (!isReplyCommand) {
+          logLinearWebhookDebug({
+            message: 'linear feedback comment ignored without @reply command',
+            payload,
+            extra: {
+              commentId: comment.id,
+              issueId,
+              isReply: Boolean(comment.parentId),
+            },
+          });
           return res.status(200).send({ success: true });
         }
 
@@ -111,15 +173,37 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
         });
 
         if (!parsedReply.success) {
+          logLinearWebhookDebug({
+            message: 'linear feedback reply rejected by schema',
+            payload,
+            extra: {
+              commentId: comment.id,
+              issueId,
+              issues: parsedReply.error.issues,
+            },
+          });
           return res.status(200).send({ success: true });
         }
 
+        const con = await createOrGetConnection();
         const feedback = await con.getRepository(Feedback).findOne({
-          where: { linearIssueId: comment.issue.id },
-          select: ['id', 'description', 'userId'],
+          where: { linearIssueId: issueId },
+          select: {
+            id: true,
+            description: true,
+            userId: true,
+          },
         });
 
         if (!feedback) {
+          logLinearWebhookDebug({
+            message: 'linear feedback reply ignored non-feedback issue',
+            payload,
+            extra: {
+              commentId: comment.id,
+              issueId,
+            },
+          });
           return res.status(200).send({ success: true });
         }
 
@@ -132,7 +216,10 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
 
         const user = await con.getRepository(User).findOne({
           where: { id: feedback.userId },
-          select: ['id', 'email'],
+          select: {
+            id: true,
+            email: true,
+          },
         });
 
         if (user?.email && CioTransactionalMessageTemplateId.FeedbackReply) {
@@ -152,60 +239,116 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           });
         }
 
+        logLinearWebhookDebug({
+          message: 'linear feedback reply processed',
+          payload,
+          extra: {
+            commentId: comment.id,
+            feedbackId: feedback.id,
+            issueId,
+            isReply: Boolean(comment.parentId),
+          },
+        });
         return res.status(200).send({ success: true });
       }
 
-      // Only handle Issue update events with state changes
+      if (!issueId) {
+        logLinearWebhookDebug({
+          message: 'linear issue webhook missing issue id',
+          payload,
+        });
+        return res.status(200).send({ success: true });
+      }
+
       if (payload.action !== 'update' || !payload.updatedFrom?.stateId) {
+        logLinearWebhookDebug({
+          message: 'linear webhook ignored issue event without state change',
+          payload,
+          extra: { issueId },
+        });
         return res.status(200).send({ success: true });
       }
 
-      const issueId = payload.data.id;
       const newStateName = payload.data.state?.name;
 
       if (!newStateName) {
+        logLinearWebhookDebug({
+          message: 'linear issue webhook missing state name',
+          payload,
+          extra: { issueId },
+        });
         return res.status(200).send({ success: true });
       }
 
       const newStatus = linearStateToFeedbackStatus[newStateName];
       if (newStatus === undefined) {
-        // State not mapped, ignore
+        logLinearWebhookDebug({
+          message: 'linear webhook ignored unmapped issue state',
+          payload,
+          extra: {
+            issueId,
+            stateName: newStateName,
+          },
+        });
         return res.status(200).send({ success: true });
       }
 
-      // Find feedback by Linear issue ID
+      const con = await createOrGetConnection();
       const feedback = await con.getRepository(Feedback).findOne({
         where: { linearIssueId: issueId },
       });
 
       if (!feedback) {
-        // Not a feedback-related issue, ignore
+        logLinearWebhookDebug({
+          message: 'linear issue webhook ignored non-feedback issue',
+          payload,
+          extra: { issueId },
+        });
         return res.status(200).send({ success: true });
       }
 
-      // Check if status actually changed
       if (feedback.status === newStatus) {
+        logLinearWebhookDebug({
+          message: 'linear webhook ignored unchanged feedback status',
+          payload,
+          extra: {
+            feedbackId: feedback.id,
+            issueId,
+            status: feedback.status,
+          },
+        });
         return res.status(200).send({ success: true });
       }
 
-      // Update feedback status and generate notification in a transaction
       await con.transaction(async (manager) => {
         await manager
           .getRepository(Feedback)
           .update({ id: feedback.id }, { status: newStatus });
 
+        const ctx:
+          | NotificationFeedbackResolvedContext
+          | NotificationFeedbackCancelledContext = {
+          userIds: [feedback.userId],
+          feedbackId: feedback.id,
+          feedbackDescription: feedback.description,
+        };
         const notificationType = feedbackStatusToNotificationType[newStatus];
+
         if (notificationType) {
-          const ctx:
-            | NotificationFeedbackResolvedContext
-            | NotificationFeedbackCancelledContext = {
-            userIds: [feedback.userId],
-            feedbackId: feedback.id,
-            feedbackDescription: feedback.description,
-          };
           const bundle = generateNotificationV2(notificationType, ctx);
           await storeNotificationBundleV2(manager, bundle);
         }
+      });
+
+      logLinearWebhookDebug({
+        message: 'linear feedback status updated from webhook',
+        payload,
+        extra: {
+          feedbackId: feedback.id,
+          issueId,
+          fromStatus: feedback.status,
+          toStatus: newStatus,
+        },
       });
 
       return res.status(200).send({ success: true });
