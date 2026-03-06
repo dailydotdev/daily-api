@@ -13,7 +13,7 @@ import {
   feedbackClientInfoSchema,
   feedbackInputSchema,
 } from '../common/schema/feedback';
-import { ZodError } from 'zod/v4';
+import { ZodError } from 'zod';
 import {
   connectionFromNodes,
   GQLEmptyResponse,
