@@ -13,6 +13,7 @@ import { NotificationType } from '../../../src/notifications/common';
 import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { FeedbackReply } from '../../../src/entity/FeedbackReply';
 import * as mailing from '../../../src/common/mailing';
+import { logger } from '../../../src/logger';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -143,6 +144,46 @@ describe('POST /webhooks/linear', () => {
   });
 
   describe('event filtering', () => {
+    it('should log feedback comment replies for verification', async () => {
+      await createFeedback();
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'linear-comment-123',
+          body: '@reporter looking into this',
+          issue: { id: 'linear-issue-123' },
+          parentId: 'linear-comment-122',
+        },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+      expect(debugSpy).toHaveBeenCalledWith(
+        {
+          action: 'create',
+          type: 'Comment',
+          commentId: 'linear-comment-123',
+          issueId: 'linear-issue-123',
+          isReply: true,
+        },
+        'linear feedback comment ignored without @reply command',
+      );
+
+      const feedback = await con
+        .getRepository(Feedback)
+        .findOneBy({ linearIssueId: 'linear-issue-123' });
+      expect(feedback?.status).toEqual(FeedbackStatus.Processing);
+    });
+
     it('should ignore non-Issue events', async () => {
       await createFeedback();
       const payload = {
