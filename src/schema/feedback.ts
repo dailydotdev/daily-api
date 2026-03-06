@@ -1,5 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { FeedbackReply } from '../entity/FeedbackReply';
 import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
@@ -288,7 +289,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     feedbackList: async (
       _,
-      args: ConnectionArguments & { status?: number; category?: number },
+      args: ConnectionArguments & {
+        status?: FeedbackStatus;
+        category?: UserFeedbackCategory;
+      },
       ctx: AuthContext,
     ): Promise<Connection<GQLFeedbackItem>> => {
       if (!ctx.roles.includes(Roles.Moderator)) {
