@@ -833,3 +833,20 @@ export const defaultSuperAgentTrialConfig = {
     showFeedback: true,
   },
 };
+
+export const createMockTemporalClient = () => {
+  const describe = jest.fn();
+  const terminate = jest.fn();
+  const start = jest.fn();
+  const getHandle = jest.fn(() => ({ describe, terminate }));
+
+  return {
+    mock: { describe, terminate, start, getHandle },
+    client: { workflow: { start, getHandle } },
+    notFoundError: () => {
+      const err = new Error('not found');
+      err.name = 'WorkflowNotFoundError';
+      return err;
+    },
+  };
+};
