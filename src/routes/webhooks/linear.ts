@@ -135,11 +135,10 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           select: ['id', 'email'],
         });
 
-        if (user?.email) {
+        if (user?.email && CioTransactionalMessageTemplateId.FeedbackReply) {
           await sendEmail({
             ...baseNotificationEmailData,
-            transactional_message_id:
-              CioTransactionalMessageTemplateId.FeedbackReply as unknown as string,
+            transactional_message_id: CioTransactionalMessageTemplateId.FeedbackReply,
             reply_to: reply.authorEmail || 'support@daily.dev',
             identifiers: { id: feedback.userId },
             to: user.email,
