@@ -22,6 +22,7 @@ import integrations from './integrations';
 import gifs from './gifs';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
 import outbound from './outbound';
+import betterAuth from './betterAuth';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -65,6 +66,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
   fastify.register(outbound, { prefix: '/outbound' });
+  fastify.register(betterAuth, { prefix: '/a' });
 
   // Public API v1
   fastify.register(

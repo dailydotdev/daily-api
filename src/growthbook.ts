@@ -127,6 +127,10 @@ export const features = {
     'profile_completion_post_gate',
     0,
   ),
+  authStrategy: new Feature<'kratos' | 'betterauth'>(
+    'auth_strategy',
+    'betterauth',
+  ),
 };
 
 export class ExperimentAllocationClient {

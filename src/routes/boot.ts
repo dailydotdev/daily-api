@@ -58,6 +58,10 @@ import {
   updateFlagsStatement,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
+import {
+  validateBetterAuthSession,
+  createBetterAuthSession,
+} from '../betterAuthBridge';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
@@ -66,6 +70,7 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import {
   ExperimentAllocationClient,
+  features as gbFeatures,
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
@@ -898,6 +903,47 @@ export const getBootData = async (
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
 
+  const trackingIdForGb = req.trackingId || req.userId || '';
+  const gb = getUserGrowthBookInstance(trackingIdForGb);
+  const authStrategy = gb.getFeatureValue(
+    gbFeatures.authStrategy.id,
+    gbFeatures.authStrategy.defaultValue,
+  );
+
+  const baSessionCookie = req.cookies[cookies.betterAuthSession.key];
+  if (baSessionCookie) {
+    if (authStrategy === 'betterauth') {
+      const baWhoami = await validateBetterAuthSession(req);
+      if (baWhoami.valid) {
+        req.userId = baWhoami.userId;
+        req.trackingId = req.userId;
+        setTrackingId(req, res, req.trackingId);
+        const jwtValid =
+          req.accessToken?.expiresIn &&
+          differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
+        return loggedInBoot({
+          con,
+          req,
+          res,
+          refreshToken: !jwtValid,
+          middleware,
+          userId: req.userId,
+        });
+      }
+      req.log.warn(
+        { authStrategy },
+        'BetterAuth session cookie present but validation failed',
+      );
+      setCookie(req, res, 'betterAuthSession', undefined);
+    } else {
+      req.log.warn(
+        { authStrategy },
+        'BetterAuth session cookie present but auth_strategy is not betterauth',
+      );
+      setCookie(req, res, 'betterAuthSession', undefined);
+    }
+  }
+
   if (
     req.userId &&
     req.accessToken?.expiresIn &&
@@ -941,6 +987,13 @@ export const getBootData = async (
       req.userId = whoami.userId;
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
+    }
+    if (authStrategy === 'betterauth') {
+      await createBetterAuthSession({
+        req,
+        res,
+        userId: whoami.userId,
+      });
     }
     return loggedInBoot({
       con,

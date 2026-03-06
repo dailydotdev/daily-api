@@ -8,6 +8,8 @@ import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
 import { LogoutReason } from './common';
 import { counters } from './telemetry';
+import { fromNodeHeaders } from 'better-auth/node';
+import { getBetterAuth } from './betterAuth';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -81,13 +83,14 @@ export const clearAuthentication = async (
   setCookie(req, res, 'auth', undefined);
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
+  setCookie(req, res, 'betterAuthSession', undefined);
 
   counters?.api?.clearAuthentication?.add(1, { reason });
 };
 
 const MOCK_USER_ID = process.env.MOCK_USER_ID;
 
-type WhoamiResponse =
+export type WhoamiResponse =
   | {
       valid: true;
       userId: string;
@@ -153,6 +156,27 @@ export const dispatchWhoami = async (
   return { valid: false };
 };
 
+const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
+  try {
+    const auth = getBetterAuth();
+    const headers = fromNodeHeaders(
+      req.headers as Record<string, string | string[] | undefined>,
+    );
+    const protocol = req.headers['x-forwarded-proto'] ?? 'http';
+    const host = req.headers.host ?? 'localhost';
+    const signOutReq = new Request(
+      `${String(protocol)}://${host}/a/auth/sign-out`,
+      {
+        method: 'POST',
+        headers,
+      },
+    );
+    await auth.handler(signOutReq);
+  } catch (err) {
+    req.log.warn({ err }, 'error during BetterAuth sign-out');
+  }
+};
+
 export const logout = async (
   req: FastifyRequest,
   res: FastifyReply,
@@ -181,6 +205,8 @@ export const logout = async (
       req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
+
+  await logoutBetterAuth(req);
 
   await clearAuthentication(
     req,

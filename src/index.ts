@@ -39,6 +39,7 @@ import { ZodError } from 'zod';
 import { closeClickHouseClient } from './common/clickhouse';
 import { GQL_MAX_FILE_SIZE } from './config';
 import otelPlugin from './telemetry/plugin';
+import { initializeBetterAuth } from './betterAuth';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -82,6 +83,11 @@ export default async function app(
   app.log.info('loading features');
   app.register(otelPlugin);
   await loadFeatures(app.log);
+
+  if (process.env.BETTER_AUTH_SECRET) {
+    initializeBetterAuth();
+    app.log.info('BetterAuth initialized');
+  }
 
   const gracefulShutdown = () => {
     app.log.info('starting termination');

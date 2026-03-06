@@ -94,6 +94,8 @@
     "@types/uuid": "^10.0.0",
     "apollo-server-errors": "^3.3.0",
     "apollo-server-types": "^3.8.0",
+    "argon2": "^0.44.0",
+    "better-auth": "^1.4.18",
     "close-with-grace": "^2.4.0",
     "cloudinary": "^2.8.0",
     "cockatiel": "^3.2.1",

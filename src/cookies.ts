@@ -69,6 +69,15 @@ export const cookies: {
     key: 'ory_kratos_continuity',
     opts: {},
   },
+  betterAuthSession: {
+    key: 'better-auth.session_token',
+    opts: {
+      signed: false,
+      httpOnly: true,
+      secure: env === 'production',
+      sameSite: 'lax',
+    },
+  },
 };
 
 const extractDomain = (req: FastifyRequest): string => {

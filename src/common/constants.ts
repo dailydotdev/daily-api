@@ -5,6 +5,8 @@ export const ONE_WEEK_IN_SECONDS = ONE_DAY_IN_SECONDS * 7;
 export const ONE_MONTH_IN_SECONDS = ONE_DAY_IN_SECONDS * 30;
 export const ONE_YEAR_IN_SECONDS = ONE_DAY_IN_SECONDS * 365;
 
+export const ONE_MINUTE_IN_MS = 60 * 1000;
+
 export const ONE_HOUR_IN_MINUTES = 60;
 export const ONE_DAY_IN_MINUTES = ONE_HOUR_IN_MINUTES * 24;
 
