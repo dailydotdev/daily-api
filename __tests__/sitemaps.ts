@@ -371,9 +371,7 @@ describe('GET /sitemaps/evergreen.xml', () => {
       reputation: 5,
     });
 
-    const oldDate = new Date(
-      now.getTime() - 91 * ONE_DAY_IN_SECONDS * 1000,
-    );
+    const oldDate = new Date(now.getTime() - 91 * ONE_DAY_IN_SECONDS * 1000);
 
     await con.getRepository(Post).insert([
       {
