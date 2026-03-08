@@ -20,6 +20,7 @@ import { getSitemapRowLastmod } from '../src/routes/sitemaps';
 import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
+import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
 let app: FastifyInstance;
 let con: DataSource;
 
@@ -371,7 +372,7 @@ describe('GET /sitemaps/evergreen.xml', () => {
     });
 
     const oldDate = new Date(
-      now.getTime() - 91 * 24 * 60 * 60 * 1000,
+      now.getTime() - 91 * ONE_DAY_IN_SECONDS * 1000,
     );
 
     await con.getRepository(Post).insert([
@@ -401,8 +402,8 @@ describe('GET /sitemaps/evergreen.xml', () => {
       .expect(200);
 
     expect(res.header['content-type']).toContain('application/xml');
-    expect(res.text).toContain('/posts/evergreen-no-author-enr');
-    expect(res.text).not.toContain('/posts/evergreen-low-rep-elr');
+    expect(res.text).toContain('/posts/evergreen-no-author-evergreen-norep');
+    expect(res.text).not.toContain('/posts/evergreen-low-rep-evergreen-lowrep');
   });
 });
 
