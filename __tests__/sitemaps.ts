@@ -14,6 +14,7 @@ import {
   SentimentEntity,
   SentimentGroup,
   Source,
+  User,
 } from '../src/entity';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
 import { updateFlagsStatement } from '../src/common/utils';
@@ -353,6 +354,55 @@ describe('GET /sitemaps/squads.xml', () => {
       .expect(200);
 
     expect(res.text).not.toContain('/squads/moderatedsquad');
+  });
+});
+
+describe('GET /sitemaps/evergreen.xml', () => {
+  it('should exclude posts by low-reputation authors', async () => {
+    await con.getRepository(User).save({
+      id: 'low-rep-sitemap',
+      name: 'Low Rep',
+      image: 'https://daily.dev/low.jpg',
+      username: 'lowrep',
+      email: 'lowrep@test.com',
+      createdAt: new Date(),
+      infoConfirmed: true,
+      reputation: 5,
+    });
+
+    const oldDate = new Date(
+      now.getTime() - 91 * 24 * 60 * 60 * 1000,
+    );
+
+    await con.getRepository(Post).insert([
+      {
+        id: 'evergreen-lowrep',
+        shortId: 'elr',
+        title: 'Evergreen Low Rep',
+        sourceId: 'a',
+        createdAt: oldDate,
+        type: PostType.Article,
+        upvotes: 100,
+        authorId: 'low-rep-sitemap',
+      },
+      {
+        id: 'evergreen-norep',
+        shortId: 'enr',
+        title: 'Evergreen No Author',
+        sourceId: 'a',
+        createdAt: oldDate,
+        type: PostType.Article,
+        upvotes: 100,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/evergreen.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.text).toContain('/posts/evergreen-no-author-enr');
+    expect(res.text).not.toContain('/posts/evergreen-low-rep-elr');
   });
 });
 
