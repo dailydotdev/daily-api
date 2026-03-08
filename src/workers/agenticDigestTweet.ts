@@ -13,7 +13,7 @@ import { getBragiProxyClient } from '../integrations/bragi';
 import { retryFetch } from '../integrations/retry';
 import { getTwitterClient } from '../integrations/twitter/clients';
 
-const AGENTIC_DIGEST_IMAGE_URL = 'http://og.daily.dev/api/arena?tab=llm';
+const AGENTIC_DIGEST_IMAGE_URL = 'http://og.daily.dev/api/arena?tab=llms';
 const AGENTIC_DIGEST_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const AGENTIC_DIGEST_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 const AGENTIC_DIGEST_IMAGE_TIMEOUT_MS = 60 * 1000;
