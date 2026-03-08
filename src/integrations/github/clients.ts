@@ -1,6 +1,10 @@
 import fetch from 'node-fetch';
 import { GarmrService, IGarmrService, GarmrNoopService } from '../garmr';
-import { IGitHubClient, GitHubSearchResponse } from './types';
+import {
+  IGitHubClient,
+  GitHubSearchResponse,
+  GitHubUserRepository,
+} from './types';
 
 export class GitHubClient implements IGitHubClient {
   private readonly baseUrl: string;
@@ -19,31 +23,47 @@ export class GitHubClient implements IGitHubClient {
     this.garmr = options?.garmr || new GarmrNoopService();
   }
 
+  private async fetchJson<T>(path: string): Promise<T> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'daily.dev',
+    };
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${path}`, { headers });
+
+    if (!response.ok) {
+      throw new Error(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return response.json() as Promise<T>;
+  }
+
   async searchRepositories(
     query: string,
     limit = 10,
   ): Promise<GitHubSearchResponse> {
+    return this.garmr.execute(() =>
+      this.fetchJson(
+        `/search/repositories?q=${encodeURIComponent(query)}&per_page=${limit}&sort=stars&order=desc`,
+      ),
+    );
+  }
+
+  async listUserRepositories(
+    username: string,
+    limit = 6,
+  ): Promise<GitHubUserRepository[]> {
     return this.garmr.execute(async () => {
-      const url = `${this.baseUrl}/search/repositories?q=${encodeURIComponent(query)}&per_page=${limit}&sort=stars&order=desc`;
-
-      const headers: Record<string, string> = {
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'daily.dev',
-      };
-
-      if (this.token) {
-        headers.Authorization = `Bearer ${this.token}`;
-      }
-
-      const response = await fetch(url, { headers });
-
-      if (!response.ok) {
-        throw new Error(
-          `GitHub API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      return response.json() as Promise<GitHubSearchResponse>;
+      const repos = await this.fetchJson<GitHubUserRepository[]>(
+        `/users/${encodeURIComponent(username)}/repos?type=owner&sort=stars&direction=desc&per_page=${limit}`,
+      );
+      return repos.filter((repo) => !repo.fork);
     });
   }
 }

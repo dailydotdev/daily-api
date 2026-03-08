@@ -167,6 +167,8 @@ import {
   NotificationType,
 } from '../src/notifications/common';
 import { UserCandidatePreference } from '../src/entity/user/UserCandidatePreference';
+import { gitHubClient } from '../src/integrations/github/clients';
+import type { GitHubUserRepository } from '../src/integrations/github/types';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -8148,5 +8150,113 @@ describe('query userPostsAnalyticsHistory', () => {
       impressions: 150,
       impressionsAds: 50,
     });
+  });
+});
+
+describe('query userGithubRepositories', () => {
+  const QUERY = /* GraphQL */ `
+    query UserGithubRepositories($userId: ID!) {
+      userGithubRepositories(userId: $userId) {
+        id
+        owner
+        name
+        fullName
+        url
+        description
+        stars
+        forks
+        language
+        updatedAt
+      }
+    }
+  `;
+
+  const mockRepo: GitHubUserRepository = {
+    id: 123456,
+    name: 'my-repo',
+    full_name: 'lee/my-repo',
+    html_url: 'https://github.com/lee/my-repo',
+    description: 'A test repository',
+    owner: {
+      login: 'lee',
+      avatar_url: 'https://avatars.githubusercontent.com/u/1',
+    },
+    stargazers_count: 100,
+    forks_count: 20,
+    language: 'TypeScript',
+    fork: false,
+    updated_at: '2024-01-01T00:00:00Z',
+  };
+
+  let listReposMock: jest.SpyInstance;
+
+  beforeEach(() => {
+    listReposMock = jest
+      .spyOn(gitHubClient, 'listUserRepositories')
+      .mockResolvedValue([mockRepo]);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return repos for user with GitHub in socialLinks', async () => {
+    // User 3 has { platform: 'github', url: 'https://github.com/lee' } in socialLinks
+    const res = await client.query(QUERY, { variables: { userId: '3' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(listReposMock).toHaveBeenCalledWith('lee', 6);
+    expect(res.data.userGithubRepositories).toEqual([
+      {
+        id: '123456',
+        owner: 'lee',
+        name: 'my-repo',
+        fullName: 'lee/my-repo',
+        url: 'https://github.com/lee/my-repo',
+        description: 'A test repository',
+        stars: 100,
+        forks: 20,
+        language: 'TypeScript',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    ]);
+  });
+
+  it('should fall back to legacy github column when no socialLinks github entry', async () => {
+    await con.getRepository(User).update('1', { github: 'idouser' });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(listReposMock).toHaveBeenCalledWith('idouser', 6);
+    expect(res.data.userGithubRepositories).toHaveLength(1);
+  });
+
+  it('should return empty array for user with no GitHub link', async () => {
+    // User 2 has no GitHub in socialLinks and no github field
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(listReposMock).not.toHaveBeenCalled();
+    expect(res.data.userGithubRepositories).toEqual([]);
+  });
+
+  it('should return empty array for non-existent user', async () => {
+    const res = await client.query(QUERY, {
+      variables: { userId: 'nonexistent' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(listReposMock).not.toHaveBeenCalled();
+    expect(res.data.userGithubRepositories).toEqual([]);
+  });
+
+  it('should return empty array when GitHub API fails', async () => {
+    listReposMock.mockRejectedValue(new Error('GitHub API error'));
+
+    const res = await client.query(QUERY, { variables: { userId: '3' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userGithubRepositories).toEqual([]);
   });
 });
