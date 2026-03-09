@@ -5,33 +5,12 @@ import {
   ChatMessage,
   ChatResponse,
   LLMProxy,
-  ClassifyGearResponse,
-  ClassifyRejectionFeedbackResponse,
-  ClassifyUserFeedbackResponse,
-  FeedbackCategory,
-  FeedbackClassification,
-  FeedbackPlatform,
-  FeedbackSentiment,
-  FeedbackUrgency,
-  FindCompanyNewsResponse,
-  FindContactActivityResponse,
-  FindJobVacanciesResponse,
-  GearCategory as ProtoGearCategory,
-  GenerateRecruiterEmailResponse,
-  ParseFeedbackResponse,
   Pipelines,
-  SentimentDigestResponse,
-  RejectionFeedbackClassification,
-  RejectionReason,
-  RejectionReasonDetail,
-  UserFeedbackClassification,
-  UserFeedbackSentiment,
-  UserFeedbackTeam,
-  UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 import { GarmrService, GarmrNoopService } from '../garmr';
 import type { ServiceClient } from '../../types';
 import { logger } from '../../logger';
+import { isMockEnabled } from '../../mocks/opportunity/services';
 
 const garmrBragiService = new GarmrService({
   service: 'bragi',
