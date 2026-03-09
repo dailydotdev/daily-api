@@ -26,8 +26,6 @@ describe('GET /public/v1/recommend/keyword', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.experimental).toBe(true);
-    expect(body.method).toBe('keyword');
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBe(2);
     expect(body.data[0]).toMatchObject({
@@ -60,14 +58,13 @@ describe('GET /public/v1/recommend/keyword', () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir(['p1']);
 
-    const { body } = await request(state.app.server)
+    const { headers } = await request(state.app.server)
       .get('/public/v1/recommend/keyword')
       .query({ q: 'react', time: 'month' })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.experimental).toBe(true);
-    expect(body.method).toBe('keyword');
+    expect(headers['x-daily-experimental']).toBeDefined();
   });
 
   it('should return empty data when no results', async () => {
@@ -102,8 +99,6 @@ describe('GET /public/v1/recommend/semantic', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.experimental).toBe(true);
-    expect(body.method).toBe('semantic');
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBe(2);
     expect(body.data[0]).toMatchObject({

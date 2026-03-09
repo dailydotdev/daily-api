@@ -85,11 +85,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           200: {
             type: 'object',
             properties: {
-              experimental: { type: 'boolean' },
-              method: {
-                type: 'string',
-                description: 'Search method used (keyword)',
-              },
               data: { type: 'array', items: { $ref: 'FeedPost#' } },
               pagination: { $ref: 'Pagination#' },
             },
@@ -122,8 +117,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         (json) => {
           const result = json as unknown as SearchPostsResponse;
           return {
-            experimental: true,
-            method: 'keyword',
             data: result.searchPosts.edges.map(({ node }) => node),
             pagination: {
               hasNextPage: result.searchPosts.pageInfo.hasNextPage,
@@ -179,11 +172,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           200: {
             type: 'object',
             properties: {
-              experimental: { type: 'boolean' },
-              method: {
-                type: 'string',
-                description: 'Search method used (semantic)',
-              },
               data: { type: 'array', items: { $ref: 'FeedPost#' } },
             },
           },
@@ -214,8 +202,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         (json) => {
           const result = json as unknown as SearchPostsResponse;
           return {
-            experimental: true,
-            method: 'semantic',
             data: result.searchPosts.edges.map(({ node }) => node),
           };
         },
