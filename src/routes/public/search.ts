@@ -8,10 +8,12 @@ import {
   PAGE_INFO_FIELDS,
 } from './common';
 
+const SEARCH_VERSION = 3;
+
 // GraphQL query for searching posts
 const SEARCH_POSTS_QUERY = `
-  query PublicApiSearchPosts($query: String!, $first: Int, $after: String, $time: SearchTime) {
-    searchPosts(query: $query, first: $first, after: $after, time: $time) {
+  query PublicApiSearchPosts($query: String!, $first: Int, $after: String, $time: SearchTime, $version: Int) {
+    searchPosts(query: $query, first: $first, after: $after, time: $time, version: $version) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -145,6 +147,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             time: time ? TIME_MAP[time] : null,
+            version: SEARCH_VERSION,
           },
         },
         (json) => {

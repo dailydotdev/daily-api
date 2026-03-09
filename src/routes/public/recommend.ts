@@ -13,10 +13,11 @@ const EXPERIMENTAL_WARNING =
   'This endpoint is experimental and may be removed or changed without notice.';
 
 const RECOMMEND_MAX_LIMIT = 20;
+const SEARCH_VERSION = 3;
 
 const KEYWORD_SEARCH_QUERY = `
-  query PublicApiRecommendKeyword($query: String!, $first: Int, $after: String, $time: SearchTime) {
-    searchPosts(query: $query, first: $first, after: $after, time: $time) {
+  query PublicApiRecommendKeyword($query: String!, $first: Int, $after: String, $time: SearchTime, $version: Int) {
+    searchPosts(query: $query, first: $first, after: $after, time: $time, version: $version) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -28,8 +29,8 @@ const KEYWORD_SEARCH_QUERY = `
 `;
 
 const SEMANTIC_SEARCH_QUERY = `
-  query PublicApiRecommendSemantic($query: String!, $first: Int, $time: SearchTime) {
-    searchPosts(query: $query, first: $first, time: $time) {
+  query PublicApiRecommendSemantic($query: String!, $first: Int, $time: SearchTime, $version: Int) {
+    searchPosts(query: $query, first: $first, time: $time, version: $version) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -125,6 +126,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             time: time ? TIME_MAP[time] : null,
+            version: SEARCH_VERSION,
           },
         },
         (json) => {
@@ -209,6 +211,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             query: q,
             first: limit,
             time: time ? TIME_MAP[time] : null,
+            version: SEARCH_VERSION,
           },
         },
         (json) => {
