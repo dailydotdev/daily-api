@@ -12,6 +12,7 @@ import {
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
+import { ONE_HOUR_IN_SECONDS } from '../common/constants';
 import {
   DataSource,
   EntityManager,
@@ -19,7 +20,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 
-const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
+const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-maxage=${2 * ONE_HOUR_IN_SECONDS}`;
 const SITEMAP_LIMIT = 50_000;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
@@ -168,6 +169,7 @@ const buildAgentsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('se.entity', 'entity')
+    .addSelect('se."createdAt"', 'lastmod')
     .from(SentimentEntity, 'se')
     .where('se."groupId" IN (:...groupIds)', {
       groupIds: ARENA_SITEMAP_GROUP_IDS,
@@ -181,6 +183,7 @@ const buildAgentsDigestSitemapQuery = (
   source
     .createQueryBuilder()
     .select('p.slug', 'slug')
+    .addSelect('p."createdAt"', 'lastmod')
     .from(Post, 'p')
     .where('p."sourceId" = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
     .andWhere('NOT p.deleted')
@@ -351,8 +354,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getAgentSitemapUrl(prefix, row.entity),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getAgentSitemapUrl(prefix, row.entity),
+          getSitemapRowLastmod,
         ),
       );
   });
@@ -366,8 +371,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getPostSitemapUrl(prefix, row.slug),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
         ),
       );
   });
