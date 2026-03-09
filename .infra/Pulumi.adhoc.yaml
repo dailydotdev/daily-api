@@ -100,6 +100,27 @@ config:
     employmentAgreementBucketName: adhoc-daily-api
     brokkrOrigin: http://brokkr-grpc:50051
     mockExternalServices: true
+    betterAuthSecret:
+      secure: v1:OMJzrWkQe5M2bCPT:zjmHZhC/lKVS9Wgm+m3kCthxwFwh+Ux9pp1E2g+NnQFpsLkVyCRjKEQY8JGdY0IcTaKmhVw9bjo/gMx9N1G6qsUegCIwnQ==
+    betterAuthBaseUrl: https://api.local.fylla.dev
+    betterAuthTrustedOrigins: https://app.local.fylla.dev:5002
+    betterAuthRedirectUrl: https://sso.local.fylla.dev/api
+    googleClientId:
+      secure: v1:vxiz7DL3y7wJC3Xb:U998JBQzsUpSrJUAwshlu68xUvWq5zm6hXZNQ6Jeqd82+fZU5/WJJ4t2ti9tlJgUcvrI0Nz7/0dweGmTLp4is58i1k7d37/ZcNjtTOhO39sqa/9hNjQPsQ==
+    googleClientSecret:
+      secure: v1:DyvUCX4JxvjrYwOv:eSsStUriEPV2u895v2k0RROIv6fecftf6ZGmQEZfALLp5q3TzVrQrg==
+    githubClientId:
+      secure: v1:nTT76ELlqKxR4Auh:BQSLiFpXOZjpJ/lZQxuRxC2RNlf3w4t3VvpMxznldd1lofbS
+    githubClientSecret:
+      secure: v1:GhL76XX0Y/yzoYG8:6kARUQHVOxbIP/WXxH+2IX91ADp650ZrEG7H+6FXuakJuzhDHTpk+q37jUq1hzHzp8xNbNFlud4=
+    appleClientId:
+      secure: v1:pK4ks8kCNPZO/KJc:REutw/UeJumYLJWA8cPy5iL83yaVgOOZh9azOyo7zcyj
+    appleClientSecret:
+      secure: v1:8TOrQ25yzgkRxr2C:n6FB51tbRNAl5bujHFjsn6a7kxEWlirmhX4wj/iWGM5BSc7n+8AxQkxhiLhe6xE0aXvfTPMUurfvbRMBHfkzbrJi7sZkMX7ZsseUHZLbyphA6+L3VxwsVvehArNx5iVJ8MzZW/LxsXZ50AtUjuXzLvaJKQtImdU9MLSPKy/EEOClTBSIn0leHJuEuDI4l7uFUN845qb+R6buTvy26jzaBNxTM//zLvf+2LN+iIbCKXsm77NdRT76x+Zr3rBQSnEWMZJjo4SE3eW5PJ30ZD0XJxung1CcErhWtVeHOkOQjGs4p6OGO/5S3NXK+RS65qQnMPoYiYPhkKhcmd/2FJqruzV7J93FGyw5+LUJ/AqPKpdCRNi1gMS5RPg+SG6Q5YiqvcMWiNbKPCsLStL3bZ2DKyvfBJx9XFWWSDcCFfft
+    facebookClientId:
+      secure: v1:HK6y83jsUMlifn1s:lVkv/LDrS8XKQDZtux2UgCCDMU+nAq1W2b1PNngYWQ==
+    facebookClientSecret:
+      secure: v1:a/9PRJS0TIBFdMcn:LfxVew6M8ANQHkmK8IAmpnvW/EZ6MKDmH1k2+qihluVS3lYJ740Ui4jvbTZoz55h
   api:k8s:
     namespace: local
   api:temporal:
