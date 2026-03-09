@@ -11,6 +11,9 @@ import { createHmac } from 'crypto';
 import { NotificationV2, UserNotification } from '../../../src/entity';
 import { NotificationType } from '../../../src/notifications/common';
 import { UserFeedbackCategory } from '@dailydotdev/schema';
+import { FeedbackReply } from '../../../src/entity/FeedbackReply';
+import * as mailing from '../../../src/common/mailing';
+import { logger } from '../../../src/logger';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -43,6 +46,7 @@ afterAll(() => app.close());
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  jest.spyOn(mailing, 'sendEmail').mockResolvedValue();
   await saveFixtures(con, User, usersFixture);
 });
 
@@ -140,6 +144,46 @@ describe('POST /webhooks/linear', () => {
   });
 
   describe('event filtering', () => {
+    it('should log feedback comment replies for verification', async () => {
+      await createFeedback();
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'linear-comment-123',
+          body: '@reporter looking into this',
+          issue: { id: 'linear-issue-123' },
+          parentId: 'linear-comment-122',
+        },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+      expect(debugSpy).toHaveBeenCalledWith(
+        {
+          action: 'create',
+          type: 'Comment',
+          commentId: 'linear-comment-123',
+          issueId: 'linear-issue-123',
+          isReply: true,
+        },
+        'linear feedback comment ignored without @reply command',
+      );
+
+      const feedback = await con
+        .getRepository(Feedback)
+        .findOneBy({ linearIssueId: 'linear-issue-123' });
+      expect(feedback?.status).toEqual(FeedbackStatus.Processing);
+    });
+
     it('should ignore non-Issue events', async () => {
       await createFeedback();
       const payload = {
@@ -252,6 +296,32 @@ describe('POST /webhooks/linear', () => {
         .getRepository(Feedback)
         .findOneBy({ linearIssueId: 'linear-issue-123' });
       expect(feedback?.status).toEqual(FeedbackStatus.Processing);
+    });
+
+    it('should ignore comment create events without @reply prefix', async () => {
+      await createFeedback();
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'comment-123',
+          body: 'Thanks team',
+          issue: { id: 'linear-issue-123' },
+          user: { name: 'Chris', email: 'chris@daily.dev' },
+        },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      const replies = await con.getRepository(FeedbackReply).find();
+      expect(replies).toHaveLength(0);
+      expect(mailing.sendEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -390,6 +460,112 @@ describe('POST /webhooks/linear', () => {
         where: { type: NotificationType.FeedbackCancelled },
       });
       expect(notifications).toHaveLength(0);
+    });
+  });
+
+  describe('reply handling', () => {
+    it('should create feedback reply and send email for @reply comment', async () => {
+      const feedback = await createFeedback();
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'comment-123',
+          body: '@reply Thanks for reporting this issue.',
+          issue: { id: 'linear-issue-123' },
+          user: { name: 'Chris', email: 'chris@daily.dev' },
+        },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      const replies = await con.getRepository(FeedbackReply).find({
+        where: { feedbackId: feedback.id },
+      });
+      expect(replies).toHaveLength(1);
+      expect(replies[0]).toMatchObject({
+        feedbackId: feedback.id,
+        body: 'Thanks for reporting this issue.',
+        authorName: 'Chris',
+        authorEmail: 'chris@daily.dev',
+      });
+
+      expect(mailing.sendEmail).toHaveBeenCalledTimes(1);
+      expect(mailing.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: usersFixture[0].email,
+          reply_to: 'chris@daily.dev',
+          identifiers: { id: feedback.userId },
+        }),
+      );
+
+      const notifications = await con
+        .getRepository(NotificationV2)
+        .findBy({ referenceId: feedback.id });
+      expect(notifications).toHaveLength(0);
+    });
+
+    it('should fallback reply_to to support email when author email is missing', async () => {
+      await createFeedback();
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'comment-123',
+          body: '@reply We shipped the fix.',
+          issue: { id: 'linear-issue-123' },
+          user: { name: 'Chris' },
+        },
+      };
+
+      await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(mailing.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reply_to: 'support@daily.dev',
+        }),
+      );
+    });
+
+    it('should create reply when author email is invalid and fallback to support reply_to', async () => {
+      const feedback = await createFeedback();
+      const payload = {
+        action: 'create',
+        type: 'Comment',
+        data: {
+          id: 'comment-123',
+          body: '@reply Shared an update for this',
+          issue: { id: 'linear-issue-123' },
+          user: { name: 'Chris', email: 'invalid-email' },
+        },
+      };
+
+      await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      const replies = await con.getRepository(FeedbackReply).findBy({
+        feedbackId: feedback.id,
+      });
+      expect(replies).toHaveLength(1);
+      expect(replies[0].authorEmail).toBeNull();
+      expect(mailing.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reply_to: 'support@daily.dev',
+        }),
+      );
     });
   });
 

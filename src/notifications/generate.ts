@@ -720,7 +720,7 @@ export const generateNotificationMap: Record<
       .title('Your feedback has been resolved')
       .referenceFeedback(ctx.feedbackId)
       .description(ctx.feedbackDescription, true)
-      .targetUrl(process.env.COMMENTS_PREFIX)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/settings/feedback`)
       .uniqueKey(ctx.feedbackId);
   },
   feedback_cancelled: (
@@ -732,7 +732,7 @@ export const generateNotificationMap: Record<
       .title(feedbackCancelledTitle)
       .referenceFeedback(ctx.feedbackId)
       .description(ctx.feedbackDescription, true)
-      .targetUrl(process.env.COMMENTS_PREFIX)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/settings/feedback`)
       .uniqueKey(ctx.feedbackId);
   },
   achievement_unlocked: (

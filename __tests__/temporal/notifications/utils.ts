@@ -1,6 +1,3 @@
-import { BookmarkActivities } from '../../../src/temporal/notifications/activities';
-import { TestWorkflowEnvironment } from '@temporalio/testing';
-import { Worker } from '@temporalio/worker';
 import {
   cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
@@ -9,40 +6,15 @@ import {
   runEntityReminderWorkflow,
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
+import { createMockTemporalClient } from '../../helpers';
 
-let testEnv: TestWorkflowEnvironment;
-
-const validateBookmark = jest.fn();
-const sendBookmarkReminder = jest.fn();
-const mockActivities: BookmarkActivities = {
-  validateBookmark,
-  sendBookmarkReminder,
-};
-
-let worker: Worker;
+const { mock, client, notFoundError } = createMockTemporalClient();
 
 jest.mock('../../../src/temporal/client', () => ({
-  getTemporalClient: () => testEnv.client,
+  getTemporalClient: () => client,
 }));
 
-const setupTestEnv = async () => {
-  testEnv = await TestWorkflowEnvironment.createTimeSkipping();
-  worker = await Worker.create({
-    connection: testEnv.nativeConnection,
-    taskQueue: 'test',
-    activities: mockActivities,
-    workflowsPath:
-      require.resolve('../../../src/temporal/notifications/workflows'),
-  });
-};
-
-const cleanupTestEnv = async () => {
-  await testEnv?.teardown();
-  testEnv = null;
-  worker = null;
-};
-
-beforeEach(async () => {
+beforeEach(() => {
   jest.clearAllMocks();
 });
 
@@ -61,84 +33,72 @@ describe('getReminderWorkflowId', () => {
 });
 
 describe('runReminderWorkflow', () => {
-  beforeEach(async () => {
-    await setupTestEnv();
-  });
-
-  afterEach(async () => {
-    await cleanupTestEnv();
-  });
-
   it('should start reminder workflow', async () => {
+    mock.describe.mockRejectedValueOnce(notFoundError());
+    mock.start.mockResolvedValueOnce({ describe: mock.describe });
+
     const params = {
       postId: 'p1',
       userId: '1',
-      remindAt: Date.now() + 1000,
+      remindAt: Date.now() + 10_000,
     };
 
-    const result = await worker.runUntil(runReminderWorkflow(params));
-    const description = await result.describe();
+    const result = await runReminderWorkflow(params);
 
-    expect(description.status.name).toEqual('RUNNING');
+    expect(result).toBeDefined();
+    expect(mock.start).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: getReminderWorkflowId(params),
+        taskQueue: 'notification-queue',
+      }),
+    );
   });
 
   it('should not start reminder workflow when workflow exists', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+
     const params = {
       postId: 'p1',
       userId: '1',
-      remindAt: Date.now() + 1000,
+      remindAt: Date.now() + 10_000,
     };
 
-    const result = await worker.runUntil(runReminderWorkflow(params));
-    const description = await result.describe();
+    const result = await runReminderWorkflow(params);
 
-    expect(description.status.name).toEqual('RUNNING');
-
-    const newWorkflow = await runReminderWorkflow(params);
-
-    expect(newWorkflow).not.toBeDefined();
+    expect(result).toBeUndefined();
+    expect(mock.start).not.toHaveBeenCalled();
   });
 });
 
 describe('cancelReminderWorkflow', () => {
-  beforeEach(async () => {
-    await setupTestEnv();
-  });
-
-  afterEach(async () => {
-    await cleanupTestEnv();
-  });
-
   it('should cancel workflow', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+    mock.terminate.mockResolvedValueOnce(undefined);
+
     const params = {
       postId: 'p1',
       userId: '1',
-      remindAt: Date.now() + 1000,
+      remindAt: Date.now() + 10_000,
     };
 
-    const result = await runReminderWorkflow(params);
-    const description = await result.describe();
+    await cancelReminderWorkflow(params);
 
-    expect(description.status.name).toEqual('RUNNING');
-
-    const cancelledResult = await worker.runUntil(
-      cancelReminderWorkflow(params),
-    );
-    const cancelled = await result.describe();
-    expect(cancelledResult).toBeDefined();
-    expect(cancelled.status.name).toEqual('TERMINATED');
+    expect(mock.terminate).toHaveBeenCalled();
   });
 
   it('should do nothing when workflow does not exist', async () => {
+    mock.describe.mockRejectedValueOnce(notFoundError());
+
     const params = {
       postId: 'p1',
       userId: '1',
-      remindAt: Date.now() + 1000,
+      remindAt: Date.now() + 10_000,
     };
 
-    const result = await worker.runUntil(cancelReminderWorkflow(params));
+    await cancelReminderWorkflow(params);
 
-    expect(result).not.toBeDefined();
+    expect(mock.terminate).not.toHaveBeenCalled();
   });
 });
 
@@ -162,59 +122,10 @@ describe('getEntityReminderWorkflowId', () => {
 });
 
 describe('runEntityReminderWorkflow', () => {
-  beforeEach(async () => {
-    await setupTestEnv();
-  });
-
-  afterEach(async () => {
-    await cleanupTestEnv();
-  });
-
   it('should start reminder workflow', async () => {
-    const params = {
-      entityId: '1',
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    };
+    mock.describe.mockRejectedValueOnce(notFoundError());
+    mock.start.mockResolvedValueOnce({ describe: mock.describe });
 
-    const result = await worker.runUntil(runEntityReminderWorkflow(params));
-    expect(result).toBeDefined();
-    const description = await result!.describe();
-
-    expect(description.status.name).toEqual('RUNNING');
-  });
-
-  it('should not start reminder workflow when workflow exists', async () => {
-    const params = {
-      entityId: '1',
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    };
-
-    const result = await worker.runUntil(runEntityReminderWorkflow(params));
-    expect(result).toBeDefined();
-    const description = await result!.describe();
-
-    expect(description.status.name).toEqual('RUNNING');
-
-    const newWorkflow = await runEntityReminderWorkflow(params);
-
-    expect(newWorkflow).not.toBeDefined();
-  });
-});
-
-describe('cancelEntityReminderWorkflow', () => {
-  beforeEach(async () => {
-    await setupTestEnv();
-  });
-
-  afterEach(async () => {
-    await cleanupTestEnv();
-  });
-
-  it('should cancel workflow', async () => {
     const params = {
       entityId: '1',
       entityTableName: 'campaign',
@@ -223,21 +134,20 @@ describe('cancelEntityReminderWorkflow', () => {
     };
 
     const result = await runEntityReminderWorkflow(params);
+
     expect(result).toBeDefined();
-    const description = await result!.describe();
-
-    expect(description.status.name).toEqual('RUNNING');
-
-    const cancelledResult = await worker.runUntil(
-      cancelEntityReminderWorkflow(params),
+    expect(mock.start).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: getEntityReminderWorkflowId(params),
+        taskQueue: 'notification-queue',
+      }),
     );
-    expect(cancelledResult).toBeDefined();
-    const cancelled = await result!.describe();
-    expect(cancelledResult).toBeDefined();
-    expect(cancelled.status.name).toEqual('TERMINATED');
   });
 
-  it('should do nothing when workflow does not exist', async () => {
+  it('should not start reminder workflow when workflow exists', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+
     const params = {
       entityId: '1',
       entityTableName: 'campaign',
@@ -245,8 +155,42 @@ describe('cancelEntityReminderWorkflow', () => {
       delayMs: 1_000,
     };
 
-    const result = await worker.runUntil(cancelEntityReminderWorkflow(params));
+    const result = await runEntityReminderWorkflow(params);
 
-    expect(result).not.toBeDefined();
+    expect(result).toBeUndefined();
+    expect(mock.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('cancelEntityReminderWorkflow', () => {
+  it('should cancel workflow', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+    mock.terminate.mockResolvedValueOnce(undefined);
+
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    await cancelEntityReminderWorkflow(params);
+
+    expect(mock.terminate).toHaveBeenCalled();
+  });
+
+  it('should do nothing when workflow does not exist', async () => {
+    mock.describe.mockRejectedValueOnce(notFoundError());
+
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    await cancelEntityReminderWorkflow(params);
+
+    expect(mock.terminate).not.toHaveBeenCalled();
   });
 });

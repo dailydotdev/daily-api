@@ -867,6 +867,10 @@ const obj = new GraphORM({
           parentColumn: 'id',
         },
         transform: (value, ctx, parent) => {
+          if (!value) {
+            return null;
+          }
+
           const post = parent as Post;
           const isAuthor = post?.authorId && ctx.userId === post.authorId;
           const isScout = post?.scoutId && ctx.userId === post.scoutId;
@@ -875,7 +879,10 @@ const obj = new GraphORM({
             return value;
           }
 
-          return null;
+          return {
+            id: value.id,
+            bookmarks: value.bookmarks,
+          };
         },
       },
     },

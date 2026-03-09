@@ -139,12 +139,14 @@ const buildEvergreenSitemapQuery = (
     .select('p.slug', 'slug')
     .addSelect('p."metadataChangedAt"', 'lastmod')
     .from(Post, 'p')
+    .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
     .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
     .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 50 })
+    .andWhere('(u.id is null or u.reputation > 10)')
     .orderBy('p.upvotes', 'DESC')
     .limit(SITEMAP_LIMIT);
 

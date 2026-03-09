@@ -1,8 +1,35 @@
 import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
-import { Pipelines } from '@dailydotdev/schema';
-import { GarmrService } from '../garmr';
+import {
+  ChatMessage,
+  ChatResponse,
+  LLMProxy,
+  ClassifyGearResponse,
+  ClassifyRejectionFeedbackResponse,
+  ClassifyUserFeedbackResponse,
+  FeedbackCategory,
+  FeedbackClassification,
+  FeedbackPlatform,
+  FeedbackSentiment,
+  FeedbackUrgency,
+  FindCompanyNewsResponse,
+  FindContactActivityResponse,
+  FindJobVacanciesResponse,
+  GearCategory as ProtoGearCategory,
+  GenerateRecruiterEmailResponse,
+  ParseFeedbackResponse,
+  Pipelines,
+  SentimentDigestResponse,
+  RejectionFeedbackClassification,
+  RejectionReason,
+  RejectionReasonDetail,
+  UserFeedbackClassification,
+  UserFeedbackSentiment,
+  UserFeedbackTeam,
+  UserFeedbackUrgency,
+} from '@dailydotdev/schema';
+import { GarmrService, GarmrNoopService } from '../garmr';
 import type { ServiceClient } from '../../types';
 import { logger } from '../../logger';
 
@@ -53,6 +80,25 @@ const logBragiClientMode = ({
     '******** Bragi client initialized in remote mode ********',
   );
 };
+const garmrBragiProxyService = new GarmrService({
+  service: 'bragi-proxy',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 3,
+    backoff: 2 * 1000,
+  },
+});
+
+const transport = env.BRAGI_ORIGIN
+  ? createGrpcTransport({
+      baseUrl: env.BRAGI_ORIGIN,
+      httpVersion: '2',
+    })
+  : undefined;
 
 export const getBragiClient = (
   clientTransport = getBragiTransport(),
@@ -69,5 +115,35 @@ export const getBragiClient = (
   return {
     instance: createClient<typeof Pipelines>(Pipelines, clientTransport),
     garmr: garmrBragiService,
+  };
+};
+
+type BragiProxyClient = {
+  instance: ReturnType<typeof createClient<typeof LLMProxy>>;
+  garmr: GarmrService | GarmrNoopService;
+};
+
+export const getBragiProxyClient = (
+  clientTransport = transport,
+): BragiProxyClient => {
+  if (isMockEnabled() || !clientTransport) {
+    return {
+      instance: {
+        chat: async () =>
+          new ChatResponse({
+            id: 'mock-id',
+            message: new ChatMessage({
+              role: 'assistant',
+              content: 'Mock tweet content',
+            }),
+          }),
+      } as unknown as ReturnType<typeof createClient<typeof LLMProxy>>,
+      garmr: new GarmrNoopService(),
+    };
+  }
+
+  return {
+    instance: createClient<typeof LLMProxy>(LLMProxy, clientTransport),
+    garmr: garmrBragiProxyService,
   };
 };
