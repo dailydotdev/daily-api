@@ -12,6 +12,7 @@ import {
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
+import { ONE_HOUR_IN_SECONDS } from '../common/constants';
 import {
   DataSource,
   EntityManager,
@@ -19,7 +20,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 
-const SITEMAP_CACHE_CONTROL = 'public, max-age=7200, s-maxage=7200';
+const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-maxage=${2 * ONE_HOUR_IN_SECONDS}`;
 const SITEMAP_LIMIT = 50_000;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
