@@ -286,7 +286,7 @@ describe('GET /sitemaps/agents-digest.xml', () => {
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toEqual(
-      'public, max-age=14400, s-maxage=14400',
+      'public, max-age=7200, s-maxage=7200',
     );
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -321,7 +321,7 @@ describe('GET /sitemaps/squads.xml', () => {
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toEqual(
-      'public, max-age=14400, s-maxage=14400',
+      'public, max-age=7200, s-maxage=7200',
     );
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',

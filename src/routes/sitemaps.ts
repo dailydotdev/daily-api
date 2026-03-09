@@ -19,7 +19,7 @@ import {
   SelectQueryBuilder,
 } from 'typeorm';
 
-const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
+const SITEMAP_CACHE_CONTROL = 'public, max-age=7200, s-maxage=7200';
 const SITEMAP_LIMIT = 50_000;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
