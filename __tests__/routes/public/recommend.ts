@@ -4,6 +4,10 @@ import { setupPublicApiTests, createTokenForUser } from './helpers';
 
 const state = setupPublicApiTests();
 
+afterEach(() => {
+  nock.cleanAll();
+});
+
 const nockMimir = (postIds: string[]) => {
   nock('http://localhost:7600')
     .post('/v1/search')
@@ -16,7 +20,7 @@ const nockMimir = (postIds: string[]) => {
 };
 
 describe('GET /public/v1/recommend/keyword', () => {
-  it('should return keyword search results with experimental flag', async () => {
+  it('should return posts matching mimir results with correct fields', async () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir(['p1', 'p2']);
 
@@ -26,48 +30,90 @@ describe('GET /public/v1/recommend/keyword', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBe(2);
-    expect(body.data[0]).toMatchObject({
-      id: expect.any(String),
-      title: expect.any(String),
-      tags: expect.any(Array),
-      numUpvotes: expect.any(Number),
-      numComments: expect.any(Number),
-    });
+    expect(headers['x-daily-experimental']).toBeDefined();
+    expect(body.data).toHaveLength(2);
+    expect(body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'p1',
+          title: 'P1',
+          url: 'http://p1.com',
+          image: 'https://daily.dev/image.jpg',
+          type: 'article',
+          tags: ['javascript', 'webdev'],
+          source: expect.objectContaining({
+            id: 'a',
+            name: 'A',
+            handle: 'a',
+          }),
+        }),
+        expect.objectContaining({
+          id: 'p2',
+          title: 'P2',
+          url: 'http://p2.com',
+          source: expect.objectContaining({
+            id: 'b',
+            name: 'B',
+          }),
+        }),
+      ]),
+    );
     expect(body.pagination).toMatchObject({
       hasNextPage: expect.any(Boolean),
+      cursor: expect.any(String),
     });
-    expect(headers['x-daily-experimental']).toBeDefined();
   });
 
-  it('should support limit parameter', async () => {
+  it('should respect limit parameter', async () => {
     const token = await createTokenForUser(state.con, '5');
-    nockMimir(['p1']);
+    // Mimir receives limit=2 and returns 2 results
+    nockMimir(['p1', 'p2']);
 
     const { body } = await request(state.app.server)
       .get('/public/v1/recommend/keyword')
-      .query({ q: 'typescript', limit: 1 })
+      .query({ q: 'typescript', limit: 2 })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.data.length).toBeLessThanOrEqual(1);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({ id: 'p1' });
+    expect(body.data[1]).toMatchObject({ id: 'p2' });
   });
 
-  it('should support time filter', async () => {
+  it('should pass time filter to search', async () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir(['p1']);
 
-    const { headers } = await request(state.app.server)
+    const { body, headers } = await request(state.app.server)
       .get('/public/v1/recommend/keyword')
       .query({ q: 'react', time: 'month' })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(headers['x-daily-experimental']).toBeDefined();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      id: 'p1',
+      title: 'P1',
+    });
   });
 
-  it('should return empty data when no results', async () => {
+  it('should not return private posts', async () => {
+    const token = await createTokenForUser(state.con, '5');
+    // p6 is private
+    nockMimir(['p1', 'p6']);
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/recommend/keyword')
+      .query({ q: 'test' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].id).toBe('p1');
+  });
+
+  it('should return empty data when no mimir results', async () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir([]);
 
@@ -89,7 +135,7 @@ describe('GET /public/v1/recommend/keyword', () => {
 });
 
 describe('GET /public/v1/recommend/semantic', () => {
-  it('should return semantic search results with experimental flag', async () => {
+  it('should return posts matching mimir results with correct fields', async () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir(['p1', 'p2']);
 
@@ -99,33 +145,45 @@ describe('GET /public/v1/recommend/semantic', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBe(2);
-    expect(body.data[0]).toMatchObject({
-      id: expect.any(String),
-      title: expect.any(String),
-      tags: expect.any(Array),
-      numUpvotes: expect.any(Number),
-      numComments: expect.any(Number),
-    });
-    expect(body.pagination).toBeUndefined();
     expect(headers['x-daily-experimental']).toBeDefined();
+    expect(body.data).toHaveLength(2);
+    expect(body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'p1',
+          title: 'P1',
+          url: 'http://p1.com',
+          tags: ['javascript', 'webdev'],
+          source: expect.objectContaining({ id: 'a', name: 'A' }),
+        }),
+        expect.objectContaining({
+          id: 'p2',
+          title: 'P2',
+          url: 'http://p2.com',
+          source: expect.objectContaining({ id: 'b', name: 'B' }),
+        }),
+      ]),
+    );
+    expect(body.pagination).toBeUndefined();
   });
 
-  it('should support limit parameter', async () => {
+  it('should respect limit parameter', async () => {
     const token = await createTokenForUser(state.con, '5');
-    nockMimir(['p1']);
+    // Mimir receives limit=2 and returns 2 results
+    nockMimir(['p1', 'p2']);
 
     const { body } = await request(state.app.server)
       .get('/public/v1/recommend/semantic')
-      .query({ q: 'what is the best vector database', limit: 1 })
+      .query({ q: 'what is the best vector database', limit: 2 })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.data.length).toBeLessThanOrEqual(1);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({ id: 'p1' });
+    expect(body.data[1]).toMatchObject({ id: 'p2' });
   });
 
-  it('should return empty data when no results', async () => {
+  it('should return empty data when no mimir results', async () => {
     const token = await createTokenForUser(state.con, '5');
     nockMimir([]);
 
