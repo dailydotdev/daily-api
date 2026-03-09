@@ -160,6 +160,15 @@ export const typeDefs = /* GraphQL */ `
     userFeedback(first: Int, after: String): FeedbackConnection! @auth
 
     """
+    Get feedback for a specific user (team members only, cursor-paginated)
+    """
+    userFeedbackByUserId(
+      userId: ID!
+      first: Int
+      after: String
+    ): FeedbackConnection! @auth
+
+    """
     Get all feedback (moderator only, cursor-paginated, filterable)
     """
     feedbackList(
@@ -275,6 +284,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             manager: queryRunner.manager,
             where: { userId: ctx.userId },
             page,
+          }),
+      );
+
+      return connectionFromNodes(
+        args,
+        nodes,
+        undefined,
+        page,
+        feedbackPageGenerator,
+        total,
+      );
+    },
+    userFeedbackByUserId: async (
+      _,
+      args: ConnectionArguments & { userId: string },
+      ctx: AuthContext,
+    ): Promise<Connection<GQLFeedbackItem>> => {
+      if (!ctx.isTeamMember) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      const page = feedbackPageGenerator.connArgsToPage(args);
+
+      const { nodes, total } = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          fetchFeedbackConnectionNodes({
+            manager: queryRunner.manager,
+            where: { userId: args.userId },
+            page,
+            includeUsers: true,
           }),
       );
 
