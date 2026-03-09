@@ -13,6 +13,7 @@ import profileRoutes from './profile';
 import stackRoutes from './stack';
 import experiencesRoutes from './experiences';
 import tagsRoutes from './tags';
+import recommendRoutes from './recommend';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -194,4 +195,5 @@ export default async function (
   await fastify.register(stackRoutes, { prefix: '/profile/stack' });
   await fastify.register(experiencesRoutes, { prefix: '/profile/experiences' });
   await fastify.register(tagsRoutes, { prefix: '/tags' });
+  await fastify.register(recommendRoutes, { prefix: '/recommend' });
 }
