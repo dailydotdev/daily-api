@@ -14,9 +14,22 @@ const EXPERIMENTAL_WARNING =
 
 const RECOMMEND_MAX_LIMIT = 20;
 
-const SEARCH_POSTS_QUERY = `
-  query PublicApiRecommend($query: String!, $first: Int, $after: String, $time: SearchTime) {
+const KEYWORD_SEARCH_QUERY = `
+  query PublicApiRecommendKeyword($query: String!, $first: Int, $after: String, $time: SearchTime) {
     searchPosts(query: $query, first: $first, after: $after, time: $time) {
+      edges {
+        node {
+          ${POST_NODE_FIELDS}
+        }
+      }
+      ${PAGE_INFO_FIELDS}
+    }
+  }
+`;
+
+const SEMANTIC_SEARCH_QUERY = `
+  query PublicApiRecommendSemantic($query: String!, $first: Int, $time: SearchTime) {
+    searchPosts(query: $query, first: $first, time: $time) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -106,7 +119,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return executeGraphql(
         con,
         {
-          query: SEARCH_POSTS_QUERY,
+          query: KEYWORD_SEARCH_QUERY,
           variables: {
             query: q,
             first: limit,
@@ -191,11 +204,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return executeGraphql(
         con,
         {
-          query: SEARCH_POSTS_QUERY,
+          query: SEMANTIC_SEARCH_QUERY,
           variables: {
             query: q,
             first: limit,
-            after: null,
             time: time ? TIME_MAP[time] : null,
           },
         },
