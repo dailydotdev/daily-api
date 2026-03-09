@@ -7,6 +7,48 @@ import { generateVerifyCode } from '../ids';
 import { ONE_MINUTE_IN_MS } from '../common/constants';
 
 const kratosOrigin = process.env.KRATOS_ORIGIN;
+const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+
+type TurnstileVerifyResponse = {
+  success: boolean;
+  'error-codes'?: string[];
+};
+
+const verifyTurnstileToken = async (
+  token: string,
+  ip?: string,
+): Promise<boolean> => {
+  if (!turnstileSecretKey) {
+    return true;
+  }
+
+  try {
+    const body = new URLSearchParams({
+      secret: turnstileSecretKey,
+      response: token,
+    });
+    if (ip) {
+      body.set('remoteip', ip);
+    }
+
+    const res = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      },
+    );
+
+    const data = (await res.json()) as TurnstileVerifyResponse;
+    return data.success === true;
+  } catch {
+    return false;
+  }
+};
+
+const isSignUpEmailPath = (request: FastifyRequest): boolean =>
+  request.method === 'POST' && request.url.includes('/auth/sign-up/email');
 
 const toRequestUrl = (request: FastifyRequest): URL => {
   const protocol = request.headers['x-forwarded-proto'] ?? 'http';
@@ -519,6 +561,28 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     url: '/auth/*',
     handler: async (request, reply) => {
       try {
+        if (isSignUpEmailPath(request)) {
+          const turnstileToken = request.headers['x-turnstile-token'] as
+            | string
+            | undefined;
+          if (turnstileSecretKey && !turnstileToken) {
+            return reply
+              .status(400)
+              .send({ error: 'Turnstile verification failed' });
+          }
+          if (turnstileToken) {
+            const clientIp =
+              (request.headers['x-forwarded-for'] as string)?.split(',')[0] ??
+              request.ip;
+            const valid = await verifyTurnstileToken(turnstileToken, clientIp);
+            if (!valid) {
+              return reply
+                .status(400)
+                .send({ error: 'Turnstile verification failed' });
+            }
+          }
+        }
+
         const auth = getBetterAuth();
         let overrideUrl: string | undefined;
         if (request.url.includes('/auth/callback/')) {
