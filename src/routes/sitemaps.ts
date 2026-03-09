@@ -169,6 +169,7 @@ const buildAgentsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('se.entity', 'entity')
+    .addSelect('se."createdAt"', 'lastmod')
     .from(SentimentEntity, 'se')
     .where('se."groupId" IN (:...groupIds)', {
       groupIds: ARENA_SITEMAP_GROUP_IDS,
@@ -182,6 +183,7 @@ const buildAgentsDigestSitemapQuery = (
   source
     .createQueryBuilder()
     .select('p.slug', 'slug')
+    .addSelect('p."createdAt"', 'lastmod')
     .from(Post, 'p')
     .where('p."sourceId" = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
     .andWhere('NOT p.deleted')
@@ -352,8 +354,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getAgentSitemapUrl(prefix, row.entity),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getAgentSitemapUrl(prefix, row.entity),
+          getSitemapRowLastmod,
         ),
       );
   });
@@ -367,8 +371,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) =>
-          getPostSitemapUrl(prefix, row.slug),
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
         ),
       );
   });

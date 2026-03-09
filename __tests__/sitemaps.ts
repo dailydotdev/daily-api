@@ -246,6 +246,7 @@ describe('GET /sitemaps/agents.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
     );
+    expect(res.text).toContain('<lastmod>');
     expect(res.text).not.toContain('/agents/not_in_arena');
   });
 });
@@ -297,6 +298,7 @@ describe('GET /sitemaps/agents-digest.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/posts/ad2-ad2</loc>',
     );
+    expect(res.text).toContain('<lastmod>');
     expect(res.text).not.toContain('/posts/ad3-ad3');
     expect(
       res.text.indexOf('<loc>http://localhost:5002/posts/ad1-ad1</loc>'),
