@@ -562,6 +562,28 @@ export const cleanupSourcePostModerationNotifications = async (
   });
 };
 
+export const cleanupDigestReadyNotifications = async (
+  con: DataSource | EntityManager,
+  userId: string,
+) => {
+  const subQuery = con
+    .createQueryBuilder()
+    .subQuery()
+    .select('un."notificationId"')
+    .from(UserNotification, 'un')
+    .where('un."userId" = :userId')
+    .getQuery();
+
+  await con
+    .createQueryBuilder()
+    .delete()
+    .from(NotificationV2)
+    .where('type = :type', { type: NotificationType.DigestReady })
+    .andWhere(`id IN ${subQuery}`)
+    .setParameter('userId', userId)
+    .execute();
+};
+
 export const cleanupRecruiterNewCandidateNotification = async (
   con: DataSource | EntityManager,
   opportunityId: string,

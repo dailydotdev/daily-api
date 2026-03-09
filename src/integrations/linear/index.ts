@@ -6,6 +6,8 @@ import {
 } from '@dailydotdev/schema';
 
 import type { FeedbackClassification } from '../../entity/Feedback';
+import type { z } from 'zod';
+import type { feedbackClientInfoSchema } from '../../common/schema/feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
 import {
   getCategoryDisplayName,
@@ -51,6 +53,8 @@ interface CreateFeedbackIssueInput {
   category: number;
   description: string;
   pageUrl?: string | null;
+  userAgent?: string | null;
+  clientInfo?: z.infer<typeof feedbackClientInfoSchema> | null;
   classification: FeedbackClassification | null;
   screenshotUrl?: string | null;
 }
@@ -123,6 +127,40 @@ const sanitizeForLinear = (content: string): string =>
     .replace(/<([^>]+)>/g, '&lt;$1&gt;') // Escape HTML-like tags and @ mentions
     .slice(0, 2000);
 
+const buildClientEnvironmentSection = (
+  input: CreateFeedbackIssueInput,
+): string => {
+  const { clientInfo: info } = input;
+
+  const entries: [string, string | undefined | null][] = [
+    ['User Agent', input.userAgent],
+    ['Viewport', info?.viewport],
+    ['Screen', info?.screen],
+    ['Timezone', info?.timezone],
+    ['Platform', info?.platform],
+    ['Language', info?.language],
+    ['Theme', info?.theme],
+  ];
+
+  const rows = entries.filter((entry): entry is [string, string] => !!entry[1]);
+
+  if (rows.length === 0) {
+    return '';
+  }
+
+  const tableRows = rows
+    .map(([field, value]) => `| **${field}** | ${sanitizeForLinear(value)} |`)
+    .join('\n');
+
+  return `### Client Environment
+
+| Field | Value |
+|-------|-------|
+${tableRows}
+
+`;
+};
+
 const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
   const { classification } = input;
   const sanitizedDescription = sanitizeForLinear(input.description);
@@ -156,6 +194,7 @@ const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
 | **Tags** | ${tagsDisplay} |
 | **Page URL** | ${input.pageUrl || 'N/A'} |
 
+${buildClientEnvironmentSection(input)}
 ### User's Description
 
 \`\`\`

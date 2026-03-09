@@ -65,6 +65,16 @@ export const setRedisObjectWithExpiry = (
     client.set(key, value, 'EX', Math.floor(seconds)),
   );
 
+export const setRedisObjectIfNotExistsWithExpiry = (
+  key: string,
+  value: RedisObject,
+  seconds: number,
+) =>
+  ioRedisPool.execute(
+    async (client) =>
+      (await client.set(key, value, 'EX', Math.floor(seconds), 'NX')) === 'OK',
+  );
+
 export const getRedisObject = (key: RedisKey) =>
   ioRedisPool.execute((client) => client.get(key));
 

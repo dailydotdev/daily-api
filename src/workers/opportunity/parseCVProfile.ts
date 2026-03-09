@@ -100,6 +100,7 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           con: con.manager,
           dataJson,
           userId,
+          importId: `cv-${Date.now()}`,
           transaction: true,
         });
 

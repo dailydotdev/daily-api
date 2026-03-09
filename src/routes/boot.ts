@@ -195,8 +195,12 @@ const getBootQuery = (req: FastifyRequest): BootQuery =>
 const getBootReferrer = (req: FastifyRequest): string | undefined =>
   unwrapArray(getBootQuery(req).referrer);
 
+const getBootAppPlatform = (req: FastifyRequest): string | undefined =>
+  unwrapArray(req.headers.app as string | string[] | undefined) ??
+  unwrapArray(getBootQuery(req).app_platform);
+
 const isExtensionBootRequest = (req: FastifyRequest): boolean =>
-  unwrapArray(getBootQuery(req).app_platform) === 'extension';
+  getBootAppPlatform(req) === 'extension';
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
   generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);
@@ -227,6 +231,7 @@ const updateLastExtensionUse = async ({
       flags: updateFlagsStatement<User>({
         lastExtensionUse: new Date(),
       }),
+      inc: () => 'inc + 1',
     },
   );
 };
@@ -740,6 +745,7 @@ const loggedInBoot = async ({
         defaultFeedId: isPlus ? user.defaultFeedId : null,
         flags: {
           showPlusGift: Boolean(user?.flags?.showPlusGift),
+          lastExtensionUse: user?.flags?.lastExtensionUse ?? null,
         },
         balance,
         subscriptionFlags: {

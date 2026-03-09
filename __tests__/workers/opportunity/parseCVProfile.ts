@@ -87,6 +87,9 @@ describe('parseCVProfile worker', () => {
     });
 
     expect(experiences).toHaveLength(4);
+    expect(experiences.every((e) => e.flags?.import?.startsWith('cv-'))).toBe(
+      true,
+    );
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
     expect(user?.flags.lastCVParseAt).toBeDefined();

@@ -70,6 +70,13 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
           },
         ];
 
+        if (user?.email) {
+          fields.push({
+            type: 'mrkdwn',
+            text: `*Email:*\n${user.email}`,
+          });
+        }
+
         if (classification?.sentiment) {
           fields.push({
             type: 'mrkdwn',
@@ -164,6 +171,8 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
             channel: slackUserFeedbackChannelId,
             text: 'New user feedback processed',
             blocks,
+            unfurlLinks: false,
+            unfurlMedia: true,
           });
 
           await con.getRepository(Feedback).update(feedbackId, {

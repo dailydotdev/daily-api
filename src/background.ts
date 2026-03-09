@@ -40,6 +40,7 @@ export default async function app(): Promise<void> {
           logger,
           pubsub,
         ),
+      worker.maxMessages,
     ),
   );
 
@@ -64,6 +65,7 @@ export default async function app(): Promise<void> {
           pubsub,
         );
       },
+      worker.maxMessages,
     ),
   );
 }

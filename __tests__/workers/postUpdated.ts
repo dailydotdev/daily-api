@@ -954,29 +954,46 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
       },
     },
   });
-  expect(post.showOnFeed).toEqual(false);
 });
 
-it('should keep social twitter post hidden from feed when order is missing', async () => {
-  const yggdrasilId = randomUUID();
-
-  await expectSuccessfulBackground(worker, {
-    id: yggdrasilId,
-    content_type: PostType.SocialTwitter,
-    url: 'https://x.com/dailydotdev/status/1009',
-    source_id: 'a',
-    extra: {
-      subtype: 'tweet',
+it('should set social twitter showOnFeed based on order field', async () => {
+  const cases = [
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1009',
       content: 'No order social tweet',
+      expectedShowOnFeed: true,
     },
-  });
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1010',
+      content: 'Ordered social tweet',
+      order: 1,
+      expectedShowOnFeed: false,
+    },
+  ];
 
-  const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
-    yggdrasilId,
-  });
+  for (const { yggdrasilId, url, content, order } of cases) {
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      content_type: PostType.SocialTwitter,
+      url,
+      source_id: 'a',
+      ...(order ? { order } : {}),
+      extra: {
+        subtype: 'tweet',
+        content,
+      },
+    });
+  }
 
-  expect(post.showOnFeed).toEqual(false);
-  expect(post.flags.showOnFeed).toEqual(false);
+  for (const { yggdrasilId, expectedShowOnFeed } of cases) {
+    const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
+      yggdrasilId,
+    });
+    expect(post.showOnFeed).toEqual(expectedShowOnFeed);
+    expect(post.flags.showOnFeed).toEqual(expectedShowOnFeed);
+  }
 });
 
 it('should map repost without body to null title', async () => {

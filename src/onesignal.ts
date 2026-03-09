@@ -2,6 +2,7 @@ import * as OneSignal from '@onesignal/node-onesignal';
 import { NotificationV2, NotificationAvatarV2 } from './entity';
 import { addNotificationUtm, basicHtmlStrip, mapCloudinaryUrl } from './common';
 import { escapeRegExp } from 'lodash';
+import { NotificationType } from './notifications/common';
 
 const appId = process.env.ONESIGNAL_APP_ID;
 const apiKey = process.env.ONESIGNAL_API_KEY;
@@ -16,6 +17,66 @@ const chromeWebBadge =
   'https://media.daily.dev/image/upload/v1672745846/public/dailydev.png';
 const chromeWebIcon =
   'https://media.daily.dev/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
+
+const pushHeadingMap: Partial<Record<NotificationType, string>> = {
+  [NotificationType.ArticleNewComment]: 'New comment',
+  [NotificationType.SquadNewComment]: 'New comment',
+  [NotificationType.CommentReply]: 'New reply',
+  [NotificationType.SquadReply]: 'New reply',
+  [NotificationType.CommentMention]: 'You were mentioned',
+  [NotificationType.PostMention]: 'You were mentioned',
+  [NotificationType.ArticleUpvoteMilestone]: 'Milestone reached',
+  [NotificationType.CommentUpvoteMilestone]: 'Milestone reached',
+  [NotificationType.SquadPostAdded]: 'New squad post',
+  [NotificationType.SquadMemberJoined]: 'New member',
+  [NotificationType.UserFollow]: 'New follower',
+  [NotificationType.NewOpportunityMatch]: 'Job match',
+  [NotificationType.ReMatchedOpportunity]: 'Job match',
+  [NotificationType.BriefingReady]: 'Briefing ready',
+  [NotificationType.DigestReady]: 'Digest ready',
+  [NotificationType.StreakResetRestore]: 'Streak broken',
+  [NotificationType.UserGiftedPlus]: 'Plus gift',
+  [NotificationType.AchievementUnlocked]: 'Achievement unlocked',
+  [NotificationType.PollResult]: 'Poll results',
+  [NotificationType.PollResultAuthor]: 'Poll results',
+  [NotificationType.FeedbackResolved]: 'Feedback update',
+  [NotificationType.FeedbackCancelled]: 'Feedback update',
+  [NotificationType.ArticlePicked]: 'Post live',
+  [NotificationType.CommunityPicksSucceeded]: 'Post live',
+  [NotificationType.SourceApproved]: 'Source approved',
+  [NotificationType.SourcePostAdded]: 'New post',
+  [NotificationType.UserPostAdded]: 'New post',
+  [NotificationType.PromotedToAdmin]: 'Role change',
+  [NotificationType.PromotedToModerator]: 'Role change',
+  [NotificationType.DemotedToMember]: 'Role change',
+  [NotificationType.SquadBlocked]: 'Squad update',
+  [NotificationType.SquadFeatured]: 'Squad featured',
+  [NotificationType.SquadPublicApproved]: 'Squad public',
+  [NotificationType.CollectionUpdated]: 'Collection updated',
+  [NotificationType.DevCardUnlocked]: 'DevCard ready',
+  [NotificationType.PostBookmarkReminder]: 'Reading reminder',
+  [NotificationType.UserTopReaderBadge]: 'Top Reader badge',
+  [NotificationType.UserReceivedAward]: 'Award received',
+  [NotificationType.OrganizationMemberJoined]: 'New team member',
+  [NotificationType.CampaignPostCompleted]: 'Boost ended',
+  [NotificationType.CampaignSquadCompleted]: 'Boost ended',
+  [NotificationType.CampaignPostFirstMilestone]: 'Boost update',
+  [NotificationType.CampaignSquadFirstMilestone]: 'Boost update',
+  [NotificationType.PostAnalytics]: 'Post analytics',
+  [NotificationType.WarmIntro]: 'Warm intro',
+  [NotificationType.ParsedCVProfile]: 'CV update',
+  [NotificationType.RecruiterNewCandidate]: 'New candidate',
+  [NotificationType.RecruiterOpportunityLive]: 'Opportunity live',
+  [NotificationType.RecruiterExternalPayment]: 'Payment received',
+  [NotificationType.ExperienceCompanyEnriched]: 'Profile updated',
+  [NotificationType.SourcePostApproved]: 'Post approved',
+  [NotificationType.SourcePostRejected]: 'Post review',
+  [NotificationType.SourcePostSubmitted]: 'Post pending review',
+  [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
+};
+
+const getPushHeading = (type: string): string =>
+  pushHeadingMap[type as NotificationType] ?? 'daily.dev';
 
 type PushOpts = { increaseBadge?: boolean };
 
@@ -60,7 +121,7 @@ export async function sendPushNotification(
 
   const push = createPush(userIds, targetUrl, type, { increaseBadge: true });
   push.contents = { en: basicHtmlStrip(title) };
-  push.headings = { en: 'New update' };
+  push.headings = { en: getPushHeading(type) };
   push.data = { notificationId: id };
   if (avatar) {
     push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
@@ -69,28 +130,27 @@ export async function sendPushNotification(
 }
 
 const readingReminderHeadings = [
-  "It's this time of the day",
-  'Catch up on your feed',
-  'Sustain your learning streak',
-  "Don't let your feed feel lonely",
-  'Breaking: Your feed misses you',
-  'Your brain requested knowledge',
-  'You already know the drill',
-  "It's us again",
+  'Your daily reading time',
+  "What's new in tech today",
+  'Fresh posts in your feed',
+  'Time for a quick read',
+  'New posts since your last visit',
+  'Your feed has new posts',
+  'Quick reading break?',
+  "Today's top developer posts",
 ];
 
 const readingReminderContents = [
-  "Let's find something interesting to read",
-  "Dive into today's top picks on your daily.dev feed",
-  'Your next favorite post is just a tap away',
-  "There's always something new to learn. Let's find it together",
-  "Feed your brain with today's latest tech buzzwords",
-  'Transform your break into a knowledge feast. Start reading',
+  'See what the community is reading and discussing',
+  'Top posts from sources you follow are waiting',
+  'A few minutes of reading can spark your next idea',
+  'Curated posts based on your interests are ready',
+  'Catch up on what you missed',
+  'New articles, discussions, and insights from your feed',
 ];
 
-const streakReminderHeading = '⚡ Streak Saver Alert!';
-const streakReminderContent =
-  'Read a post today and protect your streak. Keep it going strong! 💪';
+const streakReminderHeading = '⚡ Streak reminder';
+const streakReminderContent = 'Read a post today to keep your streak going';
 
 export async function sendReadingReminderPush(
   userIds: string[],

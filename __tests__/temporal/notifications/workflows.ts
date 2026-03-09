@@ -21,30 +21,34 @@ const mockActivities: BookmarkActivities = {
   sendEntityReminder,
 };
 
-let worker: Worker;
-
 jest.mock('../../../src/temporal/client', () => ({
   getTemporalClient: () => testEnv.client,
 }));
 
-beforeEach(async () => {
+beforeAll(async () => {
   testEnv = await TestWorkflowEnvironment.createTimeSkipping();
-  worker = await Worker.create({
+}, 15_000);
+
+afterAll(async () => {
+  await testEnv?.teardown();
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+const createWorker = () =>
+  Worker.create({
     connection: testEnv.nativeConnection,
     taskQueue: 'test',
     activities: mockActivities,
     workflowsPath:
       require.resolve('../../../src/temporal/notifications/workflows'),
   });
-  jest.clearAllMocks();
-});
-
-afterEach(async () => {
-  await testEnv?.teardown();
-});
 
 describe('bookmarkReminderWorkflow workflow', () => {
   it('should validate bookmark and do nothing if bookmark is not valid', async () => {
+    const worker = await createWorker();
     const params = {
       postId: 'p1',
       userId: '1',
@@ -65,6 +69,7 @@ describe('bookmarkReminderWorkflow workflow', () => {
   });
 
   it('should validate bookmark and send bookmark reminder', async () => {
+    const worker = await createWorker();
     const params = {
       postId: 'p1',
       userId: '1',
@@ -90,6 +95,7 @@ describe('bookmarkReminderWorkflow workflow', () => {
 
 describe('entityReminderWorkflow workflow', () => {
   it('should send reminder event', async () => {
+    const worker = await createWorker();
     const params = {
       entityId: '1',
       entityTableName: 'campaign',

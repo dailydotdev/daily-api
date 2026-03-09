@@ -73,6 +73,15 @@ export class YggdrasilSentimentClient {
     if (params.orderBy) {
       searchParams.set('order_by', params.orderBy);
     }
+    if (params.minHighlightScore !== undefined) {
+      searchParams.set('min_highlight_score', String(params.minHighlightScore));
+    }
+    if (params.from) {
+      searchParams.set('from', params.from);
+    }
+    if (params.to) {
+      searchParams.set('to', params.to);
+    }
 
     return this.garmr.execute(() =>
       retryFetchParse<HighlightsResponse>(

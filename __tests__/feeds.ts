@@ -2209,11 +2209,21 @@ describe('query randomTrendingPosts', () => {
 });
 
 describe('query channelFeed', () => {
-  const QUERY = `query ChannelFeed($channel: String!, $contentCuration: String, $first: Int, $after: String, $supportedTypes: [String!]) {
+  const QUERY = `query ChannelFeed($channel: String!, $contentCuration: [String!], $first: Int, $after: String, $supportedTypes: [String!]) {
     channelFeed(channel: $channel, contentCuration: $contentCuration, first: $first, after: $after, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }`;
+  const channel = 'devops';
+  const first = 2;
+
+  const queryChannelFeed = async (variables: {
+    channel: string;
+    first: number;
+    after?: string;
+    supportedTypes?: string[];
+    contentCuration?: string[];
+  }) => client.query(QUERY, { variables });
 
   it('should proxy channel feed to feed service', async () => {
     const cursor = base64('10');
@@ -2235,19 +2245,65 @@ describe('query channelFeed', () => {
         cursor: base64('12'),
       });
 
-    const res = await client.query(QUERY, {
-      variables: {
-        channel: 'devops',
-        contentCuration: 'news',
-        first: 2,
-        after: cursor,
-        supportedTypes: ['article'],
-      },
+    const res = await queryChannelFeed({
+      channel,
+      contentCuration: ['news'],
+      first,
+      after: cursor,
+      supportedTypes: ['article'],
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.channelFeed.edges).toHaveLength(2);
   });
+
+  it.each([
+    {
+      name: 'forward multiple content curations',
+      contentCuration: ['news', 'tutorial'],
+      expectedAllowedContentCurations: ['news', 'tutorial'],
+    },
+    {
+      name: 'omit content curation filter when empty array is provided',
+      contentCuration: [],
+      expectedAllowedContentCurations: undefined,
+    },
+    {
+      name: 'omit content curation filter when not provided',
+      contentCuration: undefined,
+      expectedAllowedContentCurations: undefined,
+    },
+  ])(
+    'should $name',
+    async ({ contentCuration, expectedAllowedContentCurations }) => {
+      nock('http://localhost:6000')
+        .post('/feed.json', (body) => {
+          expect(body).toMatchObject({
+            feed_config_name: FeedConfigName.Channel,
+            channel,
+            page_size: first,
+            offset: 0,
+          });
+          expect(body.allowed_content_curations).toEqual(
+            expectedAllowedContentCurations,
+          );
+          return true;
+        })
+        .reply(200, {
+          data: [{ post_id: 'p1' }],
+          cursor: base64('1'),
+        });
+
+      const res = await queryChannelFeed({
+        channel,
+        contentCuration,
+        first,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.channelFeed.edges).toHaveLength(1);
+    },
+  );
 });
 
 describe('query similarPostsFeed', () => {
