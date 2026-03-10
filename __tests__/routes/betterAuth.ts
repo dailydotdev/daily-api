@@ -58,24 +58,6 @@ describe('betterAuth routes', () => {
       expect(res.body).toHaveProperty('error', 'Not authenticated');
     });
 
-    it('should return 401 for send-signup-verification without session', async () => {
-      const res = await request(app.server).post(
-        '/a/auth/send-signup-verification',
-      );
-
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Not authenticated');
-    });
-
-    it('should return 401 for verify-signup-email without session', async () => {
-      const res = await request(app.server)
-        .post('/a/auth/verify-signup-email')
-        .send({ code: '123456' });
-
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Not authenticated');
-    });
-
     it('should return 401 for set-password without session', async () => {
       const res = await request(app.server)
         .post('/a/auth/set-password')

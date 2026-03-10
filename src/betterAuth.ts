@@ -1,4 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { emailOTP } from 'better-auth/plugins/email-otp';
 import { createAuthMiddleware } from 'better-auth/api';
 import { Pool } from 'pg';
 import * as argon2 from 'argon2';
@@ -71,6 +72,9 @@ const createAuth = (): BetterAuthHandler => {
     advanced: {
       useSecureCookies: process.env.NODE_ENV === 'production',
     },
+    emailVerification: {
+      autoSignInAfterVerification: true,
+    },
     user: {
       modelName: 'user',
       fields: {
@@ -84,6 +88,7 @@ const createAuth = (): BetterAuthHandler => {
       modelName: 'ba_account',
       accountLinking: {
         trustedProviders: ['google', 'github', 'apple', 'facebook'],
+        allowDifferentEmails: true,
       },
     },
     verification: {
@@ -154,6 +159,7 @@ const createAuth = (): BetterAuthHandler => {
     },
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
       password: {
         hash: (password: string) =>
           argon2.hash(password, { type: argon2.argon2id }),
@@ -161,6 +167,17 @@ const createAuth = (): BetterAuthHandler => {
           argon2.verify(hash, password),
       },
     },
+    plugins: [
+      emailOTP({
+        sendVerificationOnSignUp: true,
+        otpLength: 6,
+        expiresIn: 600,
+        sendVerificationOTP: async ({ email, type }) => {
+          logger.info({ email, type }, 'OTP verification requested');
+          // TODO: integrate with email service (SendGrid/etc.)
+        },
+      }),
+    ],
     socialProviders: {
       ...(process.env.GOOGLE_CLIENT_ID && {
         google: {

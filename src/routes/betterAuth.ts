@@ -419,98 +419,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     }
   });
 
-  fastify.post('/auth/send-signup-verification', async (request, reply) => {
-    try {
-      if (!(await enforceRateLimit(request, reply))) {
-        return reply;
-      }
-      const auth = getBetterAuth();
-      const session = await auth.api.getSession({
-        headers: toHeaders(request.headers),
-      });
-      if (!session) {
-        return reply.status(401).send({ error: 'Not authenticated' });
-      }
-      const pool = getBetterAuthPool();
-      const identifier = `signup-verify:${session.user.id}`;
-      await pool.query('DELETE FROM ba_verification WHERE identifier = $1', [
-        identifier,
-      ]);
-      const code = await generateVerifyCode();
-      const expiresAt = new Date(Date.now() + 10 * ONE_MINUTE_IN_MS);
-      await pool.query(
-        `INSERT INTO ba_verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
-         VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())`,
-        [
-          identifier,
-          JSON.stringify({ code, email: session.user.email }),
-          expiresAt,
-        ],
-      );
-      request.log.debug(
-        { email: session.user.email },
-        'Signup email verification code sent',
-      );
-      return reply.send({ status: true });
-    } catch (error) {
-      request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
-        'Send signup verification failed',
-      );
-      return reply.status(500).send({ error: 'Internal authentication error' });
-    }
-  });
-
-  fastify.post('/auth/verify-signup-email', async (request, reply) => {
-    try {
-      if (!(await enforceRateLimit(request, reply))) {
-        return reply;
-      }
-      const auth = getBetterAuth();
-      const session = await auth.api.getSession({
-        headers: toHeaders(request.headers),
-      });
-      if (!session) {
-        return reply.status(401).send({ error: 'Not authenticated' });
-      }
-      const { code } = request.body as { code?: string };
-      if (!code) {
-        return reply
-          .status(400)
-          .send({ error: 'Verification code is required' });
-      }
-      const pool = getBetterAuthPool();
-      const identifier = `signup-verify:${session.user.id}`;
-      const { rows } = await pool.query(
-        'SELECT value FROM ba_verification WHERE identifier = $1 AND "expiresAt" > NOW() LIMIT 1',
-        [identifier],
-      );
-      if (rows.length === 0) {
-        return reply
-          .status(400)
-          .send({ error: 'Verification code expired or not found' });
-      }
-      const { code: storedCode } = JSON.parse(rows[0].value as string);
-      if (code !== storedCode) {
-        return reply.status(400).send({ error: 'Invalid verification code' });
-      }
-      await pool.query(
-        'UPDATE public."user" SET "emailConfirmed" = true WHERE id = $1',
-        [session.user.id],
-      );
-      await pool.query('DELETE FROM ba_verification WHERE identifier = $1', [
-        identifier,
-      ]);
-      return reply.send({ status: true });
-    } catch (error) {
-      request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
-        'Verify signup email failed',
-      );
-      return reply.status(500).send({ error: 'Internal authentication error' });
-    }
-  });
-
   fastify.post('/auth/set-password', async (request, reply) => {
     try {
       if (!(await enforceRateLimit(request, reply))) {
@@ -656,9 +564,94 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
             overrideUrl = url.toString();
           }
         }
+
+        if (request.url.includes('/email-otp/')) {
+          const pool = getBetterAuthPool();
+          const body = request.body as Record<string, unknown>;
+          const email = typeof body?.email === 'string' ? body.email.toLowerCase() : '';
+          const identifier = `email-verification-otp-${email}`;
+          const { rows } = await pool.query(
+            'SELECT identifier, value, "expiresAt" FROM ba_verification WHERE identifier = $1 LIMIT 1',
+            [identifier],
+          );
+          const { rows: allRows } = await pool.query(
+            'SELECT identifier, value, "expiresAt" FROM ba_verification ORDER BY "createdAt" DESC LIMIT 10',
+          );
+          request.log.info(
+            {
+              path: request.url,
+              email,
+              identifier,
+              found: rows.length > 0,
+              storedValue: rows[0]?.value,
+              expiresAt: rows[0]?.expiresAt,
+              providedOtp: body?.otp,
+              allIdentifiers: allRows.map((r: { identifier: string; value: string }) => ({
+                id: r.identifier,
+                val: r.value,
+              })),
+            },
+            'email-otp debug',
+          );
+        }
+
         const req = buildBetterAuthRequest(request, overrideUrl);
         const response = await auth.handler(req);
         const text = await response.text();
+
+        if (isSignUpEmailPath(request) && response.ok) {
+          const username = request.headers['x-profile-username'] as
+            | string
+            | undefined;
+          const experienceLevel = request.headers[
+            'x-profile-experience-level'
+          ] as string | undefined;
+          if (username || experienceLevel) {
+            try {
+              const parsed = JSON.parse(text);
+              const userId = parsed?.user?.id;
+              if (userId) {
+                const pool = getBetterAuthPool();
+                const setClauses: string[] = [];
+                const values: (string | boolean)[] = [];
+                let paramIndex = 1;
+
+                if (username) {
+                  setClauses.push(`username = $${paramIndex++}`);
+                  values.push(username);
+                }
+                if (experienceLevel) {
+                  setClauses.push(`"experienceLevel" = $${paramIndex++}`);
+                  values.push(experienceLevel);
+                }
+                setClauses.push(`"infoConfirmed" = $${paramIndex++}`);
+                values.push(true);
+
+                values.push(userId);
+                await pool.query(
+                  `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+                  values,
+                );
+              }
+            } catch (err) {
+              logger.error(
+                { err: err instanceof Error ? err.message : String(err) },
+                'Failed to save profile data after BA sign-up',
+              );
+            }
+          }
+        }
+
+        if (request.url.includes('/email-otp/')) {
+          request.log.info(
+            {
+              path: request.url,
+              status: response.status,
+              responseBody: text.slice(0, 500),
+            },
+            'email-otp response',
+          );
+        }
 
         if (isSignInEmailPath(request) && !response.ok) {
           const parsed = JSON.parse(text);

@@ -1,6 +1,5 @@
 load('ext://pulumi', 'pulumi_resource')
 load('ext://uibutton', 'cmd_button', 'location')
-update_settings(k8s_upsert_timeout_secs=600)
 
 docker_build(
   'api-image',
