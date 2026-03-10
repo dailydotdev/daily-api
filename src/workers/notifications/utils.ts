@@ -247,7 +247,7 @@ export async function articleNewCommentHandler(
 
 export const UPVOTE_TITLES = {
   1: '<span class="text-theme-color-avocado">1 upvote!</span> Off to a good start 🎉',
-  3: '<span class="text-theme-color-avocado">3 upvotes.</span> No bugs, just vibes ✨',
+  3: '<span class="text-theme-color-avocado">3 upvotes!</span> No bugs, just vibes ✨',
   5: '<span class="text-theme-color-avocado">5 upvotes!</span> Gaining traction 👀',
   10: '<span class="text-theme-color-avocado">10 upvotes!</span> New high score 🙌',
   20: '<span class="text-theme-color-avocado">20 upvotes!</span> Level up 🥳',
