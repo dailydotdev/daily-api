@@ -649,6 +649,12 @@ describe('personalizedDigestEmail worker', () => {
       .findOneBy({ type: NotificationType.DigestReady });
 
     expect(notification).not.toBeNull();
+
+    const userNotif = await con
+      .getRepository(UserNotification)
+      .findOneBy({ userId: '1', notificationId: notification!.id });
+
+    expect(userNotif?.uniqueKey).toBe('digest_ready');
   });
 
   it('should set showAt on user_notification from emailSendTimestamp', async () => {
@@ -977,6 +983,7 @@ describe('personalizedDigestEmail worker', () => {
       notificationId: oldNotification.id,
       userId: '1',
       createdAt: oldDate,
+      uniqueKey: 'digest_ready',
     });
 
     const otherUserNotification = await con.getRepository(NotificationV2).save({
