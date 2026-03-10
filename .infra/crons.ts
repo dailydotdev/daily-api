@@ -166,4 +166,8 @@ export const crons: Cron[] = [
     name: 'agents-digest',
     schedule: '17 4 * * *',
   },
+  {
+    name: 'clean-expired-better-auth-sessions',
+    schedule: '0 3 * * *',
+  },
 ];

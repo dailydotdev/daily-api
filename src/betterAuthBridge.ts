@@ -93,7 +93,11 @@ export const createBetterAuthSession = async ({
       ],
     );
 
-    const secret = process.env.BETTER_AUTH_SECRET ?? '';
+    const secret = process.env.BETTER_AUTH_SECRET;
+    if (!secret) {
+      req.log.error('BETTER_AUTH_SECRET is not set, cannot sign session token');
+      return false;
+    }
     const signature = createHmac('sha256', secret)
       .update(token)
       .digest('base64');

@@ -72,6 +72,7 @@ export const cookies: {
   betterAuthSession: {
     key: 'better-auth.session_token',
     opts: {
+      maxAge: 1000 * 60 * 60 * 24 * 7,
       signed: false,
       httpOnly: true,
       secure: env === 'production',

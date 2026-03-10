@@ -4,6 +4,8 @@ import { Pool } from 'pg';
 import * as argon2 from 'argon2';
 import { logger } from './logger';
 
+const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
+
 export type BetterAuthHandler = {
   handler: (request: Request) => Promise<Response>;
   api: {
@@ -28,17 +30,21 @@ export type BetterAuthHandler = {
 let authInstance: BetterAuthHandler | null = null;
 let poolInstance: Pool | null = null;
 
-const createPool = () =>
-  new Pool({
+const createPool = () => {
+  if (!process.env.TYPEORM_HOST && process.env.NODE_ENV === 'production') {
+    throw new Error('TYPEORM_HOST must be set in production');
+  }
+  return new Pool({
     host: process.env.TYPEORM_HOST || 'localhost',
     port: 5432,
     user: process.env.TYPEORM_USERNAME || 'postgres',
-    password: process.env.TYPEORM_PASSWORD || '12345',
+    password: process.env.TYPEORM_PASSWORD,
     database:
       process.env.TYPEORM_DATABASE ||
       (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
     max: 10,
   });
+};
 
 const createAuth = (): BetterAuthHandler => {
   poolInstance = createPool();
@@ -51,7 +57,7 @@ const createAuth = (): BetterAuthHandler => {
     database: poolInstance,
     baseURL: process.env.BETTER_AUTH_BASE_URL || 'http://localhost:3000',
     basePath: '/a/auth',
-    secret: process.env.BETTER_AUTH_SECRET,
+    secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
     ...(redirectURL && {
       hooks: {
@@ -63,7 +69,7 @@ const createAuth = (): BetterAuthHandler => {
       },
     }),
     advanced: {
-      useSecureCookies: false,
+      useSecureCookies: process.env.NODE_ENV === 'production',
     },
     user: {
       modelName: 'user',
@@ -78,9 +84,7 @@ const createAuth = (): BetterAuthHandler => {
       modelName: 'ba_account',
       accountLinking: {
         trustedProviders: ['google', 'github', 'apple', 'facebook'],
-        allowDifferentEmails: true,
       },
-      skipStateCookieCheck: true,
     },
     verification: {
       modelName: 'ba_verification',
@@ -193,6 +197,13 @@ const createAuth = (): BetterAuthHandler => {
 export const initializeBetterAuth = (): BetterAuthHandler => {
   if (authInstance) {
     return authInstance;
+  }
+
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret || secret.length < BETTER_AUTH_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `BETTER_AUTH_SECRET must be set and at least ${BETTER_AUTH_SECRET_MIN_LENGTH} characters`,
+    );
   }
 
   authInstance = createAuth();

@@ -41,5 +41,8 @@ module.exports = {
   moduleNameMapper: {
     '^file-type$': '<rootDir>/node_modules/file-type/index.js',
     '^isomorphic-dompurify$': '<rootDir>/__mocks__/isomorphic-dompurify.ts',
+    '^better-auth$': '<rootDir>/__mocks__/better-auth.ts',
+    '^better-auth/api$': '<rootDir>/__mocks__/better-auth-api.ts',
+    '^better-auth/node$': '<rootDir>/__mocks__/better-auth-node.ts',
   },
 };

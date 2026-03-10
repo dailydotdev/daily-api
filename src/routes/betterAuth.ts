@@ -1,13 +1,50 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as argon2 from 'argon2';
+import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { getBetterAuth, getBetterAuthPool } from '../betterAuth';
 import { fetchOptions } from '../http';
-import { retryFetch, HttpError } from '../integrations/retry';
+import { retryFetch } from '../integrations/retry';
 import { generateVerifyCode } from '../ids';
 import { ONE_MINUTE_IN_MS } from '../common/constants';
+import { singleRedisClient } from '../redis';
+import { logger } from '../logger';
 
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+
+const authRateLimiter = new RateLimiterRedis({
+  storeClient: singleRedisClient,
+  points: 10,
+  duration: 60,
+  keyPrefix: 'ba-auth',
+});
+
+const strictAuthRateLimiter = new RateLimiterRedis({
+  storeClient: singleRedisClient,
+  points: 5,
+  duration: 300,
+  keyPrefix: 'ba-auth-strict',
+});
+
+const getClientIp = (request: FastifyRequest): string =>
+  (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+  request.ip;
+
+const enforceRateLimit = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  limiter: RateLimiterRedis = strictAuthRateLimiter,
+): Promise<boolean> => {
+  try {
+    await limiter.consume(getClientIp(request));
+    return true;
+  } catch {
+    reply
+      .status(429)
+      .send({ error: 'Too many requests, please try again later' });
+    return false;
+  }
+};
 
 type TurnstileVerifyResponse = {
   success: boolean;
@@ -188,10 +225,7 @@ const verifyKratosCredentials = async (
       };
     }
     return { valid: false };
-  } catch (err) {
-    if (err instanceof HttpError && err.statusCode === 400) {
-      return { valid: false };
-    }
+  } catch {
     return { valid: false };
   }
 };
@@ -227,7 +261,11 @@ const migrateKratosUserToBetterAuth = async ({
     );
 
     return true;
-  } catch {
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      'Failed to migrate Kratos user to BetterAuth',
+    );
     return false;
   }
 };
@@ -242,6 +280,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   );
 
   fastify.get('/auth/check-email', async (request, reply) => {
+    if (!(await enforceRateLimit(request, reply, authRateLimiter))) {
+      return reply;
+    }
     const { email } = request.query as { email: string };
     if (!email) {
       return reply.status(400).send({ error: 'email is required' });
@@ -256,6 +297,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post('/auth/change-email', async (request, reply) => {
     try {
+      if (!(await enforceRateLimit(request, reply))) {
+        return reply;
+      }
       const auth = getBetterAuth();
       const session = await auth.api.getSession({
         headers: toHeaders(request.headers),
@@ -316,6 +360,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post('/auth/verify-change-email', async (request, reply) => {
     try {
+      if (!(await enforceRateLimit(request, reply))) {
+        return reply;
+      }
       const auth = getBetterAuth();
       const session = await auth.api.getSession({
         headers: toHeaders(request.headers),
@@ -374,6 +421,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post('/auth/send-signup-verification', async (request, reply) => {
     try {
+      if (!(await enforceRateLimit(request, reply))) {
+        return reply;
+      }
       const auth = getBetterAuth();
       const session = await auth.api.getSession({
         headers: toHeaders(request.headers),
@@ -413,6 +463,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post('/auth/verify-signup-email', async (request, reply) => {
     try {
+      if (!(await enforceRateLimit(request, reply))) {
+        return reply;
+      }
       const auth = getBetterAuth();
       const session = await auth.api.getSession({
         headers: toHeaders(request.headers),
@@ -460,6 +513,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post('/auth/set-password', async (request, reply) => {
     try {
+      if (!(await enforceRateLimit(request, reply))) {
+        return reply;
+      }
       const auth = getBetterAuth();
       const session = await auth.api.getSession({
         headers: toHeaders(request.headers),
@@ -468,10 +524,10 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         return reply.status(401).send({ error: 'Not authenticated' });
       }
       const { newPassword } = request.body as { newPassword?: string };
-      if (!newPassword || newPassword.length < 6) {
+      if (!newPassword || newPassword.length < 8) {
         return reply
           .status(400)
-          .send({ error: 'Password must be at least 6 characters' });
+          .send({ error: 'Password must be at least 8 characters' });
       }
       const pool = getBetterAuthPool();
       const { rows: existing } = await pool.query(
@@ -561,6 +617,15 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     url: '/auth/*',
     handler: async (request, reply) => {
       try {
+        if (isSignUpEmailPath(request) || isSignInEmailPath(request)) {
+          const limiter = isSignUpEmailPath(request)
+            ? strictAuthRateLimiter
+            : authRateLimiter;
+          if (!(await enforceRateLimit(request, reply, limiter))) {
+            return reply;
+          }
+        }
+
         if (isSignUpEmailPath(request)) {
           const turnstileToken = request.headers['x-turnstile-token'] as
             | string
@@ -571,9 +636,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
               .send({ error: 'Turnstile verification failed' });
           }
           if (turnstileToken) {
-            const clientIp =
-              (request.headers['x-forwarded-for'] as string)?.split(',')[0] ??
-              request.ip;
+            const clientIp = getClientIp(request);
             const valid = await verifyTurnstileToken(turnstileToken, clientIp);
             if (!valid) {
               return reply
