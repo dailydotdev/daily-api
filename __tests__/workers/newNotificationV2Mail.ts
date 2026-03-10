@@ -316,7 +316,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     upvotes: '50',
-    upvote_title: '50 upvotes. Your post is trending 🔥',
+    upvote_title: '50 upvotes! Trending on the feed 🔥',
   });
   expect(args.transactional_message_id).toEqual('22');
 });
@@ -682,7 +682,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_upvote_milestone#c-c1',
     main_comment: 'parent comment',
-    upvote_title: '50 upvotes. Your post is trending 🔥',
+    upvote_title: '50 upvotes! Trending on the feed 🔥',
   });
   expect(args.transactional_message_id).toEqual('44');
 });
