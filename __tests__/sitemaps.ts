@@ -246,6 +246,7 @@ describe('GET /sitemaps/agents.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
     );
+    expect(res.text).toContain('<lastmod>');
     expect(res.text).not.toContain('/agents/not_in_arena');
   });
 });
@@ -286,7 +287,7 @@ describe('GET /sitemaps/agents-digest.xml', () => {
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toEqual(
-      'public, max-age=14400, s-maxage=14400',
+      'public, max-age=7200, s-maxage=7200',
     );
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -297,6 +298,7 @@ describe('GET /sitemaps/agents-digest.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/posts/ad2-ad2</loc>',
     );
+    expect(res.text).toContain('<lastmod>');
     expect(res.text).not.toContain('/posts/ad3-ad3');
     expect(
       res.text.indexOf('<loc>http://localhost:5002/posts/ad1-ad1</loc>'),
@@ -321,7 +323,7 @@ describe('GET /sitemaps/squads.xml', () => {
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toEqual(
-      'public, max-age=14400, s-maxage=14400',
+      'public, max-age=7200, s-maxage=7200',
     );
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',

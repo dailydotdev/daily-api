@@ -25,8 +25,8 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SquadReply]: 'New reply',
   [NotificationType.CommentMention]: 'You were mentioned',
   [NotificationType.PostMention]: 'You were mentioned',
-  [NotificationType.ArticleUpvoteMilestone]: 'Milestone reached',
-  [NotificationType.CommentUpvoteMilestone]: 'Milestone reached',
+  [NotificationType.ArticleUpvoteMilestone]: 'New milestone',
+  [NotificationType.CommentUpvoteMilestone]: 'New milestone',
   [NotificationType.SquadPostAdded]: 'New squad post',
   [NotificationType.SquadMemberJoined]: 'New member',
   [NotificationType.UserFollow]: 'New follower',
@@ -36,7 +36,7 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.DigestReady]: 'Digest ready',
   [NotificationType.StreakResetRestore]: 'Streak broken',
   [NotificationType.UserGiftedPlus]: 'Plus gift',
-  [NotificationType.AchievementUnlocked]: 'Achievement unlocked',
+  [NotificationType.AchievementUnlocked]: 'Level up!',
   [NotificationType.PollResult]: 'Poll results',
   [NotificationType.PollResultAuthor]: 'Poll results',
   [NotificationType.FeedbackResolved]: 'Feedback update',
@@ -75,8 +75,28 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
 };
 
-const getPushHeading = (type: string): string =>
-  pushHeadingMap[type as NotificationType] ?? 'daily.dev';
+const pushHeadingFnMap: Partial<
+  Record<NotificationType, (title: string) => string>
+> = {
+  [NotificationType.SquadPostAdded]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>[^<]*<b>([^<]+)<\/b>/);
+    return match ? `New post in ${match[2]}` : 'New squad post';
+  },
+  [NotificationType.SquadNewComment]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} commented` : 'New comment';
+  },
+  [NotificationType.ArticleNewComment]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} commented` : 'New comment';
+  },
+};
+
+const getPushHeading = (type: string, title?: string): string => {
+  const fn = pushHeadingFnMap[type as NotificationType];
+  if (fn && title) return fn(title);
+  return pushHeadingMap[type as NotificationType] ?? 'daily.dev';
+};
 
 type PushOpts = { increaseBadge?: boolean };
 
@@ -121,7 +141,7 @@ export async function sendPushNotification(
 
   const push = createPush(userIds, targetUrl, type, { increaseBadge: true });
   push.contents = { en: basicHtmlStrip(title) };
-  push.headings = { en: getPushHeading(type) };
+  push.headings = { en: getPushHeading(type, title) };
   push.data = { notificationId: id };
   if (avatar) {
     push.chrome_web_icon = mapCloudinaryUrl(avatar.image);

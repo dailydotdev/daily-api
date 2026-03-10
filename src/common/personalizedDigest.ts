@@ -450,6 +450,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
   logger.info({ emailBatchId, sendType }, 'starting personalized digest send');
 
   let digestCount = 0;
+  let errorCount = 0;
 
   const personalizedDigestStream = await queryBuilder.stream();
   const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
@@ -458,9 +459,20 @@ export const schedulePersonalizedDigestSubscriptions = async ({
       personalizedDigest,
       emailBatchId,
     }: Parameters<typeof handler>[0]) => {
-      await handler({ personalizedDigest, emailBatchId });
+      try {
+        await handler({ personalizedDigest, emailBatchId });
+      } catch (err) {
+        errorCount += 1;
 
-      digestCount += 1;
+        logger.error(
+          { err, emailBatchId, personalizedDigest },
+          'personalized digest handler failed',
+        );
+
+        throw err;
+      } finally {
+        digestCount += 1;
+      }
     },
     notifyQueueConcurrency,
   );
@@ -486,7 +498,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
   await notifyQueue.drained();
 
   logger.info(
-    { digestCount, emailBatchId, sendType },
+    { digestCount, errorCount, emailBatchId, sendType },
     'personalized digest sent',
   );
 };

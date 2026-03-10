@@ -1390,6 +1390,7 @@ const worker: Worker = {
       counters?.background?.notificationFailed?.add(1, { channel: 'email' });
     }
   },
+  maxMessages: 5,
 };
 
 export default worker;

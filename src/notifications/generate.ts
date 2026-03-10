@@ -107,7 +107,7 @@ export const notificationTitleMap: Record<
     ctx: NotificationPostContext &
       NotificationSourceContext &
       NotificationDoneByContext,
-  ) => `<b>${ctx.doneBy.name}</b> joined <b>${ctx.source.name}</b>`,
+  ) => `<b>${ctx.doneBy.name}</b> joined <b>${ctx.source.name}</b>. Say hi!`,
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -150,7 +150,7 @@ export const notificationTitleMap: Record<
   user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
     const keyword =
       (ctx.keyword.flags as KeywordFlags)?.title || ctx.keyword.value;
-    return `You earned the <span class="text-theme-color-cabbage">Top Reader</span> badge in ${keyword}`;
+    return `Great news! You earned the <span class="text-theme-color-cabbage">Top Reader</span> badge in ${keyword}`;
   },
   source_post_approved: (ctx: NotificationPostContext) =>
     `Your post in <b>${ctx.source.name}</b> has been <span class="text-theme-color-cabbage">approved</span> and is now live`,
@@ -239,7 +239,7 @@ export const notificationTitleMap: Record<
     `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>`,
   feedback_cancelled: () => feedbackCancelledTitle,
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
-    `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
+    `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
 };
 

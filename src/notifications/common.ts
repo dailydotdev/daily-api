@@ -511,6 +511,7 @@ export const getUnreadNotificationsCount = async (
 
 enum UserNotificationUniqueKey {
   PostAdded = 'post_added',
+  DigestReady = 'digest_ready',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -519,7 +520,12 @@ const notificationTypeToUniqueKey: Partial<
   [NotificationType.SquadPostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.SourcePostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.UserPostAdded]: UserNotificationUniqueKey.PostAdded,
+  [NotificationType.DigestReady]: UserNotificationUniqueKey.DigestReady,
 };
+
+const fixedUniqueKeyTypes = new Set<NotificationType>([
+  NotificationType.DigestReady,
+]);
 
 export const generateUserNotificationUniqueKey = ({
   type,
@@ -536,6 +542,10 @@ export const generateUserNotificationUniqueKey = ({
 
   if (!uniqueKey) {
     return null;
+  }
+
+  if (fixedUniqueKeyTypes.has(type)) {
+    return uniqueKey;
   }
 
   return [
@@ -566,22 +576,21 @@ export const cleanupDigestReadyNotifications = async (
   con: DataSource | EntityManager,
   userId: string,
 ) => {
-  const subQuery = con
-    .createQueryBuilder()
-    .subQuery()
-    .select('un."notificationId"')
-    .from(UserNotification, 'un')
-    .where('un."userId" = :userId')
-    .getQuery();
+  const result: Pick<UserNotification, 'notificationId'> | null = await con
+    .getRepository(UserNotification)
+    .findOne({
+      select: ['notificationId'],
+      where: {
+        userId,
+        uniqueKey: UserNotificationUniqueKey.DigestReady,
+      },
+    });
 
-  await con
-    .createQueryBuilder()
-    .delete()
-    .from(NotificationV2)
-    .where('type = :type', { type: NotificationType.DigestReady })
-    .andWhere(`id IN ${subQuery}`)
-    .setParameter('userId', userId)
-    .execute();
+  if (result) {
+    await con.getRepository(NotificationV2).delete({
+      id: result.notificationId,
+    });
+  }
 };
 
 export const cleanupRecruiterNewCandidateNotification = async (

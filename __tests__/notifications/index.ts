@@ -1100,7 +1100,9 @@ describe('generateNotification', () => {
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
     );
-    expect(actual.notification.title).toEqual('<b>Tsahi</b> joined <b>A</b>');
+    expect(actual.notification.title).toEqual(
+      '<b>Tsahi</b> joined <b>A</b>. Say hi!',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',

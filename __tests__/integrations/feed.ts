@@ -5,7 +5,9 @@ import {
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
+  versionToTimeFeedGenerator,
 } from '../../src/integrations/feed';
+import { FeedOrderBy } from '../../src/entity/Feed';
 import {
   connectionFromNodes,
   feedCursorPageGenerator,
@@ -891,5 +893,35 @@ describe('FeedLofnConfigGenerator', () => {
         mab: mockedValue.tyr_metadata,
       },
     });
+  });
+});
+
+describe('versionToTimeFeedGenerator', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+  });
+
+  it('should generate config with chronological settings and no lofn', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: '1' }],
+      });
+
+    const generator = versionToTimeFeedGenerator(20);
+    await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 10,
+      offset: 0,
+    });
+
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedNaV1);
+    expect(capturedBody.order_by).toBe(FeedOrderBy.Date);
+    expect(capturedBody.disable_engagement_filter).toBe(true);
   });
 });

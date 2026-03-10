@@ -132,6 +132,7 @@ describe('dailyDigest cron', () => {
     expect(infoSpy).toHaveBeenCalledWith(
       {
         digestCount: usersToSchedule.length,
+        errorCount: 0,
         emailBatchId: expect.any(String),
         sendType: [
           UserPersonalizedDigestSendType.workdays,

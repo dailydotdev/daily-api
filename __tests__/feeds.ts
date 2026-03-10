@@ -1073,19 +1073,13 @@ describe('query feed', () => {
     expect(res.data.feed.edges.length).toEqual(1);
   });
 
-  it('should return feed v2 with TIME ranking', async () => {
+  it('should return feed v2 with TIME ranking using chronological config', async () => {
     loggedUser = '1';
-    nock('http://localhost:6002')
-      .post('/config')
-      .reply(200, {
-        user_id: '1',
-        config: {
-          providers: {},
-        },
-      });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => {
+        expect(body.feed_config_name).toBe('custom_feed_na_v1');
         expect(body.order_by).toBe(FeedOrderBy.Date);
+        expect(body.disable_engagement_filter).toBe(true);
         return true;
       })
       .reply(200, {
