@@ -76,6 +76,7 @@ const worker: Worker = {
       }
     }
   },
+  maxMessages: 5,
 };
 
 export default worker;
