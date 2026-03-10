@@ -172,16 +172,18 @@ export const versionToFeedGenerator = (version: number): FeedGenerator => {
   );
 };
 
-export const versionToTimeFeedGenerator = (version: number): FeedGenerator => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const versionToTimeFeedGenerator = (_version: number): FeedGenerator => {
   return new FeedGenerator(
     feedClient,
-    new FeedLofnConfigGenerator(
-      { ...baseFeedConfig, order_by: FeedOrderBy.Date },
-      lofnClient,
+    new FeedPreferencesConfigGenerator(
       {
-        ...opts,
-        feed_version: version.toString() as FeedVersion,
+        ...baseFeedConfig,
+        feed_config_name: FeedConfigName.CustomFeedNaV1,
+        order_by: FeedOrderBy.Date,
+        disable_engagement_filter: true,
       },
+      opts,
     ),
   );
 };
