@@ -244,6 +244,7 @@ const worker: Worker = {
       await checkBriefReadAchievement(con, logger, data.postId, data.userId);
     }
   },
+  maxMessages: 5,
 };
 
 export default worker;
