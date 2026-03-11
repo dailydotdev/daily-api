@@ -76,7 +76,7 @@ export const createBetterAuthSession = async ({
       [userId],
     );
     if (dailyUser.length === 0) {
-      req.log.warn({ userId }, 'Cannot create BA session: user not found');
+      req.log.warn('Cannot create BA session: user not found');
       return false;
     }
 
@@ -107,7 +107,7 @@ export const createBetterAuthSession = async ({
     return true;
   } catch (error) {
     req.log.error(
-      { err: error instanceof Error ? error.message : String(error), userId },
+      { err: error instanceof Error ? error.message : String(error) },
       'Failed to create BetterAuth session from Kratos',
     );
     return false;

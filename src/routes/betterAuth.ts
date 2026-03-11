@@ -312,7 +312,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         return reply.status(401).send({ error: 'Not authenticated' });
       }
       const { newEmail } = request.body as { newEmail?: string };
-      if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      if (!newEmail || newEmail.length > 254 || newEmail.indexOf('@') <= 0 || newEmail.lastIndexOf('@') !== newEmail.indexOf('@') || newEmail.lastIndexOf('.') <= newEmail.indexOf('@') + 1) {
         return reply
           .status(400)
           .send({ error: 'A valid email address is required' });
@@ -532,13 +532,11 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     url: '/auth/*',
     handler: async (request, reply) => {
       try {
-        if (isSignUpEmailPath(request) || isSignInEmailPath(request)) {
-          const limiter = isSignUpEmailPath(request)
-            ? strictAuthRateLimiter
-            : authRateLimiter;
-          if (!(await enforceRateLimit(request, reply, limiter))) {
-            return reply;
-          }
+        const limiter = isSignUpEmailPath(request)
+          ? strictAuthRateLimiter
+          : authRateLimiter;
+        if (!(await enforceRateLimit(request, reply, limiter))) {
+          return reply;
         }
 
         if (isSignUpEmailPath(request)) {
@@ -570,37 +568,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
             url.searchParams.set('state', state.slice(0, -3));
             overrideUrl = url.toString();
           }
-        }
-
-        if (request.url.includes('/email-otp/')) {
-          const pool = getBetterAuthPool();
-          const body = request.body as Record<string, unknown>;
-          const email =
-            typeof body?.email === 'string' ? body.email.toLowerCase() : '';
-          const identifier = `email-verification-otp-${email}`;
-          const { rows } = await pool.query(
-            'SELECT identifier, value, "expiresAt" FROM ba_verification WHERE identifier = $1 LIMIT 1',
-            [identifier],
-          );
-          const { rows: allRows } = await pool.query(
-            'SELECT identifier, value, "expiresAt" FROM ba_verification ORDER BY "createdAt" DESC LIMIT 10',
-          );
-          request.log.info(
-            {
-              path: request.url,
-              email,
-              identifier,
-              found: rows.length > 0,
-              storedValue: rows[0]?.value,
-              expiresAt: rows[0]?.expiresAt,
-              providedOtp: body?.otp,
-              allIdentifiers: allRows.map((r) => ({
-                id: (r as Record<string, string>).identifier,
-                val: (r as Record<string, string>).value,
-              })),
-            },
-            'email-otp debug',
-          );
         }
 
         const req = buildBetterAuthRequest(request, overrideUrl);
@@ -666,17 +633,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
               'Failed to set infoConfirmed after OTP verification',
             );
           }
-        }
-
-        if (request.url.includes('/email-otp/')) {
-          request.log.info(
-            {
-              path: request.url,
-              status: response.status,
-              responseBody: text.slice(0, 500),
-            },
-            'email-otp response',
-          );
         }
 
         if (isSignInEmailPath(request) && !response.ok) {
