@@ -169,12 +169,13 @@ export const typeDefs = /* GraphQL */ `
     ): FeedbackConnection! @auth
 
     """
-    Get all feedback (moderator only, cursor-paginated, filterable)
+    Get all feedback (team members and moderators only, cursor-paginated, filterable)
     """
     feedbackList(
       first: Int
       after: String
       status: Int
+      statuses: [Int!]
       category: ProtoEnumValue
     ): FeedbackConnection! @auth
   }
@@ -331,20 +332,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args: ConnectionArguments & {
         status?: FeedbackStatus;
+        statuses?: FeedbackStatus[];
         category?: UserFeedbackCategory;
       },
       ctx: AuthContext,
     ): Promise<Connection<GQLFeedbackItem>> => {
-      if (!ctx.roles.includes(Roles.Moderator)) {
+      if (!ctx.roles.includes(Roles.Moderator) && !ctx.isTeamMember) {
         throw new ForbiddenError('Access denied!');
       }
 
       const page = feedbackPageGenerator.connArgsToPage(args);
 
-      const where: Partial<Pick<Feedback, 'status' | 'category'>> = {};
+      const where: FindOptionsWhere<Feedback> = {};
 
       if (args.status !== undefined) {
         where.status = args.status;
+      } else if (args.statuses?.length) {
+        where.status = In(args.statuses);
       }
 
       if (args.category !== undefined) {

@@ -75,8 +75,18 @@ const USER_FEEDBACK_QUERY = `
 `;
 
 const FEEDBACK_LIST_QUERY = `
-  query FeedbackList($first: Int, $status: Int, $category: ProtoEnumValue) {
-    feedbackList(first: $first, status: $status, category: $category) {
+  query FeedbackList(
+    $first: Int
+    $status: Int
+    $statuses: [Int!]
+    $category: ProtoEnumValue
+  ) {
+    feedbackList(
+      first: $first
+      status: $status
+      statuses: $statuses
+      category: $category
+    ) {
       edges {
         node {
           id
@@ -180,6 +190,47 @@ describe('feedback schema', () => {
       { query: FEEDBACK_LIST_QUERY, variables: { first: 10 } },
       'FORBIDDEN',
     );
+  });
+
+  it('should return filtered feedbackList for team members', async () => {
+    const pendingFeedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: UserFeedbackCategory.BUG,
+      description: 'Pending feedback',
+      status: FeedbackStatus.Pending,
+      flags: {},
+    });
+
+    await con.getRepository(Feedback).save({
+      userId: '2',
+      category: UserFeedbackCategory.BUG,
+      description: 'Completed feedback',
+      status: FeedbackStatus.Completed,
+      flags: {},
+    });
+
+    loggedUser = '3';
+    loggedIsTeamMember = true;
+
+    const res = await client.query(FEEDBACK_LIST_QUERY, {
+      variables: {
+        first: 10,
+        statuses: [
+          FeedbackStatus.Pending,
+          FeedbackStatus.Processing,
+          FeedbackStatus.Accepted,
+        ],
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.feedbackList.edges).toHaveLength(1);
+    expect(res.data.feedbackList.edges[0].node).toMatchObject({
+      id: pendingFeedback.id,
+      user: {
+        id: '1',
+      },
+    });
   });
 
   it('should return filtered feedbackList for moderators', async () => {
