@@ -159,6 +159,10 @@ interface UpdateMemberRoleArgs {
   role: SourceMemberRoles;
 }
 
+interface DemoteSelfArgs {
+  sourceId: string;
+}
+
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
   query?: string;
@@ -871,6 +875,16 @@ export const typeDefs = /* GraphQL */ `
       Role to update the user to
       """
       role: String!
+    ): EmptyResponse! @auth
+
+    """
+    Step down from admin or moderator to member
+    """
+    demoteSelf(
+      """
+      Relevant source the logged in user is a member of
+      """
+      sourceId: ID!
     ): EmptyResponse! @auth
 
     """
@@ -2553,6 +2567,73 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         userId: ctx.userId,
         sourceId,
       });
+      return { _: true };
+    },
+    demoteSelf: async (
+      _,
+      { sourceId }: DemoteSelfArgs,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Leave,
+      );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
+      await ctx.con.transaction(async (entityManager) => {
+        const sourceMember = await entityManager
+          .getRepository(SourceMember)
+          .findOneByOrFail({ sourceId, userId: ctx.userId });
+
+        if (
+          ![SourceMemberRoles.Admin, SourceMemberRoles.Moderator].includes(
+            sourceMember.role,
+          )
+        ) {
+          throw new ForbiddenError('Access denied!');
+        }
+
+        if (sourceMember.role === SourceMemberRoles.Admin) {
+          const adminMembers = await entityManager
+            .getRepository(SourceMember)
+            .createQueryBuilder('sourceMember')
+            .setLock('pessimistic_write')
+            .where('sourceMember.sourceId = :sourceId', { sourceId })
+            .andWhere('sourceMember.role = :role', {
+              role: SourceMemberRoles.Admin,
+            })
+            .getMany();
+
+          if (adminMembers.length <= 1) {
+            throw new ValidationError(
+              'You cannot become a member while you are the last admin.',
+            );
+          }
+        }
+
+        await entityManager
+          .getRepository(SourceMember)
+          .update(
+            { sourceId, userId: ctx.userId },
+            { role: SourceMemberRoles.Member },
+          );
+
+        await entityManager.getRepository(ContentPreferenceSource).update(
+          { userId: ctx.userId, referenceId: sourceId },
+          {
+            flags: updateFlagsStatement<ContentPreferenceSource>({
+              role: SourceMemberRoles.Member,
+            }),
+          },
+        );
+      });
+
       return { _: true };
     },
     updateMemberRole: async (
