@@ -640,6 +640,16 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           if (parsed?.code === 'INVALID_EMAIL_OR_PASSWORD') {
             const body = request.body as { email?: string; password?: string };
             if (body?.email && body?.password) {
+              // Apply the same rate limiter before performing additional
+              // expensive authorization operations (Kratos verification,
+              // migration and a second BetterAuth request).
+              const retryLimiter = isSignUpEmailPath(request)
+                ? strictAuthRateLimiter
+                : authRateLimiter;
+              if (!(await enforceRateLimit(request, reply, retryLimiter))) {
+                return reply;
+              }
+
               const kratosResult = await verifyKratosCredentials(
                 body.email,
                 body.password,
