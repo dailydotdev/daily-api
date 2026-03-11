@@ -4,6 +4,10 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { Pool } from 'pg';
 import * as argon2 from 'argon2';
 import { logger } from './logger';
+import {
+  sendEmail,
+  CioTransactionalMessageTemplateId,
+} from './common/mailing';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 
@@ -160,6 +164,15 @@ const createAuth = (): BetterAuthHandler => {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      sendResetPassword: async ({ user, url }) => {
+        await sendEmail({
+          transactional_message_id:
+            CioTransactionalMessageTemplateId.AuthResetPassword,
+          identifiers: { id: user.id },
+          message_data: { url, name: user.name },
+          to: user.email,
+        });
+      },
       password: {
         hash: (password: string) =>
           argon2.hash(password, { type: argon2.argon2id }),
@@ -172,9 +185,14 @@ const createAuth = (): BetterAuthHandler => {
         sendVerificationOnSignUp: true,
         otpLength: 6,
         expiresIn: 600,
-        sendVerificationOTP: async ({ email, type }) => {
-          logger.info({ email, type }, 'OTP verification requested');
-          // TODO: integrate with email service (SendGrid/etc.)
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          await sendEmail({
+            transactional_message_id:
+              CioTransactionalMessageTemplateId.AuthVerificationOTP,
+            identifiers: { email },
+            message_data: { otp, type },
+            to: email,
+          });
         },
       }),
     ],

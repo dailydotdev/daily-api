@@ -8,6 +8,10 @@ import { generateVerifyCode } from '../ids';
 import { ONE_MINUTE_IN_MS } from '../common/constants';
 import { singleRedisClient } from '../redis';
 import { logger } from '../logger';
+import {
+  sendEmail,
+  CioTransactionalMessageTemplateId,
+} from '../common/mailing';
 
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -344,10 +348,13 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           expiresAt,
         ],
       );
-      request.log.debug(
-        { email: normalizedEmail },
-        'Email change verification code sent',
-      );
+      await sendEmail({
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.AuthVerificationOTP,
+        identifiers: { id: session.user.id },
+        message_data: { otp: code, type: 'change-email' },
+        to: normalizedEmail,
+      });
       return reply.send({ status: true });
     } catch (error) {
       request.log.error(
@@ -568,7 +575,8 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         if (request.url.includes('/email-otp/')) {
           const pool = getBetterAuthPool();
           const body = request.body as Record<string, unknown>;
-          const email = typeof body?.email === 'string' ? body.email.toLowerCase() : '';
+          const email =
+            typeof body?.email === 'string' ? body.email.toLowerCase() : '';
           const identifier = `email-verification-otp-${email}`;
           const { rows } = await pool.query(
             'SELECT identifier, value, "expiresAt" FROM ba_verification WHERE identifier = $1 LIMIT 1',
@@ -586,9 +594,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
               storedValue: rows[0]?.value,
               expiresAt: rows[0]?.expiresAt,
               providedOtp: body?.otp,
-              allIdentifiers: allRows.map((r: { identifier: string; value: string }) => ({
-                id: r.identifier,
-                val: r.value,
+              allIdentifiers: allRows.map((r) => ({
+                id: (r as Record<string, string>).identifier,
+                val: (r as Record<string, string>).value,
               })),
             },
             'email-otp debug',
@@ -624,8 +632,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
                   setClauses.push(`"experienceLevel" = $${paramIndex++}`);
                   values.push(experienceLevel);
                 }
-                setClauses.push(`"infoConfirmed" = $${paramIndex++}`);
-                values.push(true);
 
                 values.push(userId);
                 await pool.query(
@@ -639,6 +645,26 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
                 'Failed to save profile data after BA sign-up',
               );
             }
+          }
+        }
+
+        if (request.url.includes('/email-otp/verify-email') && response.ok) {
+          try {
+            const body = request.body as Record<string, unknown>;
+            const email =
+              typeof body?.email === 'string' ? body.email.toLowerCase() : '';
+            if (email) {
+              const pool = getBetterAuthPool();
+              await pool.query(
+                `UPDATE public."user" SET "infoConfirmed" = true WHERE LOWER(email) = $1 AND "infoConfirmed" = false`,
+                [email],
+              );
+            }
+          } catch (err) {
+            logger.error(
+              { err: err instanceof Error ? err.message : String(err) },
+              'Failed to set infoConfirmed after OTP verification',
+            );
           }
         }
 
