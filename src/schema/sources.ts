@@ -1548,6 +1548,34 @@ interface SimilarSources extends ConnectionArguments {
   excludeSources?: string[];
 }
 
+const updateSourceMemberRole = async ({
+  entityManager,
+  sourceId,
+  userId,
+  role,
+  status,
+}: {
+  entityManager: EntityManager;
+  sourceId: string;
+  userId: string;
+  role: SourceMemberRoles;
+  status?: ContentPreferenceStatus;
+}): Promise<void> => {
+  await entityManager
+    .getRepository(SourceMember)
+    .update({ sourceId, userId }, { role });
+
+  await entityManager.getRepository(ContentPreferenceSource).update(
+    { userId, referenceId: sourceId },
+    {
+      status,
+      flags: updateFlagsStatement<ContentPreferenceSource>({
+        role,
+      }),
+    },
+  );
+};
+
 const updateHideFeedPostsFlag = async (
   ctx: Context,
   sourceId: string,
@@ -2617,21 +2645,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           }
         }
 
-        await entityManager
-          .getRepository(SourceMember)
-          .update(
-            { sourceId, userId: ctx.userId },
-            { role: SourceMemberRoles.Member },
-          );
-
-        await entityManager.getRepository(ContentPreferenceSource).update(
-          { userId: ctx.userId, referenceId: sourceId },
-          {
-            flags: updateFlagsStatement<ContentPreferenceSource>({
-              role: SourceMemberRoles.Member,
-            }),
-          },
-        );
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: ctx.userId,
+          role: SourceMemberRoles.Member,
+        });
       });
 
       return { _: true };
@@ -2669,21 +2688,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(SourceMember)
-          .update({ sourceId, userId: memberId }, { role });
-
         const isBlock = role === SourceMemberRoles.Blocked;
 
-        await entityManager.getRepository(ContentPreferenceSource).update(
-          { userId: memberId, referenceId: sourceId },
-          {
-            status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
-            flags: updateFlagsStatement<ContentPreferenceSource>({
-              role,
-            }),
-          },
-        );
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: memberId,
+          role,
+          status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+        });
 
         if (isBlock) {
           await cleanContentNotificationPreference({
