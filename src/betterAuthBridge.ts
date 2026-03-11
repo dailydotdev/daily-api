@@ -1,7 +1,8 @@
 import { createHmac } from 'crypto';
 import { fromNodeHeaders } from 'better-auth/node';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { getBetterAuth, getBetterAuthPool } from './betterAuth';
+import { getBetterAuth } from './betterAuth';
+import createOrGetConnection from './db';
 import type { WhoamiResponse } from './kratos';
 import { addDays } from 'date-fns';
 import { generateLongId, generateUUID } from './ids';
@@ -65,13 +66,13 @@ export const createBetterAuthSession = async ({
   userId: string;
 }): Promise<boolean> => {
   try {
-    const pool = getBetterAuthPool();
+    const con = await createOrGetConnection();
 
     const sessionId = generateUUID();
     const token = await generateLongId();
     const expiresAt = addDays(new Date(), 7);
 
-    const { rows: dailyUser } = await pool.query(
+    const dailyUser = await con.query(
       'SELECT id FROM public."user" WHERE id = $1 LIMIT 1',
       [userId],
     );
@@ -80,7 +81,7 @@ export const createBetterAuthSession = async ({
       return false;
     }
 
-    await pool.query(
+    await con.query(
       `INSERT INTO ba_session (id, token, "userId", "expiresAt", "createdAt", "updatedAt", "ipAddress", "userAgent")
        VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6)`,
       [

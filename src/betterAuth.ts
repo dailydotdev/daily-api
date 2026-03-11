@@ -31,14 +31,12 @@ export type BetterAuthHandler = {
 };
 
 let authInstance: BetterAuthHandler | null = null;
-let poolInstance: Pool | null = null;
 
 const getPool = (): Pool =>
   (AppDataSource.driver as unknown as { master: Pool }).master;
 
 const createAuth = (): BetterAuthHandler => {
   const pool = getPool();
-  poolInstance = pool;
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
     : [];
@@ -235,13 +233,4 @@ export const getBetterAuth = (): BetterAuthHandler => {
     );
   }
   return authInstance;
-};
-
-export const getBetterAuthPool = (): Pool => {
-  if (!poolInstance) {
-    throw new Error(
-      'BetterAuth not initialized. Call initializeBetterAuth() first.',
-    );
-  }
-  return poolInstance;
 };

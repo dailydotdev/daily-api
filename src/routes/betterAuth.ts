@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as argon2 from 'argon2';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
-import { getBetterAuth, getBetterAuthPool } from '../betterAuth';
+import { getBetterAuth } from '../betterAuth';
+import createOrGetConnection from '../db';
 import { fetchOptions } from '../http';
 import { retryFetch } from '../integrations/retry';
 import { generateVerifyCode } from '../ids';
@@ -19,6 +20,13 @@ import {
   buildBetterAuthRequest,
   copyResponseHeaders,
 } from '../common/betterAuth';
+import {
+  checkEmailQuerySchema,
+  changeEmailBodySchema,
+  verifyChangeEmailBodySchema,
+  setPasswordBodySchema,
+  socialRedirectQuerySchema,
+} from '../common/schema/betterAuth';
 
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -116,8 +124,8 @@ const isEmailTaken = async (
   email: string,
   excludeUserId: string,
 ): Promise<boolean> => {
-  const pool = getBetterAuthPool();
-  const { rows } = await pool.query(
+  const con = await createOrGetConnection();
+  const rows = await con.query(
     'SELECT 1 FROM public."user" WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
     [email, excludeUserId],
   );
@@ -125,8 +133,8 @@ const isEmailTaken = async (
 };
 
 const hasCredentialAccount = async (userId: string): Promise<boolean> => {
-  const pool = getBetterAuthPool();
-  const { rows } = await pool.query(
+  const con = await createOrGetConnection();
+  const rows = await con.query(
     `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
     [userId],
   );
@@ -137,10 +145,10 @@ const insertCredentialAccount = async (
   userId: string,
   hashedPassword: string,
 ): Promise<void> => {
-  const pool = getBetterAuthPool();
+  const con = await createOrGetConnection();
   const now = new Date().toISOString();
   const accountId = `${userId}-credential`;
-  await pool.query(
+  await con.query(
     `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
      VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
     [accountId, userId, userId, now, hashedPassword],
@@ -232,6 +240,8 @@ const migrateKratosUserToBetterAuth = async ({
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
+  const con = await createOrGetConnection();
+
   fastify.addContentTypeParser(
     'application/x-www-form-urlencoded',
     { parseAs: 'string' },
@@ -244,12 +254,12 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     if (!(await enforceRateLimit(request, reply, authRateLimiter))) {
       return reply;
     }
-    const { email } = request.query as { email: string };
-    if (!email) {
-      return reply.status(400).send({ error: 'email is required' });
+    const parsed = checkEmailQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'A valid email is required' });
     }
-    const pool = getBetterAuthPool();
-    const { rows } = await pool.query(
+    const { email } = parsed.data;
+    const rows = await con.query(
       'SELECT 1 FROM public."user" WHERE email = $1 LIMIT 1',
       [email],
     );
@@ -265,18 +275,13 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!session) {
         return reply;
       }
-      const { newEmail } = request.body as { newEmail?: string };
-      if (
-        !newEmail ||
-        newEmail.length > 254 ||
-        newEmail.indexOf('@') <= 0 ||
-        newEmail.lastIndexOf('@') !== newEmail.indexOf('@') ||
-        newEmail.lastIndexOf('.') <= newEmail.indexOf('@') + 1
-      ) {
+      const parsed = changeEmailBodySchema.safeParse(request.body);
+      if (!parsed.success) {
         return reply
           .status(400)
           .send({ error: 'A valid email address is required' });
       }
+      const { newEmail } = parsed.data;
       const normalizedEmail = newEmail.toLowerCase();
       if (normalizedEmail === session.user.email?.toLowerCase()) {
         return reply
@@ -288,14 +293,13 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           .status(400)
           .send({ error: 'This email address is already in use' });
       }
-      const pool = getBetterAuthPool();
       const identifier = `change-email:${session.user.id}`;
-      await pool.query('DELETE FROM ba_verification WHERE identifier = $1', [
+      await con.query('DELETE FROM ba_verification WHERE identifier = $1', [
         identifier,
       ]);
       const code = await generateVerifyCode();
       const expiresAt = new Date(Date.now() + 10 * ONE_MINUTE_IN_MS);
-      await pool.query(
+      await con.query(
         `INSERT INTO ba_verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
          VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())`,
         [
@@ -327,15 +331,15 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!session) {
         return reply;
       }
-      const { code } = request.body as { code?: string };
-      if (!code) {
+      const parsed = verifyChangeEmailBodySchema.safeParse(request.body);
+      if (!parsed.success) {
         return reply
           .status(400)
           .send({ error: 'Verification code is required' });
       }
-      const pool = getBetterAuthPool();
+      const { code } = parsed.data;
       const identifier = `change-email:${session.user.id}`;
-      const { rows } = await pool.query(
+      const rows = await con.query(
         'SELECT value FROM ba_verification WHERE identifier = $1 AND "expiresAt" > NOW() LIMIT 1',
         [identifier],
       );
@@ -355,11 +359,11 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           .status(400)
           .send({ error: 'This email address is already in use' });
       }
-      await pool.query('UPDATE public."user" SET email = $1 WHERE id = $2', [
+      await con.query('UPDATE public."user" SET email = $1 WHERE id = $2', [
         newEmail,
         session.user.id,
       ]);
-      await pool.query('DELETE FROM ba_verification WHERE identifier = $1', [
+      await con.query('DELETE FROM ba_verification WHERE identifier = $1', [
         identifier,
       ]);
       return reply.send({ status: true });
@@ -381,12 +385,13 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!session) {
         return reply;
       }
-      const { newPassword } = request.body as { newPassword?: string };
-      if (!newPassword || newPassword.length < 8) {
+      const parsed = setPasswordBodySchema.safeParse(request.body);
+      if (!parsed.success) {
         return reply
           .status(400)
           .send({ error: 'Password must be at least 8 characters' });
       }
+      const { newPassword } = parsed.data;
       if (await hasCredentialAccount(session.user.id)) {
         return reply.status(400).send({
           error: 'Password already set',
@@ -413,13 +418,11 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!(await enforceRateLimit(request, reply, authRateLimiter))) {
         return reply;
       }
-      const { provider, callbackURL } = request.query as {
-        provider?: string;
-        callbackURL?: string;
-      };
-      if (!provider) {
+      const parsed = socialRedirectQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
         return reply.status(400).send({ error: 'provider is required' });
       }
+      const { provider, callbackURL } = parsed.data;
       const auth = getBetterAuth();
       const url = toRequestUrl(request);
       const headers = toHeaders(request.headers, 'application/json');
@@ -515,10 +518,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           ] as string | undefined;
           if (username || experienceLevel) {
             try {
-              const parsed = JSON.parse(text);
-              const userId = parsed?.user?.id;
+              const responseParsed = JSON.parse(text);
+              const userId = responseParsed?.user?.id;
               if (userId) {
-                const pool = getBetterAuthPool();
                 const setClauses: string[] = [];
                 const values: (string | boolean)[] = [];
                 let paramIndex = 1;
@@ -533,7 +535,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
                 }
 
                 values.push(userId);
-                await pool.query(
+                await con.query(
                   `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
                   values,
                 );
@@ -553,8 +555,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
             const email =
               typeof body?.email === 'string' ? body.email.toLowerCase() : '';
             if (email) {
-              const pool = getBetterAuthPool();
-              await pool.query(
+              await con.query(
                 `UPDATE public."user" SET "infoConfirmed" = true WHERE LOWER(email) = $1 AND "infoConfirmed" = false`,
                 [email],
               );
@@ -568,8 +569,8 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         }
 
         if (isSignInEmailPath(request) && !response.ok) {
-          const parsed = JSON.parse(text);
-          if (parsed?.code === 'INVALID_EMAIL_OR_PASSWORD') {
+          const responseParsed = JSON.parse(text);
+          if (responseParsed?.code === 'INVALID_EMAIL_OR_PASSWORD') {
             const body = request.body as { email?: string; password?: string };
             if (body?.email && body?.password) {
               const retryLimiter = isSignUpEmailPath(request)
