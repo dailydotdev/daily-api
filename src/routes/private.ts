@@ -363,7 +363,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const callerId = req.userId;
 
     req.log.info(
-      { callerId, requestSize: userIds.length, userIds },
+      { callerId, requestSize: userIds.length },
       'Starting Vordr shadow ban batch',
     );
 
@@ -382,7 +382,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(200).send({ success: true });
     } catch (error) {
       req.log.error(
-        { err: error, callerId, requestSize: userIds.length, userIds },
+        { err: error, callerId, requestSize: userIds.length },
         'Failed Vordr shadow ban batch',
       );
       return res.status(500).send({ error: 'Failed to shadow ban all users' });

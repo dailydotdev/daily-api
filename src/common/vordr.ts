@@ -159,14 +159,6 @@ export const shadowBanVordrUsers = async ({
 }: ShadowBanVordrUsersParams): Promise<void> => {
   await con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(User);
-    const existingUsers = await repository.countBy({
-      id: In(userIds),
-    });
-
-    if (existingUsers !== userIds.length) {
-      throw new Error('Failed to shadow ban all users');
-    }
-
     const result = await repository.update(
       { id: In(userIds) },
       {
