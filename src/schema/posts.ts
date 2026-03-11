@@ -1709,7 +1709,7 @@ export const typeDefs = /* GraphQL */ `
       Post to share in the source
       """
       id: ID!
-    ): EmptyResponse @auth
+    ): EmptyResponse @auth @rateLimit(limit: 100, duration: 3600)
 
     """
     Dismiss user post feedback

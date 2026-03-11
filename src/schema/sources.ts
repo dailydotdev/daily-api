@@ -159,6 +159,10 @@ interface UpdateMemberRoleArgs {
   role: SourceMemberRoles;
 }
 
+interface DemoteSelfArgs {
+  sourceId: string;
+}
+
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
   query?: string;
@@ -874,6 +878,16 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse! @auth
 
     """
+    Step down from admin or moderator to member
+    """
+    demoteSelf(
+      """
+      Relevant source the logged in user is a member of
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
     Unblock a removed member with blocked role
     """
     unblockMember(
@@ -1533,6 +1547,34 @@ interface SimilarSources extends ConnectionArguments {
   sourceId: string;
   excludeSources?: string[];
 }
+
+const updateSourceMemberRole = async ({
+  entityManager,
+  sourceId,
+  userId,
+  role,
+  status,
+}: {
+  entityManager: EntityManager;
+  sourceId: string;
+  userId: string;
+  role: SourceMemberRoles;
+  status?: ContentPreferenceStatus;
+}): Promise<void> => {
+  await entityManager
+    .getRepository(SourceMember)
+    .update({ sourceId, userId }, { role });
+
+  await entityManager.getRepository(ContentPreferenceSource).update(
+    { userId, referenceId: sourceId },
+    {
+      status,
+      flags: updateFlagsStatement<ContentPreferenceSource>({
+        role,
+      }),
+    },
+  );
+};
 
 const updateHideFeedPostsFlag = async (
   ctx: Context,
@@ -2555,6 +2597,64 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
       return { _: true };
     },
+    demoteSelf: async (
+      _,
+      { sourceId }: DemoteSelfArgs,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Leave,
+      );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
+      await ctx.con.transaction(async (entityManager) => {
+        const sourceMember = await entityManager
+          .getRepository(SourceMember)
+          .findOneByOrFail({ sourceId, userId: ctx.userId });
+
+        if (
+          ![SourceMemberRoles.Admin, SourceMemberRoles.Moderator].includes(
+            sourceMember.role,
+          )
+        ) {
+          throw new ForbiddenError('Access denied!');
+        }
+
+        if (sourceMember.role === SourceMemberRoles.Admin) {
+          const adminMembers = await entityManager
+            .getRepository(SourceMember)
+            .createQueryBuilder('sourceMember')
+            .setLock('pessimistic_write')
+            .where('sourceMember.sourceId = :sourceId', { sourceId })
+            .andWhere('sourceMember.role = :role', {
+              role: SourceMemberRoles.Admin,
+            })
+            .getMany();
+
+          if (adminMembers.length <= 1) {
+            throw new ValidationError(
+              'You cannot become a member while you are the last admin.',
+            );
+          }
+        }
+
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: ctx.userId,
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      return { _: true };
+    },
     updateMemberRole: async (
       _,
       { sourceId, memberId, role }: UpdateMemberRoleArgs,
@@ -2588,21 +2688,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(SourceMember)
-          .update({ sourceId, userId: memberId }, { role });
-
         const isBlock = role === SourceMemberRoles.Blocked;
 
-        await entityManager.getRepository(ContentPreferenceSource).update(
-          { userId: memberId, referenceId: sourceId },
-          {
-            status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
-            flags: updateFlagsStatement<ContentPreferenceSource>({
-              role,
-            }),
-          },
-        );
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: memberId,
+          role,
+          status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+        });
 
         if (isBlock) {
           await cleanContentNotificationPreference({

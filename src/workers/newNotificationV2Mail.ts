@@ -1318,6 +1318,12 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
+
+    // digest sends its own emails through digest system
+    if (notification.type === NotificationType.DigestReady) {
+      return;
+    }
+
     const stream = await streamNotificationUsers(
       con,
       notification.id,
