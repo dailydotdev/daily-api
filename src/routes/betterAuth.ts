@@ -13,6 +13,7 @@ import {
   sendEmail,
   CioTransactionalMessageTemplateId,
 } from '../common/mailing';
+import { fromNodeHeaders } from 'better-auth/node';
 import {
   getClientIp,
   toHeaders,
@@ -111,7 +112,9 @@ const isSignInEmailPath = (request: FastifyRequest): boolean =>
 const requireSession = async (request: FastifyRequest, reply: FastifyReply) => {
   const auth = getBetterAuth();
   const session = await auth.api.getSession({
-    headers: toHeaders(request.headers),
+    headers: fromNodeHeaders(
+      request.headers as Record<string, string | string[] | undefined>,
+    ),
   });
   if (!session) {
     reply.status(401).send({ error: 'Not authenticated' });
