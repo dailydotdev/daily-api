@@ -227,7 +227,7 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
             ...baseNotificationEmailData,
             transactional_message_id:
               CioTransactionalMessageTemplateId.FeedbackReply,
-            reply_to: reply.authorEmail || 'support@daily.dev',
+            reply_to: 'support@daily.dev',
             identifiers: { id: feedback.userId },
             to: user.email,
             message_data: {

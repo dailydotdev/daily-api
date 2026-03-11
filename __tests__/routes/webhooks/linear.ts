@@ -500,7 +500,7 @@ describe('POST /webhooks/linear', () => {
       expect(mailing.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: usersFixture[0].email,
-          reply_to: 'chris@daily.dev',
+          reply_to: 'support@daily.dev',
           identifiers: { id: feedback.userId },
         }),
       );
@@ -511,7 +511,7 @@ describe('POST /webhooks/linear', () => {
       expect(notifications).toHaveLength(0);
     });
 
-    it('should fallback reply_to to support email when author email is missing', async () => {
+    it('should set reply_to to support email when author email is missing', async () => {
       await createFeedback();
       const payload = {
         action: 'create',
@@ -537,7 +537,7 @@ describe('POST /webhooks/linear', () => {
       );
     });
 
-    it('should create reply when author email is invalid and fallback to support reply_to', async () => {
+    it('should create reply when author email is invalid and keep support reply_to', async () => {
       const feedback = await createFeedback();
       const payload = {
         action: 'create',
