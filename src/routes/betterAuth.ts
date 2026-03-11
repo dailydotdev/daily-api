@@ -481,6 +481,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     label: string,
   ) => {
     try {
+      if (!(await enforceRateLimit(request, reply, authRateLimiter))) {
+        return reply;
+      }
       const { provider, callbackURL } = request.query as {
         provider?: string;
         callbackURL?: string;
