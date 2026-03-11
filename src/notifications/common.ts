@@ -88,6 +88,7 @@ export enum NotificationType {
   FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
+  HotTakeUpvoteMilestone = 'hot_take_upvote_milestone',
 }
 
 export enum NotificationPreferenceType {
@@ -308,6 +309,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.DigestReady]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.HotTakeUpvoteMilestone]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

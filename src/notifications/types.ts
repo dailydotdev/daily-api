@@ -223,6 +223,13 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementImage: string;
 };
 
+export type NotificationHotTakeUpvoteContext = NotificationBaseContext &
+  NotificationUpvotersContext & {
+    hotTakeId: string;
+    hotTakeTitle: string;
+    targetUrl: string;
+  };
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -502,6 +502,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.achievement-unlocked',
     subscription: 'api.achievement-unlocked-notification',
   },
+  {
+    topic: 'hot-take-upvoted',
+    subscription: 'api.hot-take-upvote-milestone-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

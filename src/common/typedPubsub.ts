@@ -83,6 +83,10 @@ export type PubSubSchema = {
     childCommentId: string;
     contentHtml: string;
   };
+  'hot-take-upvoted': {
+    hotTakeId: string;
+    userId: string;
+  };
   'comment-upvoted': {
     commentId: string;
     userId: string;

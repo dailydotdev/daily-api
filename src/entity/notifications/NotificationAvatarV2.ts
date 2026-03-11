@@ -7,7 +7,8 @@ export type NotificationAvatarType =
   | 'organization'
   | 'brief'
   | 'digest'
-  | 'achievement';
+  | 'achievement'
+  | 'hot_take';
 
 @Entity()
 @Index(

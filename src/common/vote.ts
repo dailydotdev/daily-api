@@ -13,6 +13,7 @@ import { HotTake } from '../entity/user/HotTake';
 import { UserHotTake } from '../entity/user/UserHotTake';
 import { UserVote } from '../types';
 import { AchievementEventType, checkAchievementProgress } from './achievement';
+import { triggerTypedEvent } from './typedPubsub';
 
 type UserVoteProps = {
   ctx: AuthContext;
@@ -183,18 +184,29 @@ export const voteHotTake = async ({
       vote,
     });
 
-    const shouldCheckAchievement =
+    const isNewVoteFromOther =
       vote !== UserVote.None &&
       previousVote !== vote &&
       hotTake.userId !== ctx.userId;
 
-    if (shouldCheckAchievement) {
+    if (isNewVoteFromOther) {
       await checkAchievementProgress(
         ctx.con,
         ctx.log,
         ctx.userId,
         AchievementEventType.HotTakeVote,
       );
+    }
+
+    if (
+      vote === UserVote.Up &&
+      previousVote !== UserVote.Up &&
+      hotTake.userId !== ctx.userId
+    ) {
+      await triggerTypedEvent(ctx.log, 'hot-take-upvoted', {
+        hotTakeId: id,
+        userId: ctx.userId,
+      });
     }
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;

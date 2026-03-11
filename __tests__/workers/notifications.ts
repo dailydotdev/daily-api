@@ -82,6 +82,9 @@ import { postMention } from '../../src/workers/notifications/postMention';
 import { sourceMemberRoleChanged } from '../../src/workers/notifications/sourceMemberRoleChanged';
 import { sourceRequest } from '../../src/workers/notifications/sourceRequest';
 import { squadMemberJoined } from '../../src/workers/notifications/squadMemberJoined';
+import { hotTakeUpvoteMilestone } from '../../src/workers/notifications/hotTakeUpvoteMilestone';
+import { HotTake } from '../../src/entity/user/HotTake';
+import { UserHotTake } from '../../src/entity/user/UserHotTake';
 
 let con: DataSource;
 
@@ -2795,5 +2798,119 @@ describe('user post added', () => {
       },
     );
     expect(actual).toBeUndefined();
+  });
+});
+
+describe('hot take upvote milestone', () => {
+  let hotTake: HotTake;
+
+  beforeEach(async () => {
+    const repo = con.getRepository(HotTake);
+    const saved = await repo.save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Tabs are better than spaces',
+      subtitle: 'Fight me',
+      position: 1,
+      upvotes: 0,
+    });
+    hotTake = saved;
+  });
+
+  it('should add notification at milestone 1', async () => {
+    await con.getRepository(HotTake).update({ id: hotTake.id }, { upvotes: 1 });
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake.id,
+      userId: '2',
+      vote: UserVote.Up,
+      votedAt: new Date(),
+    });
+    const actual = await invokeTypedNotificationWorker<'hot-take-upvoted'>(
+      hotTakeUpvoteMilestone,
+      {
+        hotTakeId: hotTake.id,
+        userId: '2',
+      },
+    );
+    expect(actual!.length).toEqual(1);
+    expect(actual![0].type).toEqual('hot_take_upvote_milestone');
+    expect(actual![0].ctx.userIds).toEqual(['1']);
+    expect(
+      (actual![0].ctx as NotificationUpvotersContext).upvotes,
+    ).toEqual(1);
+    expect(
+      (actual![0].ctx as NotificationUpvotersContext).upvoters.length,
+    ).toEqual(1);
+  });
+
+  it('should add notification at milestone 10', async () => {
+    await con
+      .getRepository(HotTake)
+      .update({ id: hotTake.id }, { upvotes: 10 });
+    await con.getRepository(UserHotTake).save([
+      {
+        hotTakeId: hotTake.id,
+        userId: '2',
+        vote: UserVote.Up,
+        votedAt: new Date(),
+      },
+      {
+        hotTakeId: hotTake.id,
+        userId: '3',
+        vote: UserVote.Up,
+        votedAt: new Date(),
+      },
+    ]);
+    const actual = await invokeTypedNotificationWorker<'hot-take-upvoted'>(
+      hotTakeUpvoteMilestone,
+      {
+        hotTakeId: hotTake.id,
+        userId: '2',
+      },
+    );
+    expect(actual!.length).toEqual(1);
+    expect(actual![0].type).toEqual('hot_take_upvote_milestone');
+    expect(
+      (actual![0].ctx as NotificationUpvotersContext).upvotes,
+    ).toEqual(10);
+  });
+
+  it('should not add notification for non-milestone counts', async () => {
+    await con
+      .getRepository(HotTake)
+      .update({ id: hotTake.id }, { upvotes: 7 });
+    const actual = await invokeTypedNotificationWorker<'hot-take-upvoted'>(
+      hotTakeUpvoteMilestone,
+      {
+        hotTakeId: hotTake.id,
+        userId: '2',
+      },
+    );
+    expect(actual).toBeFalsy();
+  });
+
+  it('should not add notification when voter is the hot take owner', async () => {
+    await con
+      .getRepository(HotTake)
+      .update({ id: hotTake.id }, { upvotes: 1 });
+    const actual = await invokeTypedNotificationWorker<'hot-take-upvoted'>(
+      hotTakeUpvoteMilestone,
+      {
+        hotTakeId: hotTake.id,
+        userId: '1',
+      },
+    );
+    expect(actual).toBeFalsy();
+  });
+
+  it('should not add notification when hot take does not exist', async () => {
+    const actual = await invokeTypedNotificationWorker<'hot-take-upvoted'>(
+      hotTakeUpvoteMilestone,
+      {
+        hotTakeId: '00000000-0000-0000-0000-000000000000',
+        userId: '2',
+      },
+    );
+    expect(actual).toBeFalsy();
   });
 });

@@ -16,4 +16,5 @@ export enum NotificationIcon {
   Core = 'Core',
   Opportunity = 'Opportunity',
   Analytics = 'Analytics',
+  HotTake = 'HotTake',
 }

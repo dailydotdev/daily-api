@@ -40,6 +40,7 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationHotTakeUpvoteContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -241,6 +242,26 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
+  hot_take_upvote_milestone: (ctx: NotificationHotTakeUpvoteContext) =>
+    HOT_TAKE_UPVOTE_TITLES[
+      ctx.upvotes as keyof typeof HOT_TAKE_UPVOTE_TITLES
+    ] ?? `🔥 Your hot take earned ${ctx.upvotes} upvotes!`,
+};
+
+export const HOT_TAKE_UPVOTE_TITLES = {
+  1: 'Spicy 🔥',
+  10: "It's getting hot in here! 🔥",
+  50: 'Your take is on fire! 🔥',
+  100: 'Legendary hot take! 🔥',
+};
+
+export const HOT_TAKE_UPVOTE_MILESTONES = Object.keys(HOT_TAKE_UPVOTE_TITLES);
+
+export const HOT_TAKE_UPVOTE_DESCRIPTIONS: Record<number, string> = {
+  1: 'Someone finds your take HOT!',
+  10: '10 users found your take to be truly hot',
+  50: '50 users found your take to be blazing hot',
+  100: "100 users can't stop upvoting your take",
 };
 
 export const generateNotificationMap: Record<
@@ -759,5 +780,21 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.metadataChangedAt?.toString());
+  },
+  hot_take_upvote_milestone: (
+    builder: NotificationBuilder,
+    ctx: NotificationHotTakeUpvoteContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.HotTake)
+      .referenceHotTake(ctx.hotTakeId)
+      .description(
+        HOT_TAKE_UPVOTE_DESCRIPTIONS[ctx.upvotes] ??
+          `${ctx.upvotes} users found your take to be truly hot`,
+      )
+      .targetUrl(ctx.targetUrl)
+      .uniqueKey(ctx.upvotes.toString())
+      .avatarHotTake(ctx.hotTakeId)
+      .avatarManyUsers(ctx.upvoters);
   },
 };

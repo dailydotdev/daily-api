@@ -241,6 +241,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceHotTake(hotTakeId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: hotTakeId,
+      referenceType: 'hot_take',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -415,6 +422,18 @@ export class NotificationBuilder {
       name: 'Digest',
       targetUrl: '',
       referenceId: 'digest',
+      image: emptyImage,
+    });
+
+    return this;
+  }
+
+  avatarHotTake(hotTakeId: string): NotificationBuilder {
+    this.avatars.push({
+      type: 'hot_take',
+      name: 'Hot Take',
+      targetUrl: '',
+      referenceId: hotTakeId,
       image: emptyImage,
     });
 

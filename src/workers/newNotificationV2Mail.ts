@@ -137,6 +137,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
+  hot_take_upvote_milestone: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1290,6 +1291,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
+  },
+  hot_take_upvote_milestone: async () => {
+    return null;
   },
 };
 

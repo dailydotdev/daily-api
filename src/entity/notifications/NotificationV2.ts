@@ -19,7 +19,8 @@ export type NotificationReferenceType =
   | 'user'
   | 'opportunity'
   | 'feedback'
-  | 'achievement';
+  | 'achievement'
+  | 'hot_take';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])
