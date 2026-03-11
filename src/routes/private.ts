@@ -33,10 +33,44 @@ import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { logger } from '../logger';
 import { claimAnonOpportunities } from '../common/opportunity/user';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
+import { z } from 'zod';
+import { counters } from '../telemetry';
+import { shadowBanVordrUsers } from '../common/vordr';
+import { Roles } from '../roles';
 
 interface SearchUsername {
   search: string;
 }
+
+const MAX_VORDR_SHADOW_BAN_BATCH_SIZE = 100;
+
+const shadowBanVordrUsersSchema = z
+  .object({
+    userIds: z
+      .array(z.string().trim().min(1).max(36))
+      .min(1, {
+        error: 'At least one user ID is required',
+      })
+      .max(MAX_VORDR_SHADOW_BAN_BATCH_SIZE, {
+        error: `Maximum of ${MAX_VORDR_SHADOW_BAN_BATCH_SIZE} user IDs can be shadow banned at once`,
+      }),
+  })
+  .superRefine(({ userIds }, ctx) => {
+    const seen = new Set<string>();
+
+    userIds.forEach((userId, index) => {
+      if (seen.has(userId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Duplicate user IDs are not allowed',
+          path: ['userIds', index],
+        });
+        return;
+      }
+
+      seen.add(userId);
+    });
+  });
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: AddUserDataPost }>('/newUser', async (req, res) => {
@@ -294,6 +328,65 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       found: !!action,
       completedAt: action?.completedAt,
     });
+  });
+
+  fastify.post<{
+    Body: {
+      userIds: User['id'][];
+    };
+  }>('/shadowBanVordrUsers', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    if (!req.userId) {
+      return res.status(401).send({ error: 'Unauthorized' });
+    }
+
+    if (!req.roles?.includes(Roles.Moderator)) {
+      return res.status(403).send({ error: 'Forbidden' });
+    }
+
+    const body = shadowBanVordrUsersSchema.safeParse(req.body);
+
+    if (body.error) {
+      req.log.error(body.error, 'Invalid Vordr shadow ban batch request');
+      return res.status(400).send({
+        error: {
+          name: body.error.name,
+          issues: body.error.issues,
+        },
+      });
+    }
+
+    const { userIds } = body.data;
+    const callerId = req.userId;
+
+    req.log.info(
+      { callerId, requestSize: userIds.length, userIds },
+      'Starting Vordr shadow ban batch',
+    );
+
+    const con = await createOrGetConnection();
+
+    try {
+      await shadowBanVordrUsers({ con, userIds });
+      counters?.api?.vordr?.add(userIds.length, {
+        reason: 'manual_shadow_ban',
+        type: 'user',
+      });
+      req.log.info(
+        { callerId, requestSize: userIds.length },
+        'Completed Vordr shadow ban batch',
+      );
+      return res.status(200).send({ success: true });
+    } catch (error) {
+      req.log.error(
+        { err: error, callerId, requestSize: userIds.length, userIds },
+        'Failed Vordr shadow ban batch',
+      );
+      return res.status(500).send({ error: 'Failed to shadow ban all users' });
+    }
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });

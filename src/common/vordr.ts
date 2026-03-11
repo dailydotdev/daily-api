@@ -3,10 +3,11 @@ import emojiRegex from 'emoji-regex';
 import { User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
-import { Brackets, DataSource, EntityManager } from 'typeorm';
+import { Brackets, DataSource, EntityManager, In } from 'typeorm';
 import { isNullOrUndefined } from './object';
 import { FastifyRequest } from 'fastify';
 import { remoteConfig } from '../remoteConfig';
+import { updateFlagsStatement } from './utils';
 
 export const validateVordrIPs = (ip: string): boolean =>
   !!isIP(ip) && isInSubnet(ip, remoteConfig.vars.vordrIps ?? []);
@@ -146,3 +147,35 @@ export const whereVordrFilter = (alias: string, userId?: string) =>
           })
           .orWhere(vordrFilter);
   });
+
+type ShadowBanVordrUsersParams = {
+  con: DataSource | EntityManager;
+  userIds: User['id'][];
+};
+
+export const shadowBanVordrUsers = async ({
+  con,
+  userIds,
+}: ShadowBanVordrUsersParams): Promise<void> => {
+  await con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(User);
+    const existingUsers = await repository.countBy({
+      id: In(userIds),
+    });
+
+    if (existingUsers !== userIds.length) {
+      throw new Error('Failed to shadow ban all users');
+    }
+
+    const result = await repository.update(
+      { id: In(userIds) },
+      {
+        flags: updateFlagsStatement<User>({ vordr: true }),
+      },
+    );
+
+    if (result.affected !== userIds.length) {
+      throw new Error('Failed to shadow ban all users');
+    }
+  });
+};
