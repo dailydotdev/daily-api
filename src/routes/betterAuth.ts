@@ -256,7 +256,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     }
     const parsed = checkEmailQuerySchema.safeParse(request.query);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'A valid email is required' });
+      return reply.status(400).send({ error: 'email is required' });
     }
     const { email } = parsed.data;
     const rows = await con.query(
