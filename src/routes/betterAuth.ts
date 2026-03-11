@@ -12,6 +12,13 @@ import {
   sendEmail,
   CioTransactionalMessageTemplateId,
 } from '../common/mailing';
+import {
+  getClientIp,
+  toHeaders,
+  toRequestUrl,
+  buildBetterAuthRequest,
+  copyResponseHeaders,
+} from '../common/betterAuth';
 
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -30,9 +37,8 @@ const strictAuthRateLimiter = new RateLimiterRedis({
   keyPrefix: 'ba-auth-strict',
 });
 
-const getClientIp = (request: FastifyRequest): string =>
-  (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-  request.ip;
+const formatError = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
 
 const enforceRateLimit = async (
   request: FastifyRequest,
@@ -91,100 +97,65 @@ const verifyTurnstileToken = async (
 const isSignUpEmailPath = (request: FastifyRequest): boolean =>
   request.method === 'POST' && request.url.includes('/auth/sign-up/email');
 
-const toRequestUrl = (request: FastifyRequest): URL => {
-  const protocol = request.headers['x-forwarded-proto'] ?? 'http';
-  const host = request.headers.host ?? 'localhost';
-  return new URL(request.url, `${String(protocol)}://${host}`);
-};
-
-const toHeaders = (
-  headersObj: FastifyRequest['headers'],
-  contentType?: string,
-): Headers => {
-  const headers = new Headers();
-  const skipHeaders = new Set(['content-length', 'transfer-encoding']);
-  Object.entries(headersObj).forEach(([key, value]) => {
-    if (!value || skipHeaders.has(key.toLowerCase())) {
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((entry) => headers.append(key, entry));
-      return;
-    }
-    headers.set(key, value);
-  });
-
-  if (contentType) {
-    headers.set('content-type', contentType);
-  }
-
-  return headers;
-};
-
-const toRequestBody = (
-  request: FastifyRequest,
-): { body?: string; contentType?: string } => {
-  if (request.body === undefined || request.body === null) {
-    return {};
-  }
-
-  const incomingContentType = request.headers['content-type'] ?? '';
-  const isFormEncoded = incomingContentType.includes(
-    'application/x-www-form-urlencoded',
-  );
-
-  if (isFormEncoded) {
-    if (typeof request.body === 'object') {
-      return {
-        body: new URLSearchParams(
-          request.body as Record<string, string>,
-        ).toString(),
-      };
-    }
-    return { body: String(request.body) };
-  }
-
-  return {
-    body: JSON.stringify(request.body),
-    contentType: 'application/json',
-  };
-};
-
-const copyResponseHeaders = (reply: FastifyReply, response: Response): void => {
-  const nodeHeaders = response.headers as Headers & {
-    getSetCookie?: () => string[];
-  };
-
-  response.headers.forEach((value, key) => {
-    if (key.toLowerCase() !== 'set-cookie') {
-      void reply.header(key, value);
-    }
-  });
-
-  const setCookies = nodeHeaders.getSetCookie?.() ?? [];
-  if (setCookies.length > 0) {
-    void reply.header('set-cookie', setCookies);
-  }
-};
-
-const buildBetterAuthRequest = (
-  request: FastifyRequest,
-  overrideUrl?: string,
-  overrideBody?: string,
-): Request => {
-  const requestBody = toRequestBody(request);
-  const headers = toHeaders(request.headers, requestBody.contentType);
-  const url = overrideUrl ?? toRequestUrl(request).toString();
-  const body = overrideBody ?? requestBody.body;
-  return new Request(url, {
-    method: request.method,
-    headers,
-    ...(body ? { body } : {}),
-  });
-};
-
 const isSignInEmailPath = (request: FastifyRequest): boolean =>
   request.method === 'POST' && request.url.includes('/auth/sign-in/email');
+
+const requireSession = async (request: FastifyRequest, reply: FastifyReply) => {
+  const auth = getBetterAuth();
+  const session = await auth.api.getSession({
+    headers: toHeaders(request.headers),
+  });
+  if (!session) {
+    reply.status(401).send({ error: 'Not authenticated' });
+    return null;
+  }
+  return session;
+};
+
+const isEmailTaken = async (
+  email: string,
+  excludeUserId: string,
+): Promise<boolean> => {
+  const pool = getBetterAuthPool();
+  const { rows } = await pool.query(
+    'SELECT 1 FROM public."user" WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
+    [email, excludeUserId],
+  );
+  return rows.length > 0;
+};
+
+const hasCredentialAccount = async (userId: string): Promise<boolean> => {
+  const pool = getBetterAuthPool();
+  const { rows } = await pool.query(
+    `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
+    [userId],
+  );
+  return rows.length > 0;
+};
+
+const insertCredentialAccount = async (
+  userId: string,
+  hashedPassword: string,
+): Promise<void> => {
+  const pool = getBetterAuthPool();
+  const now = new Date().toISOString();
+  const accountId = `${userId}-credential`;
+  await pool.query(
+    `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
+     VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
+    [accountId, userId, userId, now, hashedPassword],
+  );
+};
+
+const sendBetterAuthResponse = (
+  reply: FastifyReply,
+  response: Response,
+  text: string,
+) => {
+  reply.status(response.status);
+  copyResponseHeaders(reply, response);
+  return reply.send(text || null);
+};
 
 type KratosVerifyResult =
   | { valid: true; userId: string; name?: string }
@@ -242,32 +213,18 @@ const migrateKratosUserToBetterAuth = async ({
   password: string;
 }): Promise<boolean> => {
   try {
-    const pool = getBetterAuthPool();
-
-    const { rows: existingAccount } = await pool.query(
-      `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
-      [userId],
-    );
-    if (existingAccount.length > 0) {
+    if (await hasCredentialAccount(userId)) {
       return true;
     }
 
     const hashedPassword = await argon2.hash(password, {
       type: argon2.argon2id,
     });
-    const now = new Date().toISOString();
-    const accountId = `${userId}-credential`;
-
-    await pool.query(
-      `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
-       VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
-      [accountId, userId, userId, now, hashedPassword],
-    );
-
+    await insertCredentialAccount(userId, hashedPassword);
     return true;
   } catch (err) {
     logger.error(
-      { err: err instanceof Error ? err.message : String(err), userId },
+      { err: formatError(err), userId },
       'Failed to migrate Kratos user to BetterAuth',
     );
     return false;
@@ -304,15 +261,18 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!(await enforceRateLimit(request, reply))) {
         return reply;
       }
-      const auth = getBetterAuth();
-      const session = await auth.api.getSession({
-        headers: toHeaders(request.headers),
-      });
+      const session = await requireSession(request, reply);
       if (!session) {
-        return reply.status(401).send({ error: 'Not authenticated' });
+        return reply;
       }
       const { newEmail } = request.body as { newEmail?: string };
-      if (!newEmail || newEmail.length > 254 || newEmail.indexOf('@') <= 0 || newEmail.lastIndexOf('@') !== newEmail.indexOf('@') || newEmail.lastIndexOf('.') <= newEmail.indexOf('@') + 1) {
+      if (
+        !newEmail ||
+        newEmail.length > 254 ||
+        newEmail.indexOf('@') <= 0 ||
+        newEmail.lastIndexOf('@') !== newEmail.indexOf('@') ||
+        newEmail.lastIndexOf('.') <= newEmail.indexOf('@') + 1
+      ) {
         return reply
           .status(400)
           .send({ error: 'A valid email address is required' });
@@ -323,16 +283,12 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           .status(400)
           .send({ error: 'New email is the same as current email' });
       }
-      const pool = getBetterAuthPool();
-      const { rows: existing } = await pool.query(
-        'SELECT 1 FROM public."user" WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
-        [normalizedEmail, session.user.id],
-      );
-      if (existing.length > 0) {
+      if (await isEmailTaken(normalizedEmail, session.user.id)) {
         return reply
           .status(400)
           .send({ error: 'This email address is already in use' });
       }
+      const pool = getBetterAuthPool();
       const identifier = `change-email:${session.user.id}`;
       await pool.query('DELETE FROM ba_verification WHERE identifier = $1', [
         identifier,
@@ -357,10 +313,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       });
       return reply.send({ status: true });
     } catch (error) {
-      request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
-        'Change email failed',
-      );
+      request.log.error({ err: formatError(error) }, 'Change email failed');
       return reply.status(500).send({ error: 'Internal authentication error' });
     }
   });
@@ -370,12 +323,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!(await enforceRateLimit(request, reply))) {
         return reply;
       }
-      const auth = getBetterAuth();
-      const session = await auth.api.getSession({
-        headers: toHeaders(request.headers),
-      });
+      const session = await requireSession(request, reply);
       if (!session) {
-        return reply.status(401).send({ error: 'Not authenticated' });
+        return reply;
       }
       const { code } = request.body as { code?: string };
       if (!code) {
@@ -400,11 +350,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (code !== storedCode) {
         return reply.status(400).send({ error: 'Invalid verification code' });
       }
-      const { rows: existing } = await pool.query(
-        'SELECT 1 FROM public."user" WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
-        [newEmail, session.user.id],
-      );
-      if (existing.length > 0) {
+      if (await isEmailTaken(newEmail, session.user.id)) {
         return reply
           .status(400)
           .send({ error: 'This email address is already in use' });
@@ -419,7 +365,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       return reply.send({ status: true });
     } catch (error) {
       request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
+        { err: formatError(error) },
         'Verify change email failed',
       );
       return reply.status(500).send({ error: 'Internal authentication error' });
@@ -431,12 +377,9 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       if (!(await enforceRateLimit(request, reply))) {
         return reply;
       }
-      const auth = getBetterAuth();
-      const session = await auth.api.getSession({
-        headers: toHeaders(request.headers),
-      });
+      const session = await requireSession(request, reply);
       if (!session) {
-        return reply.status(401).send({ error: 'Not authenticated' });
+        return reply;
       }
       const { newPassword } = request.body as { newPassword?: string };
       if (!newPassword || newPassword.length < 8) {
@@ -444,12 +387,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           .status(400)
           .send({ error: 'Password must be at least 8 characters' });
       }
-      const pool = getBetterAuthPool();
-      const { rows: existing } = await pool.query(
-        `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
-        [session.user.id],
-      );
-      if (existing.length > 0) {
+      if (await hasCredentialAccount(session.user.id)) {
         return reply.status(400).send({
           error: 'Password already set',
           code: 'PASSWORD_ALREADY_SET',
@@ -458,19 +396,10 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       const hashedPassword = await argon2.hash(newPassword, {
         type: argon2.argon2id,
       });
-      const now = new Date().toISOString();
-      const accountId = `${session.user.id}-credential`;
-      await pool.query(
-        `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
-         VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
-        [accountId, session.user.id, session.user.id, now, hashedPassword],
-      );
+      await insertCredentialAccount(session.user.id, hashedPassword);
       return reply.send({ status: true });
     } catch (error) {
-      request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
-        'Set password failed',
-      );
+      request.log.error({ err: formatError(error) }, 'Set password failed');
       return reply.status(500).send({ error: 'Internal authentication error' });
     }
   });
@@ -515,7 +444,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
       return reply.send(text || null);
     } catch (error) {
       request.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
+        { err: formatError(error) },
         `BetterAuth ${label} failed`,
       );
       return reply.status(500).send({ error: 'Internal authentication error' });
@@ -611,7 +540,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
               }
             } catch (err) {
               logger.error(
-                { err: err instanceof Error ? err.message : String(err) },
+                { err: formatError(err) },
                 'Failed to save profile data after BA sign-up',
               );
             }
@@ -632,7 +561,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
             }
           } catch (err) {
             logger.error(
-              { err: err instanceof Error ? err.message : String(err) },
+              { err: formatError(err) },
               'Failed to set infoConfirmed after OTP verification',
             );
           }
@@ -643,9 +572,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           if (parsed?.code === 'INVALID_EMAIL_OR_PASSWORD') {
             const body = request.body as { email?: string; password?: string };
             if (body?.email && body?.password) {
-              // Apply the same rate limiter before performing additional
-              // expensive authorization operations (Kratos verification,
-              // migration and a second BetterAuth request).
               const retryLimiter = isSignUpEmailPath(request)
                 ? strictAuthRateLimiter
                 : authRateLimiter;
@@ -666,21 +592,17 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
                   const retryReq = buildBetterAuthRequest(request);
                   const retryRes = await auth.handler(retryReq);
                   const retryText = await retryRes.text();
-                  reply.status(retryRes.status);
-                  copyResponseHeaders(reply, retryRes);
-                  return reply.send(retryText || null);
+                  return sendBetterAuthResponse(reply, retryRes, retryText);
                 }
               }
             }
           }
         }
 
-        reply.status(response.status);
-        copyResponseHeaders(reply, response);
-        return reply.send(text || null);
+        return sendBetterAuthResponse(reply, response, text);
       } catch (error) {
         request.log.error(
-          { err: error instanceof Error ? error.message : String(error) },
+          { err: formatError(error) },
           'BetterAuth request failed',
         );
         return reply

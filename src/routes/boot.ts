@@ -909,7 +909,7 @@ export const getBootData = async (
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
 
-  const trackingIdForGb = req.trackingId || req.userId || '';
+  const trackingIdForGb = req.userId || req.trackingId || '';
   const gb = getUserGrowthBookInstance(trackingIdForGb);
   const authStrategy = gb.getFeatureValue(
     gbFeatures.authStrategy.id,

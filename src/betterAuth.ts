@@ -1,13 +1,11 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { emailOTP } from 'better-auth/plugins/email-otp';
 import { createAuthMiddleware } from 'better-auth/api';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
+import { AppDataSource } from './data-source';
 import { logger } from './logger';
-import {
-  sendEmail,
-  CioTransactionalMessageTemplateId,
-} from './common/mailing';
+import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 
@@ -35,31 +33,19 @@ export type BetterAuthHandler = {
 let authInstance: BetterAuthHandler | null = null;
 let poolInstance: Pool | null = null;
 
-const createPool = () => {
-  if (!process.env.TYPEORM_HOST && process.env.NODE_ENV === 'production') {
-    throw new Error('TYPEORM_HOST must be set in production');
-  }
-  return new Pool({
-    host: process.env.TYPEORM_HOST || 'localhost',
-    port: 5432,
-    user: process.env.TYPEORM_USERNAME || 'postgres',
-    password: process.env.TYPEORM_PASSWORD,
-    database:
-      process.env.TYPEORM_DATABASE ||
-      (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
-    max: 10,
-  });
-};
+const getPool = (): Pool =>
+  (AppDataSource.driver as unknown as { master: Pool }).master;
 
 const createAuth = (): BetterAuthHandler => {
-  poolInstance = createPool();
+  const pool = getPool();
+  poolInstance = pool;
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
     : [];
   const redirectURL = process.env.BETTER_AUTH_REDIRECT_URL;
   const oauthPaths = ['/sign-in/social', '/callback/', '/link-social'];
   const options: BetterAuthOptions = {
-    database: poolInstance,
+    database: pool,
     baseURL: process.env.BETTER_AUTH_BASE_URL || 'http://localhost:3000',
     basePath: '/a/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
@@ -103,14 +89,11 @@ const createAuth = (): BetterAuthHandler => {
         create: {
           after: async (user) => {
             try {
-              if (!poolInstance) {
-                return;
-              }
-              await poolInstance.query(
+              await pool.query(
                 'INSERT INTO feed (id, "userId") VALUES (gen_random_uuid(), $1) ON CONFLICT DO NOTHING',
                 [user.id],
               );
-              await poolInstance.query(
+              await pool.query(
                 `UPDATE public."user" SET flags = '{"trustScore": 1, "vordr": false}' WHERE id = $1 AND flags = '{}'`,
                 [user.id],
               );
@@ -129,11 +112,11 @@ const createAuth = (): BetterAuthHandler => {
       account: {
         create: {
           before: async (account) => {
-            if (!poolInstance || !account.providerId || !account.accountId) {
+            if (!account.providerId || !account.accountId) {
               return;
             }
             try {
-              const { rows } = await poolInstance.query(
+              const { rows } = await pool.query(
                 `SELECT "userId" FROM ba_account
                  WHERE "providerId" = $1 AND "accountId" = $2 AND "userId" != $3
                  LIMIT 1`,
