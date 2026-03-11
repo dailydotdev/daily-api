@@ -11,6 +11,7 @@ import {
   checkAchievementProgress,
 } from '../common/achievement';
 import { FastifyBaseLogger } from 'fastify';
+import { remoteConfig } from '../remoteConfig';
 
 const checkBriefReadAchievement = async (
   con: DataSource,
@@ -185,8 +186,8 @@ const worker: Worker = {
             timestamp: data.timestamp && new Date(data.timestamp as string),
           }),
         );
-        if (!didSave) {
-          logger.debug(
+        if (!didSave && remoteConfig.vars.newViewLogs) {
+          logger.info(
             {
               view: data,
               messageId: message.messageId,

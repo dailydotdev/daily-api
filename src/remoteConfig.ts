@@ -49,6 +49,7 @@ export type RemoteConfigValue = {
   dailyBriefLimit: number;
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;
+  newViewLogs: boolean;
 };
 
 class RemoteConfig {
