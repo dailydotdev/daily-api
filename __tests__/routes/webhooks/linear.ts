@@ -36,6 +36,14 @@ const withLinearSignature = (
   return req.set('linear-signature', signature);
 };
 
+const expectSupportReplyToEmail = (): void => {
+  expect(mailing.sendEmail).toHaveBeenCalledWith(
+    expect.objectContaining({
+      reply_to: 'support@daily.dev',
+    }),
+  );
+};
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   app = await appFunc();
@@ -500,10 +508,10 @@ describe('POST /webhooks/linear', () => {
       expect(mailing.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: usersFixture[0].email,
-          reply_to: 'support@daily.dev',
           identifiers: { id: feedback.userId },
         }),
       );
+      expectSupportReplyToEmail();
 
       const notifications = await con
         .getRepository(NotificationV2)
@@ -530,11 +538,7 @@ describe('POST /webhooks/linear', () => {
         .use((req) => withLinearSignature(req, payload))
         .expect(200);
 
-      expect(mailing.sendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          reply_to: 'support@daily.dev',
-        }),
-      );
+      expectSupportReplyToEmail();
     });
 
     it('should create reply when author email is invalid and keep support reply_to', async () => {
@@ -561,11 +565,7 @@ describe('POST /webhooks/linear', () => {
       });
       expect(replies).toHaveLength(1);
       expect(replies[0].authorEmail).toBeNull();
-      expect(mailing.sendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          reply_to: 'support@daily.dev',
-        }),
-      );
+      expectSupportReplyToEmail();
     });
   });
 

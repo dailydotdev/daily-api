@@ -20,7 +20,6 @@ import {
 } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
 import {
-  baseNotificationEmailData,
   CioTransactionalMessageTemplateId,
   sendEmail,
 } from '../../common/mailing';
@@ -224,7 +223,6 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
 
         if (user?.email && CioTransactionalMessageTemplateId.FeedbackReply) {
           await sendEmail({
-            ...baseNotificationEmailData,
             transactional_message_id:
               CioTransactionalMessageTemplateId.FeedbackReply,
             reply_to: 'support@daily.dev',
