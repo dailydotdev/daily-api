@@ -35,7 +35,6 @@ import { QuestionFeedback } from '../src/entity/questions/QuestionFeedback';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import { DigestPost } from '../src/entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../src/entity/Source';
-import { Roles } from '../src/roles';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -1238,15 +1237,12 @@ describe('GET /p/actions/:user_id/:action_name', () => {
   });
 });
 
-describe('POST /p/shadowBanVordrUsers', () => {
-  const path = '/p/shadowBanVordrUsers';
+describe('POST /p/vordrUsers', () => {
+  const path = '/p/vordrUsers';
 
-  const moderationHeaders = {
+  const serviceHeaders = {
     authorization: `Service ${process.env.ACCESS_SECRET}`,
     'content-type': 'application/json',
-    'logged-in': 'true',
-    'user-id': '3',
-    roles: Roles.Moderator,
   };
 
   beforeEach(async () => {
@@ -1278,30 +1274,10 @@ describe('POST /p/shadowBanVordrUsers', () => {
     return request(app.server).post(path).expect(404);
   });
 
-  it('should return unauthorized without caller identity', async () => {
-    await request(app.server)
-      .post(path)
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .set('content-type', 'application/json')
-      .send({ userIds: ['1'] })
-      .expect(401);
-  });
-
-  it('should return forbidden when caller is not a moderator', async () => {
-    await request(app.server)
-      .post(path)
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .set('content-type', 'application/json')
-      .set('logged-in', 'true')
-      .set('user-id', '3')
-      .send({ userIds: ['1'] })
-      .expect(403);
-  });
-
-  it('should shadow ban all requested users', async () => {
+  it('should apply Vordr to all requested users', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
+      .set(serviceHeaders)
       .send({ userIds: ['1', '2'] })
       .expect(200);
 
@@ -1328,7 +1304,7 @@ describe('POST /p/shadowBanVordrUsers', () => {
   it('should reject empty input', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
+      .set(serviceHeaders)
       .send({ userIds: [] })
       .expect(400);
 
@@ -1338,49 +1314,44 @@ describe('POST /p/shadowBanVordrUsers', () => {
   it('should reject invalid user IDs', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
+      .set(serviceHeaders)
       .send({ userIds: [''] })
       .expect(400);
 
     expect(body.error.name).toEqual('ZodError');
   });
 
-  it('should reject duplicate user IDs', async () => {
+  it('should allow duplicate user IDs in the request', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
+      .set(serviceHeaders)
       .send({ userIds: ['1', '1'] })
-      .expect(400);
+      .expect(200);
 
-    expect(body.error).toEqual({
-      name: 'ZodError',
-      issues: [
-        expect.objectContaining({
-          message: 'Duplicate user IDs are not allowed',
-          path: ['userIds', 1],
-        }),
-      ],
-    });
+    expect(body).toEqual({ success: true });
+    expect(
+      (await con.getRepository(User).findOneByOrFail({ id: '1' })).flags?.vordr,
+    ).toEqual(true);
   });
 
   it('should reject oversized input', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
-      .send({ userIds: Array.from({ length: 101 }, (_, index) => `${index}`) })
+      .set(serviceHeaders)
+      .send({ userIds: Array.from({ length: 501 }, (_, index) => `${index}`) })
       .expect(400);
 
     expect(body.error.name).toEqual('ZodError');
   });
 
-  it('should fail the batch when one user cannot be shadow banned', async () => {
+  it('should fail the batch when one user cannot be vordred', async () => {
     const { body } = await request(app.server)
       .post(path)
-      .set(moderationHeaders)
+      .set(serviceHeaders)
       .send({ userIds: ['1', 'does-not-exist'] })
       .expect(500);
 
-    expect(body).toEqual({ error: 'Failed to shadow ban all users' });
+    expect(body).toEqual({ error: 'Failed to apply Vordr to all users' });
 
     const [user, post, comment] = await Promise.all([
       con.getRepository(User).findOneByOrFail({ id: '1' }),

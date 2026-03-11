@@ -148,15 +148,15 @@ export const whereVordrFilter = (alias: string, userId?: string) =>
           .orWhere(vordrFilter);
   });
 
-type ShadowBanVordrUsersParams = {
+type ApplyVordrToUsersParams = {
   con: DataSource | EntityManager;
   userIds: User['id'][];
 };
 
-export const shadowBanVordrUsers = async ({
+export const applyVordrToUsers = async ({
   con,
   userIds,
-}: ShadowBanVordrUsersParams): Promise<void> => {
+}: ApplyVordrToUsersParams): Promise<void> => {
   await con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(User);
     const result = await repository.update(
@@ -167,7 +167,7 @@ export const shadowBanVordrUsers = async ({
     );
 
     if (result.affected !== userIds.length) {
-      throw new Error('Failed to shadow ban all users');
+      throw new Error('Failed to apply Vordr to all users');
     }
   });
 };

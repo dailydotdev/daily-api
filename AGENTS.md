@@ -237,6 +237,8 @@ The migration generator compares entities against the local database schema. Ens
 - Prefer short, readable implementations over verbose ones
 - Avoid excessive logging - errors will propagate naturally
 - **Never use logger.info for successful operations** - successful database updates, API calls, or data processing don't need logging. Results are visible in the database and errors will propagate naturally with automatic retry notifications.
+- For private Vordr moderation endpoints, use Vordr terminology in route names, error messages, and tests; avoid introducing "shadow ban" wording unless the user explicitly asks for it.
+- For service-only private routes, do not add extra end-user authentication or role checks unless the request explicitly requires them.
 - Use early returns instead of nested conditionals
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
