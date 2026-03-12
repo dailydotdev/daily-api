@@ -42,6 +42,7 @@ import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 import { generateShortId } from '../../src/ids';
 import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
 import twitterSocialThreadPayloadFixture from '../fixture/twitterSocialThreadPayload.json';
+import { remoteConfig } from '../../src/remoteConfig';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -59,6 +60,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  remoteConfig.vars.ignoredAuthorMatchDomains = [];
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, [
     {
@@ -563,6 +565,50 @@ it('should save a new post with basic information', async () => {
     contentQuality: expect.any(Object),
     statsUpdatedAt: expect.any(Date),
   });
+});
+
+it('should match author for non-ignored article domains', async () => {
+  await createDefaultUser();
+
+  await expectSuccessfulBackground(worker, {
+    id: randomUUID(),
+    title: 'Title',
+    url: 'https://allowed.example.dev/post',
+    source_id: 'a',
+    extra: {
+      creator_twitter: '@leeTwitter',
+    },
+  });
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    url: 'https://allowed.example.dev/post',
+  });
+
+  expect(post.authorId).toEqual('1');
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
+});
+
+it('should skip author match when canonical url domain is ignored', async () => {
+  await createDefaultUser();
+  remoteConfig.vars.ignoredAuthorMatchDomains = ['ignored.example.com'];
+
+  await expectSuccessfulBackground(worker, {
+    id: randomUUID(),
+    title: 'Title',
+    url: 'https://allowed.example.dev/post',
+    source_id: 'a',
+    extra: {
+      creator_twitter: '@leeTwitter',
+      canonical_url: 'https://blog.ignored.example.com/post',
+    },
+  });
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    url: 'https://allowed.example.dev/post',
+  });
+
+  expect(post.authorId).toBeNull();
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
 });
 
 it('should save a new post with with non-default language', async () => {
@@ -1087,6 +1133,32 @@ it('should store enrichment fields for social twitter post on create', async () 
     siteTwitter: '@dailydev',
     creatorTwitter: '@johndoe',
   });
+});
+
+it('should skip social twitter author match when url domain is ignored', async () => {
+  await createDefaultUser();
+  remoteConfig.vars.ignoredAuthorMatchDomains = ['x.com'];
+
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/2003',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'Ignored author match tweet',
+      creator_twitter: '@leeTwitter',
+    },
+  });
+
+  const post = await con
+    .getRepository(SocialTwitterPost)
+    .findOneByOrFail({ yggdrasilId });
+
+  expect(post.authorId).toBeNull();
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
 });
 
 it('should store enrichment fields for social twitter post on update', async () => {
