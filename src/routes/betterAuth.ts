@@ -1,14 +1,22 @@
 import type { FastifyInstance } from 'fastify';
-import { Readable } from 'node:stream';
+import type { FastifyRequest } from 'fastify';
 import { getBetterAuth } from '../betterAuth';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
-
-const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
-  ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
-  : [];
 const betterAuthStateSuffix = '_ba';
+
+const toRequestBody = (request: FastifyRequest): string | undefined => {
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return undefined;
+  }
+
+  if (typeof request.body === 'string') {
+    return request.body;
+  }
+
+  return request.body ? JSON.stringify(request.body) : undefined;
+};
 
 const stripBetterAuthStateMarker = (url: URL): URL => {
   if (!url.pathname.includes('/auth/callback/')) {
@@ -30,39 +38,22 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   fastify.route({
     method: ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'],
     url: '/auth/*',
-    onRequest: async (request, reply) => {
+    handler: async (request, reply) => {
       try {
-        reply.hijack();
         const url = stripBetterAuthStateMarker(
-          new URL(
-            request.raw.url ?? '/',
-            `${request.protocol}://${request.host}`,
-          ),
+          new URL(request.url, `${request.protocol}://${request.host}`),
         );
-        const body =
-          request.raw.method === 'GET' || request.raw.method === 'HEAD'
-            ? undefined
-            : (Readable.toWeb(request.raw) as ReadableStream);
+        const body = toRequestBody(request);
         const authRequest = new Request(url, {
-          method: request.raw.method,
-          headers: new Headers(request.raw.headers as unknown as HeadersInit),
-          ...(body ? { body, duplex: 'half' as const } : {}),
+          method: request.method,
+          headers: new Headers(request.headers as unknown as HeadersInit),
+          ...(body ? { body } : {}),
         });
         const response = await getBetterAuth().handler(authRequest);
-        const requestOrigin = request.raw.headers.origin;
-
-        reply.raw.statusCode = response.status;
-        if (
-          typeof requestOrigin === 'string' &&
-          trustedOrigins.includes(requestOrigin)
-        ) {
-          reply.raw.setHeader('access-control-allow-origin', requestOrigin);
-          reply.raw.setHeader('access-control-allow-credentials', 'true');
-          reply.raw.setHeader('vary', 'Origin');
-        }
+        reply.status(response.status);
         response.headers.forEach((value, key) => {
           if (key.toLowerCase() !== 'set-cookie') {
-            reply.raw.setHeader(key, value);
+            reply.header(key, value);
           }
         });
 
@@ -71,31 +62,26 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         };
         const setCookies = nodeHeaders.getSetCookie?.() ?? [];
         if (setCookies.length > 0) {
-          reply.raw.setHeader('set-cookie', setCookies);
+          reply.header('set-cookie', setCookies);
         }
 
         if (!response.body) {
-          reply.raw.end();
-          return;
+          return reply.send();
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
-        reply.raw.end(buffer);
+        return reply.send(await response.text());
       } catch (error) {
         request.log.error(
           { err: formatError(error) },
           'BetterAuth request failed',
         );
-        if (!reply.raw.headersSent) {
-          reply.raw.statusCode = 500;
-          reply.raw.setHeader('content-type', 'application/json');
-          reply.raw.end(
-            JSON.stringify({ error: 'Internal authentication error' }),
-          );
+        if (!reply.sent) {
+          return reply.status(500).send({
+            error: 'Internal authentication error',
+          });
         }
       }
     },
-    handler: async () => undefined,
   });
 };
 

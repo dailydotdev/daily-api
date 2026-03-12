@@ -116,11 +116,11 @@ export default async function app(
 
   app.register(cors, {
     origin: async (origin?: string) => {
-      if (!isProd) {
+      if (!origin) {
         return true;
       }
 
-      const originString = origin as string;
+      const originString = origin;
 
       if (remoteConfig.vars.origins?.includes(originString)) {
         return true;

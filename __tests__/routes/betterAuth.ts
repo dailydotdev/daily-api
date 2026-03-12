@@ -41,7 +41,7 @@ beforeEach(async () => {
 describe('betterAuth routes', () => {
   describe('native Better Auth routes', () => {
     it('should return 200 for the health endpoint', async () => {
-      const res = await request(app.server).get('/a/auth/ok');
+      const res = await request(app.server).get('/auth/ok');
 
       expect(res.status).toBe(200);
     });

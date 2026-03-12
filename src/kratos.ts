@@ -10,7 +10,6 @@ import { LogoutReason } from './common';
 import { counters } from './telemetry';
 import { fromNodeHeaders } from 'better-auth/node';
 import { getBetterAuth } from './betterAuth';
-import { toRequestUrl } from './common/betterAuth';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -163,7 +162,7 @@ const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
     const headers = fromNodeHeaders(
       req.headers as Record<string, string | string[] | undefined>,
     );
-    const baseUrl = toRequestUrl(req);
+    const baseUrl = new URL(req.url, `${req.protocol}://${req.host}`);
     const signOutReq = new Request(`${baseUrl.origin}/auth/sign-out`, {
       method: 'POST',
       headers,
