@@ -44,8 +44,6 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../src/entity';
-import { UserExperience } from '../src/entity/user/experiences/UserExperience';
-import { UserExperienceType } from '../src/entity/user/experiences/types';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -133,8 +131,6 @@ import {
 } from '../src/notifications/common';
 import { NotificationPostContext } from '../src/notifications';
 
-let profileCompletionPostGateTestEnabled = false;
-
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
   notifyView: jest.fn(),
@@ -148,27 +144,6 @@ jest.mock('../src/common/typedPubsub', () => ({
   >),
   triggerTypedEvent: jest.fn(),
 }));
-
-jest.mock('../src/growthbook', () => {
-  const actual = jest.requireActual('../src/growthbook') as Record<
-    string,
-    unknown
-  > & {
-    features: { profileCompletionPostGate: { id: string } };
-  };
-
-  return {
-    ...actual,
-    loadFeatures: jest.fn(),
-    getUserGrowthBookInstance: () => ({
-      getFeatureValue: (featureId: string, defaultValue: unknown) =>
-        featureId === actual.features.profileCompletionPostGate.id &&
-        profileCompletionPostGateTestEnabled
-          ? 100
-          : defaultValue,
-    }),
-  };
-});
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -4045,32 +4020,7 @@ describe('mutation viewPost', () => {
   });
 });
 
-describe('post creation profile completion gate', () => {
-  const completeProfile = async (userId: string): Promise<void> => {
-    await con.getRepository(User).update(
-      { id: userId },
-      {
-        bio: 'I build things',
-        experienceLevel: 'senior',
-      },
-    );
-
-    await con.getRepository(UserExperience).save([
-      {
-        userId,
-        type: UserExperienceType.Work,
-        title: 'Work',
-        startedAt: new Date(),
-      },
-      {
-        userId,
-        type: UserExperienceType.Education,
-        title: 'Education',
-        startedAt: new Date(),
-      },
-    ]);
-  };
-
+describe('post creation', () => {
   const setupWritableSource = async (sourceId: string): Promise<void> => {
     await con.getRepository(SquadSource).save({
       id: sourceId,
@@ -4087,145 +4037,117 @@ describe('post creation profile completion gate', () => {
     });
   };
 
-  beforeEach(() => {
-    profileCompletionPostGateTestEnabled = true;
-  });
-
-  afterEach(() => {
-    profileCompletionPostGateTestEnabled = false;
-  });
-
-  it('should block createFreeformPost for incomplete profile', async () => {
+  const expectSuccessfulPostCreation = async <TData>({
+    mutation,
+    variables,
+    assertData,
+  }: {
+    mutation: string;
+    variables: Record<string, unknown>;
+    assertData: (data: TData) => void;
+  }): Promise<void> => {
     loggedUser = '1';
+    const res = await client.mutate(mutation, { variables });
+
+    expect(res.errors).toBeFalsy();
+    assertData(res.data as TData);
+  };
+
+  it('should allow createFreeformPost for incomplete profile', async () => {
     await setupWritableSource('s-freeform');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
-            createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      createFreeformPost: { id: string };
+    }>({
+      mutation: `
+        mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
+          createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-freeform',
-          title: 'Test title',
-          content: 'Test content',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-freeform',
+        title: 'Test title',
+        content: 'Test content',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.createFreeformPost.id).toBeTruthy(),
+    });
   });
 
-  it('should block submitExternalLink for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-profile',
-      handle: 's-profile',
-      name: 'Squad Profile',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-profile',
-      userId: '1',
-      referralToken: 'profile-rt',
-      role: SourceMemberRoles.Member,
-    });
+  it('should allow submitExternalLink for incomplete profile', async () => {
+    await setupWritableSource('s-profile');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation SubmitExternalLink($sourceId: ID!, $url: String!) {
-            submitExternalLink(sourceId: $sourceId, url: $url) {
-              _
-            }
+    await expectSuccessfulPostCreation<{
+      submitExternalLink: { _: boolean };
+    }>({
+      mutation: `
+        mutation SubmitExternalLink($sourceId: ID!, $url: String!) {
+          submitExternalLink(sourceId: $sourceId, url: $url) {
+            _
           }
-        `,
-        variables: {
-          sourceId: 's-profile',
-          url: 'https://daily.dev',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-profile',
+        url: 'https://daily.dev',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) =>
+        expect(data.submitExternalLink).toEqual({ _: true }),
+    });
   });
 
-  it('should block sharePost for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-share',
-      handle: 's-share',
-      name: 'Squad Share',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-share',
-      userId: '1',
-      referralToken: 'profile-share',
-      role: SourceMemberRoles.Member,
-    });
+  it('should allow sharePost for incomplete profile', async () => {
+    await setupWritableSource('s-share');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation SharePost($sourceId: ID!, $id: ID!) {
-            sharePost(sourceId: $sourceId, id: $id) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      sharePost: { id: string };
+    }>({
+      mutation: `
+        mutation SharePost($sourceId: ID!, $id: ID!) {
+          sharePost(sourceId: $sourceId, id: $id) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-share',
-          id: 'p1',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-share',
+        id: 'p1',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.sharePost.id).toBeTruthy(),
+    });
   });
 
-  it('should block createPollPost for incomplete profile', async () => {
-    loggedUser = '1';
+  it('should allow createPollPost for incomplete profile', async () => {
     await setupWritableSource('s-poll');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreatePollPost(
-            $sourceId: ID!
-            $title: String!
-            $options: [PollOptionInput!]!
-          ) {
-            createPollPost(sourceId: $sourceId, title: $title, options: $options) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      createPollPost: { id: string };
+    }>({
+      mutation: `
+        mutation CreatePollPost(
+          $sourceId: ID!
+          $title: String!
+          $options: [PollOptionInput!]!
+        ) {
+          createPollPost(sourceId: $sourceId, title: $title, options: $options) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-poll',
-          title: 'Poll title',
-          options: [
-            { text: 'Option 1', order: 0 },
-            { text: 'Option 2', order: 1 },
-          ],
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-poll',
+        title: 'Poll title',
+        options: [
+          { text: 'Option 1', order: 0 },
+          { text: 'Option 2', order: 1 },
+        ],
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.createPollPost.id).toBeTruthy(),
+    });
   });
 
-  it('should block createPostInMultipleSources for incomplete profile', async () => {
-    loggedUser = '1';
+  it('should allow createPostInMultipleSources for incomplete profile', async () => {
     await con.getRepository(SourceMember).save({
       userId: '1',
       sourceId: 'squad',
@@ -4233,59 +4155,34 @@ describe('post creation profile completion gate', () => {
       referralToken: 'rt-multi',
     });
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreatePostInMultipleSources(
-            $sourceIds: [ID!]!
-            $title: String
-            $content: String
+    await expectSuccessfulPostCreation<{
+      createPostInMultipleSources: Array<{ id: string }>;
+    }>({
+      mutation: `
+        mutation CreatePostInMultipleSources(
+          $sourceIds: [ID!]!
+          $title: String
+          $content: String
+        ) {
+          createPostInMultipleSources(
+            sourceIds: $sourceIds
+            title: $title
+            content: $content
           ) {
-            createPostInMultipleSources(
-              sourceIds: $sourceIds
-              title: $title
-              content: $content
-            ) {
-              id
-            }
-          }
-        `,
-        variables: {
-          sourceIds: ['squad'],
-          title: 'Multi source title',
-          content: 'Multi source content',
-        },
-      },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
-  });
-
-  it('should allow createFreeformPost for completed profile', async () => {
-    loggedUser = '1';
-    await completeProfile('1');
-    await setupWritableSource('s-complete');
-
-    const res = await client.mutate(
-      `
-        mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
-          createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
             id
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-complete',
-          title: 'Completed profile title',
-          content: 'Completed profile content',
-        },
+      variables: {
+        sourceIds: ['squad'],
+        title: 'Multi source title',
+        content: 'Multi source content',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createFreeformPost.id).toBeTruthy();
+      assertData: (data) => {
+        expect(data.createPostInMultipleSources).toHaveLength(1);
+        expect(data.createPostInMultipleSources[0].id).toBeTruthy();
+      },
+    });
   });
 });
 

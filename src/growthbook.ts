@@ -123,10 +123,6 @@ export const features = {
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
   }),
-  profileCompletionPostGate: new Feature<number>(
-    'profile_completion_post_gate',
-    0,
-  ),
 };
 
 export class ExperimentAllocationClient {
