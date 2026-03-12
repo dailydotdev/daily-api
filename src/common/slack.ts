@@ -46,6 +46,9 @@ export const webhooks = Object.freeze({
   recruiterReview: process.env.SLACK_RECRUITER_REVIEW_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_RECRUITER_REVIEW_WEBHOOK)
     : nullWebhook,
+  recruiterAutoReject: process.env.SLACK_RECRUITER_AUTO_REJECT_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_RECRUITER_AUTO_REJECT_WEBHOOK)
+    : nullWebhook,
   userFeedback: process.env.SLACK_USER_FEEDBACK_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_USER_FEEDBACK_WEBHOOK)
     : nullWebhook,
