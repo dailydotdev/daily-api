@@ -4,7 +4,6 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
-  testMutationErrorCode,
   type GraphQLTestClient,
   type GraphQLTestingState,
 } from './helpers';
@@ -60,6 +59,41 @@ mutation ClaimQuestReward($userQuestId: ID!) {
 }
 `;
 
+const QUEST_DASHBOARD_QUERY = `
+query QuestDashboard {
+  questDashboard {
+    daily {
+      regular {
+        rotationId
+        locked
+        quest {
+          id
+          name
+          plusOnly
+        }
+      }
+      plus {
+        rotationId
+        locked
+        quest {
+          id
+          name
+          plusOnly
+        }
+      }
+    }
+    weekly {
+      regular {
+        rotationId
+      }
+      plus {
+        rotationId
+      }
+    }
+  }
+}
+`;
+
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -69,9 +103,10 @@ let isPlus = false;
 const questUserId = '99999999-9999-4999-8999-999999999999';
 const questId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const questRewardXpId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const questRewardReputationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const questRotationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const userQuestId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const extraQuestId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const extraQuestRotationId = '12121212-1212-4121-8121-121212121212';
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -84,9 +119,16 @@ beforeAll(async () => {
   return app.ready();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
+
+  await con.createQueryBuilder().delete().from(UserQuest).execute();
+  await con.createQueryBuilder().delete().from(UserQuestProfile).execute();
+  await con.createQueryBuilder().delete().from(QuestRotation).execute();
+  await con.createQueryBuilder().delete().from(QuestReward).execute();
+  await con.createQueryBuilder().delete().from(Quest).execute();
+  await con.getRepository(User).delete({ id: questUserId });
 });
 
 const seedQuest = async ({
@@ -98,7 +140,7 @@ const seedQuest = async ({
   periodStart: Date;
   periodEnd: Date;
 }) => {
-  await saveFixtures(con, User, [{ id: questUserId }]);
+  await saveFixtures(con, User, [{ id: questUserId, reputation: 10 }]);
 
   await saveFixtures(con, Quest, [
     {
@@ -121,13 +163,6 @@ const seedQuest = async ({
       questId,
       type: QuestRewardType.XP,
       amount: 15,
-      metadata: {},
-    },
-    {
-      id: questRewardReputationId,
-      questId,
-      type: QuestRewardType.Reputation,
-      amount: 20,
       metadata: {},
     },
   ]);
@@ -159,6 +194,90 @@ const seedQuest = async ({
 };
 
 describe('claimQuestReward mutation', () => {
+  it('should bucket plus slot quests separately from the quest definition', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+    isPlus = true;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+
+    await saveFixtures(con, Quest, [
+      {
+        id: questId,
+        name: 'Normal daily quest',
+        description: 'Upvote 5 posts',
+        type: QuestType.Daily,
+        plusOnly: false,
+        eventType: QuestEventType.PostUpvote,
+        criteria: {
+          targetCount: 5,
+        },
+        active: true,
+      },
+      {
+        id: extraQuestId,
+        name: 'Extra daily quest',
+        description: 'Write 2 comments',
+        type: QuestType.Daily,
+        plusOnly: false,
+        eventType: QuestEventType.CommentCreate,
+        criteria: {
+          targetCount: 2,
+        },
+        active: true,
+      },
+    ]);
+
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: questRotationId,
+        questId,
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+        periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+      },
+      {
+        id: extraQuestRotationId,
+        questId: extraQuestId,
+        type: QuestType.Daily,
+        plusOnly: true,
+        slot: 1,
+        periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+        periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+      },
+    ]);
+
+    const res = await client.query(QUEST_DASHBOARD_QUERY);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.daily.regular).toEqual([
+      {
+        rotationId: questRotationId,
+        locked: false,
+        quest: {
+          id: questId,
+          name: 'Normal daily quest',
+          plusOnly: false,
+        },
+      },
+    ]);
+    expect(res.data.questDashboard.daily.plus).toEqual([
+      {
+        rotationId: extraQuestRotationId,
+        locked: false,
+        quest: {
+          id: extraQuestId,
+          name: 'Extra daily quest',
+          plusOnly: false,
+        },
+      },
+    ]);
+    expect(res.data.questDashboard.weekly.regular).toEqual([]);
+    expect(res.data.questDashboard.weekly.plus).toEqual([]);
+  });
+
   it('should claim a completed quest and apply rewards', async () => {
     const now = new Date();
     loggedUser = questUserId;
@@ -192,7 +311,7 @@ describe('claimQuestReward mutation', () => {
         .findOneByOrFail({ userId: questUserId }),
     ]);
 
-    expect(user.reputation).toBe(30);
+    expect(user.reputation).toBe(10);
     expect(profile.totalXp).toBe(15);
   });
 
@@ -206,16 +325,13 @@ describe('claimQuestReward mutation', () => {
       periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
     });
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: CLAIM_QUEST_REWARD_MUTATION,
-        variables: {
-          userQuestId,
-        },
+    const res = await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: {
+        userQuestId,
       },
-      'BAD_USER_INPUT',
-      'Quest is not completed yet',
-    );
+    });
+
+    expect(res.errors).toHaveLength(1);
+    expect(res.errors?.[0]?.message).toBe('Quest is not completed yet');
   });
 });

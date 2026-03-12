@@ -1,19 +1,27 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
-const ONE_WEEK_IN_MS = 7 * ONE_DAY_IN_MS;
-
-const getUtcDayStart = (date: Date): Date =>
-  new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-
-const getUtcWeekStart = (date: Date): Date => {
-  const dayStart = getUtcDayStart(date);
-  const dayOfWeek = dayStart.getUTCDay(); // 0 = Sunday, 1 = Monday
-  const daysSinceMonday = (dayOfWeek + 6) % 7;
-  return new Date(dayStart.getTime() - daysSinceMonday * ONE_DAY_IN_MS);
-};
+const questIds = {
+  holdMyUpvote: '4b9f1e2d-7c84-4c51-8f2a-5c9c7a1d3101',
+  teacher: '7e2d3c44-1b7f-4d9e-9b61-6d4b3f8a3102',
+  commissioner: 'c13a8d57-9e42-4f18-8cb4-2a7f5e6b3103',
+  thisCommentCooked: '2f4d9b61-6c3e-4a75-9d28-7b1e5f8c3104',
+  wellActually: '91b7c2d4-5e68-4f31-8ac9-3d7e1b6a3105',
+  savingThisForLater: '6d3e8f21-4a75-4c9b-8e12-5f7a1c2d3106',
+  tldrIActuallyReadIt: '8a5c1d7e-2f34-4b96-9c41-1e7d3a5b3107',
+  swipeTribunal: '3c7e1a5d-8b42-4f69-8d13-6a2c9e7b3108',
+  newMutualUnlocked: '5f2a9c7d-1e64-4b38-9a75-4d8b1c6e3109',
+  broReadThis: '1d6b4f8a-3c52-4e97-8b21-7f5a2d9c3110',
+  chiefExecutive: '9c4e1b7d-6a35-4f82-8d54-2b7e1c6a3111',
+  cantHoldAllTheseUpvotes: '4e8a2d6c-7b13-4c95-9f41-5d1a7b3e3112',
+  knowledgeIsPower: '7b1d5f9a-2c64-4e38-8a75-6c3e1d4b3113',
+  certifiedReplyGoblin: '2a6c9e1d-5f43-4b87-9c12-8d7a3e1b3114',
+  commentHypeTrain: '8d3b7a1e-4c52-4f96-8b41-1a6d5c7e3115',
+  openTabsFinalBoss: '5a1e4d8b-7c63-4b29-9f75-3e1d6a2c3116',
+  briefBingeArc: '1c7a5d3e-8b42-4f61-8d94-7a2e1c5b3117',
+  mutualsAnyPercentSpeedrun: '6b2d8f4a-1e57-4c93-9a21-5f7d3b1e3118',
+  supremeCourtOfTakes: '3e9b1c7d-5a64-4f28-8c75-2d6a1e4b3119',
+  squadCollector: '7a4d2e8c-1b53-4c97-9f16-8e3b5a1d3120',
+} as const;
 
 export class QuestSystem1771937000000 implements MigrationInterface {
   name = 'QuestSystem1771937000000';
@@ -182,6 +190,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
 
     await queryRunner.query(/* sql */ `
       INSERT INTO "quest" (
+        "id",
         "name",
         "description",
         "type",
@@ -192,6 +201,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
       )
       VALUES
         (
+          '${questIds.holdMyUpvote}',
           'Hold my upvote',
           'Upvote 5 posts',
           'daily',
@@ -201,7 +211,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Teacher',
+          '${questIds.teacher}',
+          'Share the Wisdom',
           'Have 5 users click your shared daily.dev post link',
           'daily',
           false,
@@ -210,7 +221,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Commissioner',
+          '${questIds.commissioner}',
+          'Chairman of the Guild',
           'Give another user an award',
           'daily',
           false,
@@ -219,7 +231,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'This Comment Cooked',
+          '${questIds.thisCommentCooked}',
+          'Community Council',
           'Upvote 3 comments',
           'daily',
           false,
@@ -228,7 +241,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Well, Actually...',
+          '${questIds.wellActually}',
+          'I''m About to Cook...',
           'Write 2 comments',
           'daily',
           false,
@@ -237,7 +251,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Saving This for Later',
+          '${questIds.savingThisForLater}',
+          'I''ll Get to It Any Day Now...',
           'Bookmark 3 posts',
           'daily',
           false,
@@ -246,7 +261,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'TL;DR? I Actually Read It',
+          '${questIds.tldrIActuallyReadIt}',
+          'Debriefed',
           'Read 2 briefs',
           'daily',
           false,
@@ -255,7 +271,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Swipe Tribunal',
+          '${questIds.swipeTribunal}',
+          'Douse the Flames',
           'Vote on 8 hot takes',
           'daily',
           false,
@@ -264,7 +281,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'New Mutual Unlocked',
+          '${questIds.newMutualUnlocked}',
+          'Don''t Mind Me...',
           'Follow 1 user',
           'daily',
           false,
@@ -273,7 +291,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Bro, Read This',
+          '${questIds.broReadThis}',
+          'Hey, Check This Out...',
           'Share 1 post',
           'daily',
           false,
@@ -282,6 +301,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
+          '${questIds.chiefExecutive}',
           'Chief Executive',
           'Give out 5 awards',
           'weekly',
@@ -291,6 +311,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
+          '${questIds.cantHoldAllTheseUpvotes}',
           'Can''t hold all these upvotes',
           'Upvote 50 posts',
           'weekly',
@@ -300,6 +321,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
+          '${questIds.knowledgeIsPower}',
           'Knowledge is power',
           'Have 100 clicks on your shared posts',
           'weekly',
@@ -309,7 +331,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Certified Reply Goblin',
+          '${questIds.certifiedReplyGoblin}',
+          'A Beacon of the Community',
           'Write 12 comments',
           'weekly',
           false,
@@ -318,7 +341,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Comment Hype Train',
+          '${questIds.commentHypeTrain}',
+          'I Approve of This Message',
           'Upvote 20 comments',
           'weekly',
           false,
@@ -327,7 +351,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Open Tabs Final Boss',
+          '${questIds.openTabsFinalBoss}',
+          'I Swear I''ll Get Around to These',
           'Bookmark 12 posts',
           'weekly',
           false,
@@ -336,15 +361,17 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Brief Binge Arc',
-          'Read 10 briefs',
+          '${questIds.briefBingeArc}',
+          'Commander in Chief',
+          'Read 5 briefs',
           'weekly',
           false,
           'brief_read',
-          '{"targetCount": 10}',
+          '{"targetCount": 5}',
           true
         ),
         (
+          '${questIds.mutualsAnyPercentSpeedrun}',
           'Mutuals Any% Speedrun',
           'Follow 5 users',
           'weekly',
@@ -354,7 +381,8 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
-          'Supreme Court of Takes',
+          '${questIds.supremeCourtOfTakes}',
+          'It''s Getting Cold in Here',
           'Vote on 40 hot takes',
           'weekly',
           false,
@@ -363,6 +391,7 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           true
         ),
         (
+          '${questIds.squadCollector}',
           'Squad Collector',
           'Join 2 squads',
           'weekly',
@@ -370,193 +399,53 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'squad_join',
           '{"targetCount": 2}',
           true
-        ),
-        (
-          'Hold my upvote+',
-          'Upvote 15 posts',
-          'daily',
-          true,
-          'post_upvote',
-          '{"targetCount": 15}',
-          true
-        ),
-        (
-          'Knowledge is power+',
-          'Have 200 clicks on your shared posts',
-          'weekly',
-          true,
-          'share_post_click',
-          '{"targetCount": 200}',
-          true
         )
-      ON CONFLICT ("name") DO NOTHING
     `);
 
     await queryRunner.query(/* sql */ `
       INSERT INTO "quest_reward" ("questId", "type", "amount")
-      SELECT q.id, v.type, v.amount
-      FROM (
-        VALUES
-          ('Hold my upvote', 'xp', 10),
-          ('Hold my upvote', 'reputation', 10),
-          ('Teacher', 'xp', 25),
-          ('Teacher', 'reputation', 50),
-          ('Commissioner', 'xp', 50),
-          ('Commissioner', 'reputation', 150),
-          ('This Comment Cooked', 'xp', 15),
-          ('This Comment Cooked', 'reputation', 20),
-          ('Well, Actually...', 'xp', 20),
-          ('Well, Actually...', 'reputation', 25),
-          ('Saving This for Later', 'xp', 10),
-          ('Saving This for Later', 'reputation', 10),
-          ('TL;DR? I Actually Read It', 'xp', 10),
-          ('TL;DR? I Actually Read It', 'reputation', 10),
-          ('Swipe Tribunal', 'xp', 15),
-          ('Swipe Tribunal', 'reputation', 15),
-          ('New Mutual Unlocked', 'xp', 20),
-          ('New Mutual Unlocked', 'reputation', 20),
-          ('Bro, Read This', 'xp', 25),
-          ('Bro, Read This', 'reputation', 30),
-          ('Chief Executive', 'xp', 100),
-          ('Chief Executive', 'reputation', 500),
-          ('Chief Executive', 'cores', 50),
-          ('Can''t hold all these upvotes', 'xp', 100),
-          ('Can''t hold all these upvotes', 'cores', 50),
-          ('Knowledge is power', 'xp', 100),
-          ('Knowledge is power', 'reputation', 300),
-          ('Certified Reply Goblin', 'xp', 80),
-          ('Certified Reply Goblin', 'reputation', 150),
-          ('Certified Reply Goblin', 'cores', 20),
-          ('Comment Hype Train', 'xp', 70),
-          ('Comment Hype Train', 'reputation', 120),
-          ('Comment Hype Train', 'cores', 20),
-          ('Open Tabs Final Boss', 'xp', 60),
-          ('Open Tabs Final Boss', 'reputation', 80),
-          ('Open Tabs Final Boss', 'cores', 20),
-          ('Brief Binge Arc', 'xp', 60),
-          ('Brief Binge Arc', 'reputation', 90),
-          ('Brief Binge Arc', 'cores', 20),
-          ('Mutuals Any% Speedrun', 'xp', 80),
-          ('Mutuals Any% Speedrun', 'reputation', 140),
-          ('Mutuals Any% Speedrun', 'cores', 30),
-          ('Supreme Court of Takes', 'xp', 80),
-          ('Supreme Court of Takes', 'reputation', 120),
-          ('Supreme Court of Takes', 'cores', 25),
-          ('Squad Collector', 'xp', 100),
-          ('Squad Collector', 'reputation', 200),
-          ('Squad Collector', 'cores', 30),
-          ('Hold my upvote+', 'xp', 40),
-          ('Hold my upvote+', 'reputation', 100),
-          ('Hold my upvote+', 'cores', 20),
-          ('Knowledge is power+', 'xp', 200),
-          ('Knowledge is power+', 'reputation', 600),
-          ('Knowledge is power+', 'cores', 100)
-      ) AS v(name, type, amount)
-      INNER JOIN "quest" q ON q.name = v.name
-      ON CONFLICT ("questId", "type") DO NOTHING
+      VALUES
+        ('${questIds.holdMyUpvote}', 'xp', 10),
+        ('${questIds.holdMyUpvote}', 'cores', 5),
+        ('${questIds.teacher}', 'xp', 25),
+        ('${questIds.teacher}', 'cores', 5),
+        ('${questIds.commissioner}', 'xp', 50),
+        ('${questIds.commissioner}', 'cores', 5),
+        ('${questIds.thisCommentCooked}', 'xp', 15),
+        ('${questIds.thisCommentCooked}', 'cores', 5),
+        ('${questIds.wellActually}', 'xp', 20),
+        ('${questIds.wellActually}', 'cores', 5),
+        ('${questIds.savingThisForLater}', 'xp', 10),
+        ('${questIds.savingThisForLater}', 'cores', 5),
+        ('${questIds.tldrIActuallyReadIt}', 'xp', 10),
+        ('${questIds.tldrIActuallyReadIt}', 'cores', 5),
+        ('${questIds.swipeTribunal}', 'xp', 15),
+        ('${questIds.swipeTribunal}', 'cores', 5),
+        ('${questIds.newMutualUnlocked}', 'xp', 20),
+        ('${questIds.newMutualUnlocked}', 'cores', 5),
+        ('${questIds.broReadThis}', 'xp', 25),
+        ('${questIds.broReadThis}', 'cores', 5),
+        ('${questIds.chiefExecutive}', 'xp', 100),
+        ('${questIds.chiefExecutive}', 'cores', 15),
+        ('${questIds.cantHoldAllTheseUpvotes}', 'xp', 100),
+        ('${questIds.cantHoldAllTheseUpvotes}', 'cores', 15),
+        ('${questIds.knowledgeIsPower}', 'xp', 100),
+        ('${questIds.knowledgeIsPower}', 'cores', 15),
+        ('${questIds.certifiedReplyGoblin}', 'xp', 80),
+        ('${questIds.certifiedReplyGoblin}', 'cores', 15),
+        ('${questIds.commentHypeTrain}', 'xp', 70),
+        ('${questIds.commentHypeTrain}', 'cores', 15),
+        ('${questIds.openTabsFinalBoss}', 'xp', 60),
+        ('${questIds.openTabsFinalBoss}', 'cores', 15),
+        ('${questIds.briefBingeArc}', 'xp', 60),
+        ('${questIds.briefBingeArc}', 'cores', 15),
+        ('${questIds.mutualsAnyPercentSpeedrun}', 'xp', 80),
+        ('${questIds.mutualsAnyPercentSpeedrun}', 'cores', 15),
+        ('${questIds.supremeCourtOfTakes}', 'xp', 80),
+        ('${questIds.supremeCourtOfTakes}', 'cores', 15),
+        ('${questIds.squadCollector}', 'xp', 100),
+        ('${questIds.squadCollector}', 'cores', 15)
     `);
-
-    const now = new Date();
-    const dayStart = getUtcDayStart(now);
-    const dayEnd = new Date(dayStart.getTime() + ONE_DAY_IN_MS);
-    const weekStart = getUtcWeekStart(now);
-    const weekEnd = new Date(weekStart.getTime() + ONE_WEEK_IN_MS);
-
-    await queryRunner.query(
-      /* sql */ `
-        WITH regular_quests AS (
-          SELECT
-            id,
-            ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::smallint AS slot
-          FROM "quest"
-          WHERE "type" = 'daily'
-            AND "plusOnly" = false
-            AND "active" = true
-          LIMIT 2
-        ),
-        plus_quests AS (
-          SELECT
-            id,
-            ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::smallint AS slot
-          FROM "quest"
-          WHERE "type" = 'daily'
-            AND "plusOnly" = true
-            AND "active" = true
-          LIMIT 1
-        ),
-        selected AS (
-          SELECT id, false AS "plusOnly", slot FROM regular_quests
-          UNION ALL
-          SELECT id, true AS "plusOnly", slot FROM plus_quests
-        )
-        INSERT INTO "quest_rotation" (
-          "questId",
-          "type",
-          "plusOnly",
-          "slot",
-          "periodStart",
-          "periodEnd"
-        )
-        SELECT
-          s.id,
-          'daily',
-          s."plusOnly",
-          s.slot,
-          $1,
-          $2
-        FROM selected s
-        ON CONFLICT ("type", "plusOnly", "slot", "periodStart") DO NOTHING
-      `,
-      [dayStart, dayEnd],
-    );
-
-    await queryRunner.query(
-      /* sql */ `
-        WITH regular_quests AS (
-          SELECT
-            id,
-            ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::smallint AS slot
-          FROM "quest"
-          WHERE "type" = 'weekly'
-            AND "plusOnly" = false
-            AND "active" = true
-          LIMIT 1
-        ),
-        plus_quests AS (
-          SELECT
-            id,
-            ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC)::smallint AS slot
-          FROM "quest"
-          WHERE "type" = 'weekly'
-            AND "plusOnly" = true
-            AND "active" = true
-          LIMIT 1
-        ),
-        selected AS (
-          SELECT id, false AS "plusOnly", slot FROM regular_quests
-          UNION ALL
-          SELECT id, true AS "plusOnly", slot FROM plus_quests
-        )
-        INSERT INTO "quest_rotation" (
-          "questId",
-          "type",
-          "plusOnly",
-          "slot",
-          "periodStart",
-          "periodEnd"
-        )
-        SELECT
-          s.id,
-          'weekly',
-          s."plusOnly",
-          s.slot,
-          $1,
-          $2
-        FROM selected s
-        ON CONFLICT ("type", "plusOnly", "slot", "periodStart") DO NOTHING
-      `,
-      [weekStart, weekEnd],
-    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

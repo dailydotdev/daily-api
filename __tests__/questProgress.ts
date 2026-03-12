@@ -269,7 +269,7 @@ describe('checkQuestProgress', () => {
     await saveFixtures(con, Quest, [
       {
         id: questIds[2],
-        name: 'Teacher',
+        name: 'Share the Wisdom',
         description: 'Get 5 share link clicks',
         type: QuestType.Daily,
         plusOnly: false,

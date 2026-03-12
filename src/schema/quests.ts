@@ -29,6 +29,7 @@ type GQLQuestLevel = ReturnType<typeof getQuestLevelState>;
 type GQLUserQuest = {
   userQuestId: string | null;
   rotationId: string;
+  isPlusSlot: boolean;
   progress: number;
   status: UserQuestStatus;
   completedAt: Date | null;
@@ -63,8 +64,8 @@ type QuestRewardTotals = {
 const DEFAULT_QUEST_STATUS = UserQuestStatus.InProgress;
 
 const toQuestBucket = (quests: GQLUserQuest[]): GQLQuestBucket => ({
-  regular: quests.filter((quest) => !quest.quest.plusOnly),
-  plus: quests.filter((quest) => quest.quest.plusOnly),
+  regular: quests.filter((quest) => !quest.isPlusSlot),
+  plus: quests.filter((quest) => quest.isPlusSlot),
 });
 
 const toQuestRewardTotals = (rewards: QuestReward[]): QuestRewardTotals =>
@@ -170,6 +171,7 @@ const getCurrentUserQuestsByType = async ({
       return {
         userQuestId: userQuest?.id ?? null,
         rotationId: rotation.id,
+        isPlusSlot: rotation.plusOnly,
         progress: userQuest?.progress ?? 0,
         status,
         completedAt: userQuest?.completedAt ?? null,

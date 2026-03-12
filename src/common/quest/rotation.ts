@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { Quest, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
@@ -33,18 +33,25 @@ export const rotateQuestPeriod = async ({
   const { periodStart, periodEnd } = getQuestWindow(type, now);
   const regularLimit = REQUIRED_REGULAR_QUESTS[type];
 
-  const [regularQuests, plusQuests] = await Promise.all([
-    con.getRepository(Quest).find({
-      where: { type, plusOnly: false, active: true },
-      order: { createdAt: 'ASC' },
-      take: regularLimit,
-    }),
-    con.getRepository(Quest).find({
-      where: { type, plusOnly: true, active: true },
-      order: { createdAt: 'ASC' },
-      take: REQUIRED_PLUS_QUESTS,
-    }),
-  ]);
+  const regularQuests = await con.getRepository(Quest).find({
+    where: { type, plusOnly: false, active: true },
+    order: { createdAt: 'ASC', id: 'ASC' },
+    take: regularLimit,
+  });
+
+  const plusQuests = await con.getRepository(Quest).find({
+    // Plus is an extra slot from the normal quest pool, not a separate quest catalog.
+    where: {
+      type,
+      plusOnly: false,
+      active: true,
+      ...(regularQuests.length
+        ? { id: Not(In(regularQuests.map(({ id }) => id))) }
+        : {}),
+    },
+    order: { createdAt: 'ASC', id: 'ASC' },
+    take: REQUIRED_PLUS_QUESTS,
+  });
 
   if (regularQuests.length < regularLimit) {
     logger.warn(
@@ -56,7 +63,7 @@ export const rotateQuestPeriod = async ({
   if (plusQuests.length < REQUIRED_PLUS_QUESTS) {
     logger.warn(
       { type, expected: REQUIRED_PLUS_QUESTS, found: plusQuests.length },
-      'Insufficient plus quests available for rotation',
+      'Insufficient extra quests available for plus rotation',
     );
   }
 
