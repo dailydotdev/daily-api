@@ -16,6 +16,8 @@ import {
   upsertTwitterReferencedPost,
 } from '../../../common/twitterSocial';
 import type { TwitterReferencePost } from '../../../common/twitterSocial';
+import { remoteConfig } from '../../../remoteConfig';
+import { isAuthorMatchDomainIgnored } from '../../../common/authorMatch';
 import type {
   FixedData,
   OnUpdateArgs,
@@ -170,7 +172,13 @@ export const processSocialTwitter = async ({
     origin: data?.origin,
   });
 
-  const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
+  const skipAuthorMatch = isAuthorMatchDomainIgnored({
+    urls: [data?.url, data?.extra?.canonical_url],
+    ignoredDomains: remoteConfig.vars.ignoredAuthorMatchDomains,
+  });
+  const authorId = skipAuthorMatch
+    ? null
+    : await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,

@@ -7,7 +7,9 @@ import {
   PostType,
 } from '../../entity';
 import { parseDate } from '../../common';
+import { isAuthorMatchDomainIgnored } from '../../common/authorMatch';
 import { markdown } from '../../common/markdown';
+import { remoteConfig } from '../../remoteConfig';
 import { normalizeTwitterHandle } from '../../common/twitterSocial';
 import type { Data, FixedData, ProcessPostProps } from './types';
 import { getSourcePrivacy } from './shared';
@@ -41,8 +43,14 @@ export const resolveCommonDeps = async ({
   keywords: string[] | undefined;
 }) => {
   const creatorTwitter = resolveCreatorTwitter({ data });
+  const skipAuthorMatch = isAuthorMatchDomainIgnored({
+    urls: [data?.url, data?.extra?.canonical_url],
+    ignoredDomains: remoteConfig.vars.ignoredAuthorMatchDomains,
+  });
 
-  const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
+  const authorId = skipAuthorMatch
+    ? null
+    : await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,

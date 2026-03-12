@@ -23,6 +23,7 @@ export type RemoteConfigValue = {
   vordrIps: string[];
   blockedCountries: string[];
   ignoredWorkEmailDomains: string[];
+  ignoredAuthorMatchDomains: string[];
   origins: string[];
   clickbaitTitleProbabilityThreshold: number;
   plusCustomFeed: boolean;
