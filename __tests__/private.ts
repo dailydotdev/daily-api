@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
 import {
   ArticlePost,
+  Comment,
   Feed,
   Organization,
   Source,
@@ -1232,6 +1233,139 @@ describe('GET /p/actions/:user_id/:action_name', () => {
     expect(body).toEqual({
       found: true,
       completedAt: '2025-02-04T12:01:47.042Z',
+    });
+  });
+});
+
+describe('POST /p/vordrUsers', () => {
+  const path = '/p/vordrUsers';
+
+  const serviceHeaders = {
+    authorization: `Service ${process.env.ACCESS_SECRET}`,
+    'content-type': 'application/json',
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, ArticlePost, [
+      {
+        ...postsFixture[0],
+        id: 'p-vpriv1',
+        shortId: 'p-vpriv1',
+        url: 'https://daily.dev/posts/p-vpriv1',
+        canonicalUrl: 'https://daily.dev/posts/p-vpriv1',
+        authorId: '1',
+        flags: { vordr: false },
+      },
+    ]);
+    await saveFixtures(con, Comment, [
+      {
+        id: 'c-vpriv1',
+        postId: 'p-vpriv1',
+        userId: '1',
+        content: 'comment',
+        contentHtml: '<p>comment</p>',
+        flags: { vordr: false },
+      },
+    ]);
+  });
+
+  it('should return not found when not authorized', () => {
+    return request(app.server).post(path).expect(404);
+  });
+
+  it('should apply Vordr to all requested users', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: ['1', '2'] })
+      .expect(200);
+
+    expect(body).toEqual({ success: true });
+
+    const [userOne, userTwo, post, comment] = await Promise.all([
+      con.getRepository(User).findOneByOrFail({ id: '1' }),
+      con.getRepository(User).findOneByOrFail({ id: '2' }),
+      con.getRepository(ArticlePost).findOneByOrFail({ id: 'p-vpriv1' }),
+      con.getRepository(Comment).findOneByOrFail({ id: 'c-vpriv1' }),
+    ]);
+
+    expect(userOne.flags?.vordr).toEqual(true);
+    expect(userTwo.flags?.vordr).toEqual(true);
+    expect(post).toMatchObject({
+      showOnFeed: false,
+      flags: { vordr: true },
+    });
+    expect(comment).toMatchObject({
+      flags: { vordr: true },
+    });
+  });
+
+  it('should reject empty input', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: [] })
+      .expect(400);
+
+    expect(body.error.name).toEqual('ZodError');
+  });
+
+  it('should reject invalid user IDs', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: [''] })
+      .expect(400);
+
+    expect(body.error.name).toEqual('ZodError');
+  });
+
+  it('should allow duplicate user IDs in the request', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: ['1', '1'] })
+      .expect(200);
+
+    expect(body).toEqual({ success: true });
+    expect(
+      (await con.getRepository(User).findOneByOrFail({ id: '1' })).flags?.vordr,
+    ).toEqual(true);
+  });
+
+  it('should reject oversized input', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: Array.from({ length: 501 }, (_, index) => `${index}`) })
+      .expect(400);
+
+    expect(body.error.name).toEqual('ZodError');
+  });
+
+  it('should fail the batch when one user cannot be vordred', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set(serviceHeaders)
+      .send({ userIds: ['1', 'does-not-exist'] })
+      .expect(500);
+
+    expect(body).toEqual({ error: 'Failed to apply Vordr to all users' });
+
+    const [user, post, comment] = await Promise.all([
+      con.getRepository(User).findOneByOrFail({ id: '1' }),
+      con.getRepository(ArticlePost).findOneByOrFail({ id: 'p-vpriv1' }),
+      con.getRepository(Comment).findOneByOrFail({ id: 'c-vpriv1' }),
+    ]);
+
+    expect(user.flags?.vordr).toBeFalsy();
+    expect(post).toMatchObject({
+      showOnFeed: true,
+      flags: { vordr: false },
+    });
+    expect(comment).toMatchObject({
+      flags: { vordr: false },
     });
   });
 });
