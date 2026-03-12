@@ -43,7 +43,7 @@ import {
   sourceRoleRank,
 } from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
-import { usersFixture } from './fixture/user';
+import { userCreatedDate, usersFixture } from './fixture/user';
 import {
   deleteKeysByPattern,
   getRedisObject,
@@ -2166,13 +2166,27 @@ describe('funnel boot', () => {
 
 describe('boot profile completion', () => {
   const BASE_PATH = '/boot';
+  const saveProfileCompletionUser = async (
+    user: Partial<User> & Pick<User, 'id' | 'name' | 'username'>,
+  ): Promise<void> => {
+    await con.getRepository(User).save({
+      createdAt: new Date(userCreatedDate),
+      infoConfirmed: true,
+      ...user,
+    });
+  };
 
   it('should return profileCompletion with 0% for user with no profile data', async () => {
-    await con
-      .getRepository(User)
-      .update({ id: '1' }, { image: '', bio: null, experienceLevel: null });
+    await saveProfileCompletionUser({
+      id: 'pc-empty',
+      name: 'Empty Profile',
+      username: 'pc-empty',
+      image: '',
+      bio: null,
+      experienceLevel: null,
+    });
 
-    mockLoggedIn();
+    mockLoggedIn('pc-empty');
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
@@ -2190,16 +2204,16 @@ describe('boot profile completion', () => {
   });
 
   it('should return profileCompletion with 20% for user with only profile image', async () => {
-    await con.getRepository(User).update(
-      { id: '1' },
-      {
-        image: 'https://example.com/image.jpg',
-        bio: null,
-        experienceLevel: null,
-      },
-    );
+    await saveProfileCompletionUser({
+      id: 'pc-image',
+      name: 'Image Profile',
+      username: 'pc-image',
+      image: 'https://example.com/image.jpg',
+      bio: null,
+      experienceLevel: null,
+    });
 
-    mockLoggedIn();
+    mockLoggedIn('pc-image');
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)

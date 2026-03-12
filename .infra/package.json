@@ -7,13 +7,13 @@
     "@types/node": "22.19.x"
   },
   "dependencies": {
-    "@dailydotdev/pulumi-common": "^2.20.4",
+    "@dailydotdev/pulumi-common": "^2.21.0",
     "@pulumi/gcp": "^9.12.0",
     "@pulumi/kubernetes": "^4.26.0",
     "@pulumi/pulumi": "^3.223.0"
   },
   "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
   "volta": {
-    "node": "22.22.0"
+    "node": "22.22.1"
   }
 }

@@ -59,8 +59,6 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
         return `${context.userId ?? context.trackingId}:createComment`;
       case 'parseOpportunity':
         return `${context.userId ?? context.trackingId}:parseOpportunity`;
-      case 'viewPost':
-        return `${context.userId ?? context.trackingId}:viewPost`;
       case 'sentimentTimeSeries':
       case 'sentimentHighlights':
         return `${context.userId ?? context.trackingId ?? context.req.ip}:sentiment`;
@@ -111,11 +109,6 @@ export const onLimit: RateLimitOnLimit<Context> = (
       counters?.api?.rateLimit?.add(1, { type: 'parseOpportunity' });
       throw new RateLimitError({
         message: `You tried to parse job too many times. Try again in ${period} or contact team for assistance.`,
-      });
-    case 'viewPost':
-      counters?.api?.rateLimit?.add(1, { type: 'viewPost' });
-      throw new RateLimitError({
-        message: 'Post views are temporarily rate-limited',
       });
     case 'sentimentTimeSeries':
     case 'sentimentHighlights':

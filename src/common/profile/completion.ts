@@ -1,9 +1,7 @@
-import { ForbiddenError } from 'apollo-server-errors';
 import { DataSource, EntityManager } from 'typeorm';
 import { User } from '../../entity';
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
-import { features, getUserGrowthBookInstance } from '../../growthbook';
 import { queryReadReplica } from '../queryReadReplica';
 
 export type ProfileCompletion = {
@@ -90,60 +88,4 @@ export const calculateProfileCompletion = (
     hasWork,
     hasEducation,
   };
-};
-
-const getProfileCompletion = async (
-  con: DataSource | EntityManager,
-  userId: string,
-): Promise<ProfileCompletion | null> => {
-  const queryByManager = async (
-    manager: EntityManager,
-  ): Promise<ProfileCompletion | null> => {
-    const [user, experienceFlags] = await Promise.all([
-      manager.getRepository(User).findOne({
-        where: { id: userId },
-        select: ['id', 'image', 'bio', 'experienceLevel'],
-      }),
-      getProfileExperienceFlagsFromManager(manager, userId),
-    ]);
-
-    return calculateProfileCompletion(user, experienceFlags);
-  };
-
-  if (con instanceof DataSource) {
-    return queryReadReplica(con, ({ queryRunner }) =>
-      queryByManager(queryRunner.manager),
-    );
-  }
-
-  return queryByManager(con);
-};
-
-export const ensureProfileComplete = async (
-  con: DataSource | EntityManager,
-  userId: string,
-  requiredPercentage = 100,
-): Promise<void> => {
-  const completion = await getProfileCompletion(con, userId);
-
-  if (!completion || completion.percentage < requiredPercentage) {
-    throw new ForbiddenError('Complete your profile to create posts');
-  }
-};
-
-export const ensureProfileCompleteIfEnabled = async (
-  con: DataSource | EntityManager,
-  userId: string,
-): Promise<void> => {
-  const gb = getUserGrowthBookInstance(userId);
-  const requiredPercentage = gb.getFeatureValue(
-    features.profileCompletionPostGate.id,
-    features.profileCompletionPostGate.defaultValue ?? 0,
-  );
-
-  if (!requiredPercentage) {
-    return;
-  }
-
-  await ensureProfileComplete(con, userId, requiredPercentage);
 };
