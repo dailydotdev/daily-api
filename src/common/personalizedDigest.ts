@@ -338,6 +338,10 @@ export const getPersonalizedDigestEmailPayload = async ({
     feedConfigPayload,
   );
 
+  counters?.['personalized-digest']?.digestFeedServicePostsCount?.add(
+    feedResponse.data.length,
+  );
+
   const posts: TemplatePostData[] = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
@@ -378,6 +382,8 @@ export const getPersonalizedDigestEmailPayload = async ({
       ).execute();
     },
   );
+
+  counters?.['personalized-digest']?.digestPostsCount?.add(posts.length);
 
   if (posts.length === 0) {
     logger.warn(
