@@ -314,4 +314,44 @@ describe('mutation reorderUserStack', () => {
       reordered.find((i: { id: string }) => i.id === item2.id).position,
     ).toBe(0);
   });
+
+  it('should move items between sections', async () => {
+    loggedUser = '1';
+    const stack1 = await con.getRepository(DatasetTool).save({
+      title: 'React',
+      titleNormalized: 'react',
+    });
+    const stack2 = await con.getRepository(DatasetTool).save({
+      title: 'Figma',
+      titleNormalized: 'figma',
+    });
+
+    const [item1, item2] = await con.getRepository(UserStack).save([
+      { userId: '1', toolId: stack1.id, section: 'Primary', position: 0 },
+      { userId: '1', toolId: stack2.id, section: 'Hobby', position: 0 },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: {
+        items: [
+          { id: item1.id, position: 1, section: 'Hobby' },
+          { id: item2.id, position: 0, section: 'Hobby' },
+        ],
+      },
+    });
+
+    const [updatedItem1, updatedItem2] = await Promise.all([
+      con.getRepository(UserStack).findOneByOrFail({ id: item1.id }),
+      con.getRepository(UserStack).findOneByOrFail({ id: item2.id }),
+    ]);
+
+    expect(updatedItem1).toMatchObject({
+      section: 'Hobby',
+      position: 1,
+    });
+    expect(updatedItem2).toMatchObject({
+      section: 'Hobby',
+      position: 0,
+    });
+  });
 });
