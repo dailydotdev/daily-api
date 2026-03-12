@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { FastifyReply } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import { getBetterAuth } from '../betterAuth';
-import rateLimitPlugin from '@fastify/rate-limit';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -35,18 +35,36 @@ const stripBetterAuthStateMarker = (url: URL): URL => {
   return url;
 };
 
-const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
-  await fastify.register(rateLimitPlugin);
+const sendBetterAuthResponse = async (
+  reply: FastifyReply,
+  response: Response,
+): Promise<FastifyReply> => {
+  reply.status(response.status);
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() !== 'set-cookie') {
+      reply.header(key, value);
+    }
+  });
 
+  const nodeHeaders = response.headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+  const setCookies = nodeHeaders.getSetCookie?.() ?? [];
+  if (setCookies.length > 0) {
+    reply.header('set-cookie', setCookies);
+  }
+
+  if (!response.body) {
+    return reply.send();
+  }
+
+  return reply.send(await response.text());
+};
+
+const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   fastify.route({
     method: ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'],
     url: '/auth/*',
-    config: {
-      rateLimit: {
-        max: 100,
-        timeWindow: '15 minutes',
-      },
-    },
     handler: async (request, reply) => {
       try {
         const url = stripBetterAuthStateMarker(
@@ -59,26 +77,7 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           ...(body ? { body } : {}),
         });
         const response = await getBetterAuth().handler(authRequest);
-        reply.status(response.status);
-        response.headers.forEach((value, key) => {
-          if (key.toLowerCase() !== 'set-cookie') {
-            reply.header(key, value);
-          }
-        });
-
-        const nodeHeaders = response.headers as Headers & {
-          getSetCookie?: () => string[];
-        };
-        const setCookies = nodeHeaders.getSetCookie?.() ?? [];
-        if (setCookies.length > 0) {
-          reply.header('set-cookie', setCookies);
-        }
-
-        if (!response.body) {
-          return reply.send();
-        }
-
-        return reply.send(await response.text());
+        return sendBetterAuthResponse(reply, response);
       } catch (error) {
         request.log.error(
           { err: formatError(error) },
