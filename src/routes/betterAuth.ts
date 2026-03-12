@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import { getBetterAuth } from '../betterAuth';
+import rateLimitPlugin from '@fastify/rate-limit';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -35,9 +36,17 @@ const stripBetterAuthStateMarker = (url: URL): URL => {
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
+  await fastify.register(rateLimitPlugin);
+
   fastify.route({
     method: ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'],
     url: '/auth/*',
+    config: {
+      rateLimit: {
+        max: 100,
+        timeWindow: '15 minutes',
+      },
+    },
     handler: async (request, reply) => {
       try {
         const url = stripBetterAuthStateMarker(
