@@ -164,13 +164,10 @@ const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
       req.headers as Record<string, string | string[] | undefined>,
     );
     const baseUrl = toRequestUrl(req);
-    const signOutReq = new Request(
-      `${baseUrl.origin}/a/auth/sign-out`,
-      {
-        method: 'POST',
-        headers,
-      },
-    );
+    const signOutReq = new Request(`${baseUrl.origin}/a/auth/sign-out`, {
+      method: 'POST',
+      headers,
+    });
     await auth.handler(signOutReq);
   } catch (err) {
     req.log.warn({ err }, 'error during BetterAuth sign-out');

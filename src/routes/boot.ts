@@ -60,9 +60,7 @@ import {
   updateFlagsStatement,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
-import {
-  createBetterAuthSessionFromKratos,
-} from '../betterAuthSession';
+import { createBetterAuthSessionFromKratos } from '../betterAuthSession';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
@@ -75,7 +73,7 @@ import {
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
-import { addDays, differenceInMinutes, isSameDay, subDays } from 'date-fns';
+import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
   runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
