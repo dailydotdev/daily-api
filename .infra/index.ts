@@ -130,6 +130,13 @@ const { namespace, host: subsHost } = config.requireObject<{
   namespace: string;
   host: string;
 }>('k8s');
+const apiPrivateLoadBalancerSourceRanges = (
+  config.getObject<string[]>('apiPrivateLoadBalancerSourceRanges') ?? []
+)
+  .map((cidr) => cidr.trim())
+  .filter((cidr) => cidr.length > 0);
+const apiPrivateInternalLoadBalancerGlobalAccess =
+  config.getBoolean('apiPrivateInternalLoadBalancerGlobalAccess') ?? false;
 
 const envVars: Record<string, Input<string>> = {
   ...config.requireObject<Record<string, string>>('env'),
@@ -476,7 +483,17 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 200, memory: 150 },
       createService: true,
-      serviceType: 'ClusterIP',
+      service: {
+        type: 'LoadBalancer',
+        gkeInternalLoadBalancer: {
+          enabled: true,
+          allowGlobalAccess: apiPrivateInternalLoadBalancerGlobalAccess,
+        },
+        loadBalancerSourceRanges:
+          apiPrivateLoadBalancerSourceRanges.length > 0
+            ? apiPrivateLoadBalancerSourceRanges
+            : undefined,
+      },
       disableLifecycle: true,
       podAnnotations: podAnnotations,
       ...vols,

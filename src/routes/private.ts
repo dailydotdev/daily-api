@@ -33,10 +33,26 @@ import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { logger } from '../logger';
 import { claimAnonOpportunities } from '../common/opportunity/user';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
+import { z } from 'zod';
+import { counters } from '../telemetry';
+import { applyVordrToUsers } from '../common/vordr';
 
 interface SearchUsername {
   search: string;
 }
+
+const MAX_VORDR_BATCH_SIZE = 500;
+
+const vordrUsersSchema = z.object({
+  userIds: z
+    .array(z.string().trim().min(1).max(36))
+    .min(1, {
+      error: 'At least one user ID is required',
+    })
+    .max(MAX_VORDR_BATCH_SIZE, {
+      error: `Maximum of ${MAX_VORDR_BATCH_SIZE} user IDs can be processed at once`,
+    }),
+});
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: AddUserDataPost }>('/newUser', async (req, res) => {
@@ -294,6 +310,49 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       found: !!action,
       completedAt: action?.completedAt,
     });
+  });
+
+  fastify.post<{
+    Body: {
+      userIds: User['id'][];
+    };
+  }>('/vordrUsers', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const body = vordrUsersSchema.safeParse(req.body);
+
+    if (body.error) {
+      req.log.error(body.error, 'Invalid Vordr batch request');
+      return res.status(400).send({
+        error: {
+          name: body.error.name,
+          issues: body.error.issues,
+        },
+      });
+    }
+
+    const userIds = [...new Set(body.data.userIds)];
+
+    const con = await createOrGetConnection();
+
+    try {
+      await applyVordrToUsers({ con, userIds });
+      counters?.api?.vordr?.add(userIds.length, {
+        reason: 'manual_vordr',
+        type: 'user',
+      });
+      return res.status(200).send({ success: true });
+    } catch (error) {
+      req.log.error(
+        { err: error, requestSize: userIds.length },
+        'Failed Vordr batch',
+      );
+      return res
+        .status(500)
+        .send({ error: 'Failed to apply Vordr to all users' });
+    }
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });

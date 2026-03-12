@@ -22,6 +22,9 @@ config:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
+  api:apiPrivateLoadBalancerSourceRanges:
+    - secure: AAABADGk7iOQSBF8D4TZYeZOCIKUO5AMylKUgKo+Q7itG41JVSLna7gvlQAtJR0=
+  api:apiPrivateInternalLoadBalancerGlobalAccess: "false"
   api:enablePersonalizedDigest: 'true'
   api:env:
     anthropicApiUrl: https://api.anthropic.com/v1/messages
