@@ -4037,109 +4037,94 @@ describe('post creation', () => {
     });
   };
 
-  it('should allow createFreeformPost for incomplete profile', async () => {
+  const expectSuccessfulPostCreation = async <TData>({
+    mutation,
+    variables,
+    assertData,
+  }: {
+    mutation: string;
+    variables: Record<string, unknown>;
+    assertData: (data: TData) => void;
+  }): Promise<void> => {
     loggedUser = '1';
+    const res = await client.mutate(mutation, { variables });
+
+    expect(res.errors).toBeFalsy();
+    assertData(res.data as TData);
+  };
+
+  it('should allow createFreeformPost for incomplete profile', async () => {
     await setupWritableSource('s-freeform');
 
-    const res = await client.mutate(
-      `
+    await expectSuccessfulPostCreation<{
+      createFreeformPost: { id: string };
+    }>({
+      mutation: `
         mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
           createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
             id
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-freeform',
-          title: 'Test title',
-          content: 'Test content',
-        },
+      variables: {
+        sourceId: 's-freeform',
+        title: 'Test title',
+        content: 'Test content',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createFreeformPost.id).toBeTruthy();
+      assertData: (data) => expect(data.createFreeformPost.id).toBeTruthy(),
+    });
   });
 
   it('should allow submitExternalLink for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-profile',
-      handle: 's-profile',
-      name: 'Squad Profile',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-profile',
-      userId: '1',
-      referralToken: 'profile-rt',
-      role: SourceMemberRoles.Member,
-    });
+    await setupWritableSource('s-profile');
 
-    const res = await client.mutate(
-      `
+    await expectSuccessfulPostCreation<{
+      submitExternalLink: { _: boolean };
+    }>({
+      mutation: `
         mutation SubmitExternalLink($sourceId: ID!, $url: String!) {
           submitExternalLink(sourceId: $sourceId, url: $url) {
             _
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-profile',
-          url: 'https://daily.dev',
-        },
+      variables: {
+        sourceId: 's-profile',
+        url: 'https://daily.dev',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.submitExternalLink).toEqual({ _: true });
+      assertData: (data) =>
+        expect(data.submitExternalLink).toEqual({ _: true }),
+    });
   });
 
   it('should allow sharePost for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-share',
-      handle: 's-share',
-      name: 'Squad Share',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-share',
-      userId: '1',
-      referralToken: 'profile-share',
-      role: SourceMemberRoles.Member,
-    });
+    await setupWritableSource('s-share');
 
-    const res = await client.mutate(
-      `
+    await expectSuccessfulPostCreation<{
+      sharePost: { id: string };
+    }>({
+      mutation: `
         mutation SharePost($sourceId: ID!, $id: ID!) {
           sharePost(sourceId: $sourceId, id: $id) {
             id
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-share',
-          id: 'p1',
-        },
+      variables: {
+        sourceId: 's-share',
+        id: 'p1',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.sharePost.id).toBeTruthy();
+      assertData: (data) => expect(data.sharePost.id).toBeTruthy(),
+    });
   });
 
   it('should allow createPollPost for incomplete profile', async () => {
-    loggedUser = '1';
     await setupWritableSource('s-poll');
 
-    const res = await client.mutate(
-      `
+    await expectSuccessfulPostCreation<{
+      createPollPost: { id: string };
+    }>({
+      mutation: `
         mutation CreatePollPost(
           $sourceId: ID!
           $title: String!
@@ -4150,24 +4135,19 @@ describe('post creation', () => {
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-poll',
-          title: 'Poll title',
-          options: [
-            { text: 'Option 1', order: 0 },
-            { text: 'Option 2', order: 1 },
-          ],
-        },
+      variables: {
+        sourceId: 's-poll',
+        title: 'Poll title',
+        options: [
+          { text: 'Option 1', order: 0 },
+          { text: 'Option 2', order: 1 },
+        ],
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createPollPost.id).toBeTruthy();
+      assertData: (data) => expect(data.createPollPost.id).toBeTruthy(),
+    });
   });
 
   it('should allow createPostInMultipleSources for incomplete profile', async () => {
-    loggedUser = '1';
     await con.getRepository(SourceMember).save({
       userId: '1',
       sourceId: 'squad',
@@ -4175,8 +4155,10 @@ describe('post creation', () => {
       referralToken: 'rt-multi',
     });
 
-    const res = await client.mutate(
-      `
+    await expectSuccessfulPostCreation<{
+      createPostInMultipleSources: Array<{ id: string }>;
+    }>({
+      mutation: `
         mutation CreatePostInMultipleSources(
           $sourceIds: [ID!]!
           $title: String
@@ -4191,18 +4173,16 @@ describe('post creation', () => {
           }
         }
       `,
-      {
-        variables: {
-          sourceIds: ['squad'],
-          title: 'Multi source title',
-          content: 'Multi source content',
-        },
+      variables: {
+        sourceIds: ['squad'],
+        title: 'Multi source title',
+        content: 'Multi source content',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createPostInMultipleSources).toHaveLength(1);
-    expect(res.data.createPostInMultipleSources[0].id).toBeTruthy();
+      assertData: (data) => {
+        expect(data.createPostInMultipleSources).toHaveLength(1);
+        expect(data.createPostInMultipleSources[0].id).toBeTruthy();
+      },
+    });
   });
 });
 
