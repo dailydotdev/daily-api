@@ -110,6 +110,9 @@ export default async function app(
   app.register(helmet);
 
   const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+  const betterAuthTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
+    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
+    : [];
 
   app.register(cors, {
     origin: async (origin?: string) => {
@@ -120,6 +123,10 @@ export default async function app(
       const originString = origin as string;
 
       if (remoteConfig.vars.origins?.includes(originString)) {
+        return true;
+      }
+
+      if (betterAuthTrustedOrigins.includes(originString)) {
         return true;
       }
 

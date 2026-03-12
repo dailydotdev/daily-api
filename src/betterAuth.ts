@@ -1,13 +1,152 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { emailOTP } from 'better-auth/plugins/email-otp';
-import { createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
+import { z } from 'zod';
 import { AppDataSource } from './data-source';
 import { logger } from './logger';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
+import { handleRegex } from './common/object';
+import { validateAndTransformHandle } from './common/handles';
+import { singleRedisClient } from './redis';
+import { User } from './entity/user/User';
+import { fetchOptions } from './http';
+import { retryFetch } from './integrations/retry';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
+const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+const kratosOrigin = process.env.KRATOS_ORIGIN;
+const userExperienceLevels = [
+  'LESS_THAN_1_YEAR',
+  'MORE_THAN_1_YEAR',
+  'MORE_THAN_2_YEARS',
+  'MORE_THAN_4_YEARS',
+  'MORE_THAN_6_YEARS',
+  'MORE_THAN_10_YEARS',
+  'NOT_ENGINEER',
+] as const;
+const userExperienceLevelSchema = z.enum(userExperienceLevels);
+const signUpEmailPath = '/sign-up/email';
+const signInEmailPath = '/sign-in/email';
+
+type BetterAuthHookContext = {
+  path?: string;
+  body?: Record<string, unknown>;
+};
+
+type KratosVerifyResult = { valid: true; userId: string } | { valid: false };
+
+const throwBadRequest = (message: string): never => {
+  throw APIError.from('BAD_REQUEST', {
+    code: 'BAD_REQUEST',
+    message,
+  });
+};
+
+const hasCredentialAccount = async (
+  pool: Pool,
+  userId: string,
+): Promise<boolean> => {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
+    [userId],
+  );
+
+  return rows.length > 0;
+};
+
+const insertCredentialAccount = async (
+  pool: Pool,
+  userId: string,
+  hashedPassword: string,
+): Promise<void> => {
+  const now = new Date().toISOString();
+  const accountId = `${userId}-credential`;
+
+  await pool.query(
+    `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
+     VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
+    [accountId, userId, userId, now, hashedPassword],
+  );
+};
+
+const verifyKratosCredentials = async (
+  email: string,
+  password: string,
+): Promise<KratosVerifyResult> => {
+  if (!kratosOrigin) {
+    return { valid: false };
+  }
+
+  try {
+    const flowRes = await retryFetch(
+      `${kratosOrigin}/self-service/login/api`,
+      fetchOptions,
+    );
+    const flow = await flowRes.json();
+    const flowId = flow.id;
+
+    const submitRes = await retryFetch(
+      `${kratosOrigin}/self-service/login?flow=${flowId}`,
+      {
+        ...fetchOptions,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'password',
+          identifier: email,
+          password,
+        }),
+      },
+    );
+    const result = await submitRes.json();
+    const traits = result?.session?.identity?.traits;
+
+    if (traits?.userId) {
+      return {
+        valid: true,
+        userId: traits.userId,
+      };
+    }
+
+    return { valid: false };
+  } catch {
+    return { valid: false };
+  }
+};
+
+const migrateKratosUserToBetterAuth = async ({
+  pool,
+  userId,
+  password,
+}: {
+  pool: Pool;
+  userId: string;
+  password: string;
+}): Promise<boolean> => {
+  try {
+    if (await hasCredentialAccount(pool, userId)) {
+      return true;
+    }
+
+    const hashedPassword = await argon2.hash(password, {
+      type: argon2.argon2id,
+    });
+
+    await insertCredentialAccount(pool, userId, hashedPassword);
+    return true;
+  } catch (err) {
+    logger.error(
+      {
+        err: err instanceof Error ? err.message : String(err),
+        userId,
+      },
+      'Failed to migrate Kratos user to BetterAuth',
+    );
+    return false;
+  }
+};
 
 export type BetterAuthHandler = {
   handler: (request: Request) => Promise<Response>;
@@ -35,42 +174,215 @@ let authInstance: BetterAuthHandler | null = null;
 const getPool = (): Pool =>
   (AppDataSource.driver as unknown as { master: Pool }).master;
 
+const getSocialRedirectUri = (provider: string): string | undefined => {
+  const redirectBaseUrl = process.env.BETTER_AUTH_REDIRECT_URL;
+
+  if (!redirectBaseUrl) {
+    return undefined;
+  }
+
+  return `${redirectBaseUrl.replace(/\/$/, '')}/callback/${provider}`;
+};
+
+const normalizeSignUpUsername = async (
+  body?: Record<string, unknown>,
+): Promise<string> => {
+  const username = body?.username;
+
+  if (typeof username !== 'string' || username.trim().length === 0) {
+    throwBadRequest('username is required');
+  }
+
+  const validUsername = username as string;
+
+  if (!handleRegex.test(validUsername)) {
+    throwBadRequest('username is invalid');
+  }
+
+  try {
+    const normalizedUsername = await validateAndTransformHandle(
+      validUsername,
+      'username',
+      AppDataSource,
+    );
+    const usernameExists = await AppDataSource.getRepository(User).exist({
+      where: { username: normalizedUsername },
+    });
+
+    if (usernameExists) {
+      throwBadRequest('username is already taken');
+    }
+
+    return normalizedUsername;
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+
+    return throwBadRequest('username is invalid');
+  }
+};
+
+const validateExperienceLevel = (body?: Record<string, unknown>): void => {
+  const experienceLevel = body?.experienceLevel;
+
+  if (
+    typeof experienceLevel !== 'string' ||
+    !userExperienceLevelSchema.safeParse(experienceLevel).success
+  ) {
+    throwBadRequest('experienceLevel is invalid');
+  }
+};
+
+const prepareSignUpContext = async ({
+  body,
+}: {
+  body?: Record<string, unknown>;
+}): Promise<Record<string, unknown>> => {
+  const normalizedUsername = await normalizeSignUpUsername(body);
+  validateExperienceLevel(body);
+
+  return {
+    ...body,
+    username: normalizedUsername,
+  };
+};
+
+const migrateLegacyCredentialIfNeeded = async ({
+  pool,
+  body,
+}: {
+  pool: Pool;
+  body?: Record<string, unknown>;
+}): Promise<void> => {
+  const email = body?.email;
+  const password = body?.password;
+
+  if (
+    typeof email !== 'string' ||
+    typeof password !== 'string' ||
+    !z.email().safeParse(email).success
+  ) {
+    return;
+  }
+
+  const user = await AppDataSource.getRepository(User)
+    .createQueryBuilder('user')
+    .select(['user.id'])
+    .where('lower(user.email) = lower(:email)', { email })
+    .getOne();
+
+  if (!user || (await hasCredentialAccount(pool, user.id))) {
+    return;
+  }
+
+  const kratosResult = await verifyKratosCredentials(email, password);
+
+  if (kratosResult.valid && kratosResult.userId === user.id) {
+    await migrateKratosUserToBetterAuth({
+      pool,
+      userId: user.id,
+      password,
+    });
+  }
+};
+
 const createAuth = (): BetterAuthHandler => {
   const pool = getPool();
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
     : [];
-  const redirectURL = process.env.BETTER_AUTH_REDIRECT_URL;
-  const oauthPaths = ['/sign-in/social', '/callback/', '/link-social'];
   const options: BetterAuthOptions = {
     database: pool,
     baseURL: process.env.BETTER_AUTH_BASE_URL || 'http://localhost:3000',
     basePath: '/a/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
-    ...(redirectURL && {
-      hooks: {
-        before: createAuthMiddleware(async (ctx) => {
-          if (oauthPaths.some((p) => ctx.path?.startsWith(p))) {
-            return { context: { context: { baseURL: redirectURL } } };
-          }
-        }),
+    secondaryStorage: {
+      get: (key) => singleRedisClient.get(`ba:${key}`),
+      set: (key, value, ttl) =>
+        ttl
+          ? singleRedisClient.set(`ba:${key}`, value, 'EX', ttl)
+          : singleRedisClient.set(`ba:${key}`, value),
+      delete: async (key) => {
+        await singleRedisClient.del(`ba:${key}`);
       },
-    }),
+    },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        const hookContext = ctx as BetterAuthHookContext;
+
+        if (hookContext.path === signUpEmailPath) {
+          const body = await prepareSignUpContext({
+            body: hookContext.body,
+          });
+
+          return {
+            context: {
+              body,
+            },
+          };
+        }
+        if (hookContext.path === signInEmailPath) {
+          await migrateLegacyCredentialIfNeeded({
+            pool,
+            body: hookContext.body,
+          });
+        }
+      }),
+    },
     advanced: {
       useSecureCookies: process.env.NODE_ENV === 'production',
     },
+    rateLimit: {
+      storage: 'secondary-storage',
+    },
     emailVerification: {
       autoSignInAfterVerification: true,
+      afterEmailVerification: async (user) => {
+        try {
+          await pool.query(
+            `UPDATE public."user" SET "infoConfirmed" = true WHERE id = $1 AND "infoConfirmed" = false`,
+            [user.id],
+          );
+        } catch (err) {
+          logger.error(
+            {
+              err: err instanceof Error ? err.message : String(err),
+              userId: user.id,
+            },
+            'Failed to set infoConfirmed after email verification',
+          );
+        }
+      },
     },
     user: {
       modelName: 'user',
       fields: {
         emailVerified: 'emailConfirmed',
       },
+      additionalFields: {
+        username: {
+          type: 'string',
+          required: false,
+          fieldName: 'username',
+          validator: {
+            input: z.string().regex(handleRegex),
+          },
+        },
+        experienceLevel: {
+          type: 'string',
+          required: false,
+          fieldName: 'experienceLevel',
+          validator: {
+            input: userExperienceLevelSchema,
+          },
+        },
+      },
     },
     session: {
       modelName: 'ba_session',
+      storeSessionInDatabase: true,
     },
     account: {
       modelName: 'ba_account',
@@ -81,6 +393,7 @@ const createAuth = (): BetterAuthHandler => {
     },
     verification: {
       modelName: 'ba_verification',
+      storeInDatabase: true,
     },
     databaseHooks: {
       user: {
@@ -107,40 +420,6 @@ const createAuth = (): BetterAuthHandler => {
           },
         },
       },
-      account: {
-        create: {
-          before: async (account) => {
-            if (!account.providerId || !account.accountId) {
-              return;
-            }
-            try {
-              const { rows } = await pool.query(
-                `SELECT "userId" FROM ba_account
-                 WHERE "providerId" = $1 AND "accountId" = $2 AND "userId" != $3
-                 LIMIT 1`,
-                [account.providerId, account.accountId, account.userId],
-              );
-              if (rows.length > 0) {
-                logger.warn(
-                  {
-                    providerId: account.providerId,
-                    accountId: account.accountId,
-                    existingUserId: rows[0].userId,
-                    requestingUserId: account.userId,
-                  },
-                  'Blocked linking: social account already belongs to another user',
-                );
-                return false;
-              }
-            } catch (err) {
-              logger.error(
-                { err: err instanceof Error ? err.message : String(err) },
-                'Failed to check existing account during link',
-              );
-            }
-          },
-        },
-      },
     },
     emailAndPassword: {
       enabled: true,
@@ -162,10 +441,22 @@ const createAuth = (): BetterAuthHandler => {
       },
     },
     plugins: [
+      ...(turnstileSecretKey
+        ? [
+            captcha({
+              provider: 'cloudflare-turnstile',
+              secretKey: turnstileSecretKey,
+              endpoints: ['/sign-up/email'],
+            }),
+          ]
+        : []),
       emailOTP({
         sendVerificationOnSignUp: true,
         otpLength: 6,
         expiresIn: 600,
+        changeEmail: {
+          enabled: true,
+        },
         sendVerificationOTP: async ({ email, otp, type }) => {
           await sendEmail({
             transactional_message_id:
@@ -182,12 +473,14 @@ const createAuth = (): BetterAuthHandler => {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+          redirectURI: getSocialRedirectUri('google'),
         },
       }),
       ...(process.env.GITHUB_CLIENT_ID && {
         github: {
           clientId: process.env.GITHUB_CLIENT_ID,
           clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+          redirectURI: getSocialRedirectUri('github'),
         },
       }),
       ...(process.env.APPLE_CLIENT_ID && {
@@ -196,12 +489,14 @@ const createAuth = (): BetterAuthHandler => {
           clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
           appBundleIdentifier:
             process.env.APPLE_APP_BUNDLE_IDENTIFIER || undefined,
+          redirectURI: getSocialRedirectUri('apple'),
         },
       }),
       ...(process.env.FACEBOOK_CLIENT_ID && {
         facebook: {
           clientId: process.env.FACEBOOK_CLIENT_ID,
           clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? '',
+          redirectURI: getSocialRedirectUri('facebook'),
         },
       }),
     },

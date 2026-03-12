@@ -39,55 +39,11 @@ beforeEach(async () => {
 });
 
 describe('betterAuth routes', () => {
-  describe('unauthenticated access', () => {
-    it('should return 401 for change-email without session', async () => {
-      const res = await request(app.server)
-        .post('/a/auth/change-email')
-        .send({ newEmail: 'new@example.com' });
+  describe('native Better Auth routes', () => {
+    it('should return 200 for the health endpoint', async () => {
+      const res = await request(app.server).get('/a/auth/ok');
 
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Not authenticated');
-    });
-
-    it('should return 401 for verify-change-email without session', async () => {
-      const res = await request(app.server)
-        .post('/a/auth/verify-change-email')
-        .send({ code: '123456' });
-
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Not authenticated');
-    });
-
-    it('should return 401 for set-password without session', async () => {
-      const res = await request(app.server)
-        .post('/a/auth/set-password')
-        .send({ newPassword: 'newSecurePass123' });
-
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('error', 'Not authenticated');
-    });
-  });
-
-  describe('input validation', () => {
-    it('should return 400 for check-email without email param', async () => {
-      const res = await request(app.server).get('/a/auth/check-email');
-
-      expect(res.status).toBe(400);
-      expect(res.body).toHaveProperty('error', 'email is required');
-    });
-
-    it('should return 400 for social sign-in without provider', async () => {
-      const res = await request(app.server).get('/a/auth/sign-in/social');
-
-      expect(res.status).toBe(400);
-      expect(res.body).toHaveProperty('error', 'provider is required');
-    });
-
-    it('should return 400 for social link without provider', async () => {
-      const res = await request(app.server).get('/a/auth/link-social');
-
-      expect(res.status).toBe(400);
-      expect(res.body).toHaveProperty('error', 'provider is required');
+      expect(res.status).toBe(200);
     });
   });
 });

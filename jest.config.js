@@ -44,6 +44,7 @@ module.exports = {
     '^better-auth$': '<rootDir>/__mocks__/better-auth.ts',
     '^better-auth/api$': '<rootDir>/__mocks__/better-auth-api.ts',
     '^better-auth/node$': '<rootDir>/__mocks__/better-auth-node.ts',
+    '^better-auth/plugins$': '<rootDir>/__mocks__/better-auth-plugins.ts',
     '^better-auth/plugins/email-otp$':
       '<rootDir>/__mocks__/better-auth-plugins-email-otp.ts',
   },
