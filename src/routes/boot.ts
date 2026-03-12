@@ -4,9 +4,11 @@ import {
   FastifyRequest,
   RouteHandler,
 } from 'fastify';
+import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
+import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser, getMarketingCta } from '../schema/users';
@@ -59,9 +61,8 @@ import {
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import {
-  validateBetterAuthSession,
-  createBetterAuthSession,
-} from '../betterAuthBridge';
+  createBetterAuthSessionFromKratos,
+} from '../betterAuthSession';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
@@ -74,7 +75,7 @@ import {
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
-import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
+import { addDays, differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
   runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
@@ -114,6 +115,22 @@ export type Experimentation = {
 export type Geo = {
   region?: string;
   continent?: Continent;
+};
+
+type BetterAuthSession = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    image?: string | null;
+  };
+  session: {
+    id: string;
+    userId: string;
+    expiresAt: Date;
+    token: string;
+  };
 };
 
 interface ComputedAlerts {
@@ -919,22 +936,36 @@ export const getBootData = async (
   const baSessionCookie = req.cookies[cookies.betterAuthSession.key];
   if (baSessionCookie) {
     if (authStrategy === 'betterauth') {
-      const baWhoami = await validateBetterAuthSession(req);
-      if (baWhoami.valid) {
-        req.userId = baWhoami.userId;
-        req.trackingId = req.userId;
-        setTrackingId(req, res, req.trackingId);
-        const jwtValid =
-          req.accessToken?.expiresIn &&
-          differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
-        return loggedInBoot({
-          con,
-          req,
-          res,
-          refreshToken: !jwtValid,
-          middleware,
-          userId: req.userId,
-        });
+      try {
+        const session = (await getBetterAuth().api.getSession({
+          headers: fromNodeHeaders(
+            req.headers as Record<string, string | string[] | undefined>,
+          ),
+        })) as BetterAuthSession | null;
+
+        if (session) {
+          req.userId = session.user.id;
+          req.trackingId = req.userId;
+          setTrackingId(req, res, req.trackingId);
+          const jwtValid =
+            req.accessToken?.expiresIn &&
+            differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
+          return loggedInBoot({
+            con,
+            req,
+            res,
+            refreshToken: !jwtValid,
+            middleware,
+            userId: req.userId,
+          });
+        }
+
+        req.log.warn('BetterAuth getSession returned null');
+      } catch (error) {
+        req.log.error(
+          { err: error instanceof Error ? error.message : String(error) },
+          'BetterAuth session validation failed',
+        );
       }
       req.log.warn(
         { authStrategy },
@@ -995,7 +1026,7 @@ export const getBootData = async (
       setTrackingId(req, res, req.trackingId);
     }
     if (authStrategy === 'betterauth') {
-      await createBetterAuthSession({
+      await createBetterAuthSessionFromKratos({
         req,
         res,
         userId: whoami.userId,

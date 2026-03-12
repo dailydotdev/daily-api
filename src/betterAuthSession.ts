@@ -1,62 +1,11 @@
 import { createHmac } from 'crypto';
-import { fromNodeHeaders } from 'better-auth/node';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { getBetterAuth } from './betterAuth';
-import createOrGetConnection from './db';
-import type { WhoamiResponse } from './kratos';
 import { addDays } from 'date-fns';
+import createOrGetConnection from './db';
 import { generateLongId, generateUUID } from './ids';
 import { setCookie } from './cookies';
 
-type BetterAuthSession = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null;
-  };
-  session: {
-    id: string;
-    userId: string;
-    expiresAt: Date;
-    token: string;
-  };
-};
-
-export const validateBetterAuthSession = async (
-  req: FastifyRequest,
-): Promise<WhoamiResponse> => {
-  try {
-    const auth = getBetterAuth();
-    const session = (await auth.api.getSession({
-      headers: fromNodeHeaders(
-        req.headers as Record<string, string | string[] | undefined>,
-      ),
-    })) as BetterAuthSession | null;
-
-    if (!session) {
-      req.log.warn('BetterAuth getSession returned null');
-      return { valid: false };
-    }
-
-    return {
-      valid: true,
-      userId: session.user.id,
-      expires: addDays(new Date(), 30),
-      verified: session.user.emailVerified,
-      email: session.user.email,
-    };
-  } catch (error) {
-    req.log.error(
-      { err: error instanceof Error ? error.message : String(error) },
-      'BetterAuth session validation failed',
-    );
-    return { valid: false };
-  }
-};
-
-export const createBetterAuthSession = async ({
+export const createBetterAuthSessionFromKratos = async ({
   req,
   res,
   userId,
@@ -99,6 +48,7 @@ export const createBetterAuthSession = async ({
       req.log.error('BETTER_AUTH_SECRET is not set, cannot sign session token');
       return false;
     }
+
     const signature = createHmac('sha256', secret)
       .update(token)
       .digest('base64');
