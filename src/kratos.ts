@@ -84,7 +84,7 @@ export const clearAuthentication = async (
   setCookie(req, res, 'auth', undefined);
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
-  setCookie(req, res, 'betterAuthSession', undefined);
+  setCookie(req, res, 'authSession', undefined);
 
   counters?.api?.clearAuthentication?.add(1, { reason });
 };
@@ -164,7 +164,7 @@ const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
       req.headers as Record<string, string | string[] | undefined>,
     );
     const baseUrl = toRequestUrl(req);
-    const signOutReq = new Request(`${baseUrl.origin}/a/auth/sign-out`, {
+    const signOutReq = new Request(`${baseUrl.origin}/auth/sign-out`, {
       method: 'POST',
       headers,
     });

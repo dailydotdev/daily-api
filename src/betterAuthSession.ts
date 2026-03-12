@@ -53,7 +53,7 @@ export const createBetterAuthSessionFromKratos = async ({
       .update(token)
       .digest('base64');
     const signedToken = `${token}.${signature}`;
-    setCookie(req, res, 'betterAuthSession', signedToken);
+    setCookie(req, res, 'authSession', signedToken);
 
     return true;
   } catch (error) {

@@ -69,8 +69,8 @@ export const cookies: {
     key: 'ory_kratos_continuity',
     opts: {},
   },
-  betterAuthSession: {
-    key: 'better-auth.session_token',
+  authSession: {
+    key: 'daily.session_token',
     opts: {
       maxAge: 1000 * 60 * 60 * 24 * 7,
       signed: false,

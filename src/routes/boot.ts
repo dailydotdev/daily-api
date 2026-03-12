@@ -931,7 +931,7 @@ export const getBootData = async (
     gbFeatures.authStrategy.defaultValue,
   );
 
-  const baSessionCookie = req.cookies[cookies.betterAuthSession.key];
+  const baSessionCookie = req.cookies[cookies.authSession.key];
   if (baSessionCookie) {
     if (authStrategy === 'betterauth') {
       try {
@@ -969,13 +969,13 @@ export const getBootData = async (
         { authStrategy },
         'BetterAuth session cookie present but validation failed',
       );
-      setCookie(req, res, 'betterAuthSession', undefined);
+      setCookie(req, res, 'authSession', undefined);
     } else {
       req.log.warn(
         { authStrategy },
         'BetterAuth session cookie present but auth_strategy is not betterauth',
       );
-      setCookie(req, res, 'betterAuthSession', undefined);
+      setCookie(req, res, 'authSession', undefined);
     }
   }
 

@@ -33,15 +33,11 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     onRequest: async (request, reply) => {
       try {
         reply.hijack();
-        const socket = request.raw.socket as typeof request.raw.socket & {
-          encrypted?: boolean;
-        };
-        const protocol =
-          request.raw.headers['x-forwarded-proto'] ||
-          (socket.encrypted ? 'https' : 'http');
-        const host = request.raw.headers.host ?? 'localhost';
         const url = stripBetterAuthStateMarker(
-          new URL(request.raw.url ?? '/', `${protocol}://${host}`),
+          new URL(
+            request.raw.url ?? '/',
+            `${request.protocol}://${request.host}`,
+          ),
         );
         const body =
           request.raw.method === 'GET' || request.raw.method === 'HEAD'

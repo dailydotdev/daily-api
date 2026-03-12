@@ -295,7 +295,7 @@ const createAuth = (): BetterAuthHandler => {
   const options: BetterAuthOptions = {
     database: pool,
     baseURL: process.env.BETTER_AUTH_BASE_URL || 'http://localhost:3000',
-    basePath: '/a/auth',
+    basePath: '/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
     secondaryStorage: {
@@ -332,6 +332,7 @@ const createAuth = (): BetterAuthHandler => {
       }),
     },
     advanced: {
+      cookiePrefix: 'daily',
       useSecureCookies: process.env.NODE_ENV === 'production',
     },
     rateLimit: {

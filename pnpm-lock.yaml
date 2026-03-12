@@ -422,6 +422,9 @@ importers:
       '@types/node-fetch':
         specifier: ^2.6.13
         version: 2.6.13
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.15.6
       '@types/retry':
         specifier: ^0.12.5
         version: 0.12.5

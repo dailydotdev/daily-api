@@ -168,6 +168,7 @@
     "@types/markdown-it": "14.1.2",
     "@types/node": "22.15.x",
     "@types/node-fetch": "^2.6.13",
+    "@types/pg": "^8.15.6",
     "@types/retry": "^0.12.5",
     "@types/rss": "0.0.32",
     "@types/supertest": "^6.0.3",

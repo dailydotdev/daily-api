@@ -66,7 +66,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
   fastify.register(outbound, { prefix: '/outbound' });
-  fastify.register(betterAuth, { prefix: '/a' });
+  fastify.register(betterAuth);
 
   // Public API v1
   fastify.register(
