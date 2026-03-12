@@ -43,12 +43,7 @@ export const resolveCommonDeps = async ({
   keywords: string[] | undefined;
 }) => {
   const creatorTwitter = resolveCreatorTwitter({ data });
-  const skipAuthorMatch = isAuthorMatchDomainIgnored({
-    urls: [data?.url, data?.extra?.canonical_url],
-    ignoredDomains: remoteConfig.vars.ignoredAuthorMatchDomains,
-  });
-
-  const authorId = skipAuthorMatch
+  const authorId = shouldSkipAuthorMatch({ data })
     ? null
     : await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
@@ -83,6 +78,12 @@ export const resolveCommonDeps = async ({
     mergedKeywords,
   };
 };
+
+export const shouldSkipAuthorMatch = ({ data }: { data: Data }): boolean =>
+  isAuthorMatchDomainIgnored({
+    urls: [data?.url, data?.extra?.canonical_url],
+    ignoredDomains: remoteConfig.vars.ignoredAuthorMatchDomains,
+  });
 
 export const buildCommonPostFields = ({
   data,

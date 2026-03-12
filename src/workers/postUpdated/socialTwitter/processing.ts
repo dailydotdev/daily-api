@@ -16,15 +16,13 @@ import {
   upsertTwitterReferencedPost,
 } from '../../../common/twitterSocial';
 import type { TwitterReferencePost } from '../../../common/twitterSocial';
-import { remoteConfig } from '../../../remoteConfig';
-import { isAuthorMatchDomainIgnored } from '../../../common/authorMatch';
 import type {
   FixedData,
   OnUpdateArgs,
   ProcessPostProps,
   ProcessedPost,
 } from '../types';
-import { buildCommonPostFields } from '../common';
+import { buildCommonPostFields, shouldSkipAuthorMatch } from '../common';
 import { getSourcePrivacy } from '../shared';
 
 export const twitterAllowedFields = [
@@ -172,11 +170,7 @@ export const processSocialTwitter = async ({
     origin: data?.origin,
   });
 
-  const skipAuthorMatch = isAuthorMatchDomainIgnored({
-    urls: [data?.url, data?.extra?.canonical_url],
-    ignoredDomains: remoteConfig.vars.ignoredAuthorMatchDomains,
-  });
-  const authorId = skipAuthorMatch
+  const authorId = shouldSkipAuthorMatch({ data })
     ? null
     : await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({

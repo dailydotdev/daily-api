@@ -1,26 +1,3 @@
-const normalizeHostname = (value: string): string =>
-  value.trim().toLowerCase().replace(/\.+$/, '');
-
-const isDomainMatch = ({
-  hostname,
-  domain,
-}: {
-  hostname: string;
-  domain: string;
-}): boolean => {
-  const normalizedHostname = normalizeHostname(hostname);
-  const normalizedDomain = normalizeHostname(domain);
-
-  if (!normalizedHostname || !normalizedDomain) {
-    return false;
-  }
-
-  return (
-    normalizedHostname === normalizedDomain ||
-    normalizedHostname.endsWith(`.${normalizedDomain}`)
-  );
-};
-
 export const isAuthorMatchDomainIgnored = ({
   urls,
   ignoredDomains,
@@ -32,16 +9,20 @@ export const isAuthorMatchDomainIgnored = ({
     return false;
   }
 
+  const normalizedDomains = ignoredDomains
+    .map((domain) => domain.trim().toLowerCase().replace(/\.+$/, ''))
+    .filter(Boolean);
+
   return urls.some((url) => {
     if (!url) {
       return false;
     }
 
     try {
-      const { hostname } = new URL(url);
+      const hostname = new URL(url).hostname.toLowerCase();
 
-      return ignoredDomains.some((domain) =>
-        isDomainMatch({ hostname, domain }),
+      return normalizedDomains.some(
+        (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
       );
     } catch {
       return false;
