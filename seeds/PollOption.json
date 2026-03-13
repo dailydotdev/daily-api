@@ -1,0 +1,44 @@
+[
+  {
+    "id": "f3e8a4fe-58d2-4f36-a10b-0f0e746d1001",
+    "text": "Open traces first",
+    "order": 0,
+    "postId": "seedpoll01",
+    "numVotes": 8
+  },
+  {
+    "id": "f3e8a4fe-58d2-4f36-a10b-0f0e746d1002",
+    "text": "Check recent deploys",
+    "order": 1,
+    "postId": "seedpoll01",
+    "numVotes": 5
+  },
+  {
+    "id": "f3e8a4fe-58d2-4f36-a10b-0f0e746d1003",
+    "text": "Compare primary and replica health",
+    "order": 2,
+    "postId": "seedpoll01",
+    "numVotes": 4
+  },
+  {
+    "id": "6cb6caeb-d3ea-4d7a-9739-f012d3392001",
+    "text": "Shorter timelines with exact timestamps",
+    "order": 0,
+    "postId": "seedpoll02",
+    "numVotes": 4
+  },
+  {
+    "id": "6cb6caeb-d3ea-4d7a-9739-f012d3392002",
+    "text": "Clearer action items and owners",
+    "order": 1,
+    "postId": "seedpoll02",
+    "numVotes": 6
+  },
+  {
+    "id": "6cb6caeb-d3ea-4d7a-9739-f012d3392003",
+    "text": "Better dashboards for responders",
+    "order": 2,
+    "postId": "seedpoll02",
+    "numVotes": 2
+  }
+]

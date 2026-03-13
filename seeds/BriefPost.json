@@ -1,0 +1,62 @@
+[
+  {
+    "id": "seedbrief1",
+    "shortId": "sdbrief1aa",
+    "type": "brief",
+    "title": "What our local team is reading this week",
+    "createdAt": "2026-03-05T07:30:00.000Z",
+    "metadataChangedAt": "2026-03-05T07:30:00.000Z",
+    "visibleAt": "2026-03-05T07:30:00.000Z",
+    "sourceId": "publicsquad",
+    "authorId": "testuser",
+    "views": 640,
+    "score": 28500250,
+    "upvotes": 33,
+    "comments": 5,
+    "tagsStr": "brief,weekly-roundup,community",
+    "content": "A short roundup of what kept coming up in our threads this week: rollout safety, trace-based debugging, and UI systems that are easy to reason about under pressure.",
+    "contentHtml": "<p>A short roundup of what kept coming up in our threads this week:</p><ul><li>rollout safety</li><li>trace-based debugging</li><li>UI systems that are easy to reason about under pressure</li></ul>",
+    "collectionSources": [
+      "increment",
+      "ts",
+      "react"
+    ],
+    "contentJSON": null,
+    "summary": "A brief-style post that reads like a realistic local roundup instead of imported publisher content.",
+    "readTime": 2,
+    "origin": "squads",
+    "contentCuration": [
+      "brief"
+    ]
+  },
+  {
+    "id": "seedbrief2",
+    "shortId": "sdbrief2bb",
+    "type": "brief",
+    "title": "Incident review themes we keep seeing",
+    "createdAt": "2026-03-10T06:40:00.000Z",
+    "metadataChangedAt": "2026-03-10T06:40:00.000Z",
+    "visibleAt": "2026-03-10T06:40:00.000Z",
+    "sourceId": "backendbites",
+    "authorId": "testuser11",
+    "views": 610,
+    "score": 28500350,
+    "upvotes": 37,
+    "comments": 7,
+    "tagsStr": "incident-review,backend,brief",
+    "content": "The same patterns showed up again in our last few reviews: hidden async work, stale reads after writes, and dashboards that were technically correct but slow to answer the first question responders asked.",
+    "contentHtml": "<p>The same patterns showed up again in our last few reviews:</p><ul><li>hidden async work</li><li>stale reads after writes</li><li>dashboards that were too slow to answer the first question responders asked</li></ul>",
+    "collectionSources": [
+      "cloudflare",
+      "nodejs",
+      "increment"
+    ],
+    "contentJSON": null,
+    "summary": "A backend-focused brief that gives local environments a more current team-summary post shape.",
+    "readTime": 2,
+    "origin": "squads",
+    "contentCuration": [
+      "brief"
+    ]
+  }
+]

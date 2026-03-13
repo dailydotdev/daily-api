@@ -1,0 +1,48 @@
+[
+  {
+    "id": "seedpoll01",
+    "shortId": "sdpoll01aa",
+    "type": "poll",
+    "title": "What do you reach for first when prod latency jumps?",
+    "createdAt": "2026-03-07T09:20:00.000Z",
+    "metadataChangedAt": "2026-03-07T09:20:00.000Z",
+    "visibleAt": "2026-03-07T09:20:00.000Z",
+    "sourceId": "backendbites",
+    "authorId": "testuser9",
+    "views": 690,
+    "score": 28500300,
+    "upvotes": 34,
+    "comments": 13,
+    "tagsStr": "poll,backend,incident-response",
+    "endsAt": "2026-03-20T09:20:00.000Z",
+    "numPollVotes": 17,
+    "summary": "A live-feeling engineering poll for backend troubleshooting habits.",
+    "origin": "squads",
+    "contentCuration": [
+      "poll"
+    ]
+  },
+  {
+    "id": "seedpoll02",
+    "shortId": "sdpoll02bb",
+    "type": "poll",
+    "title": "Which change most improved your last incident review?",
+    "createdAt": "2026-03-11T07:10:00.000Z",
+    "metadataChangedAt": "2026-03-11T07:10:00.000Z",
+    "visibleAt": "2026-03-11T07:10:00.000Z",
+    "sourceId": "publicsquad",
+    "authorId": "testuser1",
+    "views": 645,
+    "score": 28500385,
+    "upvotes": 32,
+    "comments": 9,
+    "tagsStr": "poll,retrospectives,team-process",
+    "endsAt": "2026-03-25T07:10:00.000Z",
+    "numPollVotes": 12,
+    "summary": "A second poll keeps local seeds from feeling like they only support one active question thread.",
+    "origin": "squads",
+    "contentCuration": [
+      "poll"
+    ]
+  }
+]

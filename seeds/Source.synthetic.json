@@ -1,0 +1,30 @@
+[
+  {
+    "id": "frontendlab",
+    "active": true,
+    "name": "Frontend Lab",
+    "image": "https://media.daily.dev/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj",
+    "private": false,
+    "handle": "frontend-lab",
+    "description": "Design systems, React architecture, and UI performance notes from teams shipping fast.",
+    "type": "squad",
+    "flags": {
+      "publicThreshold": true
+    },
+    "moderationRequired": false
+  },
+  {
+    "id": "backendbites",
+    "active": true,
+    "name": "Backend Bites",
+    "image": "https://media.daily.dev/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj",
+    "private": false,
+    "handle": "backend-bites",
+    "description": "Queries, queues, observability, and API design patterns for busy teams.",
+    "type": "squad",
+    "flags": {
+      "publicThreshold": true
+    },
+    "moderationRequired": false
+  }
+]
