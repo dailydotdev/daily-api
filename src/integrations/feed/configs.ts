@@ -8,6 +8,7 @@ import {
 } from './types';
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
 import { postTypes } from '../../entity';
+import { User } from '../../entity/user/User';
 import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
@@ -213,12 +214,29 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
       const feedId = this.opts.feedId || userId;
-      const filters = await feedToFilters(ctx.con, feedId, userId);
+
+      const [filters, user] = await Promise.all([
+        feedToFilters(ctx.con, feedId, userId),
+        userId
+          ? ctx.con.getRepository(User).findOne({
+              select: ['id', 'experienceLevel', 'flags'],
+              where: { id: userId },
+            })
+          : null,
+      ]);
+
       const config = addFiltersToConfig({
         config: defaultConfig,
         filters,
         opts: this.opts,
       });
+
+      if (user?.experienceLevel) {
+        config.seniority_level = user.experienceLevel;
+      }
+      if (user?.flags?.country) {
+        config.country = user.flags.country;
+      }
 
       return { config };
     });

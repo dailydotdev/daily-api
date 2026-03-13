@@ -69,6 +69,8 @@ export type FeedConfig = {
   cursor?: string;
   post_id?: string;
   allowed_languages?: string[];
+  seniority_level?: string;
+  country?: string;
   config?: {
     [key: string]: unknown;
   };
