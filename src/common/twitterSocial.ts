@@ -4,6 +4,7 @@ import { generateShortId } from '../ids';
 import { Source, SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
+import { generateTitleHtml } from '../entity/posts/utils';
 import { markdown } from './markdown';
 import {
   type TwitterSocialMedia,
@@ -429,6 +430,7 @@ const buildReferencePostFields = async ({
   language?: string | null;
 }) => {
   const title = reference.title || reference.content || undefined;
+  const titleHtml = title ? generateTitleHtml(title, []) : undefined;
   const content = reference.content || undefined;
   const contentHtml =
     reference.contentHtml || (content ? markdown.render(content) : undefined);
@@ -453,6 +455,7 @@ const buildReferencePostFields = async ({
     contentMeta,
     metadataChangedAt: new Date(),
     title,
+    titleHtml,
     content,
     contentHtml,
     image: reference.image ?? undefined,
