@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import createOrGetConnection from '../src/db';
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import z from 'zod';
 import { zodToParseArgs } from './common';
 import { seedEntityNames } from './seedEntities';
@@ -62,7 +62,7 @@ const importEntity = async (
     primaryColumns.length > 0
       ? Array.from(
           new Map(
-            entities.map((entity) => [
+            entities.map((entity): [string, SeedEntity] => [
               primaryColumns
                 .map((column) => String(entity[column] ?? ''))
                 .join('::'),
