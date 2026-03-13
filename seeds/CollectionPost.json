@@ -1,0 +1,62 @@
+[
+  {
+    "id": "seedcol001",
+    "shortId": "sdcol001aa",
+    "type": "collection",
+    "title": "Modern frontend performance starter pack",
+    "createdAt": "2026-03-03T13:10:00.000Z",
+    "metadataChangedAt": "2026-03-03T13:10:00.000Z",
+    "visibleAt": "2026-03-03T13:10:00.000Z",
+    "sourceId": "frontendlab",
+    "authorId": "testuser6",
+    "views": 690,
+    "score": 28500205,
+    "upvotes": 41,
+    "comments": 8,
+    "tagsStr": "performance,frontend,react",
+    "image": "https://picsum.photos/seed/daily-api-collection-1/1200/630",
+    "content": "Three sources we keep coming back to when a UI starts feeling slow: measuring real bottlenecks, keeping bundles understandable, and avoiding layout surprises before they hit production.",
+    "contentHtml": "<p>Three sources we keep coming back to when a UI starts feeling slow:</p><ul><li>measuring real bottlenecks</li><li>keeping bundles understandable</li><li>avoiding layout surprises before they hit production</li></ul>",
+    "collectionSources": [
+      "react",
+      "next",
+      "web"
+    ],
+    "summary": "A curated frontend reading list that feels closer to how teams actually share reference material.",
+    "readTime": 3,
+    "origin": "squads",
+    "contentCuration": [
+      "collection"
+    ]
+  },
+  {
+    "id": "seedcol002",
+    "shortId": "sdcol002bb",
+    "type": "collection",
+    "title": "Backend debugging stack for busy teams",
+    "createdAt": "2026-03-08T15:40:00.000Z",
+    "metadataChangedAt": "2026-03-08T15:40:00.000Z",
+    "visibleAt": "2026-03-08T15:40:00.000Z",
+    "sourceId": "backendbites",
+    "authorId": "testuser9",
+    "views": 720,
+    "score": 28500320,
+    "upvotes": 49,
+    "comments": 9,
+    "tagsStr": "backend,observability,incident-response",
+    "image": "https://picsum.photos/seed/daily-api-collection-2/1200/630",
+    "content": "The links we pass around most during incident reviews usually share the same theme: tighten the feedback loop between metrics, traces, and the code paths people are actually touching.",
+    "contentHtml": "<p>The links we pass around most during incident reviews usually share the same theme:</p><p>tighten the feedback loop between metrics, traces, and the code paths people are actually touching.</p>",
+    "collectionSources": [
+      "nodejs",
+      "cloudflare",
+      "increment"
+    ],
+    "summary": "A backend collection post built around debugging and observability rather than generic bookmarks.",
+    "readTime": 3,
+    "origin": "squads",
+    "contentCuration": [
+      "collection"
+    ]
+  }
+]

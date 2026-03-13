@@ -1,0 +1,317 @@
+[
+  {
+    "postId": "seedart001",
+    "keyword": "typescript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart001",
+    "keyword": "feature-flags",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart002",
+    "keyword": "react",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart002",
+    "keyword": "design-systems",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart003",
+    "keyword": "testing",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart003",
+    "keyword": "observability",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart004",
+    "keyword": "caching",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart004",
+    "keyword": "queues",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart005",
+    "keyword": "nodejs",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart005",
+    "keyword": "performance",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart006",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedart006",
+    "keyword": "migrations",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree01",
+    "keyword": "architecture",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree01",
+    "keyword": "documentation",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree02",
+    "keyword": "css",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree02",
+    "keyword": "frontend",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree03",
+    "keyword": "postgresql",
+    "status": "allow"
+  },
+  {
+    "postId": "seedfree03",
+    "keyword": "replication",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol001",
+    "keyword": "performance",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol001",
+    "keyword": "react",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol002",
+    "keyword": "backend",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol002",
+    "keyword": "incident-response",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief1",
+    "keyword": "brief",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief1",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief1",
+    "keyword": "tools",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief1",
+    "keyword": "community",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief2",
+    "keyword": "incident-review",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief2",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief2",
+    "keyword": "infrastructure",
+    "status": "allow"
+  },
+  {
+    "postId": "seedbrief2",
+    "keyword": "backend",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare1",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare1",
+    "keyword": "open-source",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare1",
+    "keyword": "migrations",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare2",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare2",
+    "keyword": "tools",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare2",
+    "keyword": "feature-flags",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare3",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare3",
+    "keyword": "infrastructure",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare3",
+    "keyword": "replication",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare4",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare4",
+    "keyword": "architecture",
+    "status": "allow"
+  },
+  {
+    "postId": "seedshare4",
+    "keyword": "design-systems",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial1",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial1",
+    "keyword": "tools",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial1",
+    "keyword": "typescript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial2",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial2",
+    "keyword": "architecture",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial2",
+    "keyword": "css",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial3",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial3",
+    "keyword": "infrastructure",
+    "status": "allow"
+  },
+  {
+    "postId": "seedsocial3",
+    "keyword": "observability",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll01",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll01",
+    "keyword": "infrastructure",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll01",
+    "keyword": "incident-response",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll02",
+    "keyword": "architecture",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll02",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedpoll02",
+    "keyword": "retrospectives",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol001",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol001",
+    "keyword": "tools",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol002",
+    "keyword": "database",
+    "status": "allow"
+  },
+  {
+    "postId": "seedcol002",
+    "keyword": "infrastructure",
+    "status": "allow"
+  },
+  {
+    "postId": "seedwel001",
+    "keyword": "javascript",
+    "status": "allow"
+  },
+  {
+    "postId": "seedwel001",
+    "keyword": "architecture",
+    "status": "allow"
+  }
+]

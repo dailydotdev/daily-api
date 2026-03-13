@@ -1,0 +1,90 @@
+[
+  {
+    "id": "seedshare1",
+    "shortId": "sdshare1aa",
+    "type": "share",
+    "title": "Worth a read if your review queue keeps missing rollout risk.",
+    "createdAt": "2026-03-09T16:05:00.000Z",
+    "metadataChangedAt": "2026-03-09T16:05:00.000Z",
+    "visibleAt": "2026-03-09T16:05:00.000Z",
+    "sourceId": "publicsquad",
+    "authorId": "testuser3",
+    "views": 510,
+    "score": 28500365,
+    "upvotes": 26,
+    "comments": 4,
+    "tagsStr": "share,migrations,review",
+    "sharedPostId": "seedart006",
+    "summary": "A squad share post that points to a migration-risk article instead of another old generic article.",
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  },
+  {
+    "id": "seedshare2",
+    "shortId": "sdshare2bb",
+    "type": "share",
+    "title": "We used this flag contract pattern last sprint and it held up.",
+    "createdAt": "2026-03-10T10:15:00.000Z",
+    "metadataChangedAt": "2026-03-10T10:15:00.000Z",
+    "visibleAt": "2026-03-10T10:15:00.000Z",
+    "sourceId": "frontendlab",
+    "authorId": "testuser7",
+    "views": 560,
+    "score": 28500370,
+    "upvotes": 29,
+    "comments": 5,
+    "tagsStr": "share,typescript,feature-flags",
+    "sharedPostId": "seedart001",
+    "summary": "A frontend squad share that links to a recent article-style seed post.",
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  },
+  {
+    "id": "seedshare3",
+    "shortId": "sdshare3cc",
+    "type": "share",
+    "title": "Replica lag bugs feel obvious after reading this one.",
+    "createdAt": "2026-03-10T12:25:00.000Z",
+    "metadataChangedAt": "2026-03-10T12:25:00.000Z",
+    "visibleAt": "2026-03-10T12:25:00.000Z",
+    "sourceId": "backendbites",
+    "authorId": "testuser10",
+    "views": 575,
+    "score": 28500375,
+    "upvotes": 31,
+    "comments": 6,
+    "tagsStr": "share,postgresql,replication",
+    "sharedPostId": "seedfree03",
+    "summary": "A backend squad sharing a community post helps local feeds feel more like real team activity.",
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  },
+  {
+    "id": "seedshare4",
+    "shortId": "sdshare4dd",
+    "type": "share",
+    "title": "Keeping CSS drift out of microfrontends is half governance, half tooling.",
+    "createdAt": "2026-03-11T08:50:00.000Z",
+    "metadataChangedAt": "2026-03-11T08:50:00.000Z",
+    "visibleAt": "2026-03-11T08:50:00.000Z",
+    "sourceId": "frontendlab",
+    "authorId": "testuser8",
+    "views": 610,
+    "score": 28500390,
+    "upvotes": 35,
+    "comments": 8,
+    "tagsStr": "share,design-systems,frontend",
+    "sharedPostId": "seedart002",
+    "summary": "A second frontend squad share gives the local seed set repeated share behavior across multiple members.",
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  }
+]

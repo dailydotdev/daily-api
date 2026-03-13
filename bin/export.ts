@@ -3,6 +3,7 @@ import createOrGetConnection from '../src/db';
 import z from 'zod';
 import { zodToParseArgs } from './common';
 import type { DataSource } from 'typeorm';
+import { seedEntityNames } from './seedEntities';
 
 const paramsSchema = z.object({
   // if the user wants to run the script for a specific entity
@@ -24,8 +25,8 @@ const start = async (): Promise<void> => {
     return await exportEntity(con, params.entity);
   }
 
-  for (const entity of con.entityMetadatas) {
-    await exportEntity(con, entity.name);
+  for (const entityName of seedEntityNames) {
+    await exportEntity(con, entityName);
   }
 };
 

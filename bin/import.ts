@@ -1,8 +1,50 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import createOrGetConnection from '../src/db';
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import z from 'zod';
 import { zodToParseArgs } from './common';
+import { seedEntityNames } from './seedEntities';
+
+type SeedEntity = Record<string, unknown>;
+
+const getSeedFilePaths = (name: string): string[] => {
+  const primaryFile = `${name}.json`;
+  const additionalFiles = readdirSync('./seeds')
+    .filter(
+      (file) =>
+        file !== primaryFile &&
+        file.startsWith(`${name}.`) &&
+        file.endsWith('.json'),
+    )
+    .sort();
+
+  const fileNames = [primaryFile, ...additionalFiles].filter((file) => {
+    try {
+      readFileSync(`./seeds/${file}`);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  return fileNames.map((file) => `./seeds/${file}`);
+};
+
+const loadSeedEntities = (name: string): SeedEntity[] =>
+  getSeedFilePaths(name).flatMap((path) =>
+    JSON.parse(readFileSync(path, 'utf8').toString()),
+  );
+
+const getConflictPaths = (entityName: string): string[] | undefined => {
+  switch (entityName) {
+    case 'Keyword':
+      return ['value'];
+    case 'PostKeyword':
+      return ['postId', 'keyword'];
+    default:
+      return undefined;
+  }
+};
 
 const importEntity = async (
   con: DataSource,
@@ -11,18 +53,40 @@ const importEntity = async (
     conflictPaths?: string[];
   } = {},
 ): Promise<void> => {
-  console.log(`importing ${name}`);
-  const entities = JSON.parse(readFileSync(`./seeds/${name}.json`).toString());
   const repository = con.getRepository(name);
+  const primaryColumns = repository.metadata.primaryColumns.map(
+    (column) => column.propertyName,
+  );
+  const entities = loadSeedEntities(name);
+  const dedupedEntities =
+    primaryColumns.length > 0
+      ? Array.from(
+          new Map(
+            entities.map((entity): [string, SeedEntity] => [
+              primaryColumns
+                .map((column) => String(entity[column] ?? ''))
+                .join('::'),
+              entity,
+            ]),
+          ).values(),
+        )
+      : entities;
+
+  if (!dedupedEntities.length) {
+    console.log(`skipping ${name}`);
+    return;
+  }
+
+  console.log(`importing ${name} (${dedupedEntities.length})`);
   // Batch insert with dirty hack
-  for (let i = 0; i < entities.length; i += 1000) {
+  for (let i = 0; i < dedupedEntities.length; i += 1000) {
     if (options.conflictPaths) {
       await repository.upsert(
-        entities.slice(i, i + 1000),
+        dedupedEntities.slice(i, i + 1000),
         options.conflictPaths,
       );
     } else {
-      await repository.insert(entities.slice(i, i + 1000));
+      await repository.insert(dedupedEntities.slice(i, i + 1000));
     }
   }
 };
@@ -52,31 +116,16 @@ const start = async (): Promise<void> => {
 
   if (params.entity) {
     console.log('importing specific entity for: ', params.entity);
-    return await importEntity(con, params.entity);
+    return await importEntity(con, params.entity, {
+      conflictPaths: getConflictPaths(params.entity),
+    });
   }
 
-  await importEntity(con, 'Autocomplete');
-  await importEntity(con, 'ExperimentVariant');
-  await importEntity(con, 'AdvancedSettings');
-  await importEntity(con, 'SourceCategory');
-  await importEntity(con, 'Source');
-  await importEntity(con, 'Post');
-  await importEntity(con, 'YouTubePost');
-  await importEntity(con, 'Category');
-  await importEntity(con, 'Keyword', { conflictPaths: ['value'] });
-  await importEntity(con, 'PostKeyword');
-  await importEntity(con, 'User');
-  await importEntity(con, 'UserTopReader');
-  await importEntity(con, 'MarketingCta');
-  await importEntity(con, 'SourceMember');
-  await importEntity(con, 'Product');
-  await importEntity(con, 'Organization');
-  await importEntity(con, 'OpportunityJob');
-  await importEntity(con, 'OpportunityKeyword');
-  await importEntity(con, 'OpportunityUserRecruiter');
-  await importEntity(con, 'OpportunityMatch');
-  await importEntity(con, 'UserExperience');
-  await importEntity(con, 'UserExperienceSkill');
+  for (const entityName of seedEntityNames) {
+    await importEntity(con, entityName, {
+      conflictPaths: getConflictPaths(entityName),
+    });
+  }
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
