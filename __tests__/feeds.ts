@@ -662,7 +662,6 @@ describe('query anonymousFeed by time', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.anonymousFeed.edges).toEqual([]);
   });
-
 });
 
 describe('query feed', () => {
