@@ -19,6 +19,9 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   return request.body ? JSON.stringify(request.body) : undefined;
 };
 
+// Heimdall fronts a shared OAuth callback URL for both Kratos and Better Auth,
+// so we tag Better Auth social flows in `state` and strip the marker before BA
+// validates the callback.
 const stripBetterAuthStateMarker = (url: URL): URL => {
   if (!url.pathname.includes('/auth/callback/')) {
     return url;
@@ -35,6 +38,9 @@ const stripBetterAuthStateMarker = (url: URL): URL => {
   return url;
 };
 
+// Better Auth returns a Fetch Response, not a Fastify reply. We forward it
+// through Fastify so the standard middleware stack stays in control, while
+// preserving multiple Set-Cookie headers for session/verification flows.
 const sendBetterAuthResponse = async (
   reply: FastifyReply,
   response: Response,

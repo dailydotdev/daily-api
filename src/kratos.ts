@@ -156,6 +156,9 @@ export const dispatchWhoami = async (
   return { valid: false };
 };
 
+// The app still uses a unified logout endpoint while both Kratos and Better
+// Auth sessions can exist. Triggering BA sign-out here keeps `/v1/users/logout`
+// as the single logout path during the migration.
 const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
   try {
     const auth = getBetterAuth();
