@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './user';
-import { SortCommentsBy } from '../schema/comments';
+import { SortCommentsBy } from '../common/sortCommentsBy';
 
 export enum CampaignCtaPlacement {
   Header = 'header',
