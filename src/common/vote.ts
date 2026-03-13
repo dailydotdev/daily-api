@@ -5,7 +5,6 @@ import {
   TypeORMQueryFailedError,
 } from '../errors';
 import { Comment, Post, UserPost } from '../entity';
-import { QuestEventType } from '../entity/Quest';
 import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { AuthContext } from '../Context';
@@ -14,7 +13,6 @@ import { HotTake } from '../entity/user/HotTake';
 import { UserHotTake } from '../entity/user/UserHotTake';
 import { UserVote } from '../types';
 import { AchievementEventType, checkAchievementProgress } from './achievement';
-import { checkQuestProgress } from './quest';
 
 type UserVoteProps = {
   ctx: AuthContext;
@@ -197,6 +195,10 @@ export const voteHotTake = async ({
         ctx.userId,
         AchievementEventType.HotTakeVote,
       );
+      const [{ checkQuestProgress }, { QuestEventType }] = await Promise.all([
+        import('./quest/progress'),
+        import('../entity/Quest'),
+      ]);
       await checkQuestProgress({
         con: ctx.con,
         logger: ctx.log,

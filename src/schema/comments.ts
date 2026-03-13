@@ -53,7 +53,6 @@ import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import { SortCommentsBy } from '../common/sortCommentsBy';
 import type { GQLProduct } from './njord';
 
 export interface GQLComment {
@@ -107,7 +106,10 @@ export interface GQLUserComment {
   awarded: boolean;
 }
 
-export { SortCommentsBy };
+export enum SortCommentsBy {
+  NewestFirst = 'newest',
+  OldestFirst = 'oldest',
+}
 
 export type GQLCommentAwardArgs = GQLCommentUpvoteArgs;
 
