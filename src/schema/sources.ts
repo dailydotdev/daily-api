@@ -16,6 +16,7 @@ import {
   User,
 } from '../entity';
 import { SourceType, SourceUser } from '../entity/Source';
+import { SourceStack } from '../entity/sources/SourceStack';
 import {
   Roles,
   SourceMemberRoles,
@@ -72,7 +73,6 @@ import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { traceResolvers } from './trace';
 import { SourceCategory } from '../entity/sources/SourceCategory';
 import { validate } from 'uuid';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
@@ -157,6 +157,10 @@ interface UpdateMemberRoleArgs {
   sourceId: string;
   memberId: string;
   role: SourceMemberRoles;
+}
+
+interface DemoteSelfArgs {
+  sourceId: string;
 }
 
 interface SourceMemberArgs extends ConnectionArguments {
@@ -477,6 +481,11 @@ export const typeDefs = /* GraphQL */ `
       Sort by the number of members count in descending order
       """
       sortByMembersCount: Boolean
+
+      """
+      Filter squads that use a specific stack/tool
+      """
+      toolId: ID
     ): SourceConnection!
 
     """
@@ -866,6 +875,16 @@ export const typeDefs = /* GraphQL */ `
       Role to update the user to
       """
       role: String!
+    ): EmptyResponse! @auth
+
+    """
+    Step down from admin or moderator to member
+    """
+    demoteSelf(
+      """
+      Relevant source the logged in user is a member of
+      """
+      sourceId: ID!
     ): EmptyResponse! @auth
 
     """
@@ -1512,6 +1531,7 @@ interface SourcesArgs extends ConnectionArguments {
   categoryId?: string;
   featured?: boolean;
   sortByMembersCount?: boolean;
+  toolId?: string;
 }
 
 interface SourcesByType extends ConnectionArguments {
@@ -1527,6 +1547,34 @@ interface SimilarSources extends ConnectionArguments {
   sourceId: string;
   excludeSources?: string[];
 }
+
+const updateSourceMemberRole = async ({
+  entityManager,
+  sourceId,
+  userId,
+  role,
+  status,
+}: {
+  entityManager: EntityManager;
+  sourceId: string;
+  userId: string;
+  role: SourceMemberRoles;
+  status?: ContentPreferenceStatus;
+}): Promise<void> => {
+  await entityManager
+    .getRepository(SourceMember)
+    .update({ sourceId, userId }, { role });
+
+  await entityManager.getRepository(ContentPreferenceSource).update(
+    { userId, referenceId: sourceId },
+    {
+      status,
+      flags: updateFlagsStatement<ContentPreferenceSource>({
+        role,
+      }),
+    },
+  );
+};
 
 const updateHideFeedPostsFlag = async (
   ctx: Context,
@@ -1638,10 +1686,7 @@ const paginateSourceMembers = (
   );
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sourceCategory: async (
       _,
@@ -1748,6 +1793,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         filter.categoryId = args.categoryId;
       }
 
+      if (args.toolId) {
+        filter.type = SourceType.Squad;
+      }
+
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -1772,6 +1821,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             builder.queryBuilder.andWhere(
               `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
               { featured: args.featured },
+            );
+          }
+
+          if (args.toolId) {
+            builder.queryBuilder.innerJoin(
+              SourceStack,
+              'sourceStack',
+              `"sourceStack"."sourceId" = ${builder.alias}.id AND "sourceStack"."toolId" = :toolId`,
+              { toolId: args.toolId },
             );
           }
 
@@ -2539,6 +2597,64 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       return { _: true };
     },
+    demoteSelf: async (
+      _,
+      { sourceId }: DemoteSelfArgs,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Leave,
+      );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
+      await ctx.con.transaction(async (entityManager) => {
+        const sourceMember = await entityManager
+          .getRepository(SourceMember)
+          .findOneByOrFail({ sourceId, userId: ctx.userId });
+
+        if (
+          ![SourceMemberRoles.Admin, SourceMemberRoles.Moderator].includes(
+            sourceMember.role,
+          )
+        ) {
+          throw new ForbiddenError('Access denied!');
+        }
+
+        if (sourceMember.role === SourceMemberRoles.Admin) {
+          const adminMembers = await entityManager
+            .getRepository(SourceMember)
+            .createQueryBuilder('sourceMember')
+            .setLock('pessimistic_write')
+            .where('sourceMember.sourceId = :sourceId', { sourceId })
+            .andWhere('sourceMember.role = :role', {
+              role: SourceMemberRoles.Admin,
+            })
+            .getMany();
+
+          if (adminMembers.length <= 1) {
+            throw new ValidationError(
+              'You cannot become a member while you are the last admin.',
+            );
+          }
+        }
+
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: ctx.userId,
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      return { _: true };
+    },
     updateMemberRole: async (
       _,
       { sourceId, memberId, role }: UpdateMemberRoleArgs,
@@ -2572,21 +2688,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(SourceMember)
-          .update({ sourceId, userId: memberId }, { role });
-
         const isBlock = role === SourceMemberRoles.Blocked;
 
-        await entityManager.getRepository(ContentPreferenceSource).update(
-          { userId: memberId, referenceId: sourceId },
-          {
-            status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
-            flags: updateFlagsStatement<ContentPreferenceSource>({
-              role,
-            }),
-          },
-        );
+        await updateSourceMemberRole({
+          entityManager,
+          sourceId,
+          userId: memberId,
+          role,
+          status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+        });
 
         if (isBlock) {
           await cleanContentNotificationPreference({
@@ -2751,4 +2861,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return referralUrl;
     },
   },
-});
+};

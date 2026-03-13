@@ -32,6 +32,7 @@ import {
   deleteResumeByUserId,
 } from './googleCloud';
 import { ConflictError } from '../errors';
+import { DigestPost } from '../entity/posts/DigestPost';
 
 export const deleteUser = async (
   con: DataSource,
@@ -100,6 +101,10 @@ export const deleteUser = async (
       await entityManager
         .getRepository(ArticlePost)
         .update({ authorId: userId }, { authorId: null });
+      // Delete digest posts authored by the user
+      await entityManager
+        .getRepository(DigestPost)
+        .delete({ authorId: userId });
       // Manually set user source posts to ghost user
       await entityManager
         .getRepository(Post)

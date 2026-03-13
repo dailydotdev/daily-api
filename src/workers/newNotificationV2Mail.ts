@@ -113,6 +113,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   briefing_ready: '81',
+  digest_ready: '',
   user_follow: '',
   marketing: '',
   new_user_welcome: '',
@@ -134,6 +135,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   experience_company_enriched: '',
   recruiter_external_payment: '91',
   feedback_resolved: '',
+  feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
 };
 
@@ -1049,6 +1051,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sendAtMs: personalizedDigest.lastSendDate?.getTime(),
     };
   },
+  digest_ready: async () => {
+    return null;
+  },
   user_follow: async () => {
     return null;
   },
@@ -1280,6 +1285,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   feedback_resolved: async () => {
     return null;
   },
+  feedback_cancelled: async () => {
+    return null;
+  },
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
   },
@@ -1310,6 +1318,12 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
+
+    // digest sends its own emails through digest system
+    if (notification.type === NotificationType.DigestReady) {
+      return;
+    }
+
     const stream = await streamNotificationUsers(
       con,
       notification.id,
@@ -1382,6 +1396,7 @@ const worker: Worker = {
       counters?.background?.notificationFailed?.add(1, { channel: 'email' });
     }
   },
+  maxMessages: 5,
 };
 
 export default worker;

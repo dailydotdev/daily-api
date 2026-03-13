@@ -12,6 +12,10 @@ export enum PostRelationType {
   'type',
   'createdAt',
 ])
+@Index('IDX_post_relation_relatedPostId_createdAt', [
+  'relatedPostId',
+  'createdAt',
+])
 export class PostRelation {
   @PrimaryColumn({ type: 'text' })
   postId: string;

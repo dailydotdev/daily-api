@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
@@ -98,10 +97,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     userStack: async (
       _,
@@ -286,4 +282,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
   },
-});
+};

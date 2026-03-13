@@ -58,9 +58,6 @@ describe('getEmailAd', () => {
 
     const ad = await getEmailAd({
       user,
-      feature: {
-        templateId: '75',
-      },
     });
 
     expect(ad).toEqual({
@@ -88,9 +85,6 @@ describe('getEmailAd', () => {
 
     const ad = await getEmailAd({
       user,
-      feature: {
-        templateId: '75',
-      },
     });
 
     expect(ad).toBeNull();

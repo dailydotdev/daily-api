@@ -1,6 +1,5 @@
 import type { AuthContext, BaseContext, Context } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import {
   awardComment,
   type AwardInput,
@@ -289,10 +288,7 @@ export interface GQLCustomData {
   label: string;
 }
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     products: async (
       _,
@@ -519,4 +515,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
     },
   },
-});
+};

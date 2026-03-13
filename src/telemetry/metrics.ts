@@ -2,19 +2,14 @@ import type { FastifyInstance } from 'fastify';
 
 import dc from 'node:diagnostics_channel';
 
-import { metrics, type Counter, ValueType } from '@opentelemetry/api';
+import { metrics, type Counter } from '@opentelemetry/api';
 import {
   PeriodicExportingMetricReader,
   type IMetricReader,
 } from '@opentelemetry/sdk-metrics';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import {
-  ATTR_HTTP_REQUEST_METHOD,
-  ATTR_HTTP_RESPONSE_STATUS_CODE,
-  ATTR_HTTP_ROUTE,
-  METRIC_HTTP_SERVER_REQUEST_DURATION,
-} from '@opentelemetry/semantic-conventions';
+import { ATTR_HTTP_ROUTE } from '@opentelemetry/semantic-conventions';
 
 import { logger } from '../logger';
 import {
@@ -104,6 +99,15 @@ const counterMap = {
     },
   },
   'personalized-digest': {
+    digestPostsCount: {
+      name: 'digest_posts_count',
+      description: 'How many posts were added to digest emails',
+    },
+    digestFeedServicePostsCount: {
+      name: 'digest_feed_service_posts_count',
+      description:
+        'How many posts were returned from the feed service for digest',
+    },
     garmrBreak: {
       name: 'garmr_break',
       description: 'How many times breaker has been triggered',
@@ -175,25 +179,10 @@ export const initCounters = (serviceName: ServiceName): void => {
   }
 };
 
-const requestDurationIncludePaths = ['/boot'];
-
-export const subscribeMetricsHooks = (serviceName: string): void => {
-  const requestDuration = metrics
-    .getMeter(serviceName)
-    .createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
-      description: 'The duration of HTTP request',
-      unit: 'ms',
-      valueType: ValueType.DOUBLE,
-      advice: {
-        explicitBucketBoundaries: [
-          10, 50, 75, 100, 150, 200, 400, 600, 800, 1000, 2000, 4000, 6000,
-        ],
-      },
-    });
-
+export const subscribeMetricsHooks = (): void => {
   dc.subscribe(channelName, (message) => {
     const { fastify } = message as { fastify: FastifyInstance };
-    fastify.addHook('onResponse', async (req, res) => {
+    fastify.addHook('onResponse', async (req) => {
       if (req.routeOptions.url === '/graphql') {
         return;
       }
@@ -202,16 +191,6 @@ export const subscribeMetricsHooks = (serviceName: string): void => {
         [ATTR_HTTP_ROUTE]: req.routeOptions.url,
         [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req as AppVersionRequest),
       });
-
-      if (
-        requestDurationIncludePaths.includes(req.routeOptions.url as string)
-      ) {
-        requestDuration.record(res.elapsedTime, {
-          [ATTR_HTTP_REQUEST_METHOD]: req.method,
-          [ATTR_HTTP_RESPONSE_STATUS_CODE]: res.statusCode,
-          [ATTR_HTTP_ROUTE]: req.routeOptions.url,
-        });
-      }
     });
   });
 };

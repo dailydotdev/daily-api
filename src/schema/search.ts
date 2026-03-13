@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
   getSession,
@@ -446,10 +445,7 @@ const mimirFilterBuilder = ({
   return output;
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     searchSessionHistory: async (
       _,
@@ -738,4 +734,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
   },
-});
+};

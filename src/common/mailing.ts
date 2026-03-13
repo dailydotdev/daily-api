@@ -40,6 +40,7 @@ export enum CioTransactionalMessageTemplateId {
   OrganizationMemberJoined = '76',
   OrganizationMemberLeft = '77',
   OrganizationMemberRemoved = '78',
+  FeedbackReply = '95',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);

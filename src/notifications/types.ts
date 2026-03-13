@@ -33,6 +33,7 @@ export type NotificationBundleV2 = {
   userIds: string[];
   avatars?: DeepPartial<NotificationAvatarV2>[];
   attachments?: DeepPartial<NotificationAttachmentV2>[];
+  showAt?: Date | null;
 };
 
 export type NotificationBaseContext = {
@@ -206,6 +207,11 @@ export type NotificationRecruiterExternalPaymentContext =
   };
 
 export type NotificationFeedbackResolvedContext = NotificationBaseContext & {
+  feedbackId: string;
+  feedbackDescription: string;
+};
+
+export type NotificationFeedbackCancelledContext = NotificationBaseContext & {
   feedbackId: string;
   feedbackDescription: string;
 };

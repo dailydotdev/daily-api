@@ -22,6 +22,9 @@ config:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
+  api:apiPrivateLoadBalancerSourceRanges:
+    - secure: AAABADGk7iOQSBF8D4TZYeZOCIKUO5AMylKUgKo+Q7itG41JVSLna7gvlQAtJR0=
+  api:apiPrivateInternalLoadBalancerGlobalAccess: "false"
   api:enablePersonalizedDigest: 'true'
   api:env:
     anthropicApiUrl: https://api.anthropic.com/v1/messages
@@ -60,7 +63,7 @@ config:
     cookiesKey:
       secure: AAABAI6r/VqBFrSL3TkFzy1JF7INkGFPmakbJr72jjDGmYUqoJV4t6ha1yDoYaA97MIcFHmW4t1+cRKQcHTwy7vUYCCaf9gLSvrb1ax1cA==
     defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/s--P4t4XyoV--/f_auto/v1722860399/public/Placeholder%2001,https://res.cloudinary.com/daily-now/image/upload/s--VDukGCjf--/f_auto/v1722860399/public/Placeholder%2002,https://res.cloudinary.com/daily-now/image/upload/s--HRgLpUt6--/f_auto/v1722860399/public/Placeholder%2003,https://res.cloudinary.com/daily-now/image/upload/s--foaA6JGU--/f_auto/v1722860399/public/Placeholder%2004,https://res.cloudinary.com/daily-now/image/upload/s--CxzD6vbw--/f_auto/v1722860399/public/Placeholder%2005,https://res.cloudinary.com/daily-now/image/upload/s--ZrL_HSsR--/f_auto/v1722860399/public/Placeholder%2006,https://res.cloudinary.com/daily-now/image/upload/s--1KxV4ohY--/f_auto/v1722860400/public/Placeholder%2007,https://res.cloudinary.com/daily-now/image/upload/s--0_ODbtD2--/f_auto/v1722860399/public/Placeholder%2008,https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1722860399/public/Placeholder%2009,https://res.cloudinary.com/daily-now/image/upload/s--OHB84bZF--/f_auto/v1722860399/public/Placeholder%2010,https://res.cloudinary.com/daily-now/image/upload/s--2-1xRawN--/f_auto/v1722860399/public/Placeholder%2011,https://res.cloudinary.com/daily-now/image/upload/s--58gMhC4P--/f_auto/v1722860399/public/Placeholder%2012
-    digestQueueConcurrency: 1000
+    digestQueueConcurrency: 600
     experimentationKey:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
     skadiApiOriginV2: http://skadi-boost-api-server.daily.svc.cluster.local
@@ -99,7 +102,7 @@ config:
     otelTracesSampler: parentbased_always_on
     otelLoggerFormat: otel
     # This can be removed once @opentelemetry/instrumentation-pg has defaulted to stable semconvs
-    otelSemconvStabilityOptIn: database
+    otelSemconvStabilityOptIn: database,http
     paddleApiKey:
       secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
     paddleEnvironment: production
@@ -225,6 +228,14 @@ config:
       secure: AAABALeVUcWiTAIPqO9Ut85Q8eX5bIh/cUy/NDjOi4lSMQ/D04V92IxQCpXjzITm1CKybCpcIp+nMQiNvimDdmvGy/gLisyMyqEERKbrFw3nHV8Dsm6TadNoUSACPfNB9sDgOtQjn+VaPHVp6AtLhDnndUhVYUVja2rFUf3Acqjs8qt8alwoPMJscNRmvu3AgcB4zBY6m2M4vJ8J/2Cj5Q==
     slackUserFeedbackChannelId:
       secure: AAABAGKs8XRmYMur5FnCQtTg7eN0Qs7N9xb8IAk8M0Qzs4xflQe78dioAA==
+    twitterConsumerSecret:
+      secure: AAABAAdfWTuNJYi3sVLhyGZ73TTuzdkCLEOQhlziYE+1eQ1qzh47fHdhokV3/7G/LiJZODEO4I1t/ScqVBD7diQwLDjzyujzHCm19KSk4MKO1g==
+    twitterConsumerKey:
+      secure: AAABAINTZbV4brTCyGDOzCvTfsuVfm2BUJGcCE7NnbBJZPMYolCkmxXtk42M4Ra9rtFRBoSJxV2m
+    twitterAccessTokenKey:
+      secure: AAABAMYZ/g6SWqP4xuuJtIY2ZfOKVAIVwBDYtw+wsrGTggagtXyb0vAcHcVwl4jeVRw8tE8evlNgN4pageF6/j3tosILmfZQbD71gmokI3SFHA==
+    twitterAccessTokenSecret:
+      secure: AAABAF71uphNf9oOztAZ2giIqCygD5m4VgejUPif+Fgs2U/y0NuQNY6754aEuIj5eXsrO2JfmMX0nnQqwVYe0Tvb3yyXTUREyYW9wRc=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

@@ -2,6 +2,10 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  ChatMessage,
+  ChatResponse,
+  LLMProxy,
+  ClassifyGearResponse,
   ClassifyRejectionFeedbackResponse,
   ClassifyUserFeedbackResponse,
   FeedbackCategory,
@@ -12,9 +16,11 @@ import {
   FindCompanyNewsResponse,
   FindContactActivityResponse,
   FindJobVacanciesResponse,
+  GearCategory as ProtoGearCategory,
   GenerateRecruiterEmailResponse,
   ParseFeedbackResponse,
   Pipelines,
+  SentimentDigestResponse,
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
@@ -29,6 +35,19 @@ import { isMockEnabled } from '../../mocks/opportunity/services';
 
 const garmrBragiService = new GarmrService({
   service: 'bragi',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 3,
+    backoff: 2 * 1000,
+  },
+});
+
+const garmrBragiProxyService = new GarmrService({
+  service: 'bragi-proxy',
   breakerOpts: {
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
@@ -94,6 +113,12 @@ export const getBragiClient = (
             id: 'mock-id',
             emailBody: '',
           }),
+        generateSentimentDigest: async () =>
+          new SentimentDigestResponse({
+            id: 'mock-id',
+            title: 'Mock sentiment digest',
+            content: 'Mock digest content',
+          }),
         classifyRejectionFeedback: async () =>
           new ClassifyRejectionFeedbackResponse({
             id: 'mock-id',
@@ -112,6 +137,12 @@ export const getBragiClient = (
               summary: 'Mock rejection summary',
             }),
           }),
+        classifyGear: async ({ name }: { name: string }) =>
+          new ClassifyGearResponse({
+            id: 'mock-id',
+            category: ProtoGearCategory.OTHER,
+            normalizedName: name,
+          }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),
     };
@@ -120,5 +151,35 @@ export const getBragiClient = (
   return {
     instance: createClient<typeof Pipelines>(Pipelines, clientTransport),
     garmr: garmrBragiService,
+  };
+};
+
+type BragiProxyClient = {
+  instance: ReturnType<typeof createClient<typeof LLMProxy>>;
+  garmr: GarmrService | GarmrNoopService;
+};
+
+export const getBragiProxyClient = (
+  clientTransport = transport,
+): BragiProxyClient => {
+  if (isMockEnabled() || !clientTransport) {
+    return {
+      instance: {
+        chat: async () =>
+          new ChatResponse({
+            id: 'mock-id',
+            message: new ChatMessage({
+              role: 'assistant',
+              content: 'Mock tweet content',
+            }),
+          }),
+      } as unknown as ReturnType<typeof createClient<typeof LLMProxy>>,
+      garmr: new GarmrNoopService(),
+    };
+  }
+
+  return {
+    instance: createClient<typeof LLMProxy>(LLMProxy, clientTransport),
+    garmr: garmrBragiProxyService,
   };
 };

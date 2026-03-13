@@ -44,8 +44,6 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../src/entity';
-import { UserExperience } from '../src/entity/user/experiences/UserExperience';
-import { UserExperienceType } from '../src/entity/user/experiences/types';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -90,7 +88,8 @@ import {
   SourcePostModerationStatus,
   WarningReason,
 } from '../src/entity/SourcePostModeration';
-import { generateUUID } from '../src/ids';
+import { generateShortId, generateUUID } from '../src/ids';
+import { DigestPost } from '../src/entity/posts/DigestPost';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { TransferError } from '../src/errors';
@@ -132,8 +131,6 @@ import {
 } from '../src/notifications/common';
 import { NotificationPostContext } from '../src/notifications';
 
-let profileCompletionPostGateTestEnabled = false;
-
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
   notifyView: jest.fn(),
@@ -147,26 +144,6 @@ jest.mock('../src/common/typedPubsub', () => ({
   >),
   triggerTypedEvent: jest.fn(),
 }));
-
-jest.mock('../src/growthbook', () => {
-  const actual = jest.requireActual('../src/growthbook') as Record<
-    string,
-    unknown
-  > & {
-    features: { profileCompletionPostGate: { id: string } };
-  };
-
-  return {
-    ...actual,
-    getUserGrowthBookInstance: () => ({
-      getFeatureValue: (featureId: string, defaultValue: unknown) =>
-        featureId === actual.features.profileCompletionPostGate.id &&
-        profileCompletionPostGateTestEnabled
-          ? 100
-          : defaultValue,
-    }),
-  };
-});
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -914,6 +891,51 @@ describe('sharedPost field', () => {
       },
     });
   });
+
+  it('should resolve invisible shared article and use fallback title', async () => {
+    await con.getRepository(ArticlePost).save({
+      id: 'p-hidshr',
+      shortId: 'p-hidshr',
+      sourceId: 'a',
+      type: PostType.Article,
+      visible: false,
+      title: null,
+      summary: null,
+      url: 'https://example.com/failed-scrape',
+      canonicalUrl: 'https://example.com/failed-scrape',
+      image: 'https://daily.dev/image.jpg',
+      yggdrasilId: randomUUID(),
+    });
+    await con.getRepository(SharePost).save({
+      id: 'ps-hidden',
+      shortId: 'ps-hidden',
+      sourceId: 'a',
+      title: 'Shared post',
+      sharedPostId: 'p-hidshr',
+      visible: true,
+    });
+
+    const res = await client.query(`{
+      post(id: "ps-hidden") {
+        sharedPost {
+          id
+          title
+          url
+        }
+      }
+    }`);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      post: {
+        sharedPost: {
+          id: 'p-hidshr',
+          title: 'Failed to scrape',
+          url: 'https://example.com/failed-scrape',
+        },
+      },
+    });
+  });
 });
 
 describe('type field', () => {
@@ -1388,7 +1410,10 @@ describe('query post', () => {
         post(id: $id) {
           id
           analytics {
+            bookmarks
             impressions
+            reputation
+            upvotes
           }
         }
       }
@@ -1401,8 +1426,11 @@ describe('query post', () => {
 
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 7,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 5,
+        upvotes: 17,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1413,7 +1441,12 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: { impressions: 420 },
+        analytics: {
+          bookmarks: 7,
+          impressions: 420,
+          reputation: 5,
+          upvotes: 17,
+        },
       });
     });
 
@@ -1424,8 +1457,11 @@ describe('query post', () => {
 
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 3,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 9,
+        upvotes: 21,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1436,15 +1472,25 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: { impressions: 420 },
+        analytics: {
+          bookmarks: 3,
+          impressions: 420,
+          reputation: 9,
+          upvotes: 21,
+        },
       });
     });
 
-    it('should return null if user is not author or scout', async () => {
+    it('should hide impressions and reputation for non-author users', async () => {
+      loggedUser = '2';
+
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
+        bookmarks: 11,
         impressions: 110,
         impressionsAds: 310,
+        reputation: 13,
+        upvotes: 31,
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1455,8 +1501,120 @@ describe('query post', () => {
 
       expect(res.data.post).toEqual({
         id: 'p1',
-        analytics: null,
+        analytics: {
+          bookmarks: 11,
+          impressions: null,
+          reputation: null,
+          upvotes: null,
+        },
       });
+    });
+  });
+
+  describe('digest post fields', () => {
+    const DIGEST_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          type
+          flags {
+            digestPostIds
+            ad {
+              type
+              index
+              title
+              link
+              image
+              companyName
+              companyLogo
+              callToAction
+            }
+          }
+        }
+      }
+    `;
+
+    it('should return digestPostIds for Digest posts', async () => {
+      const postId = await generateShortId();
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          flags: {
+            digestPostIds: ['p1', 'p2', 'p3'],
+            collectionSources: ['a'],
+            ad: null,
+          },
+        }),
+      );
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.flags.digestPostIds).toEqual(['p1', 'p2', 'p3']);
+      expect(res.data.post.flags.ad).toBeNull();
+    });
+
+    it('should return ad for Digest posts with ad', async () => {
+      const postId = await generateShortId();
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          flags: {
+            digestPostIds: ['p1'],
+            collectionSources: ['a'],
+            ad: {
+              type: 'dynamic_ad',
+              index: 2,
+              title: 'Ad title',
+              link: 'https://example.com',
+              image: 'https://example.com/img.png',
+              company_name: 'Acme',
+              company_logo: 'https://example.com/logo.png',
+              call_to_action: 'Try now',
+            },
+          },
+        }),
+      );
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.flags.ad).toEqual({
+        type: 'dynamic_ad',
+        index: 2,
+        title: 'Ad title',
+        link: 'https://example.com',
+        image: 'https://example.com/img.png',
+        companyName: 'Acme',
+        companyLogo: 'https://example.com/logo.png',
+        callToAction: 'Try now',
+      });
+    });
+
+    it('should return null digestPostIds for non-Digest posts', async () => {
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.flags.digestPostIds).toBeNull();
+      expect(res.data.post.flags.ad).toBeNull();
     });
   });
 });
@@ -2492,6 +2650,19 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+
+  it('should create invisible share and still return mutation result', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, id: 'p7' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: res.data.sharePost.id });
+    expect(post.visible).toEqual(false);
   });
 
   it('should share sharedPost to squad if title was provided', async () => {
@@ -3849,32 +4020,7 @@ describe('mutation viewPost', () => {
   });
 });
 
-describe('post creation profile completion gate', () => {
-  const completeProfile = async (userId: string): Promise<void> => {
-    await con.getRepository(User).update(
-      { id: userId },
-      {
-        bio: 'I build things',
-        experienceLevel: 'senior',
-      },
-    );
-
-    await con.getRepository(UserExperience).save([
-      {
-        userId,
-        type: UserExperienceType.Work,
-        title: 'Work',
-        startedAt: new Date(),
-      },
-      {
-        userId,
-        type: UserExperienceType.Education,
-        title: 'Education',
-        startedAt: new Date(),
-      },
-    ]);
-  };
-
+describe('post creation', () => {
   const setupWritableSource = async (sourceId: string): Promise<void> => {
     await con.getRepository(SquadSource).save({
       id: sourceId,
@@ -3891,145 +4037,117 @@ describe('post creation profile completion gate', () => {
     });
   };
 
-  beforeEach(() => {
-    profileCompletionPostGateTestEnabled = true;
-  });
-
-  afterEach(() => {
-    profileCompletionPostGateTestEnabled = false;
-  });
-
-  it('should block createFreeformPost for incomplete profile', async () => {
+  const expectSuccessfulPostCreation = async <TData>({
+    mutation,
+    variables,
+    assertData,
+  }: {
+    mutation: string;
+    variables: Record<string, unknown>;
+    assertData: (data: TData) => void;
+  }): Promise<void> => {
     loggedUser = '1';
+    const res = await client.mutate(mutation, { variables });
+
+    expect(res.errors).toBeFalsy();
+    assertData(res.data as TData);
+  };
+
+  it('should allow createFreeformPost for incomplete profile', async () => {
     await setupWritableSource('s-freeform');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
-            createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      createFreeformPost: { id: string };
+    }>({
+      mutation: `
+        mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
+          createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-freeform',
-          title: 'Test title',
-          content: 'Test content',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-freeform',
+        title: 'Test title',
+        content: 'Test content',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.createFreeformPost.id).toBeTruthy(),
+    });
   });
 
-  it('should block submitExternalLink for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-profile',
-      handle: 's-profile',
-      name: 'Squad Profile',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-profile',
-      userId: '1',
-      referralToken: 'profile-rt',
-      role: SourceMemberRoles.Member,
-    });
+  it('should allow submitExternalLink for incomplete profile', async () => {
+    await setupWritableSource('s-profile');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation SubmitExternalLink($sourceId: ID!, $url: String!) {
-            submitExternalLink(sourceId: $sourceId, url: $url) {
-              _
-            }
+    await expectSuccessfulPostCreation<{
+      submitExternalLink: { _: boolean };
+    }>({
+      mutation: `
+        mutation SubmitExternalLink($sourceId: ID!, $url: String!) {
+          submitExternalLink(sourceId: $sourceId, url: $url) {
+            _
           }
-        `,
-        variables: {
-          sourceId: 's-profile',
-          url: 'https://daily.dev',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-profile',
+        url: 'https://daily.dev',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) =>
+        expect(data.submitExternalLink).toEqual({ _: true }),
+    });
   });
 
-  it('should block sharePost for incomplete profile', async () => {
-    loggedUser = '1';
-    await con.getRepository(SquadSource).save({
-      id: 's-share',
-      handle: 's-share',
-      name: 'Squad Share',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's-share',
-      userId: '1',
-      referralToken: 'profile-share',
-      role: SourceMemberRoles.Member,
-    });
+  it('should allow sharePost for incomplete profile', async () => {
+    await setupWritableSource('s-share');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation SharePost($sourceId: ID!, $id: ID!) {
-            sharePost(sourceId: $sourceId, id: $id) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      sharePost: { id: string };
+    }>({
+      mutation: `
+        mutation SharePost($sourceId: ID!, $id: ID!) {
+          sharePost(sourceId: $sourceId, id: $id) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-share',
-          id: 'p1',
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-share',
+        id: 'p1',
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.sharePost.id).toBeTruthy(),
+    });
   });
 
-  it('should block createPollPost for incomplete profile', async () => {
-    loggedUser = '1';
+  it('should allow createPollPost for incomplete profile', async () => {
     await setupWritableSource('s-poll');
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreatePollPost(
-            $sourceId: ID!
-            $title: String!
-            $options: [PollOptionInput!]!
-          ) {
-            createPollPost(sourceId: $sourceId, title: $title, options: $options) {
-              id
-            }
+    await expectSuccessfulPostCreation<{
+      createPollPost: { id: string };
+    }>({
+      mutation: `
+        mutation CreatePollPost(
+          $sourceId: ID!
+          $title: String!
+          $options: [PollOptionInput!]!
+        ) {
+          createPollPost(sourceId: $sourceId, title: $title, options: $options) {
+            id
           }
-        `,
-        variables: {
-          sourceId: 's-poll',
-          title: 'Poll title',
-          options: [
-            { text: 'Option 1', order: 0 },
-            { text: 'Option 2', order: 1 },
-          ],
-        },
+        }
+      `,
+      variables: {
+        sourceId: 's-poll',
+        title: 'Poll title',
+        options: [
+          { text: 'Option 1', order: 0 },
+          { text: 'Option 2', order: 1 },
+        ],
       },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
+      assertData: (data) => expect(data.createPollPost.id).toBeTruthy(),
+    });
   });
 
-  it('should block createPostInMultipleSources for incomplete profile', async () => {
-    loggedUser = '1';
+  it('should allow createPostInMultipleSources for incomplete profile', async () => {
     await con.getRepository(SourceMember).save({
       userId: '1',
       sourceId: 'squad',
@@ -4037,59 +4155,34 @@ describe('post creation profile completion gate', () => {
       referralToken: 'rt-multi',
     });
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: `
-          mutation CreatePostInMultipleSources(
-            $sourceIds: [ID!]!
-            $title: String
-            $content: String
+    await expectSuccessfulPostCreation<{
+      createPostInMultipleSources: Array<{ id: string }>;
+    }>({
+      mutation: `
+        mutation CreatePostInMultipleSources(
+          $sourceIds: [ID!]!
+          $title: String
+          $content: String
+        ) {
+          createPostInMultipleSources(
+            sourceIds: $sourceIds
+            title: $title
+            content: $content
           ) {
-            createPostInMultipleSources(
-              sourceIds: $sourceIds
-              title: $title
-              content: $content
-            ) {
-              id
-            }
-          }
-        `,
-        variables: {
-          sourceIds: ['squad'],
-          title: 'Multi source title',
-          content: 'Multi source content',
-        },
-      },
-      'FORBIDDEN',
-      'Complete your profile to create posts',
-    );
-  });
-
-  it('should allow createFreeformPost for completed profile', async () => {
-    loggedUser = '1';
-    await completeProfile('1');
-    await setupWritableSource('s-complete');
-
-    const res = await client.mutate(
-      `
-        mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!) {
-          createFreeformPost(sourceId: $sourceId, title: $title, content: $content) {
             id
           }
         }
       `,
-      {
-        variables: {
-          sourceId: 's-complete',
-          title: 'Completed profile title',
-          content: 'Completed profile content',
-        },
+      variables: {
+        sourceIds: ['squad'],
+        title: 'Multi source title',
+        content: 'Multi source content',
       },
-    );
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createFreeformPost.id).toBeTruthy();
+      assertData: (data) => {
+        expect(data.createPostInMultipleSources).toHaveLength(1);
+        expect(data.createPostInMultipleSources[0].id).toBeTruthy();
+      },
+    });
   });
 });
 
@@ -4280,6 +4373,40 @@ describe('mutation submitExternalLink', () => {
       .findOneByOrFail({ sharedPostId: 'p_no_metadata' });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(false);
+  });
+
+  it('should force invisible share for broken existing post even when post is visible', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(ArticlePost).save({
+      id: 'p-brk-vis',
+      shortId: 'p-brk-vis',
+      url: 'http://example.com/broken-visible',
+      canonicalUrl: 'http://example.com/broken-visible',
+      image: 'https://daily.dev/image.jpg',
+      sourceId: 'a',
+      title: null,
+      summary: null,
+      visible: true,
+      createdAt: new Date(),
+      type: PostType.Article,
+      private: false,
+      origin: PostOrigin.Squad,
+      yggdrasilId: randomUUID(),
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://example.com/broken-visible' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p-brk-vis' });
+    expect(sharedPost.visible).toEqual(false);
+    expect(notifyContentRequested).toBeCalledTimes(1);
   });
 
   it('should share existing post by redirector link', async () => {
@@ -11170,6 +11297,7 @@ describe('query userPostsWithAnalytics', () => {
             analytics {
               id
               impressions
+              bookmarks
               reputation
               upvotes
             }
@@ -11215,6 +11343,7 @@ describe('query userPostsWithAnalytics', () => {
           id: `${item.id}-upwa`,
           impressions: 100,
           impressionsAds: 50,
+          bookmarks: 12,
           reputation: 25,
           upvotes: 10,
         }),
@@ -11237,6 +11366,7 @@ describe('query userPostsWithAnalytics', () => {
       id: expect.stringContaining('-upwa'),
       analytics: {
         impressions: 150,
+        bookmarks: 12,
         reputation: 25,
         upvotes: 10,
       },
@@ -11285,6 +11415,42 @@ describe('query userPostsWithAnalytics', () => {
       (e: { node: { id: string } }) => e.node.id,
     );
     expect(postIds).not.toContain('brief-upwa');
+    expect(res.data.userPostsWithAnalytics.edges).toHaveLength(3);
+  });
+
+  it('should exclude digest posts from analytics', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'digest-upwa',
+        shortId: 'sdgst-upwa',
+        title: 'Digest Post',
+        url: 'https://example.com/digest-upwa',
+        sourceId: 'a',
+        authorId: '1-upwa',
+        type: PostType.Digest,
+        visible: true,
+      },
+    ]);
+
+    await saveFixtures(con, PostAnalytics, [
+      con.getRepository(PostAnalytics).create({
+        id: 'digest-upwa',
+        impressions: 100,
+        impressionsAds: 50,
+        reputation: 25,
+        upvotes: 10,
+      }),
+    ]);
+
+    loggedUser = '1-upwa';
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    const postIds = res.data.userPostsWithAnalytics.edges.map(
+      (e: { node: { id: string } }) => e.node.id,
+    );
+    expect(postIds).not.toContain('digest-upwa');
     expect(res.data.userPostsWithAnalytics.edges).toHaveLength(3);
   });
 });

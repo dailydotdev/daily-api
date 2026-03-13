@@ -1,5 +1,5 @@
 import { ValidationError } from 'apollo-server-errors';
-import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import {
   NotFoundError,
   TypeOrmError,
@@ -85,7 +85,9 @@ export enum NotificationType {
   RecruiterExternalPayment = 'recruiter_external_payment',
   ExperienceCompanyEnriched = 'experience_company_enriched',
   FeedbackResolved = 'feedback_resolved',
+  FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
+  DigestReady = 'digest_ready',
 }
 
 export enum NotificationPreferenceType {
@@ -305,6 +307,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
+  [NotificationType.DigestReady]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
 };
 
 export const commentReplyNotificationTypes = [
@@ -460,7 +466,8 @@ export const streamNotificationUsers = (
     .from(UserNotification, 'un')
     .innerJoin('user', 'u', 'un."userId" = u.id')
     .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
-    .where('un."notificationId" = :id', { id });
+    .where('un."notificationId" = :id', { id })
+    .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
 
   if (channel === NotificationChannel.InApp) {
     query = query
@@ -477,20 +484,34 @@ export const streamNotificationUsers = (
   return query.stream();
 };
 
+// +1 over the frontend display cap (20) so the client can show "20+" when the API returns 21
+export const UNREAD_NOTIFICATIONS_LIMIT = 21;
+
 export const getUnreadNotificationsCount = async (
   con: DataSource | QueryRunner,
   userId: string,
-) =>
-  await con.manager.getRepository(UserNotification).count({
-    where: {
-      userId,
-      public: true,
-      readAt: IsNull(),
-    },
-  });
+): Promise<number> => {
+  const result = await con.manager
+    .createQueryBuilder()
+    .select('COUNT(1)::int', 'count')
+    .from((qb) => {
+      return qb
+        .select('1')
+        .from(UserNotification, 'un')
+        .where('un."userId" = :userId', { userId })
+        .andWhere('un."public" = true')
+        .andWhere('un."readAt" IS NULL')
+        .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())')
+        .limit(UNREAD_NOTIFICATIONS_LIMIT);
+    }, 't')
+    .getRawOne<{ count: number }>();
+
+  return result?.count ?? 0;
+};
 
 enum UserNotificationUniqueKey {
   PostAdded = 'post_added',
+  DigestReady = 'digest_ready',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -499,7 +520,12 @@ const notificationTypeToUniqueKey: Partial<
   [NotificationType.SquadPostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.SourcePostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.UserPostAdded]: UserNotificationUniqueKey.PostAdded,
+  [NotificationType.DigestReady]: UserNotificationUniqueKey.DigestReady,
 };
+
+const fixedUniqueKeyTypes = new Set<NotificationType>([
+  NotificationType.DigestReady,
+]);
 
 export const generateUserNotificationUniqueKey = ({
   type,
@@ -516,6 +542,10 @@ export const generateUserNotificationUniqueKey = ({
 
   if (!uniqueKey) {
     return null;
+  }
+
+  if (fixedUniqueKeyTypes.has(type)) {
+    return uniqueKey;
   }
 
   return [
@@ -540,6 +570,27 @@ export const cleanupSourcePostModerationNotifications = async (
     referenceType: 'post_moderation',
     type: NotificationType.SourcePostSubmitted,
   });
+};
+
+export const cleanupDigestReadyNotifications = async (
+  con: DataSource | EntityManager,
+  userId: string,
+) => {
+  const result: Pick<UserNotification, 'notificationId'> | null = await con
+    .getRepository(UserNotification)
+    .findOne({
+      select: ['notificationId'],
+      where: {
+        userId,
+        uniqueKey: UserNotificationUniqueKey.DigestReady,
+      },
+    });
+
+  if (result) {
+    await con.getRepository(NotificationV2).delete({
+      id: result.notificationId,
+    });
+  }
 };
 
 export const cleanupRecruiterNewCandidateNotification = async (

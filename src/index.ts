@@ -38,6 +38,7 @@ import { remoteConfig } from './remoteConfig';
 import { ZodError } from 'zod';
 import { closeClickHouseClient } from './common/clickhouse';
 import { GQL_MAX_FILE_SIZE } from './config';
+import otelPlugin from './telemetry/plugin';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -79,6 +80,7 @@ export default async function app(
   });
 
   app.log.info('loading features');
+  app.register(otelPlugin);
   await loadFeatures(app.log);
 
   const gracefulShutdown = () => {
@@ -202,7 +204,7 @@ export default async function app(
                 'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
               ) {
                 app.log.debug(
-                  { body: ctx?.reply?.request?.body },
+                  { gqlQuery: ctx?.reply?.request?.body },
                   'unknown query',
                 );
               } else if (error.originalError instanceof BrokenCircuitError) {
@@ -220,7 +222,7 @@ export default async function app(
                 app.log.warn(
                   {
                     err: error.originalError,
-                    body: ctx?.reply?.request?.body,
+                    gqlQuery: ctx?.reply?.request?.body,
                   },
                   'unexpected graphql error',
                 );

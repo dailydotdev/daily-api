@@ -13,6 +13,7 @@ import profileRoutes from './profile';
 import stackRoutes from './stack';
 import experiencesRoutes from './experiences';
 import tagsRoutes from './tags';
+import recommendRoutes from './recommend';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -98,7 +99,7 @@ export default async function (
     fastify.swagger(),
   );
   fastify.get('/docs/yaml', { schema: { hide: true } }, async (_, reply) => {
-    reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
+    return reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
   });
 
   // AI agent skill documentation (no auth required) - proxied from GitHub
@@ -111,7 +112,7 @@ export default async function (
 
     const content = await response.text();
 
-    reply
+    return reply
       .type('text/markdown')
       .header('cache-control', 'public, max-age=600, s-maxage=600')
       .send(content);
@@ -194,4 +195,5 @@ export default async function (
   await fastify.register(stackRoutes, { prefix: '/profile/stack' });
   await fastify.register(experiencesRoutes, { prefix: '/profile/experiences' });
   await fastify.register(tagsRoutes, { prefix: '/tags' });
+  await fastify.register(recommendRoutes, { prefix: '/recommend' });
 }

@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
@@ -102,10 +101,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     discoverHotTakes: async (
       _,
@@ -123,7 +119,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .andWhere(
             `NOT EXISTS (SELECT 1 FROM "user_hot_take" uht WHERE uht."hotTakeId" = "${builder.alias}"."id" AND uht."userId" = :currentUserId)`,
           )
-          .orderBy('random()')
+          .orderBy(
+            `COALESCE((
+              SELECT SUM(
+                CASE
+                  WHEN uht_score.vote = 1 THEN 2
+                  WHEN uht_score.vote = 0 THEN -1
+                  WHEN uht_score.vote = -1 THEN -2
+                  ELSE 0
+                END
+              )
+              FROM "user_hot_take" uht_score
+              WHERE uht_score."hotTakeId" = "${builder.alias}"."id"
+            ), 0)`,
+            'DESC',
+          )
+          .addOrderBy('random()')
           .limit(pageSize);
         return builder;
       });
@@ -288,4 +299,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
   },
-});
+};

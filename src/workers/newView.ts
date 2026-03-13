@@ -20,6 +20,7 @@ import {
 } from '../common/achievement';
 import { checkQuestProgress } from '../common/quest';
 import { FastifyBaseLogger } from 'fastify';
+import { remoteConfig } from '../remoteConfig';
 
 const checkBriefReadAchievement = async (
   con: DataSource,
@@ -79,7 +80,7 @@ const addView = async (con: EntityManager, entity: View): Promise<boolean> => {
     !existing ||
     entity.timestamp.getTime() - existing.timestamp.getTime() > ONE_WEEK
   ) {
-    await repo.save(entity);
+    await repo.insert(entity);
     return true;
   }
   return false;
@@ -200,8 +201,8 @@ const worker: Worker = {
             timestamp: data.timestamp && new Date(data.timestamp as string),
           }),
         );
-        if (!didSave) {
-          logger.debug(
+        if (!didSave && remoteConfig.vars.newViewLogs) {
+          logger.info(
             {
               view: data,
               messageId: message.messageId,
@@ -259,6 +260,7 @@ const worker: Worker = {
       await checkBriefReadAchievement(con, logger, data.postId, data.userId);
     }
   },
+  maxMessages: 5,
 };
 
 export default worker;

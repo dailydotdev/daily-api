@@ -80,6 +80,8 @@ import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFe
 import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
+import gearClassify from './gearClassify';
+import agenticDigestTweet from './agenticDigestTweet';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 
@@ -165,6 +167,8 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   parseOpportunityWorker,
   feedbackClassify,
   feedbackUpdatedSlack,
+  gearClassify,
+  agenticDigestTweet,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

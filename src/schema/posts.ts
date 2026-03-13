@@ -15,7 +15,6 @@ import {
   sourceTypesWithMembers,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
@@ -137,7 +136,6 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import { ensureProfileCompleteIfEnabled } from '../common/profile/completion';
 import {
   type GetBalanceResult,
   throwUserTransactionError,
@@ -488,6 +486,16 @@ export const typeDefs = /* GraphQL */ `
     Time the post was generated
     """
     generatedAt: DateTime
+
+    """
+    Post IDs included in a digest post
+    """
+    digestPostIds: [String]
+
+    """
+    Ad snapshot for a digest post
+    """
+    ad: SkadiAd
   }
 
   type UserPostFlagsPublic {
@@ -541,6 +549,17 @@ export const typeDefs = /* GraphQL */ `
     smartTitle: Boolean
     titleHtml: Boolean
     summary: Boolean
+  }
+
+  type SkadiAd {
+    type: String!
+    index: Int!
+    title: String
+    link: String
+    image: String
+    companyName: String
+    companyLogo: String
+    callToAction: String
   }
 
   """
@@ -1079,9 +1098,10 @@ export const typeDefs = /* GraphQL */ `
 
   type PostAnalyticsPublic {
     id: ID!
-    impressions: Int!
-    reputation: Int!
-    upvotes: Int!
+    impressions: Int
+    bookmarks: Int!
+    reputation: Int
+    upvotes: Int
   }
 
   type PostAnalyticsHistory {
@@ -1912,10 +1932,7 @@ const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
   500,
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sourcePostModeration: async (
       _,
@@ -2451,8 +2468,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })
               .andWhere(`${builder.alias}.deleted = false`)
               .andWhere(`${builder.alias}.visible = true`)
-              .andWhere(`${builder.alias}.type != :briefType`, {
-                briefType: PostType.Brief,
+              .andWhere(`${builder.alias}.type NOT IN (:...excludedTypes)`, {
+                excludedTypes: [PostType.Brief, PostType.Digest],
               });
 
             return builder;
@@ -2697,7 +2714,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
-        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2918,7 +2934,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
-        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2984,14 +2999,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const [post] = await Promise.all([
         ctx.con
           .createQueryBuilder()
-          .select(['post.id', 'post.title', 'post.type', 'post.sharedPostId'])
+          .select([
+            'post.id',
+            'post.title',
+            'post.type',
+            'post.sharedPostId',
+            'post.visible',
+            'post.deleted',
+          ])
           .from(Post, 'post')
           .where('post.id = :id', { id })
           .getOneOrFail(),
-        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
+
+      if (post.deleted) {
+        throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
+      }
 
       const sharedPostId = determineSharedPostId(post);
 
@@ -3003,8 +3028,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           sourceId,
           postId: sharedPostId,
           commentary,
+          visible: post.visible,
         },
       });
+
+      if (!newPost.visible) {
+        return newPost as unknown as GQLPost;
+      }
 
       return getPostById(ctx, info, newPost.id);
     },
@@ -3344,7 +3374,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await Promise.all([
         sourceCheck,
-        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
@@ -3425,10 +3454,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { sourceIds, ...postArgs } = args;
       const detectedPostType = getMultipleSourcesPostType(args);
 
-      await Promise.all([
-        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
-        ensurePostRateLimit(ctx.con, ctx.userId),
-      ]);
+      await ensurePostRateLimit(ctx.con, ctx.userId);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
       if (isPostingToSelfSource) {
         await ensureUserSourceExists(ctx.userId, ctx.con);
@@ -3562,4 +3588,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
-});
+};

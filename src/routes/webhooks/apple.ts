@@ -46,7 +46,7 @@ const handleNotifcationRequest = async (
     logger.error(
       {
         environment,
-        body: request.body,
+        reqBody: request.body,
         provider: SubscriptionProvider.AppleStoreKit,
       },
       "Missing 'signedPayload' in request body",
@@ -252,7 +252,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(
+      return handleNotifcationRequest(
         verifier,
         request,
         response,
@@ -275,7 +275,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(
+      return handleNotifcationRequest(
         verifier,
         request,
         response,

@@ -308,6 +308,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-added-user-notification',
   },
   {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.agentic-digest-tweet',
+  },
+  {
     topic: 'api.v1.source-post-moderation-submitted',
     subscription: 'api.source-post-moderation-submitted-notification',
   },
@@ -481,6 +485,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.opportunity-parse',
     subscription: 'api.opportunity-parse',
+  },
+  {
+    topic: 'api.v1.gear-created',
+    subscription: 'api.gear-classify',
   },
   {
     topic: 'api.v1.feedback-created',

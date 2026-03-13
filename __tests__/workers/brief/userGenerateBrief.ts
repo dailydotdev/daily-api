@@ -173,6 +173,7 @@ describe('userGenerateBrief worker', () => {
       frequency: BriefingType.Daily,
       model_name: BriefingModel.Default,
       allowed_tags: ['webdev', 'development'],
+      blocked_tags: ['fullstack'],
       seniority_level: 'NOT_ENGINEER',
     });
 
@@ -203,6 +204,7 @@ describe('userGenerateBrief worker', () => {
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
         }),
         postId,
@@ -355,6 +357,7 @@ describe('userGenerateBrief worker', () => {
       frequency: BriefingType.Daily,
       model_name: BriefingModel.Default,
       allowed_tags: ['webdev', 'development'],
+      blocked_tags: ['fullstack'],
       seniority_level: 'NOT_ENGINEER',
       recent_briefing: {
         sections: [
@@ -400,6 +403,7 @@ describe('userGenerateBrief worker', () => {
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
           recentBriefing: {
             sections: [
@@ -408,7 +412,7 @@ describe('userGenerateBrief worker', () => {
                 items: [
                   {
                     title: 'OpenAI gets a DoD contract, Microsoft gets salty',
-                    body: `OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.`,
+                    body: `OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI\u2019s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.`,
                   },
                 ],
               },
@@ -525,6 +529,7 @@ describe('userGenerateBrief worker', () => {
       frequency: BriefingType.Daily,
       model_name: BriefingModel.Default,
       allowed_tags: ['webdev', 'development'],
+      blocked_tags: ['fullstack'],
       seniority_level: 'NOT_ENGINEER',
       recent_briefing: {
         sections: [
@@ -702,6 +707,7 @@ describe('userGenerateBrief worker', () => {
       frequency: BriefingType.Daily,
       model_name: BriefingModel.Default,
       allowed_tags: ['webdev', 'development'],
+      blocked_tags: ['fullstack'],
       seniority_level: 'NOT_ENGINEER',
     });
 
@@ -733,6 +739,7 @@ describe('userGenerateBrief worker', () => {
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
         }),
         postId,

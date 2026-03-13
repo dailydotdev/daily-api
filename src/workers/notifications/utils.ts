@@ -246,19 +246,20 @@ export async function articleNewCommentHandler(
 }
 
 export const UPVOTE_TITLES = {
-  1: 'Congrats! You just <span class="text-theme-color-avocado">earned 1 upvote 🎉</span>',
-  3: 'Wow! You <span class="text-theme-color-avocado">earned 3 upvotes ✨</span>',
-  5: 'You rock! You <span class="text-theme-color-avocado">earned 5 upvotes 🎸</span>',
-  10: 'Well done! You <span class="text-theme-color-avocado">earned 10 upvotes 🙌</span>',
-  20: 'Brilliant! You <span class="text-theme-color-avocado">earned 20 upvotes 🥳</span>',
-  50: 'Good job! You <span class="text-theme-color-avocado">earned 50 upvotes 🚴‍♀️</span>',
-  100: 'Excellent! You <span class="text-theme-color-avocado">earned 100 upvotes ⚡️</span>',
-  200: 'Way to go! You <span class="text-theme-color-avocado">earned 200 upvotes 🚀</span>',
-  500: 'Clever! You <span class="text-theme-color-avocado">earned 500 upvotes 🦸‍</span>',
-  1000: 'Superb! You <span class="text-theme-color-avocado">earned 1,000 upvotes 😱</span>',
-  2000: 'Legendary! You <span class="text-theme-color-avocado">earned 2,000 upvotes 💥</span>',
-  5000: 'Unbelievable! You <span class="text-theme-color-avocado">earned 5,000 upvotes 😳</span>',
-  10000: `We're speechless! You <span class="text-theme-color-avocado">earned 10,000 upvotes 🙉</span>`,
+  1: '<span class="text-theme-color-avocado">1 upvote!</span> Off to a good start 🎉',
+  3: '<span class="text-theme-color-avocado">3 upvotes!</span> No bugs, just vibes ✨',
+  5: '<span class="text-theme-color-avocado">5 upvotes!</span> Gaining traction 👀',
+  10: '<span class="text-theme-color-avocado">10 upvotes!</span> New high score 🙌',
+  20: '<span class="text-theme-color-avocado">20 upvotes!</span> Level up 🥳',
+  50: '<span class="text-theme-color-avocado">50 upvotes!</span> Trending on the feed 🔥',
+  100: '<span class="text-theme-color-avocado">100 upvotes!</span> Critical hit ⚡️',
+  200: '<span class="text-theme-color-avocado">200 upvotes!</span> This one took off 🚀',
+  500: '<span class="text-theme-color-avocado">500 upvotes!</span> Going viral 📈',
+  1000: '<span class="text-theme-color-avocado">1,000 upvotes!</span> Legendary unlocked 💎',
+  2000: '<span class="text-theme-color-avocado">2,000 upvotes!</span> Mythic tier 💥',
+  5000: '<span class="text-theme-color-avocado">5,000 upvotes!</span> Hall of fame 🏆',
+  10000:
+    '<span class="text-theme-color-avocado">10,000 upvotes!</span> GOAT 👑',
 };
 export const UPVOTE_MILESTONES = Object.keys(UPVOTE_TITLES);
 

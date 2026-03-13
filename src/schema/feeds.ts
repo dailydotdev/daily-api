@@ -17,7 +17,6 @@ import { GraphQLResolveInfo } from 'graphql';
 
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
@@ -469,7 +468,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Optional content curation filter
       """
-      contentCuration: String
+      contentCuration: [String!]
 
       """
       Paginate after opaque cursor
@@ -1432,7 +1431,7 @@ const feedResolverCursor = feedResolver<
 
 type ChannelFeedArgs = ConnectionArguments & {
   channel: string;
-  contentCuration?: string;
+  contentCuration?: string[];
   supportedTypes?: string[];
 };
 
@@ -1467,8 +1466,8 @@ const channelFeedResolver = feedResolver<
         offset: 0,
         channel: args.channel,
         cursor: page.cursor,
-        allowed_content_curations: args.contentCuration
-          ? [args.contentCuration]
+        allowed_content_curations: args.contentCuration?.length
+          ? args.contentCuration
           : undefined,
         allowed_post_types: args.supportedTypes,
       }),
@@ -1539,10 +1538,7 @@ const postRepostsFeedResolver = feedResolver(
   },
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
@@ -2516,4 +2512,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
   },
-});
+};

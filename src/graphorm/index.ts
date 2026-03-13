@@ -166,16 +166,27 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+const fallbackFailedScrapeTitle = (
+  value: string | null,
+  parent: unknown,
+): string | null => {
+  if (!value && (parent as { url?: string })?.url) {
+    return 'Failed to scrape';
+  }
+
+  return value;
+};
+
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
-    transform: async (value: string, ctx: Context, parent) => {
+    transform: async (value: string | null, ctx: Context, parent) => {
       if (!ctx.userId) {
-        return value;
+        return fallbackFailedScrapeTitle(value, parent);
       }
 
       if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
-        return value;
+        return fallbackFailedScrapeTitle(value, parent);
       }
 
       const typedParent = parent as {
@@ -222,7 +233,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return i18nValue;
       }
 
-      return value;
+      return fallbackFailedScrapeTitle(value, parent);
     },
   };
 };
@@ -660,8 +671,10 @@ const obj = new GraphORM({
       sharedPost: {
         relation: {
           isMany: false,
-          childColumn: 'id',
-          parentColumn: 'sharedPostId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
+              .andWhere(`${childAlias}."deleted" = false`),
         },
       },
       downvoted: {
@@ -672,10 +685,24 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
-        transform: (value: PostFlagsPublic): PostFlagsPublic => {
+        transform: (value: PostFlagsPublic) => {
+          const ad = value?.ad;
           return {
             ...value,
             generatedAt: transformDate(value.generatedAt),
+            digestPostIds: value?.digestPostIds ?? null,
+            ad: ad
+              ? {
+                  type: ad.type,
+                  index: ad.index,
+                  title: ad.title,
+                  link: ad.link,
+                  image: ad.image,
+                  companyName: ad.company_name,
+                  companyLogo: ad.company_logo,
+                  callToAction: ad.call_to_action,
+                }
+              : null,
           };
         },
       },
@@ -840,6 +867,10 @@ const obj = new GraphORM({
           parentColumn: 'id',
         },
         transform: (value, ctx, parent) => {
+          if (!value) {
+            return null;
+          }
+
           const post = parent as Post;
           const isAuthor = post?.authorId && ctx.userId === post.authorId;
           const isScout = post?.scoutId && ctx.userId === post.scoutId;
@@ -848,7 +879,10 @@ const obj = new GraphORM({
             return value;
           }
 
-          return null;
+          return {
+            id: value.id,
+            bookmarks: value.bookmarks,
+          };
         },
       },
     },
@@ -1683,6 +1717,11 @@ const obj = new GraphORM({
   PostAnalyticsPublic: {
     from: 'PostAnalytics',
     fields: {
+      bookmarks: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
       impressions: {
         rawSelect: true,
         select: (_, alias) => {
@@ -2360,7 +2399,7 @@ const obj = new GraphORM({
     },
   },
   DatasetGear: {
-    requiredColumns: ['id', 'name'],
+    requiredColumns: ['id', 'name', 'category'],
     fields: {
       createdAt: {
         transform: transformDate,

@@ -22,6 +22,7 @@ import {
   WelcomePost,
 } from '../src/entity';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { SourceStack } from '../src/entity/sources/SourceStack';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { SourcePermissionErrorKeys } from '../src/errors';
@@ -55,6 +56,7 @@ import {
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
+import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -419,6 +421,7 @@ describe('query sources', () => {
     filterOpenSquads: boolean;
     categoryId: string;
     sortByMembersCount: boolean;
+    toolId: string;
   }
 
   const QUERY = ({
@@ -427,6 +430,7 @@ describe('query sources', () => {
     featured,
     categoryId,
     sortByMembersCount,
+    toolId,
   }: Partial<Props> = {}): string => `{
     sources(
       first: ${first},
@@ -434,6 +438,7 @@ describe('query sources', () => {
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
       ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
       ${isNullOrUndefined(sortByMembersCount) ? '' : `, sortByMembersCount: ${sortByMembersCount}`}
+      ${isNullOrUndefined(toolId) ? '' : `, toolId: "${toolId}"`}
     ) {
       pageInfo {
         endCursor
@@ -714,6 +719,76 @@ describe('query sources', () => {
     expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual(
       expect.arrayContaining(['c', 'squad', 'm', 'a', 'b']),
     );
+  });
+
+  it('should filter public squads by stack tool id', async () => {
+    const toolA = await con.getRepository(DatasetTool).save({
+      title: 'Tool A',
+      titleNormalized: 'toola',
+      faviconSource: 'none',
+    });
+    const toolB = await con.getRepository(DatasetTool).save({
+      title: 'Tool B',
+      titleNormalized: 'toolb',
+      faviconSource: 'none',
+    });
+
+    await con.getRepository(Source).update(
+      { id: In(['a', 'b', 'm']) },
+      {
+        type: SourceType.Squad,
+        private: false,
+        flags: updateFlagsStatement({ publicThreshold: true, totalMembers: 0 }),
+      },
+    );
+
+    await con.getRepository(SourceStack).save([
+      { sourceId: 'a', toolId: toolA.id, position: 0, createdById: '1' },
+      { sourceId: 'b', toolId: toolA.id, position: 0, createdById: '1' },
+      { sourceId: 'm', toolId: toolB.id, position: 0, createdById: '1' },
+    ]);
+
+    await con.getRepository(Source).update(
+      { id: 'a' },
+      {
+        flags: updateFlagsStatement({
+          totalMembers: 1,
+          publicThreshold: true,
+        }),
+      },
+    );
+    await con.getRepository(Source).update(
+      { id: 'b' },
+      {
+        flags: updateFlagsStatement({
+          totalMembers: 2,
+          publicThreshold: true,
+        }),
+      },
+    );
+    await con.getRepository(Source).update(
+      { id: 'm' },
+      {
+        flags: updateFlagsStatement({
+          totalMembers: 3,
+          publicThreshold: true,
+        }),
+      },
+    );
+
+    const res = await client.query(
+      QUERY({
+        first: 10,
+        filterOpenSquads: true,
+        sortByMembersCount: true,
+        toolId: toolA.id,
+      }),
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'b',
+      'a',
+    ]);
   });
 });
 
@@ -3275,6 +3350,177 @@ describe('mutation updateMemberRole', () => {
         expect(errors[0].message).toEqual('Role does not exist!');
       },
     );
+  });
+});
+
+describe('mutation demoteSelf', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation DemoteSelf($sourceId: ID!) {
+      demoteSelf(sourceId: $sourceId) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 20),
+    });
+    await con.getRepository(ContentPreferenceSource).update(
+      { userId: '1', referenceId: 'a' },
+      {
+        status: ContentPreferenceStatus.Subscribed,
+        flags: {
+          role: SourceMemberRoles.Admin,
+          referralToken: randomUUID(),
+        },
+      },
+    );
+    await con.getRepository(ContentPreferenceSource).update(
+      { userId: '2', referenceId: 'a' },
+      {
+        status: ContentPreferenceStatus.Subscribed,
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        },
+      },
+    );
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '3',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+      },
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict members from demoting themselves', async () => {
+    loggedUser = '2';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow an admin to become a member when another admin exists', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '1', sourceId: 'a' });
+    expect(member).toMatchObject({ role: SourceMemberRoles.Member });
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 'a' });
+    expect(contentPreference).toMatchObject({
+      flags: expect.objectContaining({ role: SourceMemberRoles.Member }),
+    });
+  });
+
+  it('should prevent the last admin from becoming a member', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(SourceMember)
+      .delete({ userId: '3', sourceId: 'a' });
+    await con
+      .getRepository(ContentPreferenceSource)
+      .delete({ userId: '3', referenceId: 'a' });
+
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a' },
+      },
+      async (errors) => {
+        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual(
+          'You cannot become a member while you are the last admin.',
+        );
+
+        const member = await con
+          .getRepository(SourceMember)
+          .findOneBy({ userId: '1', sourceId: 'a' });
+        expect(member).toMatchObject({ role: SourceMemberRoles.Admin });
+
+        const contentPreference = await con
+          .getRepository(ContentPreferenceSource)
+          .findOneBy({ userId: '1', referenceId: 'a' });
+        expect(contentPreference).toMatchObject({
+          flags: expect.objectContaining({ role: SourceMemberRoles.Admin }),
+        });
+      },
+    );
+  });
+
+  it('should allow a moderator to become a member', async () => {
+    loggedUser = '2';
+
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Moderator },
+      );
+    await con.getRepository(ContentPreferenceSource).update(
+      { userId: '2', referenceId: 'a' },
+      {
+        flags: {
+          role: SourceMemberRoles.Moderator,
+          referralToken: randomUUID(),
+        },
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member).toMatchObject({ role: SourceMemberRoles.Member });
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference).toMatchObject({
+      flags: expect.objectContaining({ role: SourceMemberRoles.Member }),
+    });
   });
 });
 

@@ -32,6 +32,7 @@ import {
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import type { Span } from '@opentelemetry/api';
+import { context, propagation, trace } from '@opentelemetry/api';
 import { logger } from '../src/logger';
 import {
   Code as ConnectCode,
@@ -158,15 +159,30 @@ export const initializeGraphQLTesting = async (
   contextFn: (request: FastifyRequest) => Context,
 ): Promise<GraphQLTestingState> => {
   const app = await appFunc(contextFn);
+  if (!app.hasRequestDecorator('opentelemetry')) {
+    app.decorateRequest('opentelemetry', function opentelemetry() {
+      const ctx = context.active();
+      return {
+        span: null,
+        tracer: trace.getTracer('test'),
+        context: ctx,
+        inject: (carrier, setter) => propagation.inject(ctx, carrier, setter),
+        extract: (carrier, getter) => propagation.extract(ctx, carrier, getter),
+      };
+    });
+  }
   const client = createMercuriusTestClient(app);
   await app.ready();
   return { app, client };
 };
 
-export const disposeGraphQLTesting = async ({
-  app,
-}: GraphQLTestingState): Promise<void> => {
-  await app.close();
+export const disposeGraphQLTesting = async (
+  state: GraphQLTestingState | undefined,
+): Promise<void> => {
+  if (!state?.app) {
+    return;
+  }
+  await state.app.close();
 };
 
 export const authorizeRequest = (
@@ -816,4 +832,21 @@ export const defaultSuperAgentTrialConfig = {
     showSlack: true,
     showFeedback: true,
   },
+};
+
+export const createMockTemporalClient = () => {
+  const describe = jest.fn();
+  const terminate = jest.fn();
+  const start = jest.fn();
+  const getHandle = jest.fn(() => ({ describe, terminate }));
+
+  return {
+    mock: { describe, terminate, start, getHandle },
+    client: { workflow: { start, getHandle } },
+    notFoundError: () => {
+      const err = new Error('not found');
+      err.name = 'WorkflowNotFoundError';
+      return err;
+    },
+  };
 };

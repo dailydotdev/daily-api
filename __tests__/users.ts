@@ -4524,6 +4524,36 @@ describe('mutation deleteUser', () => {
     expect(post.authorId).toEqual(null);
   });
 
+  it('should delete digest posts on user deletion', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).save({
+      id: '1',
+      name: 'User Source',
+      image: 'https://daily.dev/1.jpg',
+      handle: 'user1',
+      active: true,
+      private: false,
+    });
+
+    await con.getRepository(Post).save({
+      id: 'pdigest1',
+      shortId: 'spdigest1',
+      title: 'Digest Post',
+      sourceId: '1',
+      authorId: '1',
+      type: PostType.Digest,
+      createdAt: new Date(),
+    });
+
+    await client.mutate(MUTATION);
+
+    const deletedDigest = await con
+      .getRepository(Post)
+      .findOneBy({ id: 'pdigest1' });
+    expect(deletedDigest).toBeNull();
+  });
+
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
 
@@ -8066,6 +8096,41 @@ describe('query userPostsAnalyticsHistory', () => {
     await con.getRepository(PostAnalyticsHistory).save([
       {
         id: 'brief-upah',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        impressions: 200,
+        impressionsAds: 100,
+      },
+    ]);
+
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsAnalyticsHistory).toHaveLength(2);
+    expect(res.data.userPostsAnalyticsHistory[0]).toMatchObject({
+      date: expect.any(String),
+      impressions: 150,
+      impressionsAds: 50,
+    });
+  });
+
+  it('should exclude digest posts from analytics history', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'digest-upah',
+        shortId: 'sdgst-upah',
+        title: 'Digest Post',
+        url: 'https://example.com/digest-upah',
+        sourceId: 'a',
+        authorId: '1',
+        type: PostType.Digest,
+      },
+    ]);
+
+    await con.getRepository(PostAnalyticsHistory).save([
+      {
+        id: 'digest-upah',
         date: format(new Date(), 'yyyy-MM-dd'),
         impressions: 200,
         impressionsAds: 100,

@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
 import { cookies } from './cookies';
 import * as fs from 'fs';
+import { runInSpan } from './telemetry';
 
 const INTERNAL_AUTH_MAX_AGE_MS = 5000; // 5 seconds
 
@@ -115,57 +116,59 @@ const plugin = async (
   fastify.decorateRequest('isPlus');
 
   // Machine-to-machine authentication
-  fastify.addHook('preHandler', async (req) => {
-    const authHeader = req.headers['authorization'] as string | undefined;
+  fastify.addHook('preHandler', async (req) =>
+    runInSpan('preHandler.auth', async () => {
+      const authHeader = req.headers['authorization'] as string | undefined;
 
-    // Internal service auth: only for /graphql, uses signed token
-    const isInternalServiceAuth =
-      authHeader?.startsWith('InternalService ') &&
-      req.url === '/graphql' &&
-      verifyInternalAuth(authHeader.substring(16), opts.secret);
+      // Internal service auth: only for /graphql, uses signed token
+      const isInternalServiceAuth =
+        authHeader?.startsWith('InternalService ') &&
+        req.url === '/graphql' &&
+        verifyInternalAuth(authHeader.substring(16), opts.secret);
 
-    // Regular service auth: requires ENABLE_PRIVATE_ROUTES or public API route
-    const isRegularServiceAuth =
-      authHeader === `Service ${opts.secret}` &&
-      process.env.ENABLE_PRIVATE_ROUTES === 'true';
+      // Regular service auth: requires ENABLE_PRIVATE_ROUTES or public API route
+      const isRegularServiceAuth =
+        authHeader === `Service ${opts.secret}` &&
+        process.env.ENABLE_PRIVATE_ROUTES === 'true';
 
-    if (isInternalServiceAuth || isRegularServiceAuth) {
-      req.service = true;
-      if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
-        req.userId = req.headers['user-id'] as string;
-        req.isPlus = req.headers['is-plus'] === 'true';
-        req.isTeamMember = req.headers['is-team-member'] === 'true';
-        req.roles =
-          ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
-      }
-    } else {
-      delete req.headers['user-id'];
-      delete req.headers['logged-in'];
-    }
-    const authCookie = req.cookies[cookies.auth.key];
-    if (!req.userId && authCookie) {
-      try {
-        const unsigned = req.unsignCookie(authCookie);
-        if (unsigned.valid) {
-          const validValue = unsigned.value as string;
-
-          const payload = await verifyJwt(validValue);
-          if (payload) {
-            req.userId = payload.userId;
-            req.roles = payload.roles;
-            req.isTeamMember = payload.isTeamMember;
-            req.isPlus = !!payload.isPlus;
-            req.accessToken = {
-              token: validValue,
-              expiresIn: new Date(payload.exp * 1000),
-            };
-          }
+      if (isInternalServiceAuth || isRegularServiceAuth) {
+        req.service = true;
+        if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
+          req.userId = req.headers['user-id'] as string;
+          req.isPlus = req.headers['is-plus'] === 'true';
+          req.isTeamMember = req.headers['is-team-member'] === 'true';
+          req.roles =
+            ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
         }
-      } catch (err) {
-        // JWT is invalid - no need to do anything just not authorize
+      } else {
+        delete req.headers['user-id'];
+        delete req.headers['logged-in'];
       }
-    }
-  });
+      const authCookie = req.cookies[cookies.auth.key];
+      if (!req.userId && authCookie) {
+        try {
+          const unsigned = req.unsignCookie(authCookie);
+          if (unsigned.valid) {
+            const validValue = unsigned.value as string;
+
+            const payload = await verifyJwt(validValue);
+            if (payload) {
+              req.userId = payload.userId;
+              req.roles = payload.roles;
+              req.isTeamMember = payload.isTeamMember;
+              req.isPlus = !!payload.isPlus;
+              req.accessToken = {
+                token: validValue,
+                expiresIn: new Date(payload.exp * 1000),
+              };
+            }
+          }
+        } catch (err) {
+          // JWT is invalid - no need to do anything just not authorize
+        }
+      }
+    }),
+  );
 };
 
 export default fp(plugin, {

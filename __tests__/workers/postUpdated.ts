@@ -42,6 +42,7 @@ import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 import { generateShortId } from '../../src/ids';
 import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
 import twitterSocialThreadPayloadFixture from '../fixture/twitterSocialThreadPayload.json';
+import { remoteConfig } from '../../src/remoteConfig';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -59,6 +60,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  remoteConfig.vars.ignoredAuthorMatchDomains = [];
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, [
     {
@@ -202,6 +204,102 @@ it(`should not update if the post changed URL already exists`, async () => {
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.url).toEqual('http://p1.com');
   expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
+});
+
+it('should update squad post by nulling canonicalUrl when canonicalUrl conflicts', async () => {
+  await con
+    .getRepository(ArticlePost)
+    .update({ id: 'p1' }, { canonicalUrl: 'http://old-canonical.com' });
+  await con.getRepository(ArticlePost).insert({
+    id: 'p3',
+    shortId: 'p3',
+    url: 'http://p3.com',
+    canonicalUrl: 'http://duplicate-canonical.com',
+    sourceId: 'a',
+  });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    origin: PostOrigin.Squad,
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'updated title',
+    extra: {
+      canonical_url: 'http://duplicate-canonical.com',
+    },
+  });
+
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post).toMatchObject({
+    id: 'p1',
+    title: 'updated title',
+    canonicalUrl: null,
+  });
+  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+});
+
+it('should not update non-squad post when canonicalUrl conflicts', async () => {
+  await con.getRepository(ArticlePost).update(
+    { id: 'p1' },
+    {
+      origin: PostOrigin.CommunityPicks,
+      canonicalUrl: 'http://old-canonical.com',
+    },
+  );
+  await con.getRepository(ArticlePost).insert({
+    id: 'p3',
+    shortId: 'p3',
+    url: 'http://p3.com',
+    canonicalUrl: 'http://duplicate-canonical.com',
+    sourceId: 'a',
+  });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    origin: PostOrigin.CommunityPicks,
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'updated title',
+    extra: {
+      canonical_url: 'http://duplicate-canonical.com',
+    },
+  });
+
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post).toMatchObject({
+    id: 'p1',
+    title: null,
+    canonicalUrl: 'http://old-canonical.com',
+  });
+  expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
+});
+
+it('should update squad post when canonicalUrl conflicts and payload origin is missing', async () => {
+  await con
+    .getRepository(ArticlePost)
+    .update({ id: 'p1' }, { canonicalUrl: 'http://old-canonical.com' });
+  await con.getRepository(ArticlePost).insert({
+    id: 'p3',
+    shortId: 'p3',
+    url: 'http://p3.com',
+    canonicalUrl: 'http://duplicate-canonical.com',
+    sourceId: 'a',
+  });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'updated title',
+    extra: {
+      canonical_url: 'http://duplicate-canonical.com',
+    },
+  });
+
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post).toMatchObject({
+    id: 'p1',
+    title: 'updated title',
+    canonicalUrl: null,
+  });
+  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
 });
 
 it('should update the post and keep it invisible if title is missing', async () => {
@@ -467,6 +565,50 @@ it('should save a new post with basic information', async () => {
     contentQuality: expect.any(Object),
     statsUpdatedAt: expect.any(Date),
   });
+});
+
+it('should match author for non-ignored article domains', async () => {
+  await createDefaultUser();
+
+  await expectSuccessfulBackground(worker, {
+    id: randomUUID(),
+    title: 'Title',
+    url: 'https://allowed.example.dev/post',
+    source_id: 'a',
+    extra: {
+      creator_twitter: '@leeTwitter',
+    },
+  });
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    url: 'https://allowed.example.dev/post',
+  });
+
+  expect(post.authorId).toEqual('1');
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
+});
+
+it('should skip author match when canonical url domain is ignored', async () => {
+  await createDefaultUser();
+  remoteConfig.vars.ignoredAuthorMatchDomains = ['ignored.example.com'];
+
+  await expectSuccessfulBackground(worker, {
+    id: randomUUID(),
+    title: 'Title',
+    url: 'https://allowed.example.dev/post',
+    source_id: 'a',
+    extra: {
+      creator_twitter: '@leeTwitter',
+      canonical_url: 'https://blog.ignored.example.com/post',
+    },
+  });
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    url: 'https://allowed.example.dev/post',
+  });
+
+  expect(post.authorId).toBeNull();
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
 });
 
 it('should save a new post with with non-default language', async () => {
@@ -858,29 +1000,46 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
       },
     },
   });
-  expect(post.showOnFeed).toEqual(false);
 });
 
-it('should keep social twitter post hidden from feed when order is missing', async () => {
-  const yggdrasilId = randomUUID();
-
-  await expectSuccessfulBackground(worker, {
-    id: yggdrasilId,
-    content_type: PostType.SocialTwitter,
-    url: 'https://x.com/dailydotdev/status/1009',
-    source_id: 'a',
-    extra: {
-      subtype: 'tweet',
+it('should set social twitter showOnFeed based on order field', async () => {
+  const cases = [
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1009',
       content: 'No order social tweet',
+      expectedShowOnFeed: true,
     },
-  });
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1010',
+      content: 'Ordered social tweet',
+      order: 1,
+      expectedShowOnFeed: false,
+    },
+  ];
 
-  const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
-    yggdrasilId,
-  });
+  for (const { yggdrasilId, url, content, order } of cases) {
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      content_type: PostType.SocialTwitter,
+      url,
+      source_id: 'a',
+      ...(order ? { order } : {}),
+      extra: {
+        subtype: 'tweet',
+        content,
+      },
+    });
+  }
 
-  expect(post.showOnFeed).toEqual(false);
-  expect(post.flags.showOnFeed).toEqual(false);
+  for (const { yggdrasilId, expectedShowOnFeed } of cases) {
+    const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
+      yggdrasilId,
+    });
+    expect(post.showOnFeed).toEqual(expectedShowOnFeed);
+    expect(post.flags.showOnFeed).toEqual(expectedShowOnFeed);
+  }
 });
 
 it('should map repost without body to null title', async () => {
@@ -974,6 +1133,32 @@ it('should store enrichment fields for social twitter post on create', async () 
     siteTwitter: '@dailydev',
     creatorTwitter: '@johndoe',
   });
+});
+
+it('should skip social twitter author match when url domain is ignored', async () => {
+  await createDefaultUser();
+  remoteConfig.vars.ignoredAuthorMatchDomains = ['x.com'];
+
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/2003',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'Ignored author match tweet',
+      creator_twitter: '@leeTwitter',
+    },
+  });
+
+  const post = await con
+    .getRepository(SocialTwitterPost)
+    .findOneByOrFail({ yggdrasilId });
+
+  expect(post.authorId).toBeNull();
+  expect(post.creatorTwitter).toEqual('@leeTwitter');
 });
 
 it('should store enrichment fields for social twitter post on update', async () => {

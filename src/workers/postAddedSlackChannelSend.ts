@@ -3,6 +3,7 @@ import { TypedWorker } from './worker';
 import fastq from 'fastq';
 import {
   BRIEFING_SOURCE,
+  DIGEST_SOURCE,
   Post,
   PostType,
   SourceMember,
@@ -19,8 +20,8 @@ import { counters } from '../telemetry/metrics';
 
 const sendQueueConcurrency = 10;
 
-const skipPostTypes = [PostType.Brief];
-const skipSources = [BRIEFING_SOURCE];
+const skipPostTypes = [PostType.Brief, PostType.Digest];
+const skipSources = [BRIEFING_SOURCE, DIGEST_SOURCE];
 
 export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'> =
   {

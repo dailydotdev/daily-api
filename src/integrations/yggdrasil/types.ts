@@ -9,6 +9,8 @@ export type EntityTimeSeries = {
   t: number[];
   s: number[];
   v: number[];
+  sv?: number[];
+  d?: number[];
 };
 
 export type TimeSeriesResponse = {
@@ -22,6 +24,10 @@ export type HighlightsParams = {
   groupId?: string;
   limit?: number;
   after?: string;
+  orderBy?: 'score' | 'recency';
+  minHighlightScore?: number;
+  from?: string;
+  to?: string;
 };
 
 export type SentimentAnnotation = {
@@ -60,4 +66,22 @@ export type HighlightItem = {
 export type HighlightsResponse = {
   items: HighlightItem[];
   cursor: string | null;
+};
+
+export type TopEntitiesParams = {
+  groupId: string;
+  resolution: '15m' | '1h' | '1d';
+  lookback?: string;
+  limit?: number;
+};
+
+export type TopEntityItem = {
+  entity: string;
+  d_index: number;
+  score: number;
+  volume: number;
+};
+
+export type TopEntitiesResponse = {
+  entities: TopEntityItem[];
 };

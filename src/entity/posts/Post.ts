@@ -23,6 +23,7 @@ export enum PostType {
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
+  Digest = 'digest',
   Poll = 'poll',
   SocialTwitter = 'social:twitter',
 }
@@ -54,6 +55,18 @@ export type PostFlags = Partial<{
   savedTime: number;
   generatedAt: Date;
   dedupKey: string;
+  digestPostIds: string[];
+  collectionSources: string[];
+  ad: {
+    type: string;
+    index: number;
+    title: string;
+    link: string;
+    image: string;
+    company_name: string;
+    company_logo: string;
+    call_to_action: string;
+  } | null;
 }>;
 
 export type PostFlagsPublic = Pick<
@@ -65,6 +78,8 @@ export type PostFlagsPublic = Pick<
   | 'sources'
   | 'savedTime'
   | 'generatedAt'
+  | 'digestPostIds'
+  | 'ad'
 >;
 
 export type PostContentQuality = Partial<{

@@ -46,12 +46,14 @@ export const getUserConfigForBriefingRequest = async ({
 }: {
   con: EntityManager;
   userId: string;
-}): Promise<Pick<UserBriefingRequest, 'allowedTags' | 'seniorityLevel'>> => {
+}): Promise<
+  Pick<UserBriefingRequest, 'allowedTags' | 'blockedTags' | 'seniorityLevel'>
+> => {
   if (!userId) {
     throw new Error('User id is required');
   }
 
-  const [user, keywords] = await Promise.all([
+  const [user, keywords, blockedKeywords] = await Promise.all([
     con.getRepository(User).findOneOrFail({
       select: ['id', 'experienceLevel'],
       where: {
@@ -69,10 +71,19 @@ export const getUserConfigForBriefingRequest = async ({
         ]),
       },
     }),
+    con.getRepository(ContentPreferenceKeyword).find({
+      select: ['keywordId'],
+      where: {
+        userId: userId,
+        feedId: userId,
+        status: ContentPreferenceStatus.Blocked,
+      },
+    }),
   ]);
 
   return {
     allowedTags: keywords.map((item) => item.keywordId),
+    blockedTags: blockedKeywords.map((item) => item.keywordId),
     seniorityLevel: user.experienceLevel ?? undefined,
   };
 };

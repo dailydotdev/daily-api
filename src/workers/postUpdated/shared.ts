@@ -28,6 +28,7 @@ import { generateShortId } from '../../ids';
 import { updateFlagsStatement } from '../../common';
 import { counters } from '../../telemetry';
 import { BriefPost } from '../../entity/posts/BriefPost';
+import { DigestPost } from '../../entity/posts/DigestPost';
 import { PollPost } from '../../entity/posts/PollPost';
 import { isTwitterSocialType } from '../../common/twitterSocial';
 import type {
@@ -104,6 +105,7 @@ export const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Collection]: CollectionPost,
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
+  [PostType.Digest]: DigestPost,
   [PostType.Poll]: PollPost,
   [PostType.SocialTwitter]: SocialTwitterPost,
 };
@@ -213,15 +215,29 @@ export const updatePost = async ({
     return null;
   }
 
-  if (
-    await checkExistingUrl({
+  let hasUrlConflict = await checkExistingUrl({
+    entityManager,
+    data,
+    logger,
+    errorMsg: 'failed updating post because URL/canonical exists already',
+    excludeId: databasePost?.id,
+  });
+
+  const isSquadOriginPost =
+    data.origin === PostOrigin.Squad ||
+    databasePost.origin === PostOrigin.Squad;
+  if (hasUrlConflict && isSquadOriginPost) {
+    data.canonicalUrl = null;
+    hasUrlConflict = await checkExistingUrl({
       entityManager,
       data,
       logger,
-      errorMsg: 'failed updating post because URL/canonical exists already',
+      errorMsg: 'failed updating post because URL exists already',
       excludeId: databasePost?.id,
-    })
-  ) {
+    });
+  }
+
+  if (hasUrlConflict) {
     return null;
   }
 

@@ -31,6 +31,8 @@ import expireSuperAgentTrial from './expireSuperAgentTrial';
 import updateAchievementRarity from './updateAchievementRarity';
 import rotateDailyQuests from './rotateDailyQuests';
 import rotateWeeklyQuests from './rotateWeeklyQuests';
+import backfillGearCategory from './backfillGearCategory';
+import agentsDigest from './agentsDigest';
 
 export const crons: Cron[] = [
   updateViews,
@@ -65,4 +67,6 @@ export const crons: Cron[] = [
   updateAchievementRarity,
   rotateDailyQuests,
   rotateWeeklyQuests,
+  backfillGearCategory,
+  agentsDigest,
 ];

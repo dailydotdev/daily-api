@@ -9,7 +9,6 @@ import {
   GQLIdInput,
   offsetPageGenerator,
 } from './common';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
   MachineSource,
@@ -485,10 +484,7 @@ const ensureNotRejected = async (
   }
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     requestSource: async (
       source,
@@ -702,4 +698,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       offsetPageGenerator(100, 500),
     ),
   },
-});
+};

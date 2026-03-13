@@ -1,6 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import { Keyword } from '../entity';
 import { TagRecommendation } from '../entity/TagRecommendation';
 import { In, Not, ObjectType } from 'typeorm';
@@ -126,10 +125,7 @@ const getFormattedTags = async (
   return tags.map(({ tag }) => ({ name: tag }));
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     tags: (_, __, ctx: Context, info): Promise<GQLKeyword[]> =>
       graphorm.query<GQLKeyword>(
@@ -227,4 +223,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

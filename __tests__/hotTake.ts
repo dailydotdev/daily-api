@@ -193,6 +193,31 @@ describe('query discoverHotTakes', () => {
     expect(res.data.discoverHotTakes).toEqual([]);
   });
 
+  it('should order hot takes by weighted vote score', async () => {
+    loggedUser = '1';
+    const [coldTake, hotTake, mehTake] = await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '🧊', title: 'Cold take', position: 0 },
+      { userId: '2', emoji: '🔥', title: 'Hot take', position: 1 },
+      { userId: '2', emoji: '😐', title: 'Meh take', position: 2 },
+    ]);
+
+    await con.getRepository(UserHotTake).save([
+      { hotTakeId: coldTake.id, userId: '2', vote: UserVote.Down },
+      { hotTakeId: coldTake.id, userId: '3', vote: UserVote.Down },
+      { hotTakeId: hotTake.id, userId: '2', vote: UserVote.Up },
+      { hotTakeId: hotTake.id, userId: '3', vote: UserVote.Up },
+      { hotTakeId: hotTake.id, userId: '4', vote: UserVote.Up },
+      { hotTakeId: mehTake.id, userId: '3', vote: UserVote.Up },
+      { hotTakeId: mehTake.id, userId: '4', vote: UserVote.None },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(
+      res.data.discoverHotTakes.map((t: { title: string }) => t.title),
+    ).toEqual(['Hot take', 'Meh take', 'Cold take']);
+  });
+
   it('should exclude takes where user has any vote record', async () => {
     loggedUser = '1';
     const hotTake1 = await con.getRepository(HotTake).save({

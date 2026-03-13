@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import {
@@ -240,10 +239,7 @@ export const typeDefs = /* GraphQL */ `
 const contentPreferencePageGenerator =
   offsetPageGenerator<GQLContentPreference>(10, 50);
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     contentPreferenceStatus: async (
       _,
@@ -560,4 +556,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

@@ -75,7 +75,6 @@ import {
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
-import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser, type CoresRole, type TLocation } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
@@ -91,6 +90,7 @@ import {
   getProfileExperienceFlags as getSharedProfileExperienceFlags,
   type ProfileCompletion,
 } from '../common/profile/completion';
+import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
@@ -190,8 +190,12 @@ const getBootQuery = (req: FastifyRequest): BootQuery =>
 const getBootReferrer = (req: FastifyRequest): string | undefined =>
   unwrapArray(getBootQuery(req).referrer);
 
+const getBootAppPlatform = (req: FastifyRequest): string | undefined =>
+  unwrapArray(req.headers.app as string | string[] | undefined) ??
+  unwrapArray(getBootQuery(req).app_platform);
+
 const isExtensionBootRequest = (req: FastifyRequest): boolean =>
-  unwrapArray(getBootQuery(req).app_platform) === 'extension';
+  getBootAppPlatform(req) === 'extension';
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
   generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);
@@ -222,6 +226,7 @@ const updateLastExtensionUse = async ({
       flags: updateFlagsStatement<User>({
         lastExtensionUse: new Date(),
       }),
+      inc: () => 'inc + 1',
     },
   );
 };
@@ -735,6 +740,7 @@ const loggedInBoot = async ({
         defaultFeedId: isPlus ? user.defaultFeedId : null,
         flags: {
           showPlusGift: Boolean(user?.flags?.showPlusGift),
+          lastExtensionUse: user?.flags?.lastExtensionUse ?? null,
         },
         balance,
         subscriptionFlags: {

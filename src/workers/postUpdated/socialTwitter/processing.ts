@@ -22,7 +22,7 @@ import type {
   ProcessPostProps,
   ProcessedPost,
 } from '../types';
-import { buildCommonPostFields } from '../common';
+import { buildCommonPostFields, shouldSkipAuthorMatch } from '../common';
 import { getSourcePrivacy } from '../shared';
 
 export const twitterAllowedFields = [
@@ -170,7 +170,9 @@ export const processSocialTwitter = async ({
     origin: data?.origin,
   });
 
-  const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
+  const authorId = shouldSkipAuthorMatch({ data })
+    ? null
+    : await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,
@@ -218,7 +220,7 @@ export const processSocialTwitter = async ({
     creatorTwitter,
     sourceId,
     privacy,
-    showOnFeed: false,
+    showOnFeed: !data?.order,
     allowedKeywords,
     contentMeta,
     contentType: PostType.SocialTwitter,

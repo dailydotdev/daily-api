@@ -26,6 +26,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const llmTxt = readFileSync(join(__dirname, 'llms.txt'), 'utf-8');
+const favicon = readFileSync(join(__dirname, 'favicon.ico'));
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
@@ -73,17 +74,30 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     { prefix: PUBLIC_API_PREFIX },
   );
 
-  fastify.get('/robots.txt', (req, res) => {
-    return res.type('text/plain').send(`User-agent: *
+  fastify.get('/robots.txt', (req, res) =>
+    res.header('Cache-Control', 'public, max-age=86400').type('text/plain')
+      .send(`User-agent: *
 Allow: /devcards/
 Allow: /graphql
 Allow: /boot
-Disallow: /`);
-  });
+Allow: /sitemaps/
+Sitemap: https://app.daily.dev/api/sitemaps/index.xml
+Disallow: /`),
+  );
 
-  fastify.get('/llms.txt', (req, res) => {
-    return res.type('text/plain').send(llmTxt);
-  });
+  fastify.get('/llms.txt', (_, res) =>
+    res
+      .header('Cache-Control', 'public, max-age=86400')
+      .type('text/plain')
+      .send(llmTxt),
+  );
+
+  fastify.get('/favicon.ico', (_, res) =>
+    res
+      .header('Cache-Control', 'public, max-age=86400')
+      .type('image/x-icon')
+      .send(favicon),
+  );
 
   fastify.get('/v1/auth/authorize', async (req, res) => {
     return res.type('text/plain').send(
@@ -106,12 +120,12 @@ https://app.daily.dev`,
 
   // Debugging endpoint
   fastify.post('/e', (req, res) => {
-    req.log.debug({ body: req.body }, 'events received');
+    req.log.debug({ reqBody: req.body }, 'events received');
     return res.status(204).send();
   });
 
   fastify.post('/e/x', (req, res) => {
-    req.log.debug({ body: req.body }, 'allocation received');
+    req.log.debug({ reqBody: req.body }, 'allocation received');
     return res.status(204).send();
   });
 

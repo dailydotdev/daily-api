@@ -5,6 +5,7 @@ import type { Post } from './posts';
 @Index(['userId', 'timestamp'])
 @Index(['postId', 'userId'])
 @Index(['postId', 'userId', 'hidden'])
+@Index('IDX_view_userId_postId_timestamp_desc', { synchronize: false })
 export class View {
   @PrimaryColumn({ type: 'text' })
   @Index()

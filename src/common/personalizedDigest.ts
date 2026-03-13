@@ -44,6 +44,7 @@ type TemplatePostData = Pick<
   | 'comments'
   | 'readTime'
   | 'views'
+  | 'sourceId'
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
@@ -124,22 +125,16 @@ const getPostsTemplateData = ({
   });
 };
 
-type CIOSkadiAd = {
+export type CIOSkadiAd = {
   type: string;
 } & SkadiAd;
 
 export const getEmailAd = async ({
   user,
-  feature,
 }: {
   user: User;
-  feature: Pick<PersonalizedDigestFeatureConfig, 'templateId'>;
 }): Promise<CIOSkadiAd | null> => {
-  // TODO: Temporary hardcode 75 check
-  if (
-    isPlusMember(user.subscriptionFlags?.cycle) ||
-    feature.templateId != '75'
-  ) {
+  if (isPlusMember(user.subscriptionFlags?.cycle)) {
     return null;
   }
 
@@ -227,8 +222,12 @@ const getEmailVariation = async ({
     },
     message_data: {
       ...data,
-      title: `${userName}, your personal update from daily.dev is ready`,
-      preview: `Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!`,
+      title:
+        feature.title ||
+        `${userName}, your personal update from daily.dev is ready`,
+      preview:
+        feature.preview ||
+        `Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!`,
     },
   };
 };
@@ -280,6 +279,13 @@ const personalizedDigestFeedClient = new FeedClient(
   },
 );
 
+export type DigestEmailPayloadResult = {
+  emailPayload: SendEmailRequestWithTemplate;
+  postIds: string[];
+  sourceIds: string[];
+  ad: CIOSkadiAd | null;
+};
+
 export const getPersonalizedDigestEmailPayload = async ({
   con,
   logger,
@@ -300,7 +306,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate: Date;
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
-}): Promise<SendEmailRequestWithTemplate | undefined> => {
+}): Promise<DigestEmailPayloadResult | undefined> => {
   const feedConfig = await queryReadReplica(con, ({ queryRunner }) => {
     return feedToFilters(
       queryRunner.manager,
@@ -332,6 +338,10 @@ export const getPersonalizedDigestEmailPayload = async ({
     feedConfigPayload,
   );
 
+  counters?.['personalized-digest']?.digestFeedServicePostsCount?.add(
+    feedResponse.data.length,
+  );
+
   const posts: TemplatePostData[] = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
@@ -352,6 +362,7 @@ export const getPersonalizedDigestEmailPayload = async ({
               'p."readTime"',
               'p.views',
               'p.content',
+              'p."sourceId"',
               's.name as "sourceName"',
               's.image as "sourceImage"',
               'sp.title as "sharedPostTitle"',
@@ -372,6 +383,8 @@ export const getPersonalizedDigestEmailPayload = async ({
     },
   );
 
+  counters?.['personalized-digest']?.digestPostsCount?.add(posts.length);
+
   if (posts.length === 0) {
     logger.warn(
       { personalizedDigest, feedConfig: feedConfigPayload, emailBatchId },
@@ -383,7 +396,6 @@ export const getPersonalizedDigestEmailPayload = async ({
 
   const adProps = await getEmailAd({
     user,
-    feature,
   });
   if (adProps) {
     logger.info(
@@ -404,11 +416,19 @@ export const getPersonalizedDigestEmailPayload = async ({
     adProps,
   });
 
+  const postIds = feedResponse.data.map(([postId]) => postId);
+  const sourceIds = [...new Set(posts.map((p) => p.sourceId))];
+
   return {
-    ...baseNotificationEmailData,
-    send_at: Math.floor(emailSendDate.getTime() / 1000),
-    transactional_message_id: feature.templateId,
-    ...variationProps,
+    emailPayload: {
+      ...baseNotificationEmailData,
+      send_at: Math.floor(emailSendDate.getTime() / 1000),
+      transactional_message_id: feature.templateId,
+      ...variationProps,
+    },
+    postIds,
+    sourceIds,
+    ad: adProps,
   };
 };
 
@@ -436,6 +456,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
   logger.info({ emailBatchId, sendType }, 'starting personalized digest send');
 
   let digestCount = 0;
+  let errorCount = 0;
 
   const personalizedDigestStream = await queryBuilder.stream();
   const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
@@ -444,9 +465,20 @@ export const schedulePersonalizedDigestSubscriptions = async ({
       personalizedDigest,
       emailBatchId,
     }: Parameters<typeof handler>[0]) => {
-      await handler({ personalizedDigest, emailBatchId });
+      try {
+        await handler({ personalizedDigest, emailBatchId });
+      } catch (err) {
+        errorCount += 1;
 
-      digestCount += 1;
+        logger.error(
+          { err, emailBatchId, personalizedDigest },
+          'personalized digest handler failed',
+        );
+
+        throw err;
+      } finally {
+        digestCount += 1;
+      }
     },
     notifyQueueConcurrency,
   );
@@ -472,7 +504,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
   await notifyQueue.drained();
 
   logger.info(
-    { digestCount, emailBatchId, sendType },
+    { digestCount, errorCount, emailBatchId, sendType },
     'personalized digest sent',
   );
 };
@@ -566,4 +598,5 @@ export const digestSendTypeToBriefingType = (
 
 export const personalizedDigestNotificationTypes = [
   NotificationType.BriefingReady,
+  NotificationType.DigestReady,
 ];

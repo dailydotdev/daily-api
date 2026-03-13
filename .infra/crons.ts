@@ -73,7 +73,7 @@ export const crons: Cron[] = [
   },
   {
     name: 'daily-digest',
-    schedule: '7 * * * *',
+    schedule: '2 * * * *',
     limits: {
       memory: '1Gi',
     },
@@ -169,5 +169,9 @@ export const crons: Cron[] = [
   {
     name: 'rotate-weekly-quests',
     schedule: '0 0 * * 1',
+  },
+  {
+    name: 'agents-digest',
+    schedule: '17 4 * * *',
   },
 ];

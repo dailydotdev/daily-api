@@ -5,11 +5,14 @@ import {
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
+  versionToTimeFeedGenerator,
 } from '../../src/integrations/feed';
+import { FeedOrderBy } from '../../src/entity/Feed';
 import {
   connectionFromNodes,
   feedCursorPageGenerator,
 } from '../../src/schema/common';
+import graphorm from '../../src/graphorm';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern } from '../../src/redis';
 import createOrGetConnection from '../../src/db';
@@ -236,6 +239,60 @@ describe('connectionFromNodes with staleCursor', () => {
     );
 
     expect(result.pageInfo.staleCursor).toBe(true);
+    expect(result.edges).toHaveLength(0);
+  });
+});
+
+describe('nodesToConnection with staleCursor', () => {
+  const nodeToCursor = (_node: { id: string }, index: number) =>
+    `cursor-${index}`;
+
+  it('should include staleCursor in pageInfo when extraPageInfo is provided', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const result = graphorm.nodesToConnection(
+      nodes,
+      nodes.length,
+      () => false,
+      () => true,
+      nodeToCursor,
+      { staleCursor: true },
+    );
+
+    expect(result.pageInfo).toMatchObject({
+      staleCursor: true,
+      hasNextPage: true,
+      hasPreviousPage: false,
+    });
+    expect(result.edges).toHaveLength(2);
+  });
+
+  it('should not include staleCursor when extraPageInfo is not provided', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const result = graphorm.nodesToConnection(
+      nodes,
+      nodes.length,
+      () => false,
+      () => true,
+      nodeToCursor,
+    );
+
+    expect(result.pageInfo.staleCursor).toBeUndefined();
+  });
+
+  it('should include staleCursor in pageInfo when nodes are empty', () => {
+    const result = graphorm.nodesToConnection(
+      [],
+      0,
+      () => false,
+      () => false,
+      nodeToCursor,
+      { staleCursor: true },
+    );
+
+    expect(result.pageInfo).toMatchObject({
+      staleCursor: true,
+      hasNextPage: false,
+    });
     expect(result.edges).toHaveLength(0);
   });
 });
@@ -836,5 +893,35 @@ describe('FeedLofnConfigGenerator', () => {
         mab: mockedValue.tyr_metadata,
       },
     });
+  });
+});
+
+describe('versionToTimeFeedGenerator', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+  });
+
+  it('should generate config with chronological settings and no lofn', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: '1' }],
+      });
+
+    const generator = versionToTimeFeedGenerator(20);
+    await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 10,
+      offset: 0,
+    });
+
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedNaV1);
+    expect(capturedBody.order_by).toBe(FeedOrderBy.Date);
+    expect(capturedBody.disable_engagement_filter).toBe(true);
   });
 });

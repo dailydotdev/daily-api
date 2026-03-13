@@ -117,7 +117,7 @@ export const notifyPostContentUpdated = async ({
     visible: post.visible,
     origin: post.origin,
     url: articlePost.url || undefined,
-    canonicalUrl: articlePost.canonicalUrl,
+    canonicalUrl: articlePost.canonicalUrl ?? undefined,
     image: articlePost.image!,
     description: articlePost.description,
     readTime: articlePost.readTime,

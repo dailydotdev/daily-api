@@ -132,6 +132,10 @@ it('should publish an event to redis', async () => {
       },
     );
   };
+  const done = new Promise((resolve, reject) => {
+    stream.on('error', reject);
+    stream.on('close', resolve);
+  });
   await subscribe('1');
   await subscribe('2');
   await expectSuccessfulBackground(worker, {
@@ -140,8 +144,5 @@ it('should publish an event to redis', async () => {
       public: true,
     },
   });
-  return new Promise((resolve, reject) => {
-    stream.on('error', reject);
-    stream.on('close', resolve);
-  });
+  return done;
 });
