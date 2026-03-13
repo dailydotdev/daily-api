@@ -22,7 +22,6 @@ import {
 } from '../entity/user/UserTransaction';
 import { NotFoundError } from '../errors';
 import { redisPubSub } from '../redis';
-import { traceResolvers } from './trace';
 
 type GQLQuestLevel = ReturnType<typeof getQuestLevelState>;
 
@@ -477,10 +476,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     questDashboard: async (
       _,
@@ -571,4 +567,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   QuestDefinition: {
     targetCount: (source: Quest) => source.criteria?.targetCount ?? 1,
   },
-});
+};
