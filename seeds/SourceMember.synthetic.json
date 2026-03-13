@@ -1,0 +1,44 @@
+[
+  {
+    "sourceId": "frontendlab",
+    "userId": "testuser6",
+    "role": "admin",
+    "createdAt": "2026-01-08 10:15:00.000000",
+    "referralToken": "frontendlab-1"
+  },
+  {
+    "sourceId": "frontendlab",
+    "userId": "testuser7",
+    "role": "member",
+    "createdAt": "2026-01-09 10:15:00.000000",
+    "referralToken": "frontendlab-2"
+  },
+  {
+    "sourceId": "frontendlab",
+    "userId": "testuser8",
+    "role": "member",
+    "createdAt": "2026-01-10 10:15:00.000000",
+    "referralToken": "frontendlab-3"
+  },
+  {
+    "sourceId": "backendbites",
+    "userId": "testuser9",
+    "role": "admin",
+    "createdAt": "2026-01-11 11:20:00.000000",
+    "referralToken": "backendbites-1"
+  },
+  {
+    "sourceId": "backendbites",
+    "userId": "testuser10",
+    "role": "member",
+    "createdAt": "2026-01-12 11:20:00.000000",
+    "referralToken": "backendbites-2"
+  },
+  {
+    "sourceId": "backendbites",
+    "userId": "testuser11",
+    "role": "member",
+    "createdAt": "2026-01-13 11:20:00.000000",
+    "referralToken": "backendbites-3"
+  }
+]

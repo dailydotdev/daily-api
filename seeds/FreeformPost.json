@@ -1,0 +1,74 @@
+[
+  {
+    "id": "seedfree01",
+    "shortId": "sdfree01aa",
+    "type": "freeform",
+    "title": "We finally stopped debating folder structure and wrote the rules down",
+    "createdAt": "2026-03-01T08:20:00.000Z",
+    "metadataChangedAt": "2026-03-01T08:20:00.000Z",
+    "visibleAt": "2026-03-01T08:20:00.000Z",
+    "sourceId": "publicsquad",
+    "authorId": "testuser2",
+    "views": 780,
+    "score": 28500180,
+    "upvotes": 38,
+    "comments": 6,
+    "tagsStr": "architecture,team-process,documentation",
+    "content": "Our squad kept re-litigating the same file layout questions in review. We wrote one short guide covering route boundaries, domain folders, and when a helper graduates into shared code. Review churn dropped almost immediately.",
+    "contentHtml": "<p>Our squad kept re-litigating the same file layout questions in review.</p><p>We wrote one short guide covering route boundaries, domain folders, and when a helper graduates into shared code. Review churn dropped almost immediately.</p>",
+    "summary": "A tiny internal style guide cut review churn and made refactors less emotional.",
+    "readTime": 3,
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  },
+  {
+    "id": "seedfree02",
+    "shortId": "sdfree02bb",
+    "type": "freeform",
+    "title": "Container queries saved our dashboard redesign",
+    "createdAt": "2026-03-04T10:45:00.000Z",
+    "metadataChangedAt": "2026-03-04T10:45:00.000Z",
+    "visibleAt": "2026-03-04T10:45:00.000Z",
+    "sourceId": "frontendlab",
+    "authorId": "testuser7",
+    "views": 860,
+    "score": 28500240,
+    "upvotes": 44,
+    "comments": 10,
+    "tagsStr": "css,frontend,responsive-design",
+    "content": "We assumed the redesign needed more viewport breakpoints, but the real fix was making cards react to the space they actually got inside dense layouts. Once we shifted to container queries, the component API got simpler too.",
+    "contentHtml": "<p>We assumed the redesign needed more viewport breakpoints, but the real fix was making cards react to the space they actually got inside dense layouts.</p><p>Once we shifted to container queries, the component API got simpler too.</p>",
+    "summary": "A practical team note on why container queries beat another pile of viewport breakpoints.",
+    "readTime": 4,
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  },
+  {
+    "id": "seedfree03",
+    "shortId": "sdfree03cc",
+    "type": "freeform",
+    "title": "The tiny replica lag check that stopped a week of weird bugs",
+    "createdAt": "2026-03-06T07:50:00.000Z",
+    "metadataChangedAt": "2026-03-06T07:50:00.000Z",
+    "visibleAt": "2026-03-06T07:50:00.000Z",
+    "sourceId": "backendbites",
+    "authorId": "testuser10",
+    "views": 905,
+    "score": 28500275,
+    "upvotes": 52,
+    "comments": 12,
+    "tagsStr": "postgresql,replication,observability",
+    "content": "We were reading from replicas everywhere because it felt cheaper. A simple lag threshold in the data access layer let us keep the happy path on replicas while bouncing risky reads back to primary when freshness mattered.",
+    "contentHtml": "<p>We were reading from replicas everywhere because it felt cheaper.</p><p>A simple lag threshold in the data access layer let us keep the happy path on replicas while bouncing risky reads back to primary when freshness mattered.</p>",
+    "summary": "One low-friction replica lag guardrail cleaned up a whole class of confusing read-after-write bugs.",
+    "readTime": 4,
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  }
+]

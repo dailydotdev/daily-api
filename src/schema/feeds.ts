@@ -1538,10 +1538,16 @@ const postRepostsFeedResolver = feedResolver(
   },
 );
 
+const shouldUseVersionedPopularityFeed = (version: number): boolean =>
+  process.env.NODE_ENV !== 'development' && version >= 2;
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      if (
+        shouldUseVersionedPopularityFeed(args.version) &&
+        args.ranking === Ranking.POPULARITY
+      ) {
         return feedResolverCursor(
           source,
           {
@@ -1566,7 +1572,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      if (
+        shouldUseVersionedPopularityFeed(args.version) &&
+        args.ranking === Ranking.POPULARITY
+      ) {
         return feedResolverCursor(
           source,
           {
