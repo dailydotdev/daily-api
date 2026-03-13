@@ -232,7 +232,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       });
 
       if (user?.experienceLevel) {
-        config.seniority_level = user.experienceLevel;
+        config.experience_level = user.experienceLevel;
       }
       if (user?.flags?.country) {
         config.country = user.flags.country;

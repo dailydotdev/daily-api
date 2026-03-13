@@ -661,7 +661,7 @@ describe('FeedPreferencesConfigGenerator', () => {
     });
   });
 
-  it('should include seniority_level and country when user has them', async () => {
+  it('should include experience_level and country when user has them', async () => {
     await con.getRepository(User).update('1', {
       experienceLevel: 'MORE_THAN_6_YEARS',
       flags: { country: 'US' },
@@ -677,7 +677,7 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
 
-    expect(actual.config.seniority_level).toBe('MORE_THAN_6_YEARS');
+    expect(actual.config.experience_level).toBe('MORE_THAN_6_YEARS');
     expect(actual.config.country).toBe('US');
   });
 });
