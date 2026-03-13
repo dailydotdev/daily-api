@@ -660,6 +660,26 @@ describe('FeedPreferencesConfigGenerator', () => {
       },
     });
   });
+
+  it('should include experience_level and country when user has them', async () => {
+    await con.getRepository(User).update('1', {
+      experienceLevel: 'MORE_THAN_6_YEARS',
+      flags: { country: 'US' },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual.config.experience_level).toBe('MORE_THAN_6_YEARS');
+    expect(actual.config.country).toBe('US');
+  });
 });
 
 describe('FeedLofnConfigGenerator', () => {
