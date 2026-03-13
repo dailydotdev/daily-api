@@ -10,7 +10,11 @@ import {
 import { sourcesFixture } from '../../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { PostService, SourceRequestService } from '@dailydotdev/schema';
+import {
+  PostService,
+  SourceRequestService,
+  SourceService,
+} from '@dailydotdev/schema';
 import {
   CallOptions,
   Code,
@@ -20,7 +24,6 @@ import {
 } from '@connectrpc/connect';
 import privateRpc from '../../../src/routes/private/rpc';
 import { baseRpcContext } from '../../../src/common/connectRpc';
-import { SourceService } from '../../../src/routes/private/sourceRpcSchema';
 import { uploadLogo } from '../../../src/common';
 
 let con: DataSource;

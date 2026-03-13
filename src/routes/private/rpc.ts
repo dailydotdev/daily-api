@@ -13,11 +13,16 @@ import createOrGetConnection from '../../db';
 import { isValidHttpUrl, standardizeURL } from '../../common/links';
 import { baseRpcContext } from '../../common/connectRpc';
 import {
+  AddSourceFeedResponse,
   CreatePostRequest,
   CreatePostResponse,
   CreateSourceRequestResponse,
+  CreateSourceResponse,
+  ScrapeSourceFeed,
+  ScrapeSourceResponse,
   Source as SourceMessage,
   SourceRequestService,
+  SourceService,
   PostService,
 } from '@dailydotdev/schema';
 import { DataSource, FindOptionsWhere } from 'typeorm';
@@ -27,13 +32,6 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { z } from 'zod';
 import { garmScraperService } from '../../common/scraper';
 import { uploadLogo } from '../../common';
-import {
-  AddSourceFeedResponse,
-  CreateSourceResponse,
-  ScrapeSourceFeed,
-  ScrapeSourceResponse,
-  SourceService,
-} from './sourceRpcSchema';
 
 const scraperFeedSchema = z.union([
   z.string(),
