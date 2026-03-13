@@ -29,10 +29,8 @@ import { garmScraperService } from '../../common/scraper';
 import { uploadLogo } from '../../common';
 import {
   AddSourceFeedResponse,
-  CreateSourceRequest,
   CreateSourceResponse,
   ScrapeSourceFeed,
-  ScrapeSourceRequest,
   ScrapeSourceResponse,
   SourceService,
 } from './sourceRpcSchema';
@@ -300,7 +298,7 @@ export default function (router: ConnectRouter) {
   router.rpc(
     SourceService,
     SourceService.methods.scrapeSource,
-    async (req: ScrapeSourceRequest, context) => {
+    async (req, context) => {
       requireServiceAuth(context.values.get(baseRpcContext).service);
 
       const originalReq = req.clone();
@@ -361,7 +359,7 @@ export default function (router: ConnectRouter) {
   router.rpc(
     SourceService,
     SourceService.methods.createSource,
-    async (req: CreateSourceRequest, context) => {
+    async (req, context) => {
       requireServiceAuth(context.values.get(baseRpcContext).service);
 
       const originalReq = req.clone();
@@ -384,6 +382,14 @@ export default function (router: ConnectRouter) {
 
         if (req.image && !isValidHttpUrl(req.image)) {
           throw new ConnectError('invalid image', Code.InvalidArgument);
+        }
+
+        if (
+          await con
+            .getRepository(MachineSource)
+            .exist({ where: { id: req.id } })
+        ) {
+          throw new ConnectError('source already exists', Code.AlreadyExists);
         }
 
         const image = await uploadSourceImage(req.image, req.id);
