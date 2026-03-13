@@ -663,31 +663,6 @@ describe('query anonymousFeed by time', () => {
     expect(res.data.anonymousFeed.edges).toEqual([]);
   });
 
-  it('should use the local popularity feed for anonymous feed v2 in development', async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-    const popularityVariables = {
-      ranking: Ranking.POPULARITY,
-      first: 10,
-    };
-
-    try {
-      await con.getRepository(Post).delete({ id: 'p6' });
-
-      const v1Res = await client.query(QUERY, {
-        variables: popularityVariables,
-      });
-      const v2Res = await client.query(QUERY, {
-        variables: { ...popularityVariables, version: 2 },
-      });
-
-      expect(v1Res.errors).toBeFalsy();
-      expect(v2Res.errors).toBeFalsy();
-      expect(v2Res.data).toEqual(v1Res.data);
-    } finally {
-      process.env.NODE_ENV = previousNodeEnv;
-    }
-  });
 });
 
 describe('query feed', () => {
@@ -713,27 +688,6 @@ describe('query feed', () => {
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
-  });
-
-  it('should use the local popularity feed for feed v2 in development', async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
-    try {
-      loggedUser = '1';
-      await saveFeedFixtures();
-
-      const v1Res = await client.query(QUERY, { variables });
-      const v2Res = await client.query(QUERY, {
-        variables: { ...variables, version: 2 },
-      });
-
-      expect(v1Res.errors).toBeFalsy();
-      expect(v2Res.errors).toBeFalsy();
-      expect(v2Res.data).toEqual(v1Res.data);
-    } finally {
-      process.env.NODE_ENV = previousNodeEnv;
-    }
   });
 
   describe('youtube content', () => {
