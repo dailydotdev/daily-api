@@ -1,7 +1,9 @@
 import { saveFixtures } from '../../helpers';
 import {
   ArticlePost,
+  MachineSource,
   Source,
+  SourceFeed,
   SourceRequest,
   SourceType,
 } from '../../../src/entity';
@@ -18,14 +20,24 @@ import {
 } from '@connectrpc/connect';
 import privateRpc from '../../../src/routes/private/rpc';
 import { baseRpcContext } from '../../../src/common/connectRpc';
+import { SourceService } from '../../../src/routes/private/sourceRpcSchema';
+import { uploadLogo } from '../../../src/common';
 
 let con: DataSource;
+
+jest.mock('../../../src/common', () => ({
+  ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
+  uploadLogo: jest.fn(),
+}));
 
 beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
+  jest.restoreAllMocks();
+  process.env.SCRAPER_URL = 'http://daily-scraper.test';
+
   await saveFixtures(con, Source, [
     ...sourcesFixture,
     {
@@ -317,5 +329,217 @@ describe('SourceRequestService', () => {
         defaultClientAuthOptions,
       ),
     ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
+  });
+});
+
+describe('SourceService', () => {
+  const mockClient = createClient(SourceService, mockTransport);
+
+  it('should return unauthenticated when not authorized for scrape', async () => {
+    baseRpcContext.defaultValue = {
+      service: false,
+    };
+
+    await expect(
+      mockClient.scrapeSource({
+        url: 'https://example.com',
+      }),
+    ).rejects.toThrow(
+      new ConnectError('unauthenticated', Code.Unauthenticated),
+    );
+  });
+
+  it('should scrape a source', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          type: 'website',
+          name: 'Example',
+          logo: 'https://example.com/logo.png',
+          website: 'https://example.com',
+          rss: [
+            {
+              url: 'https://example.com/feed.xml',
+              title: 'Main feed',
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const result = await mockClient.scrapeSource(
+      {
+        url: 'https://example.com?utm_source=test',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      type: 'website',
+      name: 'Example',
+      logo: 'https://example.com/logo.png',
+      website: 'https://example.com',
+      feeds: [
+        {
+          url: 'https://example.com/feed.xml',
+          title: 'Main feed',
+        },
+      ],
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      new URL(
+        '/scrape/source?url=https%3A%2F%2Fexample.com',
+        'http://daily-scraper.test',
+      ),
+    );
+  });
+
+  it('should propagate unavailable scraper responses', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ type: 'unavailable' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const result = await mockClient.scrapeSource(
+      {
+        url: 'https://example.com',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      type: 'unavailable',
+      feeds: [],
+    });
+  });
+
+  it('should create a source', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('logo', { status: 200 }));
+    jest
+      .mocked(uploadLogo)
+      .mockResolvedValueOnce('https://media.daily.dev/image/upload/logo');
+
+    const result = await mockClient.createSource(
+      {
+        id: 'source-rpc',
+        name: 'Source RPC',
+        image: 'https://example.com/logo.png',
+        twitter: 'source_rpc',
+        website: 'https://example.com?utm_source=test',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      source: {
+        id: 'source-rpc',
+        type: 'machine',
+        createdAt: expect.any(Number),
+        active: true,
+        name: 'Source RPC',
+        image: 'https://media.daily.dev/image/upload/logo',
+        private: false,
+        handle: 'source-rpc',
+        twitter: 'source_rpc',
+        website: 'https://example.com',
+      },
+    });
+
+    const source = await con.getRepository(MachineSource).findOneByOrFail({
+      id: 'source-rpc',
+    });
+    expect(source).toMatchObject({
+      id: 'source-rpc',
+      type: SourceType.Machine,
+      name: 'Source RPC',
+      image: 'https://media.daily.dev/image/upload/logo',
+      handle: 'source-rpc',
+      twitter: 'source_rpc',
+      website: 'https://example.com',
+    });
+  });
+
+  it('should reject duplicate sources', async () => {
+    await con.getRepository(MachineSource).save({
+      id: 'duplicate-source',
+      name: 'Duplicate source',
+      image: 'https://media.daily.dev/image/upload/logo',
+      handle: 'duplicate-source',
+    });
+
+    await expect(
+      mockClient.createSource(
+        {
+          id: 'duplicate-source',
+          name: 'Duplicate source',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(
+      new ConnectError('source already exists', Code.AlreadyExists),
+    );
+  });
+
+  it('should add a source feed', async () => {
+    const result = await mockClient.addSourceFeed(
+      {
+        sourceId: 'a',
+        feed: 'https://example.com/feed.xml',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      sourceId: 'a',
+      feed: 'https://example.com/feed.xml',
+    });
+
+    const sourceFeed = await con.getRepository(SourceFeed).findOneByOrFail({
+      feed: 'https://example.com/feed.xml',
+    });
+    expect(sourceFeed).toEqual({
+      sourceId: 'a',
+      feed: 'https://example.com/feed.xml',
+      lastFetched: null,
+    });
+  });
+
+  it('should return not found for a missing source when adding a feed', async () => {
+    await expect(
+      mockClient.addSourceFeed(
+        {
+          sourceId: 'does-not-exist',
+          feed: 'https://example.com/feed.xml',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(new ConnectError('source not found', Code.NotFound));
+  });
+
+  it('should reject duplicate feeds', async () => {
+    await con.getRepository(SourceFeed).save({
+      sourceId: 'a',
+      feed: 'https://example.com/feed.xml',
+    });
+
+    await expect(
+      mockClient.addSourceFeed(
+        {
+          sourceId: 'a',
+          feed: 'https://example.com/feed.xml',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(
+      new ConnectError('source feed already exists', Code.AlreadyExists),
+    );
   });
 });
