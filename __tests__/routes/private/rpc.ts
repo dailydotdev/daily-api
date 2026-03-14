@@ -40,6 +40,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.restoreAllMocks();
   nock.cleanAll();
+  delete process.env.BRAND_DEV_API_KEY;
   await saveFixtures(con, Source, [
     ...sourcesFixture,
     {
@@ -509,6 +510,93 @@ describe('SourceService', () => {
       json: {
         url: 'https://retry.example.com/feed.xml',
         source_id: 'retry-example',
+        engine_id: 'rss',
+      },
+    });
+  });
+
+  it('should fallback to brand.dev when the scraper is unavailable', async () => {
+    const uploadLogo = jest
+      .spyOn(cloudinary, 'uploadLogo')
+      .mockResolvedValue('https://media.daily.dev/branddev-logo');
+    const publishMessage = mockSourceAddedPublisher();
+
+    process.env.BRAND_DEV_API_KEY = 'brand-dev-token';
+    nock(process.env.SCRAPER_URL)
+      .get('/scrape/source')
+      .query({ url: 'https://branddev.example.com' })
+      .reply(200, {
+        type: 'unavailable',
+      });
+    nock('https://api.brand.dev')
+      .get('/v1/brand/retrieve')
+      .query({ domain: 'branddev.example.com' })
+      .matchHeader('Authorization', 'Bearer brand-dev-token')
+      .reply(200, {
+        brand: {
+          domain: 'branddev.example.com',
+          title: 'Brand.dev Example',
+          logos: [
+            {
+              url: 'https://cdn.brand.dev/icon.png',
+              type: 'icon',
+              resolution: {
+                width: 64,
+                height: 64,
+              },
+            },
+            {
+              url: 'https://cdn.brand.dev/logo.png',
+              type: 'logo',
+              mode: 'light',
+              resolution: {
+                width: 512,
+                height: 128,
+              },
+            },
+          ],
+          links: {
+            home: 'https://branddev.example.com',
+          },
+        },
+      });
+    nock('https://cdn.brand.dev').get('/logo.png').reply(200, 'logo-binary');
+
+    const result = await mockClient.provision(
+      {
+        sourceId: 'branddev-example',
+        scrapeMetadata: true,
+        website: 'https://branddev.example.com',
+        ingestion: {
+          case: 'rss',
+          value: new RssIngestion({
+            feedUrl: 'https://branddev.example.com/feed.xml',
+          }),
+        },
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toMatchObject({
+      source: {
+        id: 'branddev-example',
+        name: 'Brand.dev Example',
+        image: 'https://media.daily.dev/branddev-logo',
+        website: 'https://branddev.example.com',
+      },
+      ingestion: {
+        engine: SourceEngine.RSS,
+        url: 'https://branddev.example.com/feed.xml',
+      },
+    });
+    expect(uploadLogo).toHaveBeenCalledWith(
+      'branddev-example',
+      expect.anything(),
+    );
+    expect(publishMessage).toHaveBeenCalledWith({
+      json: {
+        url: 'https://branddev.example.com/feed.xml',
+        source_id: 'branddev-example',
         engine_id: 'rss',
       },
     });

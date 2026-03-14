@@ -21,6 +21,11 @@ import {
   type RetryOptions,
 } from '../../integrations/retry';
 import {
+  fetchBrandProfile,
+  getBrandDevDomain,
+  pickBrandDevLogo,
+} from '../../integrations/brand/profile';
+import {
   downloadTwitterProfileImage,
   fetchTwitterProfile,
 } from '../../integrations/twitter/profile';
@@ -76,6 +81,8 @@ type ProvisionSourceData = {
   twitter?: string;
   website?: string;
 };
+
+type PartialProvisionSourceData = Partial<ProvisionSourceData>;
 
 const normalizeOptionalUrl = (value?: string): string | undefined =>
   value ? standardizeURL(value).url : undefined;
@@ -354,6 +361,46 @@ const resolveTwitterSourceData = async ({
   };
 };
 
+const shouldUseBrandDev = (req: ProvisionSourceRequest): boolean =>
+  req.ingestion.case !== 'twitterAccount' &&
+  req.ingestion.case !== 'youtubeChannel';
+
+const resolveBrandDevSourceData = async ({
+  req,
+  candidates,
+}: {
+  req: ProvisionSourceRequest;
+  candidates: Array<string | undefined>;
+}): Promise<PartialProvisionSourceData | undefined> => {
+  const domain = candidates.map(getBrandDevDomain).find(Boolean);
+  if (!domain) {
+    return undefined;
+  }
+
+  const brand = await fetchBrandProfile(domain);
+  if (!brand) {
+    return undefined;
+  }
+
+  const logoUrl = pickBrandDevLogo(brand.logos);
+
+  return {
+    name: req.name || brand.title || undefined,
+    image:
+      req.image ||
+      (logoUrl
+        ? await uploadRemoteLogo({
+            sourceId: req.sourceId,
+            url: logoUrl,
+          })
+        : undefined),
+    website:
+      normalizeOptionalUrl(req.website) ||
+      normalizeOptionalUrl(brand.links?.home) ||
+      (brand.domain ? `https://${brand.domain}` : undefined),
+  };
+};
+
 const resolveScrapedSourceData = async ({
   req,
   scrapeUrl,
@@ -361,8 +408,55 @@ const resolveScrapedSourceData = async ({
   req: ProvisionSourceRequest;
   scrapeUrl: string;
 }): Promise<ProvisionSourceData> => {
-  const scraped = await scrapeSource(standardizeURL(scrapeUrl).url);
-  if (scraped.type === 'unavailable') {
+  const normalizedScrapeUrl = standardizeURL(scrapeUrl).url;
+  const canUseBrandDev = shouldUseBrandDev(req);
+  let scraperFailed = false;
+  let scrapedWebsite: string | undefined;
+  let scrapedData: PartialProvisionSourceData = {};
+
+  try {
+    const scraped = await scrapeSource(normalizedScrapeUrl);
+    if (scraped.type === 'unavailable') {
+      scraperFailed = true;
+    } else {
+      scrapedWebsite = scraped.website
+        ? standardizeURL(scraped.website).url
+        : undefined;
+      scrapedData = {
+        name:
+          req.name ||
+          (scraped.type === 'website' && scraped.name
+            ? scraped.name
+            : undefined),
+        image:
+          req.image ||
+          (scraped.type === 'website' && scraped.logo
+            ? await uploadRemoteLogo({
+                sourceId: req.sourceId,
+                url: scraped.logo,
+              })
+            : undefined),
+        website: normalizeOptionalUrl(req.website) || scrapedWebsite,
+      };
+    }
+  } catch {
+    scraperFailed = true;
+  }
+
+  const needsBrandFallback =
+    canUseBrandDev &&
+    (scraperFailed ||
+      !scrapedData.name ||
+      !scrapedData.image ||
+      !scrapedData.website);
+  const brandDevData = needsBrandFallback
+    ? await resolveBrandDevSourceData({
+        req,
+        candidates: [req.website, scrapedWebsite, normalizedScrapeUrl],
+      })
+    : undefined;
+
+  if (scraperFailed && !brandDevData) {
     throw new ConnectError(
       'failed to scrape source metadata',
       Code.Unavailable,
@@ -370,23 +464,13 @@ const resolveScrapedSourceData = async ({
   }
 
   return {
-    name:
-      req.name ||
-      (scraped.type === 'website' && scraped.name
-        ? scraped.name
-        : req.sourceId),
-    image:
-      req.image ||
-      (scraped.type === 'website' && scraped.logo
-        ? await uploadRemoteLogo({
-            sourceId: req.sourceId,
-            url: scraped.logo,
-          })
-        : undefined),
+    name: req.name || scrapedData.name || brandDevData?.name || req.sourceId,
+    image: req.image || scrapedData.image || brandDevData?.image,
     twitter: normalizeOptionalTwitterUsername(req.twitter),
     website:
       normalizeOptionalUrl(req.website) ||
-      (scraped.website ? standardizeURL(scraped.website).url : undefined),
+      scrapedData.website ||
+      brandDevData?.website,
   };
 };
 
