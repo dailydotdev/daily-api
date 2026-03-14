@@ -3,54 +3,11 @@ import createOrGetConnection from '../src/db';
 import { MachineSource } from '../src/entity/Source';
 import { uploadLogo } from '../src/common/cloudinary';
 import { pubsub } from '../src/common/pubsub';
-import { Readable } from 'stream';
-import { v4 as uuidv4 } from 'uuid';
 import { parseArgs } from 'node:util';
-
-interface TwitterUser {
-  id: string;
-  name: string;
-  username: string;
-  profile_image_url?: string;
-}
-
-const fetchTwitterProfile = async (username: string): Promise<TwitterUser> => {
-  const token = process.env.TWITTER_BEARER_TOKEN;
-  if (!token) {
-    throw new Error('TWITTER_BEARER_TOKEN env var is required');
-  }
-
-  const url = `https://api.x.com/2/users/by/username/${encodeURIComponent(username)}?user.fields=profile_image_url,name`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Twitter API error ${res.status}: ${body}`);
-  }
-
-  const json = (await res.json()) as { data?: TwitterUser; errors?: unknown[] };
-  if (!json.data) {
-    throw new Error(
-      `Twitter user not found: ${username} - ${JSON.stringify(json.errors)}`,
-    );
-  }
-
-  return json.data;
-};
-
-const downloadAvatar = async (avatarUrl: string): Promise<Readable> => {
-  // Use 400x400 version for higher quality
-  const url = avatarUrl.replace('_normal', '_400x400');
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`Failed to download avatar: ${res.status}`);
-  }
-
-  return Readable.fromWeb(res.body as import('stream/web').ReadableStream);
-};
+import {
+  downloadTwitterProfileImage,
+  fetchTwitterProfile,
+} from '../src/integrations/twitter/profile';
 
 const start = async (): Promise<void> => {
   const { values } = parseArgs({
@@ -73,9 +30,8 @@ const start = async (): Promise<void> => {
   let imageUrl: string | undefined;
   if (profile.profile_image_url) {
     console.log('Downloading avatar and uploading to Cloudinary...');
-    const stream = await downloadAvatar(profile.profile_image_url);
-    const name = uuidv4().replace(/-/g, '');
-    imageUrl = await uploadLogo(name, stream);
+    const stream = await downloadTwitterProfileImage(profile.profile_image_url);
+    imageUrl = await uploadLogo(username.toLowerCase(), stream);
     console.log(`Uploaded avatar: ${imageUrl}`);
   } else {
     console.log('No avatar found, skipping Cloudinary upload');

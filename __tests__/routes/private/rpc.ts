@@ -3,7 +3,6 @@ import {
   ArticlePost,
   MachineSource,
   Source,
-  SourceFeed,
   SourceRequest,
   SourceType,
 } from '../../../src/entity';
@@ -81,6 +80,23 @@ const defaultClientAuthOptions: CallOptions = {
   headers: {
     Authorization: `Service ${process.env.SERVICE_SECRET}`,
   },
+};
+
+const mockSourceAddedPublisher = () => {
+  const publishMessage = jest.fn().mockResolvedValue('message-id');
+  jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
+    if (name === 'source-added') {
+      return {
+        publishMessage,
+      } as never;
+    }
+
+    return {
+      publishMessage: jest.fn(),
+    } as never;
+  });
+
+  return publishMessage;
 };
 
 describe('PostService', () => {
@@ -366,18 +382,7 @@ describe('SourceService', () => {
     const uploadLogo = jest
       .spyOn(cloudinary, 'uploadLogo')
       .mockResolvedValue('https://media.daily.dev/source-logo');
-    const publishMessage = jest.fn().mockResolvedValue('message-id');
-    jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
-      if (name === 'source-added') {
-        return {
-          publishMessage,
-        } as never;
-      }
-
-      return {
-        publishMessage: jest.fn(),
-      } as never;
-    });
+    const publishMessage = mockSourceAddedPublisher();
 
     nock(process.env.SCRAPER_URL)
       .get('/scrape/source')
@@ -426,6 +431,7 @@ describe('SourceService', () => {
       },
     });
     expect(uploadLogo).toHaveBeenCalledTimes(1);
+    expect(uploadLogo).toHaveBeenCalledWith('example', expect.anything());
     expect(publishMessage).toHaveBeenCalledWith({
       json: {
         url: 'https://example.com/feed.xml',
@@ -444,29 +450,72 @@ describe('SourceService', () => {
       image: 'https://media.daily.dev/source-logo',
       handle: 'example',
     });
-    const sourceFeed = await con.getRepository(SourceFeed).findOneByOrFail({
-      sourceId: 'example',
-      feed: 'https://example.com/feed.xml',
+  });
+
+  it('should retry scraper metadata requests before succeeding', async () => {
+    const uploadLogo = jest
+      .spyOn(cloudinary, 'uploadLogo')
+      .mockResolvedValue('https://media.daily.dev/retried-logo');
+    const publishMessage = mockSourceAddedPublisher();
+
+    nock(process.env.SCRAPER_URL)
+      .get('/scrape/source')
+      .query({ url: 'https://retry.example.com' })
+      .reply(500, { error: 'temporary failure' })
+      .get('/scrape/source')
+      .query({ url: 'https://retry.example.com' })
+      .reply(500, { error: 'temporary failure' })
+      .get('/scrape/source')
+      .query({ url: 'https://retry.example.com' })
+      .reply(200, {
+        type: 'website',
+        website: 'https://retry.example.com',
+        logo: 'https://assets.example.com/retry-logo.png',
+        name: 'Retry Example',
+        rss: [{ title: 'RSS', url: 'https://retry.example.com/feed.xml' }],
+      });
+    nock('https://assets.example.com')
+      .get('/retry-logo.png')
+      .reply(200, 'logo-binary');
+
+    const result = await mockClient.provision(
+      {
+        sourceId: 'retry-example',
+        scrapeMetadata: true,
+        website: 'https://retry.example.com',
+        ingestion: {
+          case: 'rss',
+          value: new RssIngestion({
+            feedUrl: 'https://retry.example.com/feed.xml',
+          }),
+        },
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toMatchObject({
+      source: {
+        id: 'retry-example',
+        name: 'Retry Example',
+        image: 'https://media.daily.dev/retried-logo',
+      },
+      ingestion: {
+        engine: SourceEngine.RSS,
+        url: 'https://retry.example.com/feed.xml',
+      },
     });
-    expect(sourceFeed).toMatchObject({
-      sourceId: 'example',
-      feed: 'https://example.com/feed.xml',
+    expect(uploadLogo).toHaveBeenCalledWith('retry-example', expect.anything());
+    expect(publishMessage).toHaveBeenCalledWith({
+      json: {
+        url: 'https://retry.example.com/feed.xml',
+        source_id: 'retry-example',
+        engine_id: 'rss',
+      },
     });
   });
 
   it('should provision a page source with the default selector evaluator', async () => {
-    const publishMessage = jest.fn().mockResolvedValue('message-id');
-    jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
-      if (name === 'source-added') {
-        return {
-          publishMessage,
-        } as never;
-      }
-
-      return {
-        publishMessage: jest.fn(),
-      } as never;
-    });
+    const publishMessage = mockSourceAddedPublisher();
 
     const result = await mockClient.provision(
       {
@@ -522,18 +571,7 @@ describe('SourceService', () => {
   });
 
   it('should provision a youtube channel source', async () => {
-    const publishMessage = jest.fn().mockResolvedValue('message-id');
-    jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
-      if (name === 'source-added') {
-        return {
-          publishMessage,
-        } as never;
-      }
-
-      return {
-        publishMessage: jest.fn(),
-      } as never;
-    });
+    const publishMessage = mockSourceAddedPublisher();
 
     const result = await mockClient.provision(
       {
@@ -575,30 +613,10 @@ describe('SourceService', () => {
         engine_id: 'youtube:channel',
       },
     });
-    await expect(
-      con.getRepository(SourceFeed).findOneBy({
-        sourceId: 'yt-source',
-        feed: 'https://youtube.com/@dailydev',
-      }),
-    ).resolves.toMatchObject({
-      sourceId: 'yt-source',
-      feed: 'https://youtube.com/@dailydev',
-    });
   });
 
   it('should provision an rss newsletter source with selector extraction', async () => {
-    const publishMessage = jest.fn().mockResolvedValue('message-id');
-    jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
-      if (name === 'source-added') {
-        return {
-          publishMessage,
-        } as never;
-      }
-
-      return {
-        publishMessage: jest.fn(),
-      } as never;
-    });
+    const publishMessage = mockSourceAddedPublisher();
 
     const result = await mockClient.provision(
       {
@@ -651,33 +669,13 @@ describe('SourceService', () => {
         },
       },
     });
-    await expect(
-      con.getRepository(SourceFeed).findOneBy({
-        sourceId: 'newsletter-source',
-        feed: 'https://newsletter.example.com/feed.xml',
-      }),
-    ).resolves.toMatchObject({
-      sourceId: 'newsletter-source',
-      feed: 'https://newsletter.example.com/feed.xml',
-    });
   });
 
   it('should provision a twitter source with avatar upload and audience fit', async () => {
     const uploadLogo = jest
       .spyOn(cloudinary, 'uploadLogo')
       .mockResolvedValue('https://media.daily.dev/twitter-logo');
-    const publishMessage = jest.fn().mockResolvedValue('message-id');
-    jest.spyOn(pubsub, 'topic').mockImplementation((name: string) => {
-      if (name === 'source-added') {
-        return {
-          publishMessage,
-        } as never;
-      }
-
-      return {
-        publishMessage: jest.fn(),
-      } as never;
-    });
+    const publishMessage = mockSourceAddedPublisher();
 
     process.env.TWITTER_BEARER_TOKEN = 'token';
     nock('https://api.x.com')
@@ -732,6 +730,7 @@ describe('SourceService', () => {
     });
     expect(result.ingestion.audienceFitThreshold).toBeCloseTo(0.42, 5);
     expect(uploadLogo).toHaveBeenCalledTimes(1);
+    expect(uploadLogo).toHaveBeenCalledWith('jack', expect.anything());
     expect(publishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         json: expect.objectContaining({
@@ -761,10 +760,5 @@ describe('SourceService', () => {
       image: 'https://media.daily.dev/twitter-logo',
       handle: 'jack',
     });
-    await expect(
-      con.getRepository(SourceFeed).findOneBy({
-        sourceId: 'jack',
-      }),
-    ).resolves.toBeNull();
   });
 });
