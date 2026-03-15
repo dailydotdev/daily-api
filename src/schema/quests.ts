@@ -423,7 +423,6 @@ export const typeDefs = /* GraphQL */ `
     name: String!
     description: String!
     type: QuestType!
-    plusOnly: Boolean!
     eventType: String!
     targetCount: Int!
   }

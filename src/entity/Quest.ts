@@ -54,9 +54,6 @@ export class Quest {
   @Index('IDX_quest_type_value')
   type: QuestType;
 
-  @Column({ type: 'boolean', default: false })
-  plusOnly: boolean;
-
   @Column({ type: 'text' })
   @Index('IDX_quest_eventType_value')
   eventType: QuestEventType;

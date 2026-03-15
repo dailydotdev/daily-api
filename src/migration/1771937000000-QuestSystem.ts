@@ -35,7 +35,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
         "name" text NOT NULL,
         "description" text NOT NULL,
         "type" text NOT NULL,
-        "plusOnly" boolean NOT NULL DEFAULT false,
         "eventType" text NOT NULL,
         "criteria" jsonb NOT NULL DEFAULT '{}',
         "active" boolean NOT NULL DEFAULT true,
@@ -194,7 +193,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
         "name",
         "description",
         "type",
-        "plusOnly",
         "eventType",
         "criteria",
         "active"
@@ -205,7 +203,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Hold my upvote',
           'Upvote 5 posts',
           'daily',
-          false,
           'post_upvote',
           '{"targetCount": 5}',
           true
@@ -215,7 +212,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Share the Wisdom',
           'Have 5 users click your shared daily.dev post link',
           'daily',
-          false,
           'share_post_click',
           '{"targetCount": 5}',
           true
@@ -225,7 +221,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Chairman of the Guild',
           'Give another user an award',
           'daily',
-          false,
           'award_given',
           '{"targetCount": 1}',
           true
@@ -235,7 +230,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Community Council',
           'Upvote 3 comments',
           'daily',
-          false,
           'comment_upvote',
           '{"targetCount": 3}',
           true
@@ -245,7 +239,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'I''m About to Cook...',
           'Write 2 comments',
           'daily',
-          false,
           'comment_create',
           '{"targetCount": 2}',
           true
@@ -255,7 +248,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'I''ll Get to It Any Day Now...',
           'Bookmark 3 posts',
           'daily',
-          false,
           'bookmark_post',
           '{"targetCount": 3}',
           true
@@ -265,7 +257,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Debriefed',
           'Read 2 briefs',
           'daily',
-          false,
           'brief_read',
           '{"targetCount": 2}',
           true
@@ -275,7 +266,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Douse the Flames',
           'Vote on 8 hot takes',
           'daily',
-          false,
           'hot_take_vote',
           '{"targetCount": 8}',
           true
@@ -285,7 +275,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Don''t Mind Me...',
           'Follow 1 user',
           'daily',
-          false,
           'user_follow',
           '{"targetCount": 1}',
           true
@@ -295,7 +284,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Hey, Check This Out...',
           'Share 1 post',
           'daily',
-          false,
           'post_share',
           '{"targetCount": 1}',
           true
@@ -305,7 +293,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Chief Executive',
           'Give out 5 awards',
           'weekly',
-          false,
           'award_given',
           '{"targetCount": 5}',
           true
@@ -315,7 +302,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Can''t hold all these upvotes',
           'Upvote 50 posts',
           'weekly',
-          false,
           'post_upvote',
           '{"targetCount": 50}',
           true
@@ -325,7 +311,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Knowledge is power',
           'Have 100 clicks on your shared posts',
           'weekly',
-          false,
           'share_post_click',
           '{"targetCount": 100}',
           true
@@ -335,7 +320,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'A Beacon of the Community',
           'Write 12 comments',
           'weekly',
-          false,
           'comment_create',
           '{"targetCount": 12}',
           true
@@ -345,7 +329,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'I Approve of This Message',
           'Upvote 20 comments',
           'weekly',
-          false,
           'comment_upvote',
           '{"targetCount": 20}',
           true
@@ -355,7 +338,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'I Swear I''ll Get Around to These',
           'Bookmark 12 posts',
           'weekly',
-          false,
           'bookmark_post',
           '{"targetCount": 12}',
           true
@@ -365,7 +347,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Commander in Chief',
           'Read 5 briefs',
           'weekly',
-          false,
           'brief_read',
           '{"targetCount": 5}',
           true
@@ -375,7 +356,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Mutuals Any% Speedrun',
           'Follow 5 users',
           'weekly',
-          false,
           'user_follow',
           '{"targetCount": 5}',
           true
@@ -385,7 +365,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'It''s Getting Cold in Here',
           'Vote on 40 hot takes',
           'weekly',
-          false,
           'hot_take_vote',
           '{"targetCount": 40}',
           true
@@ -395,7 +374,6 @@ export class QuestSystem1771937000000 implements MigrationInterface {
           'Squad Collector',
           'Join 2 squads',
           'weekly',
-          false,
           'squad_join',
           '{"targetCount": 2}',
           true
