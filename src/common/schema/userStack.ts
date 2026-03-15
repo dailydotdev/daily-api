@@ -19,6 +19,7 @@ export const updateUserStackSchema = z.object({
 export const reorderUserStackItemSchema = z.object({
   id: z.uuid(),
   position: z.number().int().min(0),
+  section: z.string().min(1).max(100).optional(),
 });
 
 export const reorderUserStackSchema = z
