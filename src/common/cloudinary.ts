@@ -1,33 +1,14 @@
 import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
 
-export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const outStream = cloudinary.v2.uploader.upload_stream(
-      {
-        public_id: name,
-        folder: 'logos',
-      },
-      (err, callResult) => {
-        if (err) {
-          return reject(err);
-        }
-
-        const successResult = callResult as cloudinary.UploadApiResponse;
-
-        return resolve(
-          `https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/${successResult.public_id}`,
-        );
-      },
-    );
-    stream.pipe(outStream);
-  });
+const sourceLogoWidth = 256;
 
 export enum UploadPreset {
   DevCard = 'devcard',
   Avatar = 'avatar',
   SquadImage = 'squad',
   SquadHeaderImage = 'squad_header',
+  Source = 'source',
   PostBannerImage = 'post_image',
   FreeformImage = 'freeform_image',
   FreeformGif = 'freeform_gif',
@@ -52,6 +33,88 @@ type UploadFn = (
   stream: Readable,
   options?: OptionalProps,
 ) => Promise<UploadResult>;
+
+const buildSourceLogoUrl = ({
+  publicId,
+  version,
+  format,
+}: {
+  publicId: string;
+  version?: number;
+  format?: string;
+}): string =>
+  mapCloudinaryUrl(
+    cloudinary.v2.url(publicId, {
+      version,
+      secure: true,
+      sign_url: true,
+      ...(format === 'svg'
+        ? {
+            transformation: [
+              {
+                crop: 'limit',
+                width: sourceLogoWidth,
+                format: 'png',
+              },
+              {
+                fetch_format: 'auto',
+                quality: 'auto',
+              },
+            ],
+          }
+        : {
+            fetch_format: 'auto',
+            quality: 'auto',
+          }),
+    }),
+  ) || '';
+
+const toUploadResult = (
+  successResult: cloudinary.UploadApiResponse,
+): UploadResult => ({
+  url: buildSourceLogoUrl({
+    publicId: successResult.public_id,
+    version: successResult.version,
+    format: successResult.format,
+  }),
+  id: successResult.public_id,
+});
+
+export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const outStream = cloudinary.v2.uploader.upload_stream(
+      {
+        public_id: name,
+        upload_preset: UploadPreset.Source,
+      },
+      (err, callResult) => {
+        if (err) {
+          return reject(err);
+        }
+
+        const successResult = callResult as cloudinary.UploadApiResponse;
+
+        return resolve(toUploadResult(successResult).url);
+      },
+    );
+    stream.pipe(outStream);
+  });
+
+export const uploadLogoFromUrl = async (
+  name: string,
+  url: string,
+): Promise<string> => {
+  const result = await cloudinary.v2.uploader.upload(url, {
+    public_id: name,
+    upload_preset: UploadPreset.Source,
+  });
+
+  return buildSourceLogoUrl({
+    publicId: result.public_id,
+    version: result.version,
+    format: result.format,
+  });
+};
 
 export const uploadFile = (
   name: string,

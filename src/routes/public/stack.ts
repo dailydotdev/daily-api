@@ -415,7 +415,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   // Reorder stack items
   fastify.put<{
-    Body: { items: Array<{ id: string; position: number }> };
+    Body: { items: Array<{ id: string; position: number; section?: string }> };
   }>(
     '/reorder',
     {
@@ -437,6 +437,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
                     type: 'integer',
                     minimum: 0,
                     description: 'New position',
+                  },
+                  section: {
+                    type: 'string',
+                    description: 'New section for cross-category moves',
                   },
                 },
               },
