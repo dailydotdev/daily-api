@@ -7,7 +7,7 @@ import {
   MoreThan,
 } from 'typeorm';
 import { redisPubSub } from '../../redis';
-import { Quest, QuestEventType } from '../../entity/Quest';
+import { Quest, QuestEventType, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
 import { UserQuest, UserQuestStatus } from '../../entity/user/UserQuest';
 
@@ -19,6 +19,15 @@ type QuestTarget = {
 type QuestUpdatePayload = {
   updatedAt: Date;
 };
+
+type QuestRotationUpdatePayload = {
+  updatedAt: Date;
+  type: QuestType;
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+export const QUEST_ROTATION_UPDATE_CHANNEL = 'events.quests.rotation.update';
 
 const TERMINAL_USER_QUEST_STATUSES = [
   UserQuestStatus.Completed,
@@ -107,6 +116,41 @@ export const publishQuestUpdate = async ({
         userId,
       },
       'Failed to publish quest update',
+    );
+  }
+};
+
+export const publishQuestRotationUpdate = async ({
+  logger,
+  type,
+  periodStart,
+  periodEnd,
+  updatedAt = new Date(),
+}: {
+  logger: FastifyBaseLogger;
+  type: QuestType;
+  periodStart: Date;
+  periodEnd: Date;
+  updatedAt?: Date;
+}): Promise<void> => {
+  const payload: QuestRotationUpdatePayload = {
+    updatedAt,
+    type,
+    periodStart,
+    periodEnd,
+  };
+
+  try {
+    await redisPubSub.publish(QUEST_ROTATION_UPDATE_CHANNEL, payload);
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        type,
+        periodStart,
+        periodEnd,
+      },
+      'Failed to publish quest rotation update',
     );
   }
 };
