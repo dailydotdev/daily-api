@@ -3,8 +3,19 @@ import {
   Achievement,
   AchievementEventType,
   AchievementType,
+  Source,
   User,
 } from '../src/entity';
+import { syncUserRetroactiveAchievements } from '../src/common/achievement/retroactive';
+import { PollPost } from '../src/entity/posts/PollPost';
+import { PostAnalytics } from '../src/entity/posts/PostAnalytics';
+import { Product, ProductType } from '../src/entity/Product';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
+import { UserCompany } from '../src/entity/UserCompany';
 import { UserAchievement } from '../src/entity/user/UserAchievement';
 import { updateUserAchievementProgress } from '../src/common/achievement';
 import {
@@ -20,6 +31,7 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
 
 const achievementIds = {
@@ -93,6 +105,27 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Achievement, achievementsFixture);
 });
+
+const createAchievement = ({
+  id = randomUUID(),
+  name = 'Test Achievement',
+  description = 'Test achievement description',
+  image = '',
+  type = AchievementType.Instant,
+  eventType = AchievementEventType.ProfileImageUpdate,
+  criteria = {},
+  points = 5,
+}: Partial<Achievement> = {}): Achievement =>
+  con.getRepository(Achievement).create({
+    id,
+    name,
+    description,
+    image,
+    type,
+    eventType,
+    criteria,
+    points,
+  });
 
 const USER_ACHIEVEMENTS_QUERY = /* GraphQL */ `
   query UserAchievements($userId: ID) {
@@ -254,6 +287,151 @@ describe('query userAchievements', () => {
       { query: USER_ACHIEVEMENTS_QUERY },
       'UNAUTHENTICATED',
     );
+  });
+});
+
+describe('retroactive achievement sync', () => {
+  it('should sync the newly added referral, spend, poll, company, and impressions achievements', async () => {
+    const logger = createMockLogger();
+    const achievementIds = {
+      referral: randomUUID(),
+      spent: randomUUID(),
+      poll: randomUUID(),
+      company: randomUUID(),
+      impressions: randomUUID(),
+    };
+    const productId = randomUUID();
+
+    await con
+      .getRepository(Achievement)
+      .createQueryBuilder()
+      .delete()
+      .execute();
+    await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(Product).save({
+      id: productId,
+      type: ProductType.Award,
+      image: 'https://daily.dev/product.jpg',
+      name: 'Retroactive Product',
+      value: 200,
+      flags: {},
+    });
+
+    await con.getRepository(Achievement).save([
+      createAchievement({
+        id: achievementIds.referral,
+        name: 'Referral Sync Test',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.ReferralCount,
+        criteria: { targetCount: 1 },
+      }),
+      createAchievement({
+        id: achievementIds.spent,
+        name: 'Cores Sync Test',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.CoresSpent,
+        criteria: { targetCount: 200 },
+      }),
+      createAchievement({
+        id: achievementIds.poll,
+        name: 'Poll Sync Test',
+        type: AchievementType.Instant,
+        eventType: AchievementEventType.PollCreate,
+      }),
+      createAchievement({
+        id: achievementIds.company,
+        name: 'Company Sync Test',
+        type: AchievementType.Instant,
+        eventType: AchievementEventType.CompanyVerified,
+      }),
+      createAchievement({
+        id: achievementIds.impressions,
+        name: 'Impressions Sync Test',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.PostImpressions,
+        criteria: { targetCount: 1000 },
+      }),
+    ]);
+
+    await con.getRepository(User).update('2', { referralId: '1' });
+
+    await con.getRepository(UserTransaction).save({
+      productId,
+      referenceId: 'poll-sync-post',
+      referenceType: 'poll_create',
+      status: UserTransactionStatus.Success,
+      receiverId: '2',
+      senderId: '1',
+      value: 200,
+      valueIncFees: 240,
+      fee: 40,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    });
+
+    await con.getRepository(PollPost).save({
+      id: 'poll-sync-post',
+      shortId: 'pollsync1',
+      title: 'Retroactive poll',
+      authorId: '1',
+      sourceId: 'a',
+      endsAt: new Date('2026-12-31T00:00:00Z'),
+    });
+
+    await con.getRepository(PostAnalytics).save({
+      id: 'poll-sync-post',
+      impressions: 900,
+      impressionsAds: 100,
+    });
+
+    await con.getRepository(UserCompany).save({
+      userId: '1',
+      email: 'ido@company.dev',
+      code: '123456',
+      verified: true,
+    });
+
+    const result = await syncUserRetroactiveAchievements({
+      con,
+      logger,
+      userId: '1',
+    });
+
+    expect(result.totalUnlocked).toBe(5);
+    expect(result.unlockedAchievementIds).toEqual(
+      expect.arrayContaining(Object.values(achievementIds)),
+    );
+
+    const userAchievements = await con.getRepository(UserAchievement).findBy({
+      userId: '1',
+    });
+
+    expect(
+      userAchievements.find(
+        ({ achievementId }) => achievementId === achievementIds.referral,
+      ),
+    ).toMatchObject({ progress: 1 });
+    expect(
+      userAchievements.find(
+        ({ achievementId }) => achievementId === achievementIds.spent,
+      ),
+    ).toMatchObject({ progress: 200 });
+    expect(
+      userAchievements.find(
+        ({ achievementId }) => achievementId === achievementIds.poll,
+      ),
+    ).toMatchObject({ progress: 1 });
+    expect(
+      userAchievements.find(
+        ({ achievementId }) => achievementId === achievementIds.company,
+      ),
+    ).toMatchObject({ progress: 1 });
+    expect(
+      userAchievements.find(
+        ({ achievementId }) => achievementId === achievementIds.impressions,
+      ),
+    ).toMatchObject({ progress: 1000 });
   });
 });
 

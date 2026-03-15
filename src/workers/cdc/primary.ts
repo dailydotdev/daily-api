@@ -250,6 +250,55 @@ const checkProfileCompletionAchievement = async (
   }
 };
 
+const getReferralCount = async (
+  con: DataSource,
+  userId: string,
+): Promise<number> =>
+  con.getRepository(User).count({
+    where: {
+      referralId: userId,
+    },
+  });
+
+const getSpentCores = async (
+  con: DataSource,
+  userId: string,
+): Promise<number> => {
+  const result = await con
+    .getRepository(UserTransaction)
+    .createQueryBuilder('ut')
+    .select('COALESCE(SUM(ut.value), 0)', 'spent')
+    .where('ut."receiverId" IS NOT NULL')
+    .andWhere('ut."senderId" = :userId', { userId })
+    .andWhere('ut."productId" IS NOT NULL')
+    .andWhere('ut.status = :status', {
+      status: UserTransactionStatus.Success,
+    })
+    .getRawOne<{ spent: string }>();
+
+  return Number(result?.spent ?? 0);
+};
+
+const getPostImpressions = async (
+  con: DataSource,
+  userId: string,
+): Promise<number> => {
+  const result = await con
+    .getRepository(Post)
+    .createQueryBuilder('p')
+    .innerJoin(PostAnalytics, 'pa', 'pa.id = p.id')
+    .select('COALESCE(SUM(pa.impressions + pa."impressionsAds"), 0)', 'count')
+    .where('p."authorId" = :userId', { userId })
+    .andWhere('p.deleted = false')
+    .andWhere('p.visible = true')
+    .andWhere('p.type NOT IN (:...excludedTypes)', {
+      excludedTypes: [PostType.Brief, PostType.Digest],
+    })
+    .getRawOne<{ count: string }>();
+
+  return Number(result?.count ?? 0);
+};
+
 const isCollectionUpdated = (
   collection: ChangeMessage<CollectionPost>,
 ): boolean =>
@@ -654,6 +703,21 @@ const onUserChange = async (
     await triggerTypedEvent(logger, 'api.v1.user-created', {
       user: data.payload.after!,
     });
+
+    if (data.payload.after!.referralId) {
+      const referralCount = await getReferralCount(
+        con,
+        data.payload.after!.referralId,
+      );
+
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.referralId,
+        AchievementEventType.ReferralCount,
+        referralCount,
+      );
+    }
   } else if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'user-updated', {
       user: data.payload.before!,
@@ -769,6 +833,25 @@ const onUserChange = async (
       }
     }
 
+    if (isChanged(data.payload.before!, data.payload.after!, 'referralId')) {
+      const referralUserIds = [
+        data.payload.before!.referralId,
+        data.payload.after!.referralId,
+      ].filter((referralId): referralId is string => !!referralId);
+
+      for (const referralUserId of [...new Set(referralUserIds)]) {
+        const referralCount = await getReferralCount(con, referralUserId);
+
+        await checkAchievementProgress(
+          con,
+          logger,
+          referralUserId,
+          AchievementEventType.ReferralCount,
+          referralCount,
+        );
+      }
+    }
+
     await checkProfileCompletionAchievement(con, logger, data.payload.after!);
   }
   if (data.payload.op === 'd') {
@@ -833,6 +916,15 @@ const onPostChange = async (
       const poll = data as ChangeMessage<PollPost>;
       const after = poll.payload.after!;
       const endsAt = after.endsAt as number | undefined;
+
+      if (after.authorId) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          after.authorId,
+          AchievementEventType.PollCreate,
+        );
+      }
 
       const createdDate = debeziumTimeToDate(after.createdAt).getTime();
       const notificationTime = endsAt
@@ -1473,6 +1565,22 @@ const onUserCompanyCompanyChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserCompany>,
 ) => {
+  const createdVerifiedUserCompany =
+    data.payload.op === 'c' && data.payload.after?.verified;
+  const updatedVerifiedUserCompany =
+    data.payload.op === 'u' &&
+    !data.payload.before?.verified &&
+    !!data.payload.after?.verified;
+
+  if (createdVerifiedUserCompany || updatedVerifiedUserCompany) {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.CompanyVerified,
+    );
+  }
+
   const creationWithCompany =
     data.payload.op === 'c' && !!data.payload.after?.companyId;
   const updateWithDifferentCompany =
@@ -1596,6 +1704,22 @@ const onUserTransactionChange = async (
         logger,
         transaction.senderId,
         AchievementEventType.AwardGiven,
+      );
+    }
+
+    if (
+      transaction.senderId &&
+      transaction.productId &&
+      transaction.receiverId
+    ) {
+      const spentCores = await getSpentCores(con, transaction.senderId);
+
+      await checkAchievementProgress(
+        con,
+        logger,
+        transaction.senderId,
+        AchievementEventType.CoresSpent,
+        spentCores,
       );
     }
   }
@@ -2257,52 +2381,79 @@ const onPostAnalyticsChange = async (
   const postId = data.payload.after!.id;
   const clicks = data.payload.after!.clicks;
   const prevClicks = data.payload.before?.clicks ?? 0;
+  const impressions =
+    (data.payload.after!.impressions ?? 0) +
+    (data.payload.after!.impressionsAds ?? 0);
+  const prevImpressions =
+    (data.payload.before?.impressions ?? 0) +
+    (data.payload.before?.impressionsAds ?? 0);
 
-  if (clicks <= prevClicks) {
-    return;
+  if (clicks > prevClicks) {
+    const sharePost = await con.getRepository(SharePost).findOne({
+      where: { id: postId },
+      select: ['id', 'authorId'],
+    });
+
+    if (sharePost?.authorId) {
+      if (prevClicks === 0 && clicks > 0) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          sharePost.authorId,
+          AchievementEventType.ShareClick,
+        );
+      }
+
+      await checkAchievementProgress(
+        con,
+        logger,
+        sharePost.authorId,
+        AchievementEventType.ShareClickMilestone,
+        clicks,
+      );
+
+      const postsWithClicks = await con
+        .getRepository(SharePost)
+        .createQueryBuilder('sp')
+        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
+        .where('sp.authorId = :userId', { userId: sharePost.authorId })
+        .andWhere('pa.clicks > 0')
+        .getCount();
+
+      await checkAchievementProgress(
+        con,
+        logger,
+        sharePost.authorId,
+        AchievementEventType.SharePostsClicked,
+        postsWithClicks,
+      );
+    }
   }
 
-  const sharePost = await con.getRepository(SharePost).findOne({
-    where: { id: postId },
-    select: ['id', 'authorId'],
-  });
+  if (impressions > prevImpressions) {
+    const post = await con.getRepository(Post).findOne({
+      where: { id: postId },
+      select: ['id', 'authorId', 'deleted', 'visible', 'type'],
+    });
 
-  if (!sharePost || !sharePost.authorId) {
-    return;
+    if (
+      post?.authorId &&
+      post.visible &&
+      !post.deleted &&
+      post.type !== PostType.Brief &&
+      post.type !== PostType.Digest
+    ) {
+      const totalImpressions = await getPostImpressions(con, post.authorId);
+
+      await checkAchievementProgress(
+        con,
+        logger,
+        post.authorId,
+        AchievementEventType.PostImpressions,
+        totalImpressions,
+      );
+    }
   }
-
-  if (prevClicks === 0 && clicks > 0) {
-    await checkAchievementProgress(
-      con,
-      logger,
-      sharePost.authorId,
-      AchievementEventType.ShareClick,
-    );
-  }
-
-  await checkAchievementProgress(
-    con,
-    logger,
-    sharePost.authorId,
-    AchievementEventType.ShareClickMilestone,
-    clicks,
-  );
-
-  const postsWithClicks = await con
-    .getRepository(SharePost)
-    .createQueryBuilder('sp')
-    .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
-    .where('sp.authorId = :userId', { userId: sharePost.authorId })
-    .andWhere('pa.clicks > 0')
-    .getCount();
-
-  await checkAchievementProgress(
-    con,
-    logger,
-    sharePost.authorId,
-    AchievementEventType.SharePostsClicked,
-    postsWithClicks,
-  );
 };
 
 const worker: Worker = {

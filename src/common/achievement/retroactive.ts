@@ -94,6 +94,18 @@ const handleProfileLocationUpdate: RetroactiveHandler = async (
   return toInstantMap(rows);
 };
 
+const handleReferralCount: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT "referralId" AS "userId", COUNT(*)::int AS count
+     FROM "user"
+     WHERE "referralId" = ANY($1)
+     GROUP BY "referralId"`,
+    [userIds],
+  );
+
+  return toProgressMap(rows);
+};
+
 const handlePostFreeform: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
     `SELECT DISTINCT "authorId" AS "userId" FROM post WHERE "authorId" = ANY($1) AND type = 'freeform'`,
@@ -106,6 +118,17 @@ const handlePostFreeform: RetroactiveHandler = async (con, userIds) => {
 const handlePostShare: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
     `SELECT DISTINCT "authorId" AS "userId" FROM post WHERE "authorId" = ANY($1) AND type = 'share' AND visible = true`,
+    [userIds],
+  );
+
+  return toInstantMap(rows);
+};
+
+const handlePollCreate: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT DISTINCT "authorId" AS "userId"
+     FROM post
+     WHERE "authorId" = ANY($1) AND type = 'poll'`,
     [userIds],
   );
 
@@ -140,6 +163,21 @@ const handlePlusSubscribe: RetroactiveHandler = async (con, userIds) => {
   );
 
   return toInstantMap(rows);
+};
+
+const handleCoresSpent: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT "senderId" AS "userId", COALESCE(SUM(value), 0)::int AS count
+     FROM user_transaction
+     WHERE "senderId" = ANY($1)
+       AND "receiverId" IS NOT NULL
+       AND "productId" IS NOT NULL
+       AND status = 0
+     GROUP BY "senderId"`,
+    [userIds],
+  );
+
+  return toProgressMap(rows);
 };
 
 const handleCVUpload: RetroactiveHandler = async (con, userIds) => {
@@ -421,6 +459,34 @@ const handleSubscriptionAnniversary: RetroactiveHandler = async (
   return map;
 };
 
+const handleCompanyVerified: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT DISTINCT "userId"
+     FROM user_company
+     WHERE "userId" = ANY($1) AND verified = true`,
+    [userIds],
+  );
+
+  return toInstantMap(rows);
+};
+
+const handlePostImpressions: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT p."authorId" AS "userId",
+            COALESCE(SUM(pa.impressions + pa."impressionsAds"), 0)::int AS count
+     FROM post p
+     JOIN post_analytics pa ON pa.id = p.id
+     WHERE p."authorId" = ANY($1)
+       AND p.deleted = false
+       AND p.visible = true
+       AND p.type NOT IN ('brief', 'digest')
+     GROUP BY p."authorId"`,
+    [userIds],
+  );
+
+  return toProgressMap(rows);
+};
+
 const handleShareClickMilestone: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
     `SELECT p."authorId" AS "userId", MAX(pa.clicks)::int AS count
@@ -451,11 +517,14 @@ const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.ProfileImageUpdate]: handleProfileImageUpdate,
   [AchievementEventType.ProfileCoverUpdate]: handleProfileCoverUpdate,
   [AchievementEventType.ProfileLocationUpdate]: handleProfileLocationUpdate,
+  [AchievementEventType.ReferralCount]: handleReferralCount,
   [AchievementEventType.PostFreeform]: handlePostFreeform,
   [AchievementEventType.PostShare]: handlePostShare,
+  [AchievementEventType.PollCreate]: handlePollCreate,
   [AchievementEventType.FeedCreate]: handleFeedCreate,
   [AchievementEventType.SquadCreate]: handleSquadCreate,
   [AchievementEventType.PlusSubscribe]: handlePlusSubscribe,
+  [AchievementEventType.CoresSpent]: handleCoresSpent,
   [AchievementEventType.CVUpload]: handleCVUpload,
   [AchievementEventType.PostBoost]: handlePostBoost,
   [AchievementEventType.AwardReceived]: handleAwardReceived,
@@ -488,6 +557,8 @@ const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.TopReaderBadge]: handleTopReaderBadge,
   [AchievementEventType.ReadingStreak]: handleReadingStreak,
   [AchievementEventType.SubscriptionAnniversary]: handleSubscriptionAnniversary,
+  [AchievementEventType.CompanyVerified]: handleCompanyVerified,
+  [AchievementEventType.PostImpressions]: handlePostImpressions,
   [AchievementEventType.ShareClickMilestone]: handleShareClickMilestone,
   [AchievementEventType.SharePostsClicked]: handleSharePostsClicked,
 };

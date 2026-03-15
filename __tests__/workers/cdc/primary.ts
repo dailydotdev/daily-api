@@ -71,6 +71,7 @@ import {
 import { UserAchievement } from '../../../src/entity/user/UserAchievement';
 import { PollPost } from '../../../src/entity/posts/PollPost';
 import { PollOption } from '../../../src/entity/polls/PollOption';
+import { PostAnalytics } from '../../../src/entity/posts/PostAnalytics';
 import { addDays, addYears, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
@@ -137,6 +138,12 @@ import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
+import { Product, ProductType } from '../../../src/entity/Product';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../../../src/entity/user/UserTransaction';
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
@@ -925,6 +932,96 @@ describe('user', () => {
       user: base,
       newProfile: after,
     } as unknown as PubSubSchema['user-updated']);
+  });
+
+  describe('referral achievement progress', () => {
+    let referralAchievementId: string;
+    let inviterId: string;
+
+    beforeEach(async () => {
+      referralAchievementId = randomUUID();
+      inviterId = randomUUID();
+      await con.getRepository(Achievement).save({
+        id: referralAchievementId,
+        name: 'Referral Achievement',
+        description: 'Make 3 referrals',
+        image: '',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.ReferralCount,
+        criteria: { targetCount: 3 },
+        points: 10,
+      });
+
+      await saveFixtures(con, User, [
+        {
+          id: inviterId,
+          bio: null,
+          name: 'Referral Inviter',
+          image: 'https://daily.dev/ref-inviter.jpg',
+          email: `ref-inviter-${inviterId}@daily.dev`,
+          createdAt: new Date(),
+          username: `refinviter${inviterId.slice(0, 8)}`,
+          infoConfirmed: true,
+        },
+        {
+          id: 'ref-existing',
+          bio: null,
+          name: 'Referral Existing',
+          image: 'https://daily.dev/ref-existing.jpg',
+          email: 'ref-existing@daily.dev',
+          createdAt: new Date(),
+          username: 'refexisting',
+          infoConfirmed: true,
+          referralId: inviterId,
+        },
+      ]);
+    });
+
+    it('should set progress to the current referral total', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        id: 'ref-new',
+        name: 'Referral New',
+        email: 'ref-new@daily.dev',
+        username: 'refnew',
+        image: 'https://daily.dev/ref-new.jpg',
+        referralId: inviterId,
+      };
+
+      await saveFixtures(con, User, [
+        {
+          id: 'ref-new',
+          bio: null,
+          name: 'Referral New',
+          image: 'https://daily.dev/ref-new.jpg',
+          email: 'ref-new@daily.dev',
+          createdAt: new Date(),
+          username: 'refnew',
+          infoConfirmed: true,
+          referralId: inviterId,
+        },
+      ]);
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          table: 'user',
+          op: 'c',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: referralAchievementId,
+          userId: inviterId,
+        });
+
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(2);
+      expect(userAchievement!.unlockedAt).toBeNull();
+    });
   });
 
   describe('update user source', () => {
@@ -5037,6 +5134,73 @@ describe('user company approved', () => {
     ]);
   });
 
+  describe('company verified achievement progress', () => {
+    let companyAchievementId: string;
+    let verifiedUserId: string;
+
+    beforeEach(async () => {
+      companyAchievementId = randomUUID();
+      verifiedUserId = randomUUID();
+      await saveFixtures(con, User, [
+        {
+          id: verifiedUserId,
+          bio: null,
+          name: 'Verified User',
+          image: 'https://daily.dev/verified-user.jpg',
+          email: `verified-user-${verifiedUserId}@daily.dev`,
+          createdAt: new Date(),
+          username: `verified${verifiedUserId.slice(0, 8)}`,
+          infoConfirmed: true,
+        },
+      ]);
+      await con.getRepository(Achievement).save({
+        id: companyAchievementId,
+        name: 'Company Verified Achievement',
+        description: 'Verify your company email',
+        image: '',
+        type: AchievementType.Instant,
+        eventType: AchievementEventType.CompanyVerified,
+        criteria: {},
+        points: 5,
+      });
+    });
+
+    it('should unlock when a user company becomes verified', async () => {
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        userId: verifiedUserId,
+        email: `verified-${verifiedUserId}@daily.dev`,
+        verified: false,
+      };
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        userId: verifiedUserId,
+        email: `verified-${verifiedUserId}@daily.dev`,
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'user_company',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: companyAchievementId,
+          userId: verifiedUserId,
+        });
+
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(1);
+      expect(userAchievement!.unlockedAt).not.toBeNull();
+    });
+  });
+
   describe('updates user experience work', () => {
     let experienceId: string;
 
@@ -7526,6 +7690,36 @@ describe('campaign post', () => {
 });
 
 describe('poll post', () => {
+  let pollAchievementId: string;
+  let pollAuthorId: string;
+
+  beforeEach(async () => {
+    pollAchievementId = randomUUID();
+    pollAuthorId = randomUUID();
+    await saveFixtures(con, User, [
+      {
+        id: pollAuthorId,
+        bio: null,
+        name: 'Poll Author',
+        image: 'https://daily.dev/poll-author.jpg',
+        email: `poll-author-${pollAuthorId}@daily.dev`,
+        createdAt: new Date(),
+        username: `poll${pollAuthorId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+    await con.getRepository(Achievement).save({
+      id: pollAchievementId,
+      name: 'Poll Achievement',
+      description: 'Post a poll',
+      image: '',
+      type: AchievementType.Instant,
+      eventType: AchievementEventType.PollCreate,
+      criteria: {},
+      points: 5,
+    });
+  });
+
   it('should schedule entity reminder workflow for poll creation', async () => {
     const pollId = randomUUID();
     const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
@@ -7551,6 +7745,34 @@ describe('poll post', () => {
       scheduledAtMs: 0,
       delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
     });
+  });
+
+  it('should unlock the poll achievement on poll creation', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: pollAchievementId,
+      userId: pollAuthorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
   });
 
   it('should cancel entity reminder workflow when poll is deleted', async () => {
@@ -7679,6 +7901,244 @@ describe('poll post', () => {
       scheduledAtMs: 0,
       delayMs: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds (based on endsAt)
     });
+  });
+});
+
+describe('user transaction achievement progress', () => {
+  let spentAchievementId: string;
+  let senderId: string;
+  let receiverId: string;
+  let productId: string;
+
+  beforeEach(async () => {
+    spentAchievementId = randomUUID();
+    senderId = randomUUID();
+    receiverId = randomUUID();
+    productId = randomUUID();
+
+    await saveFixtures(con, User, [
+      {
+        id: senderId,
+        bio: null,
+        name: 'Spent Sender',
+        image: 'https://daily.dev/spent-sender.jpg',
+        email: `spent-sender-${senderId}@daily.dev`,
+        createdAt: new Date(),
+        username: `spent${senderId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+      {
+        id: receiverId,
+        bio: null,
+        name: 'Spent Receiver',
+        image: 'https://daily.dev/spent-receiver.jpg',
+        email: `spent-receiver-${receiverId}@daily.dev`,
+        createdAt: new Date(),
+        username: `receive${receiverId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+
+    await con.getRepository(Product).save({
+      id: productId,
+      type: ProductType.Award,
+      image: 'https://daily.dev/product.jpg',
+      name: 'Spent Cores Product',
+      value: 50,
+      flags: {},
+    });
+
+    await con.getRepository(Achievement).save({
+      id: spentAchievementId,
+      name: 'Cores Spent Achievement',
+      description: 'Spend 500 Cores',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.CoresSpent,
+      criteria: { targetCount: 500 },
+      points: 10,
+    });
+
+    await con.getRepository(UserTransaction).save({
+      productId,
+      referenceId: 'spent-existing',
+      referenceType: 'post_boost',
+      status: UserTransactionStatus.Success,
+      receiverId,
+      senderId,
+      value: 150,
+      valueIncFees: 180,
+      fee: 30,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    });
+  });
+
+  it('should set progress to the current total spent Cores', async () => {
+    const transactionId = randomUUID();
+
+    await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      productId,
+      referenceId: 'spent-new',
+      referenceType: 'post_boost',
+      status: UserTransactionStatus.Success,
+      receiverId,
+      senderId,
+      value: 50,
+      valueIncFees: 70,
+      fee: 20,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    });
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserTransaction>({
+        before: {
+          id: transactionId,
+          productId,
+          referenceId: 'spent-new',
+          referenceType: 'post_boost',
+          status: UserTransactionStatus.Created,
+          receiverId,
+          senderId,
+          value: 50,
+          valueIncFees: 70,
+          fee: 20,
+          request: {},
+          flags: {},
+          processor: UserTransactionProcessor.Njord,
+        },
+        after: {
+          id: transactionId,
+          productId,
+          referenceId: 'spent-new',
+          referenceType: 'post_boost',
+          status: UserTransactionStatus.Success,
+          receiverId,
+          senderId,
+          value: 50,
+          valueIncFees: 70,
+          fee: 20,
+          request: {},
+          flags: {},
+          processor: UserTransactionProcessor.Njord,
+        },
+        op: 'u',
+        table: 'user_transaction',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: spentAchievementId,
+      userId: senderId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(200);
+    expect(userAchievement!.unlockedAt).toBeNull();
+  });
+});
+
+describe('post analytics achievement progress', () => {
+  let impressionsAchievementId: string;
+  let authorId: string;
+
+  beforeEach(async () => {
+    impressionsAchievementId = randomUUID();
+    authorId = randomUUID();
+
+    await saveFixtures(con, User, [
+      {
+        id: authorId,
+        bio: null,
+        name: 'Impressions Author',
+        image: 'https://daily.dev/impressions-author.jpg',
+        email: `impressions-author-${authorId}@daily.dev`,
+        createdAt: new Date(),
+        username: `impress${authorId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+    await saveFixtures(con, Source, sourcesFixture);
+
+    await con.getRepository(Achievement).save({
+      id: impressionsAchievementId,
+      name: 'Post Impressions Achievement',
+      description: 'Reach 2000 impressions',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.PostImpressions,
+      criteria: { targetCount: 2000 },
+      points: 10,
+    });
+
+    await con.getRepository(Post).save([
+      {
+        id: 'post-impressions-existing',
+        shortId: 'impexist',
+        title: 'Existing impressions post',
+        authorId,
+        sourceId: 'a',
+        type: PostType.Article,
+      },
+      {
+        id: 'post-impressions-live',
+        shortId: 'implive1',
+        title: 'Live impressions post',
+        authorId,
+        sourceId: 'a',
+        type: PostType.Article,
+      },
+    ]);
+
+    await con.getRepository(PostAnalytics).save([
+      {
+        id: 'post-impressions-existing',
+        impressions: 700,
+        impressionsAds: 0,
+      },
+      {
+        id: 'post-impressions-live',
+        impressions: 500,
+        impressionsAds: 0,
+        clicks: 0,
+      },
+    ]);
+  });
+
+  it('should set progress to the total post impressions', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PostAnalytics>({
+        before: {
+          id: 'post-impressions-live',
+          impressions: 100,
+          impressionsAds: 0,
+          clicks: 0,
+        },
+        after: {
+          id: 'post-impressions-live',
+          impressions: 500,
+          impressionsAds: 0,
+          clicks: 0,
+        },
+        op: 'u',
+        table: 'post_analytics',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: impressionsAchievementId,
+      userId: authorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1200);
+    expect(userAchievement!.unlockedAt).toBeNull();
   });
 });
 
