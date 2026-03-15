@@ -1,18 +1,20 @@
 import { Code, ConnectError, ConnectRouter } from '@connectrpc/connect';
-import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
-import { ArticlePost, SourceRequest } from '../../entity';
-import { generateShortId } from '../../ids';
-import createOrGetConnection from '../../db';
-import { isValidHttpUrl, standardizeURL } from '../../common/links';
-import { baseRpcContext } from '../../common/connectRpc';
+import { DataSource, FindOptionsWhere } from 'typeorm';
 import {
   CreatePostRequest,
   CreatePostResponse,
-  SourceRequestService,
   PostService,
+  SourceRequestService,
+  SourceService,
 } from '@dailydotdev/schema';
-import { DataSource, FindOptionsWhere } from 'typeorm';
+import { ArticlePost, SourceRequest } from '../../entity';
+import { baseRpcContext } from '../../common/connectRpc';
+import { isValidHttpUrl, standardizeURL } from '../../common/links';
+import createOrGetConnection from '../../db';
+import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
+import { generateShortId } from '../../ids';
 import { logger } from '../../logger';
+import { provisionSource } from './provisionSource';
 
 const getDuplicatePost = async ({
   req,
@@ -87,10 +89,10 @@ export default function (router: ConnectRouter) {
       });
       const newPost = await con.getRepository(ArticlePost).insert(postEntity);
 
-      return {
+      return new CreatePostResponse({
         postId: newPost.identifiers[0].id,
         url: req.url,
-      };
+      });
     } catch (originalError) {
       const error = originalError as TypeORMQueryFailedError;
 
@@ -159,6 +161,19 @@ export default function (router: ConnectRouter) {
 
         throw new ConnectError(error.message, Code.Internal);
       }
+    },
+  );
+
+  router.rpc(
+    SourceService,
+    SourceService.methods.provision,
+    async (req, context) => {
+      if (!context.values.get(baseRpcContext).service) {
+        throw new ConnectError('unauthenticated', Code.Unauthenticated);
+      }
+
+      const con = await createOrGetConnection();
+      return provisionSource(req, con);
     },
   );
 }

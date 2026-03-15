@@ -236,6 +236,10 @@ config:
       secure: AAABAMYZ/g6SWqP4xuuJtIY2ZfOKVAIVwBDYtw+wsrGTggagtXyb0vAcHcVwl4jeVRw8tE8evlNgN4pageF6/j3tosILmfZQbD71gmokI3SFHA==
     twitterAccessTokenSecret:
       secure: AAABAF71uphNf9oOztAZ2giIqCygD5m4VgejUPif+Fgs2U/y0NuQNY6754aEuIj5eXsrO2JfmMX0nnQqwVYe0Tvb3yyXTUREyYW9wRc=
+    brandDevApiKey:
+      secure: AAABADzaXl3Rom9QsMVgGtWwvGejxfHgUk/nM+uc/2p777yB5eT8ppDPUyssld6ipcXjpKpF+mfr/IanuBo5U9pj8M1ntw==
+    twitterBearerToken:
+      secure: AAABAM40I6hXKdm/8cjBZBTR+00tTGatLi7WBMGmwoslDjqasqWy3hyMsQFLQQ8gaYuod7yaIhLVXqbeSc39CykCivJRaooukd7Vn8BKTmNHQuyJ3PdmF1FUSmOVci1nVL/L5AWB5pWD5vRbqm+e+nJzsXA1rjgmh+y7+qxnxl82JeOqxCxuTzZn+F4i0WfNhkc=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
