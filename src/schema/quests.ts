@@ -3,7 +3,11 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { randomUUID } from 'crypto';
 import { In, LessThanOrEqual, MoreThan, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext, SubscriptionContext } from '../Context';
-import { getQuestLevelState, publishQuestUpdate } from '../common/quest';
+import {
+  getQuestLevelState,
+  publishQuestUpdate,
+  QUEST_ROTATION_UPDATE_CHANNEL,
+} from '../common/quest';
 import { transferCores } from '../common/njord';
 import { systemUser } from '../common/utils';
 import {
@@ -52,6 +56,13 @@ type GQLQuestDashboard = {
 
 type GQLQuestUpdate = {
   updatedAt: Date;
+};
+
+type GQLQuestRotationUpdate = {
+  updatedAt: Date;
+  type: QuestType;
+  periodStart: Date;
+  periodEnd: Date;
 };
 
 type QuestRewardTotals = {
@@ -423,7 +434,6 @@ export const typeDefs = /* GraphQL */ `
     name: String!
     description: String!
     type: QuestType!
-    plusOnly: Boolean!
     eventType: String!
     targetCount: Int!
   }
@@ -463,6 +473,13 @@ export const typeDefs = /* GraphQL */ `
     updatedAt: DateTime!
   }
 
+  type QuestRotationUpdate {
+    updatedAt: DateTime!
+    type: QuestType!
+    periodStart: DateTime!
+    periodEnd: DateTime!
+  }
+
   extend type Query {
     questDashboard: QuestDashboard! @auth
   }
@@ -473,6 +490,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Subscription {
     questUpdate: QuestUpdate! @auth
+    questRotationUpdate: QuestRotationUpdate! @auth
   }
 `;
 
@@ -549,6 +567,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                   return { done: true, value: undefined };
                 }
                 return { done: false, value: { questUpdate: value } };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
+    },
+    questRotationUpdate: {
+      subscribe: async (
+        _,
+        __,
+        ctx: SubscriptionContext,
+      ): Promise<
+        AsyncIterable<{ questRotationUpdate: GQLQuestRotationUpdate }>
+      > => {
+        if (!ctx.userId) {
+          throw new ForbiddenError('Access denied');
+        }
+
+        const iterator = redisPubSub.asyncIterator<GQLQuestRotationUpdate>(
+          QUEST_ROTATION_UPDATE_CHANNEL,
+        );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return {
+                  done: false,
+                  value: { questRotationUpdate: value },
+                };
               },
               return: async () => {
                 await iterator.return?.();

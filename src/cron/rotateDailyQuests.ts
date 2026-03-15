@@ -1,4 +1,4 @@
-import { rotateQuestPeriod } from '../common/quest';
+import { publishQuestRotationUpdate, rotateQuestPeriod } from '../common/quest';
 import { QuestType } from '../entity/Quest';
 import { Cron } from './cron';
 
@@ -9,6 +9,14 @@ const cron: Cron = {
       con,
       logger,
       type: QuestType.Daily,
+    });
+
+    await publishQuestRotationUpdate({
+      logger,
+      type: QuestType.Daily,
+      periodStart: result.periodStart,
+      periodEnd: result.periodEnd,
+      updatedAt: new Date(),
     });
 
     logger.info(result, 'Rotated daily quests');

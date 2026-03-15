@@ -69,7 +69,6 @@ query QuestDashboard {
         quest {
           id
           name
-          plusOnly
         }
       }
       plus {
@@ -78,7 +77,6 @@ query QuestDashboard {
         quest {
           id
           name
-          plusOnly
         }
       }
     }
@@ -148,7 +146,6 @@ const seedQuest = async ({
       name: 'Hold my upvote',
       description: 'Upvote 5 posts',
       type: QuestType.Daily,
-      plusOnly: false,
       eventType: QuestEventType.PostUpvote,
       criteria: {
         targetCount: 5,
@@ -207,7 +204,6 @@ describe('claimQuestReward mutation', () => {
         name: 'Normal daily quest',
         description: 'Upvote 5 posts',
         type: QuestType.Daily,
-        plusOnly: false,
         eventType: QuestEventType.PostUpvote,
         criteria: {
           targetCount: 5,
@@ -219,7 +215,6 @@ describe('claimQuestReward mutation', () => {
         name: 'Extra daily quest',
         description: 'Write 2 comments',
         type: QuestType.Daily,
-        plusOnly: false,
         eventType: QuestEventType.CommentCreate,
         criteria: {
           targetCount: 2,
@@ -259,7 +254,6 @@ describe('claimQuestReward mutation', () => {
         quest: {
           id: questId,
           name: 'Normal daily quest',
-          plusOnly: false,
         },
       },
     ]);
@@ -270,7 +264,6 @@ describe('claimQuestReward mutation', () => {
         quest: {
           id: extraQuestId,
           name: 'Extra daily quest',
-          plusOnly: false,
         },
       },
     ]);
