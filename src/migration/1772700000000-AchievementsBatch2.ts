@@ -1,8 +1,6 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AchievementsBatch21772700000000
-  implements MigrationInterface
-{
+export class AchievementsBatch21772700000000 implements MigrationInterface {
   name = 'AchievementsBatch21772700000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -18,90 +16,90 @@ export class AchievementsBatch21772700000000
       )
       VALUES
         (
-          'Referral Count 1',
-          'Make 1 referral',
-          '',
+          'My plus one',
+          'Successfuly refer one user with your referral link',
+          'https://media.daily.dev/image/upload/s--XUoq3jvC--/q_auto/v1773608418/achievements/my_plus_one',
           'milestone',
           'referral_count',
           '{"targetCount": 1}',
           5
         ),
         (
-          'Referral Count 2',
-          'Make 10 referrals',
-          '',
+          'Referral spree',
+          'Successfully refer 10 users with your referral link',
+          'https://media.daily.dev/image/upload/s--h7KVoOJI--/q_auto/v1773608418/achievements/referral_spree',
           'milestone',
           'referral_count',
           '{"targetCount": 10}',
           10
         ),
         (
-          'Cores Spent 1',
+          'Core values',
           'Spend 100 Cores',
-          '',
+          'https://media.daily.dev/image/upload/s--qkBMxNkZ--/q_auto/v1773608418/achievements/core_value',
           'milestone',
           'cores_spent',
           '{"targetCount": 100}',
           5
         ),
         (
-          'Cores Spent 2',
+          'Coraholic',
           'Spend 1000 Cores',
-          '',
+          'https://media.daily.dev/image/upload/s--SNnLKKWe--/q_auto/v1773608419/achievements/coraholic',
           'milestone',
           'cores_spent',
           '{"targetCount": 1000}',
           10
         ),
         (
-          'Cores Spent 3',
+          'Can''t spend it all',
           'Spend 10000 Cores',
-          '',
+          'https://media.daily.dev/image/upload/s--_MjhSTze--/q_auto/v1773608417/achievements/cant_spend_it_all',
           'milestone',
           'cores_spent',
           '{"targetCount": 10000}',
           25
         ),
         (
-          'Poll Post 1',
-          'Post a poll',
-          '',
+          'Poll it',
+          'Create a poll',
+          'https://media.daily.dev/image/upload/s--J20Dc3CL--/q_auto/v1773608418/achievements/poll_it',
           'instant',
           'poll_create',
           '{}',
           5
         ),
         (
-          'Company Verified 1',
+          'Verifiably verified',
           'Verify your company email',
-          '',
+          'https://media.daily.dev/image/upload/s--ioFNxPkG--/q_auto/v1773608418/achievements/verifiably_verified',
           'instant',
           'company_verified',
           '{}',
           5
         ),
         (
-          'Post Impressions 1',
+          'The word around town',
           'Get 1000 post impressions',
-          '',
+          'https://media.daily.dev/image/upload/s--n8pcs3rj--/q_auto/v1773608417/achievements/word_around_town',
           'milestone',
           'post_impressions',
           '{"targetCount": 1000}',
           5
         ),
         (
-          'Post Impressions 2',
+          'Orator',
           'Get 10000 post impressions',
-          '',
+          'https://media.daily.dev/image/upload/s--RSuQgjxw--/q_auto/v1773609827/achievements/orator',
           'milestone',
           'post_impressions',
           '{"targetCount": 10000}',
           10
         ),
         (
-          'Post Impressions 3',
+          'Infamous poster',
           'Get 100000 post impressions',
-          '',
+          'https://media.daily.dev/image/upload/s--qe3pqSfV--/q_auto/v1773608419/achievements/infamous_poster',
           'milestone',
           'post_impressions',
           '{"targetCount": 100000}',
@@ -114,16 +112,16 @@ export class AchievementsBatch21772700000000
     await queryRunner.query(/* sql */ `
       DELETE FROM "achievement"
       WHERE "name" IN (
-        'Referral Count 1',
-        'Referral Count 2',
-        'Cores Spent 1',
-        'Cores Spent 2',
-        'Cores Spent 3',
-        'Poll Post 1',
-        'Company Verified 1',
-        'Post Impressions 1',
-        'Post Impressions 2',
-        'Post Impressions 3'
+        'My plus one',
+        'Referral spree',
+        'Core values',
+        'Coraholic',
+        'Can''t spend it all',
+        'Poll it',
+        'Verifiably verified',
+        'The word around town',
+        'Orator',
+        'Infamous poster'
       )
     `);
   }
