@@ -1011,12 +1011,12 @@ describe('user', () => {
         }),
       );
 
-      const userAchievement = await con.getRepository(UserAchievement).findOneBy(
-        {
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
           achievementId: referralAchievementId,
           userId: inviterId,
-        },
-      );
+        });
 
       expect(userAchievement).not.toBeNull();
       expect(userAchievement!.progress).toEqual(2);
@@ -5188,12 +5188,12 @@ describe('user company approved', () => {
         }),
       );
 
-      const userAchievement = await con.getRepository(UserAchievement).findOneBy(
-        {
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
           achievementId: companyAchievementId,
           userId: verifiedUserId,
-        },
-      );
+        });
 
       expect(userAchievement).not.toBeNull();
       expect(userAchievement!.progress).toEqual(1);

@@ -302,7 +302,11 @@ describe('retroactive achievement sync', () => {
     };
     const productId = randomUUID();
 
-    await con.getRepository(Achievement).createQueryBuilder().delete().execute();
+    await con
+      .getRepository(Achievement)
+      .createQueryBuilder()
+      .delete()
+      .execute();
     await saveFixtures(con, Source, sourcesFixture);
     await con.getRepository(Product).save({
       id: productId,
