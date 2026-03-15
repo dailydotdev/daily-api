@@ -2,6 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, type AuthContext } from '../Context';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
+import { UserQuestProfile } from '../entity/user';
 import { UserAchievement } from '../entity/user/UserAchievement';
 import { Achievement } from '../entity/Achievement';
 import { DataSource, In, Not } from 'typeorm';
@@ -9,10 +10,12 @@ import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
 import graphorm from '../graphorm';
 import type { GQLHotTake } from './userHotTake';
+import { getQuestLevelState } from '../common/quest';
 
 export type GQLUserLeaderboard = {
   score: number;
   user: GQLUser | Promise<GQLUser>;
+  level?: ReturnType<typeof getQuestLevelState>;
 };
 
 export type GQLCompanyLeaderboard = {
@@ -30,6 +33,7 @@ export const typeDefs = /* GraphQL */ `
   type Leaderboard {
     score: Int
     user: User
+    level: QuestLevel
   }
 
   type CompanyLeaderboard {
@@ -133,6 +137,16 @@ export const typeDefs = /* GraphQL */ `
       """
       limit: Int
     ): [Leaderboard] @cacheControl(maxAge: 600)
+
+    """
+    Get the users with the highest quest levels
+    """
+    highestLevel(
+      """
+      Limit the number of users returned
+      """
+      limit: Int
+    ): [Leaderboard] @cacheControl(maxAge: 600)
   }
 `;
 
@@ -178,6 +192,42 @@ const getUserLeaderboardForStat = async ({
       return {
         score,
         user: user,
+      };
+    });
+};
+
+const getUserLevelLeaderboard = async ({
+  con,
+  limit,
+}: {
+  con: DataSource;
+  limit: number;
+}): Promise<GQLUserLeaderboard[]> => {
+  const users = await con
+    .createQueryBuilder()
+    .from(UserQuestProfile, 'uqp')
+    .select('u.*')
+    .addSelect('uqp."totalXp"', 'score')
+    .leftJoin(User, 'u', 'u.id = uqp."userId"')
+    .where('u.id IS NOT NULL')
+    .andWhere('u.id NOT IN (:...excludedUsers)', { excludedUsers })
+    .orderBy('score', 'DESC')
+    .limit(limit)
+    .getRawMany<
+      User & {
+        score: number | string;
+      }
+    >();
+
+  return users
+    .filter((user) => !!user.id)
+    .map(({ score, ...user }) => {
+      const totalXp = Number(score) || 0;
+
+      return {
+        score: totalXp,
+        user: user,
+        level: getQuestLevelState(totalXp),
       };
     });
 };
@@ -318,6 +368,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             user,
           }))
       );
+    },
+    highestLevel: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
+      return getUserLevelLeaderboard({
+        con: ctx.con,
+        limit: getLimit(args),
+      });
     },
   },
 };
