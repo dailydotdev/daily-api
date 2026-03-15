@@ -31,6 +31,7 @@ import expireSuperAgentTrial from './expireSuperAgentTrial';
 import updateAchievementRarity from './updateAchievementRarity';
 import backfillGearCategory from './backfillGearCategory';
 import agentsDigest from './agentsDigest';
+import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
 
 export const crons: Cron[] = [
   updateViews,
@@ -65,4 +66,5 @@ export const crons: Cron[] = [
   updateAchievementRarity,
   backfillGearCategory,
   agentsDigest,
+  cleanExpiredBetterAuthSessions,
 ];

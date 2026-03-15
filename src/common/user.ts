@@ -167,6 +167,11 @@ export const deleteUser = async (
         }
       }
 
+      await entityManager.query(
+        'DELETE FROM ba_verification WHERE identifier IN ($1, $2)',
+        [`change-email:${userId}`, `signup-verify:${userId}`],
+      );
+
       await entityManager.getRepository(User).delete(userId);
     });
     logger.info(

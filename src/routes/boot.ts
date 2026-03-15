@@ -4,9 +4,11 @@ import {
   FastifyRequest,
   RouteHandler,
 } from 'fastify';
+import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
+import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser, getMarketingCta } from '../schema/users';
@@ -58,6 +60,7 @@ import {
   updateFlagsStatement,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
+import { createBetterAuthSessionFromKratos } from '../betterAuthSession';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
@@ -66,6 +69,7 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import {
   ExperimentAllocationClient,
+  features as gbFeatures,
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
@@ -109,6 +113,22 @@ export type Experimentation = {
 export type Geo = {
   region?: string;
   continent?: Continent;
+};
+
+type BetterAuthSession = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    image?: string | null;
+  };
+  session: {
+    id: string;
+    userId: string;
+    expiresAt: Date;
+    token: string;
+  };
 };
 
 interface ComputedAlerts {
@@ -904,6 +924,61 @@ export const getBootData = async (
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
 
+  const trackingIdForGb = req.userId || req.trackingId || '';
+  const gb = getUserGrowthBookInstance(trackingIdForGb);
+  const authStrategy = gb.getFeatureValue(
+    gbFeatures.authStrategy.id,
+    gbFeatures.authStrategy.defaultValue,
+  );
+
+  const baSessionCookie = req.cookies[cookies.authSession.key];
+  if (baSessionCookie) {
+    if (authStrategy === 'betterauth') {
+      try {
+        const session = (await getBetterAuth().api.getSession({
+          headers: fromNodeHeaders(
+            req.headers as Record<string, string | string[] | undefined>,
+          ),
+        })) as BetterAuthSession | null;
+
+        if (session) {
+          req.userId = session.user.id;
+          req.trackingId = req.userId;
+          setTrackingId(req, res, req.trackingId);
+          const jwtValid =
+            req.accessToken?.expiresIn &&
+            differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
+          return loggedInBoot({
+            con,
+            req,
+            res,
+            refreshToken: !jwtValid,
+            middleware,
+            userId: req.userId,
+          });
+        }
+
+        req.log.warn('BetterAuth getSession returned null');
+      } catch (error) {
+        req.log.error(
+          { err: error instanceof Error ? error.message : String(error) },
+          'BetterAuth session validation failed',
+        );
+      }
+      req.log.warn(
+        { authStrategy },
+        'BetterAuth session cookie present but validation failed',
+      );
+      setCookie(req, res, 'authSession', undefined);
+    } else {
+      req.log.warn(
+        { authStrategy },
+        'BetterAuth session cookie present but auth_strategy is not betterauth',
+      );
+      setCookie(req, res, 'authSession', undefined);
+    }
+  }
+
   if (
     req.userId &&
     req.accessToken?.expiresIn &&
@@ -947,6 +1022,13 @@ export const getBootData = async (
       req.userId = whoami.userId;
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
+    }
+    if (authStrategy === 'betterauth') {
+      await createBetterAuthSessionFromKratos({
+        req,
+        res,
+        userId: whoami.userId,
+      });
     }
     return loggedInBoot({
       con,

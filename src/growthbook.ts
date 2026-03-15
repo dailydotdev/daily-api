@@ -123,6 +123,7 @@ export const features = {
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
   }),
+  authStrategy: new Feature<'kratos' | 'betterauth'>('auth_strategy', 'kratos'),
 };
 
 export class ExperimentAllocationClient {

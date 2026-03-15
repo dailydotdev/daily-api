@@ -35,6 +35,7 @@ declare global {
       EXPERIMENTATION_KEY: string;
       COOKIES_KEY: string;
       KRATOS_ORIGIN: string;
+      BETTER_AUTH_REDIRECT_URL?: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
       REDIS_HOST: string;

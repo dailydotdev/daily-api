@@ -39,6 +39,7 @@ import { ZodError } from 'zod';
 import { closeClickHouseClient } from './common/clickhouse';
 import { GQL_MAX_FILE_SIZE } from './config';
 import otelPlugin from './telemetry/plugin';
+import { initializeBetterAuth } from './betterAuth';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -83,6 +84,11 @@ export default async function app(
   app.register(otelPlugin);
   await loadFeatures(app.log);
 
+  if (process.env.BETTER_AUTH_SECRET) {
+    initializeBetterAuth();
+    app.log.info('BetterAuth initialized');
+  }
+
   const gracefulShutdown = () => {
     app.log.info('starting termination');
     isTerminating = true;
@@ -104,16 +110,23 @@ export default async function app(
   app.register(helmet);
 
   const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+  const betterAuthTrustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
+    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
+    : [];
 
   app.register(cors, {
     origin: async (origin?: string) => {
-      if (!isProd) {
+      if (!origin) {
         return true;
       }
 
-      const originString = origin as string;
+      const originString = origin;
 
       if (remoteConfig.vars.origins?.includes(originString)) {
+        return true;
+      }
+
+      if (betterAuthTrustedOrigins.includes(originString)) {
         return true;
       }
 
