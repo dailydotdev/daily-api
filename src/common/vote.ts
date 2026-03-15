@@ -195,6 +195,16 @@ export const voteHotTake = async ({
         ctx.userId,
         AchievementEventType.HotTakeVote,
       );
+      const [{ checkQuestProgress }, { QuestEventType }] = await Promise.all([
+        import('./quest/progress'),
+        import('../entity/Quest'),
+      ]);
+      await checkQuestProgress({
+        con: ctx.con,
+        logger: ctx.log,
+        userId: ctx.userId,
+        eventType: QuestEventType.HotTakeVote,
+      });
     }
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;
