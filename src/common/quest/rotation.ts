@@ -86,6 +86,7 @@ export const rotateQuestPeriod = async ({
 }): Promise<RotateQuestPeriodResult> => {
   const { periodStart, periodEnd } = getQuestWindow(type, now);
   const regularLimit = REQUIRED_REGULAR_QUESTS[type];
+  const totalLimit = regularLimit + REQUIRED_PLUS_QUESTS;
   const { periodStart: previousPeriodStart } = getQuestWindow(
     type,
     new Date(periodStart.getTime() - 1),
@@ -110,42 +111,56 @@ export const rotateQuestPeriod = async ({
   const freshQuests = allQuests.filter(
     (quest) => !previousQuestIds.has(quest.id),
   );
-  const selectedQuestIds = new Set<string>();
+  let regularQuests: Quest[] = [];
+  let plusQuests: Quest[] = [];
 
-  const regularQuests = pickQuests({
-    pool: freshQuests,
-    count: regularLimit,
-    selectedIds: selectedQuestIds,
-  });
+  if (freshQuests.length >= totalLimit) {
+    const selectedFreshQuests = pickQuests({
+      pool: freshQuests,
+      count: totalLimit,
+      selectedIds: new Set<string>(),
+    }).sort(compareQuestOrder);
 
-  if (regularQuests.length < regularLimit) {
-    regularQuests.push(
-      ...pickQuests({
-        pool: allQuests,
-        count: regularLimit - regularQuests.length,
-        selectedIds: selectedQuestIds,
-      }),
-    );
+    regularQuests = selectedFreshQuests.slice(0, regularLimit);
+    plusQuests = selectedFreshQuests.slice(regularLimit);
+  } else {
+    const selectedQuestIds = new Set<string>();
+
+    regularQuests = pickQuests({
+      pool: freshQuests,
+      count: regularLimit,
+      selectedIds: selectedQuestIds,
+    });
+
+    if (regularQuests.length < regularLimit) {
+      regularQuests.push(
+        ...pickQuests({
+          pool: allQuests,
+          count: regularLimit - regularQuests.length,
+          selectedIds: selectedQuestIds,
+        }),
+      );
+    }
+
+    plusQuests = pickQuests({
+      pool: freshQuests,
+      count: REQUIRED_PLUS_QUESTS,
+      selectedIds: selectedQuestIds,
+    });
+
+    if (plusQuests.length < REQUIRED_PLUS_QUESTS) {
+      plusQuests.push(
+        ...pickQuests({
+          pool: allQuests,
+          count: REQUIRED_PLUS_QUESTS - plusQuests.length,
+          selectedIds: selectedQuestIds,
+        }),
+      );
+    }
+
+    regularQuests.sort(compareQuestOrder);
+    plusQuests.sort(compareQuestOrder);
   }
-
-  const plusQuests = pickQuests({
-    pool: freshQuests,
-    count: REQUIRED_PLUS_QUESTS,
-    selectedIds: selectedQuestIds,
-  });
-
-  if (plusQuests.length < REQUIRED_PLUS_QUESTS) {
-    plusQuests.push(
-      ...pickQuests({
-        pool: allQuests,
-        count: REQUIRED_PLUS_QUESTS - plusQuests.length,
-        selectedIds: selectedQuestIds,
-      }),
-    );
-  }
-
-  regularQuests.sort(compareQuestOrder);
-  plusQuests.sort(compareQuestOrder);
 
   if (regularQuests.length < regularLimit) {
     logger.warn(
