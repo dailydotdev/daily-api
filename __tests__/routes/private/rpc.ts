@@ -380,8 +380,8 @@ describe('SourceService', () => {
   });
 
   it('should provision an rss source with scraped metadata and image upload', async () => {
-    const uploadLogo = jest
-      .spyOn(cloudinary, 'uploadLogo')
+    const uploadLogoFromUrl = jest
+      .spyOn(cloudinary, 'uploadLogoFromUrl')
       .mockResolvedValue('https://media.daily.dev/source-logo');
     const publishMessage = mockSourceAddedPublisher();
 
@@ -395,10 +395,6 @@ describe('SourceService', () => {
         name: 'Example',
         rss: [{ title: 'RSS', url: 'https://example.com/feed.xml' }],
       });
-    nock('https://assets.example.com')
-      .get('/logo.png')
-      .reply(200, 'logo-binary');
-
     const result = await mockClient.provision(
       {
         sourceId: 'example',
@@ -431,8 +427,11 @@ describe('SourceService', () => {
         url: 'https://example.com/feed.xml',
       },
     });
-    expect(uploadLogo).toHaveBeenCalledTimes(1);
-    expect(uploadLogo).toHaveBeenCalledWith('example', expect.anything());
+    expect(uploadLogoFromUrl).toHaveBeenCalledTimes(1);
+    expect(uploadLogoFromUrl).toHaveBeenCalledWith(
+      'example',
+      'https://assets.example.com/logo.png',
+    );
     expect(publishMessage).toHaveBeenCalledWith({
       json: {
         url: 'https://example.com/feed.xml',
@@ -454,8 +453,8 @@ describe('SourceService', () => {
   });
 
   it('should retry scraper metadata requests before succeeding', async () => {
-    const uploadLogo = jest
-      .spyOn(cloudinary, 'uploadLogo')
+    const uploadLogoFromUrl = jest
+      .spyOn(cloudinary, 'uploadLogoFromUrl')
       .mockResolvedValue('https://media.daily.dev/retried-logo');
     const publishMessage = mockSourceAddedPublisher();
 
@@ -475,10 +474,6 @@ describe('SourceService', () => {
         name: 'Retry Example',
         rss: [{ title: 'RSS', url: 'https://retry.example.com/feed.xml' }],
       });
-    nock('https://assets.example.com')
-      .get('/retry-logo.png')
-      .reply(200, 'logo-binary');
-
     const result = await mockClient.provision(
       {
         sourceId: 'retry-example',
@@ -505,7 +500,10 @@ describe('SourceService', () => {
         url: 'https://retry.example.com/feed.xml',
       },
     });
-    expect(uploadLogo).toHaveBeenCalledWith('retry-example', expect.anything());
+    expect(uploadLogoFromUrl).toHaveBeenCalledWith(
+      'retry-example',
+      'https://assets.example.com/retry-logo.png',
+    );
     expect(publishMessage).toHaveBeenCalledWith({
       json: {
         url: 'https://retry.example.com/feed.xml',
@@ -516,8 +514,8 @@ describe('SourceService', () => {
   });
 
   it('should fallback to brand.dev when the scraper is unavailable', async () => {
-    const uploadLogo = jest
-      .spyOn(cloudinary, 'uploadLogo')
+    const uploadLogoFromUrl = jest
+      .spyOn(cloudinary, 'uploadLogoFromUrl')
       .mockResolvedValue('https://media.daily.dev/branddev-logo');
     const publishMessage = mockSourceAddedPublisher();
 
@@ -560,8 +558,6 @@ describe('SourceService', () => {
           },
         },
       });
-    nock('https://cdn.brand.dev').get('/logo.png').reply(200, 'logo-binary');
-
     const result = await mockClient.provision(
       {
         sourceId: 'branddev-example',
@@ -589,9 +585,9 @@ describe('SourceService', () => {
         url: 'https://branddev.example.com/feed.xml',
       },
     });
-    expect(uploadLogo).toHaveBeenCalledWith(
+    expect(uploadLogoFromUrl).toHaveBeenCalledWith(
       'branddev-example',
-      expect.anything(),
+      'https://cdn.brand.dev/logo.png',
     );
     expect(publishMessage).toHaveBeenCalledWith({
       json: {
@@ -760,8 +756,8 @@ describe('SourceService', () => {
   });
 
   it('should provision a twitter source with avatar upload and audience fit', async () => {
-    const uploadLogo = jest
-      .spyOn(cloudinary, 'uploadLogo')
+    const uploadLogoFromUrl = jest
+      .spyOn(cloudinary, 'uploadLogoFromUrl')
       .mockResolvedValue('https://media.daily.dev/twitter-logo');
     const publishMessage = mockSourceAddedPublisher();
 
@@ -780,10 +776,6 @@ describe('SourceService', () => {
             'https://pbs.twimg.com/profile_images/jack_normal.jpg',
         },
       });
-    nock('https://pbs.twimg.com')
-      .get('/profile_images/jack_400x400.jpg')
-      .reply(200, 'avatar-binary');
-
     const result = await mockClient.provision(
       {
         sourceId: 'jack',
@@ -817,8 +809,11 @@ describe('SourceService', () => {
       },
     });
     expect(result.ingestion.audienceFitThreshold).toBeCloseTo(0.42, 5);
-    expect(uploadLogo).toHaveBeenCalledTimes(1);
-    expect(uploadLogo).toHaveBeenCalledWith('jack', expect.anything());
+    expect(uploadLogoFromUrl).toHaveBeenCalledTimes(1);
+    expect(uploadLogoFromUrl).toHaveBeenCalledWith(
+      'jack',
+      'https://pbs.twimg.com/profile_images/jack_400x400.jpg',
+    );
     expect(publishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         json: expect.objectContaining({

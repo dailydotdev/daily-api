@@ -1,4 +1,3 @@
-import { Readable } from 'stream';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetch, type RetryOptions } from '../retry';
@@ -49,23 +48,4 @@ export const fetchTwitterProfile = async (
   }
 
   return payload.data;
-};
-
-export const downloadTwitterProfileImage = async (
-  imageUrl: string,
-): Promise<Readable> => {
-  const response = await retryFetch(
-    imageUrl.replace('_normal', '_400x400'),
-    {
-      ...globalFetchOptions,
-      method: 'GET',
-    },
-    twitterRetryOptions,
-  );
-
-  if (!response.body) {
-    throw new ConnectError('failed to download image', Code.Internal);
-  }
-
-  return response.body as Readable;
 };

@@ -1,4 +1,3 @@
-import { Readable } from 'stream';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { DataSource } from 'typeorm';
 import {
@@ -11,24 +10,17 @@ import {
   SourceEngine,
 } from '@dailydotdev/schema';
 import { MachineSource, SourceType } from '../../entity';
-import { getSecondsTimestamp, uploadLogo } from '../../common';
+import { getSecondsTimestamp, uploadLogoFromUrl } from '../../common';
 import { isValidHttpUrl, standardizeURL } from '../../common/links';
 import { pubsub } from '../../common/pubsub';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import {
-  retryFetch,
-  retryFetchParse,
-  type RetryOptions,
-} from '../../integrations/retry';
+import { retryFetchParse, type RetryOptions } from '../../integrations/retry';
 import {
   fetchBrandProfile,
   getBrandDevDomain,
   pickBrandDevLogo,
 } from '../../integrations/brand/profile';
-import {
-  downloadTwitterProfileImage,
-  fetchTwitterProfile,
-} from '../../integrations/twitter/profile';
+import { fetchTwitterProfile } from '../../integrations/twitter/profile';
 
 const defaultSelectorEvaluator =
   '(selector) => Array.from(document.querySelectorAll(selector)).map((el) => el.href)';
@@ -301,37 +293,18 @@ const scrapeSource = async (url: string): Promise<ScrapeSourceResponse> => {
   );
 };
 
-const downloadRemoteStream = async (url: string): Promise<Readable> => {
-  const response = await retryFetch(
-    url,
-    {
-      ...globalFetchOptions,
-      method: 'GET',
-    },
-    unstableExternalRetryOptions,
-  );
-
-  if (!response.body) {
-    throw new ConnectError('failed to download image', Code.Internal);
-  }
-
-  return response.body as Readable;
-};
-
 const uploadRemoteLogo = async ({
   sourceId,
   url,
-  stream,
 }: {
   sourceId: string;
   url: string;
-  stream?: Readable;
 }): Promise<string> => {
   if (url.includes(placeholderLogoPath)) {
     return url;
   }
 
-  return uploadLogo(sourceId, stream || (await downloadRemoteStream(url)));
+  return uploadLogoFromUrl(sourceId, url);
 };
 
 const resolveTwitterSourceData = async ({
@@ -350,10 +323,7 @@ const resolveTwitterSourceData = async ({
       (profile.profile_image_url
         ? await uploadRemoteLogo({
             sourceId: req.sourceId,
-            url: profile.profile_image_url,
-            stream: await downloadTwitterProfileImage(
-              profile.profile_image_url,
-            ),
+            url: profile.profile_image_url.replace('_normal', '_400x400'),
           })
         : undefined),
     twitter: profile.username,

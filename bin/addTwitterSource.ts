@@ -1,13 +1,10 @@
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { MachineSource } from '../src/entity/Source';
-import { uploadLogo } from '../src/common/cloudinary';
+import { uploadLogoFromUrl } from '../src/common/cloudinary';
 import { pubsub } from '../src/common/pubsub';
 import { parseArgs } from 'node:util';
-import {
-  downloadTwitterProfileImage,
-  fetchTwitterProfile,
-} from '../src/integrations/twitter/profile';
+import { fetchTwitterProfile } from '../src/integrations/twitter/profile';
 
 const start = async (): Promise<void> => {
   const { values } = parseArgs({
@@ -29,9 +26,11 @@ const start = async (): Promise<void> => {
 
   let imageUrl: string | undefined;
   if (profile.profile_image_url) {
-    console.log('Downloading avatar and uploading to Cloudinary...');
-    const stream = await downloadTwitterProfileImage(profile.profile_image_url);
-    imageUrl = await uploadLogo(username.toLowerCase(), stream);
+    console.log('Uploading avatar to Cloudinary from remote URL...');
+    imageUrl = await uploadLogoFromUrl(
+      username.toLowerCase(),
+      profile.profile_image_url.replace('_normal', '_400x400'),
+    );
     console.log(`Uploaded avatar: ${imageUrl}`);
   } else {
     console.log('No avatar found, skipping Cloudinary upload');
