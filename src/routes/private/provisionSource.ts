@@ -454,7 +454,7 @@ const resolveProvisionSourceData = async ({
   if (req.ingestion.case === 'twitterAccount') {
     return resolveTwitterSourceData({
       req,
-      username: plan.ingestion.twitterUsername,
+      username: normalizeTwitterUsername(req.ingestion.value.username),
     });
   }
 
