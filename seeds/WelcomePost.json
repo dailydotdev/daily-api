@@ -1,0 +1,26 @@
+[
+  {
+    "id": "seedwel001",
+    "shortId": "sdwel001aa",
+    "type": "welcome",
+    "title": "Welcome to Frontend Lab",
+    "createdAt": "2026-02-27T09:00:00.000Z",
+    "metadataChangedAt": "2026-02-27T09:00:00.000Z",
+    "visibleAt": "2026-02-27T09:00:00.000Z",
+    "sourceId": "frontendlab",
+    "authorId": "testuser6",
+    "views": 420,
+    "score": 28500120,
+    "upvotes": 17,
+    "comments": 4,
+    "tagsStr": "welcome,frontend,community",
+    "content": "Use this squad to swap design system notes, frontend debugging tricks, and thoughtful write-ups about the trade-offs behind UI architecture. The best posts here usually include context, not just a hot take.",
+    "contentHtml": "<p>Use this squad to swap design system notes, frontend debugging tricks, and thoughtful write-ups about the trade-offs behind UI architecture.</p><p>The best posts here usually include context, not just a hot take.</p>",
+    "summary": "An onboarding-style welcome post for a more active local squad feed.",
+    "readTime": 2,
+    "origin": "squads",
+    "contentCuration": [
+      "community"
+    ]
+  }
+]

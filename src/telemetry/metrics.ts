@@ -99,15 +99,6 @@ const counterMap = {
     },
   },
   'personalized-digest': {
-    digestPostsCount: {
-      name: 'digest_posts_count',
-      description: 'How many posts were added to digest emails',
-    },
-    digestFeedServicePostsCount: {
-      name: 'digest_feed_service_posts_count',
-      description:
-        'How many posts were returned from the feed service for digest',
-    },
     garmrBreak: {
       name: 'garmr_break',
       description: 'How many times breaker has been triggered',

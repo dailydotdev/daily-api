@@ -42,6 +42,7 @@ import * as personalAccessTokens from './schema/personalAccessTokens';
 import * as feedback from './schema/feedback';
 import * as sentiment from './schema/sentiment';
 import * as achievements from './schema/achievements';
+import * as quests from './schema/quests';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -101,6 +102,7 @@ export const schema = urlDirective.transformer(
               feedback.typeDefs,
               sentiment.typeDefs,
               achievements.typeDefs,
+              quests.typeDefs,
             ],
             resolvers: traceResolvers(
               merge(
@@ -143,6 +145,7 @@ export const schema = urlDirective.transformer(
                 feedback.resolvers,
                 sentiment.resolvers,
                 achievements.resolvers,
+                quests.resolvers,
               ),
             ),
           }),

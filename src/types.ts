@@ -48,6 +48,8 @@ declare global {
       SLACK_DB_KEY: string;
       SENDGRID_WEBHOOK_ANALYTICS_KEY: string;
       SCRAPER_URL: string;
+      BRAND_DEV_API_KEY?: string;
+      TWITTER_BEARER_TOKEN?: string;
       NODE_ENV: 'development' | 'production' | 'test';
       LOFN_ORIGIN: string;
       INTERNAL_FEED: string;

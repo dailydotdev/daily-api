@@ -163,6 +163,14 @@ export const crons: Cron[] = [
     schedule: '0 3 * * *',
   },
   {
+    name: 'rotate-daily-quests',
+    schedule: '0 0 * * *',
+  },
+  {
+    name: 'rotate-weekly-quests',
+    schedule: '0 0 * * 1',
+  },
+  {
     name: 'agents-digest',
     schedule: '17 4 * * *',
   },

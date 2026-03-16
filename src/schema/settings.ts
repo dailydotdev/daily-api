@@ -29,6 +29,8 @@ interface GQLSettings {
   autoDismissNotifications: boolean;
   updatedAt: Date;
   optOutReadingStreak: boolean;
+  optOutLevelSystem: boolean;
+  optOutQuestSystem: boolean;
   showFeedbackButton: boolean;
   flags?: SettingsFlagsPublic;
 }
@@ -53,6 +55,8 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
   optOutReadingStreak?: boolean;
+  optOutLevelSystem?: boolean;
+  optOutQuestSystem?: boolean;
   showFeedbackButton?: boolean;
   defaultWriteTab?: DefaultWriteTab;
 }
@@ -164,6 +168,16 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from reading streak
     """
     optOutReadingStreak: Boolean!
+
+    """
+    Whether the user opted out from the level system
+    """
+    optOutLevelSystem: Boolean!
+
+    """
+    Whether the user opted out from the quest system
+    """
+    optOutQuestSystem: Boolean!
 
     """
     Whether the user opted out from the companion app
@@ -282,6 +296,16 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from reading streak
     """
     optOutReadingStreak: Boolean
+
+    """
+    Whether the user opted out from the level system
+    """
+    optOutLevelSystem: Boolean
+
+    """
+    Whether the user opted out from the quest system
+    """
+    optOutQuestSystem: Boolean
 
     """
     Whether the user opted out from the companion app

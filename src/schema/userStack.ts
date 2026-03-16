@@ -4,6 +4,7 @@ import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
 import { UserStack } from '../entity/user/UserStack';
 import { ValidationError } from 'apollo-server-errors';
+import { In } from 'typeorm';
 import {
   addUserStackSchema,
   updateUserStackSchema,
@@ -65,6 +66,7 @@ export const typeDefs = /* GraphQL */ `
   input ReorderUserStackInput {
     id: ID!
     position: Int!
+    section: String
   }
 
   extend type Query {
@@ -254,21 +256,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ) => {
       const items = reorderUserStackSchema.parse(args.items);
       const ids = items.map((i) => i.id);
+      const itemsById = new Map(items.map((item) => [item.id, item]));
 
-      // Build CASE statement for bulk update
-      const whenClauses = items
-        .map((item) => `WHEN id = '${item.id}' THEN ${item.position}`)
-        .join(' ');
+      await ctx.con.transaction(async (transactionalEntityManager) => {
+        const existingItems = await transactionalEntityManager
+          .getRepository(UserStack)
+          .find({
+            where: {
+              userId: ctx.userId,
+              id: In(ids),
+            },
+          });
 
-      // Update all positions in a single query, only for user's own items
-      await ctx.con
-        .getRepository(UserStack)
-        .createQueryBuilder()
-        .update()
-        .set({ position: () => `CASE ${whenClauses} ELSE position END` })
-        .where('id IN (:...ids)', { ids })
-        .andWhere('"userId" = :userId', { userId: ctx.userId })
-        .execute();
+        if (existingItems.length !== ids.length) {
+          throw new ValidationError('One or more stack items were not found');
+        }
+
+        const updatedItems = existingItems.map((item) => {
+          const nextItem = itemsById.get(item.id);
+          if (!nextItem) {
+            throw new ValidationError(
+              `Missing reorder payload for stack item ${item.id}`,
+            );
+          }
+
+          item.position = nextItem.position;
+          if (nextItem.section !== undefined) {
+            item.section = nextItem.section;
+          }
+
+          return item;
+        });
+
+        await transactionalEntityManager
+          .getRepository(UserStack)
+          .save(updatedItems);
+      });
 
       // Return updated items using GraphORM
       return graphorm.query(ctx, info, (builder) => {

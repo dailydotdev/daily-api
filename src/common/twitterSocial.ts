@@ -4,6 +4,7 @@ import { generateShortId } from '../ids';
 import { Source, SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
+import { generateTitleHtml } from '../entity/posts/utils';
 import { markdown } from './markdown';
 import {
   type TwitterSocialMedia,
@@ -274,8 +275,8 @@ const extractTwitterReference = (
     title: reference?.content?.trim() || undefined,
     content: reference?.content?.trim() || undefined,
     contentHtml: reference?.content_html?.trim() || undefined,
-    image: pickPrimaryImage(reference.media || []),
-    videoId: pickPrimaryVideoId(reference.media || []),
+    image: pickPrimaryImage(reference.media || [], reference.image),
+    videoId: pickPrimaryVideoId(reference.media || [], reference.video_id),
     authorUsername: reference.author_username?.trim() || undefined,
     authorName: reference.author_name?.trim() || undefined,
     authorAvatar: reference.author_avatar?.trim() || undefined,
@@ -429,6 +430,7 @@ const buildReferencePostFields = async ({
   language?: string | null;
 }) => {
   const title = reference.title || reference.content || undefined;
+  const titleHtml = title ? generateTitleHtml(title, []) : undefined;
   const content = reference.content || undefined;
   const contentHtml =
     reference.contentHtml || (content ? markdown.render(content) : undefined);
@@ -453,6 +455,7 @@ const buildReferencePostFields = async ({
     contentMeta,
     metadataChangedAt: new Date(),
     title,
+    titleHtml,
     content,
     contentHtml,
     image: reference.image ?? undefined,
