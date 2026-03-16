@@ -550,10 +550,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         __,
         ctx: SubscriptionContext,
       ): Promise<AsyncIterable<{ questUpdate: GQLQuestUpdate }>> => {
-        if (!ctx.userId) {
-          throw new ForbiddenError('Access denied');
-        }
-
         const iterator = redisPubSub.asyncIterator<GQLQuestUpdate>(
           `events.quests.${ctx.userId}.update`,
         );
@@ -589,10 +585,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ): Promise<
         AsyncIterable<{ questRotationUpdate: GQLQuestRotationUpdate }>
       > => {
-        if (!ctx.userId) {
-          throw new ForbiddenError('Access denied');
-        }
-
         const iterator = redisPubSub.asyncIterator<GQLQuestRotationUpdate>(
           QUEST_ROTATION_UPDATE_CHANNEL,
         );
