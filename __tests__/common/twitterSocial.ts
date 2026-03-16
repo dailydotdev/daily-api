@@ -291,6 +291,78 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields.image).toBe('https://pbs.twimg.com/media/abc123.jpg');
   });
 
+  it('should use reference image fallback when media is absent', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/swyx/status/100',
+        extra: {
+          sub_type: 'quote',
+          content: 'Check this out',
+          reference: {
+            tweet_id: '200',
+            content: 'Original tweet with chart',
+            image: 'https://pbs.twimg.com/media/chart123.jpg',
+          },
+        },
+      },
+    });
+
+    expect(payload.reference).toMatchObject({
+      subType: 'quote',
+      image: 'https://pbs.twimg.com/media/chart123.jpg',
+    });
+  });
+
+  it('should use reference video_id fallback when media is absent', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/101',
+        extra: {
+          sub_type: 'quote',
+          content: 'Watch this',
+          reference: {
+            tweet_id: '201',
+            content: 'Original tweet with video',
+            video_id: 'https://video.twimg.com/ext_tw_video/201/vid.mp4',
+          },
+        },
+      },
+    });
+
+    expect(payload.reference).toMatchObject({
+      subType: 'quote',
+      videoId: 'https://video.twimg.com/ext_tw_video/201/vid.mp4',
+    });
+  });
+
+  it('should prefer reference media over flat image/video_id fields', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/102',
+        extra: {
+          sub_type: 'quote',
+          content: 'Quote with media',
+          reference: {
+            tweet_id: '202',
+            content: 'Referenced tweet',
+            media: [
+              { type: 'image', url: 'https://pbs.twimg.com/media/media1.jpg' },
+            ],
+            image: 'https://pbs.twimg.com/media/fallback.jpg',
+          },
+        },
+      },
+    });
+
+    expect(payload.reference).toMatchObject({
+      subType: 'quote',
+      image: 'https://pbs.twimg.com/media/media1.jpg',
+    });
+  });
+
   it('should extract reference author name and avatar', () => {
     const payload = mapTwitterSocialPayload({
       data: {
