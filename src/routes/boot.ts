@@ -925,7 +925,9 @@ export const getBootData = async (
   const referrer = getBootReferrer(req);
 
   const trackingIdForGb = req.userId || req.trackingId || '';
-  const gb = getUserGrowthBookInstance(trackingIdForGb);
+  const gb = getUserGrowthBookInstance(trackingIdForGb, {
+    allocationClient,
+  });
   const authStrategy = gb.getFeatureValue(
     gbFeatures.authStrategy.id,
     gbFeatures.authStrategy.defaultValue,
