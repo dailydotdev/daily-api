@@ -1,4 +1,5 @@
 import { startTelemetry } from '../src/telemetry/opentelemetry';
+import type { ServiceName } from '../src/telemetry/metrics';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
@@ -10,7 +11,7 @@ import { remoteConfig } from '../src/remoteConfig';
 import { initGeoReader } from '../src/common/geo';
 
 async function run(positionals: string[]) {
-  startTelemetry();
+  startTelemetry(positionals[0] as ServiceName);
   await remoteConfig.init();
 
   switch (positionals[0]) {
