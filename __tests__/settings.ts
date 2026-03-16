@@ -108,6 +108,8 @@ describe('mutation updateUserSettings', () => {
     customLinks
     optOutWeeklyGoal
     optOutReadingStreak
+    optOutLevelSystem
+    optOutQuestSystem
     optOutCompanion
     campaignCtaPlacement
     onboardingChecklistView
@@ -364,6 +366,35 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { optOutCompanion: true } },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should update gamification settings', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        optOutLevelSystem: false,
+        optOutQuestSystem: false,
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          optOutLevelSystem: true,
+          optOutQuestSystem: true,
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings.optOutLevelSystem).toBe(true);
+    expect(res.data.updateUserSettings.optOutQuestSystem).toBe(true);
+
+    const updated = await repo.findOneByOrFail({ userId: '1' });
+    expect(updated.optOutLevelSystem).toBe(true);
+    expect(updated.optOutQuestSystem).toBe(true);
   });
 
   it('should update campaignCtaPlacement', async () => {

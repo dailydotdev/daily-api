@@ -50,6 +50,7 @@ import { HotTake } from '../../entity/user/HotTake';
 import { UserStack } from '../../entity/user/UserStack';
 import { SharePost } from '../../entity/posts/SharePost';
 import { PostAnalytics } from '../../entity/posts/PostAnalytics';
+import { QuestEventType } from '../../entity/Quest';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -179,6 +180,7 @@ import {
   checkAchievementProgress,
   AchievementEventType,
 } from '../../common/achievement';
+import { checkQuestProgress } from '../../common/quest';
 
 const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
   ...user,
@@ -462,6 +464,12 @@ const onPostVoteChange = async (
             voterId,
             AchievementEventType.PostUpvote,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+          });
           if (post.authorId) {
             await checkAchievementProgress(
               con,
@@ -508,6 +516,12 @@ const onPostVoteChange = async (
             voterId,
             AchievementEventType.PostUpvote,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+          });
           if (post.authorId) {
             await checkAchievementProgress(
               con,
@@ -567,6 +581,12 @@ const onCommentVoteChange = async (
             voterId,
             AchievementEventType.CommentUpvote,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+          });
           await checkAchievementProgress(
             con,
             logger,
@@ -611,6 +631,12 @@ const onCommentVoteChange = async (
             voterId,
             AchievementEventType.CommentUpvote,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+          });
           await checkAchievementProgress(
             con,
             logger,
@@ -685,6 +711,12 @@ const onCommentChange = async (
       data.payload.after!.userId,
       AchievementEventType.CommentCreate,
     );
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.after!.userId,
+      eventType: QuestEventType.CommentCreate,
+    });
   } else if (data.payload.op === 'u') {
     if (data.payload.before!.contentHtml !== data.payload.after!.contentHtml) {
       await notifyCommentEdited(logger, data.payload.after!);
@@ -911,6 +943,12 @@ const onPostChange = async (
         data.payload.after!.authorId,
         AchievementEventType.PostShare,
       );
+      await checkQuestProgress({
+        con,
+        logger,
+        userId: data.payload.after!.authorId,
+        eventType: QuestEventType.PostShare,
+      });
     }
     if (data.payload.after!.type === PostType.Poll) {
       const poll = data as ChangeMessage<PollPost>;
@@ -1350,6 +1388,12 @@ const onSourceMemberChange = async (
           sourceMember.userId,
           AchievementEventType.SquadJoin,
         );
+        await checkQuestProgress({
+          con,
+          logger,
+          userId: sourceMember.userId,
+          eventType: QuestEventType.SquadJoin,
+        });
       }
 
       if (sourceMember.role === SourceMemberRoles.Admin) {
@@ -1705,6 +1749,12 @@ const onUserTransactionChange = async (
         transaction.senderId,
         AchievementEventType.AwardGiven,
       );
+      await checkQuestProgress({
+        con,
+        logger,
+        userId: transaction.senderId,
+        eventType: QuestEventType.AwardGiven,
+      });
     }
 
     if (
@@ -1751,6 +1801,12 @@ const onBookmarkChange = async (
       data.payload.after!.userId,
       AchievementEventType.BookmarkPost,
     );
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.after!.userId,
+      eventType: QuestEventType.BookmarkPost,
+    });
   }
 };
 
@@ -1781,6 +1837,12 @@ const onContentPreferenceChange = async (
             contentPreferenceUser.userId,
             AchievementEventType.UserFollow,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.userId,
+            eventType: QuestEventType.UserFollow,
+          });
 
           const followerCount = await con
             .getRepository(ContentPreference)
