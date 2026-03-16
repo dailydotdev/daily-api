@@ -240,6 +240,27 @@ config:
       secure: AAABADzaXl3Rom9QsMVgGtWwvGejxfHgUk/nM+uc/2p777yB5eT8ppDPUyssld6ipcXjpKpF+mfr/IanuBo5U9pj8M1ntw==
     twitterBearerToken:
       secure: AAABAM40I6hXKdm/8cjBZBTR+00tTGatLi7WBMGmwoslDjqasqWy3hyMsQFLQQ8gaYuod7yaIhLVXqbeSc39CykCivJRaooukd7Vn8BKTmNHQuyJ3PdmF1FUSmOVci1nVL/L5AWB5pWD5vRbqm+e+nJzsXA1rjgmh+y7+qxnxl82JeOqxCxuTzZn+F4i0WfNhkc=
+    betterAuthSecret:
+      secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
+    betterAuthBaseUrl: https://api.daily.dev
+    betterAuthTrustedOrigins: https://app.daily.dev
+    betterAuthRedirectUrl: https://sso.daily.dev/api
+    googleClientId:
+      secure: AAABAKpAJnPFQwwZoZubPX++3FKQhi0/gw+Kh6AP0Ax7GApzkXoxOUXYrezrUyf02MIzIrsNlJAeZisv6p12U0ziCdKKhj7Jv/CZThEX9FB8uSWArHS68NdrQkcTL8gUk/PK/GU4cAM=
+    googleClientSecret:
+      secure: AAABAPU5ldZIdI0rH0pGZCMXRzd4fcOQjmlWe9fvRLaUlT7kgFrCtzoPBpQIdpkd2XtcB3tARUZYyJqWo4qZHsnFBQ==
+    githubClientId:
+      secure: AAABAKxFSFjVJ1upQc1+GBEhNVzqY0oLPv5Fmex2GM8yImV9e2c0ygDr06M47kcGh8Dc4g==
+    githubClientSecret:
+      secure: AAABAI85uMGOqo9A3DEZub/kSMR4vxsTsZBoGMJahwPmDCnrS+Va+SmPucn6em345Du56rL4iXZU6VdFXPC9LuLHVzw80Yoe
+    facebookClientId:
+      secure: AAABAEfjThwIBs0n3204XYFwZxshz0PuyY1bW1STItI8wzIb9z8WZcGcVpLHER0=
+    facebookClientSecret:
+      secure: AAABAPPqGlgKF6TZr2fIXHfVNcQEnRwrFfEScvb5Ogi+BEI9z9nSz47AF0KDM/dnSrV9ijKcRGloq3d3M34QAQ==
+    appleClientSecret:
+      secure: AAABANU4dhuW72E0PeXkpvEy3S4G1K25dkUXuY6Wb0Z8r/yN29vG+zklxwW7ZJsWpUcf306DVFVdSnKtqB8bFMbCI5lQH7GTvRo7uBI69BlruexXl9zpWDu53/hRZxzVZYXVUaxrkk7eog7vybLw/HCG8SqdEKg8La6dCXOTK8NaUwpL2VKfA9OTguTeD0JJKPutEW2qvYVYON+ECKV+J9chAyVONOBIiHcozNnIHSsqCEQy3unpmk/WgPLbNn9Vs+jtOerZNwhnZi4ddlLjXidWQhd9dIyTq5ETW1DUSzhaa7oo/x6KPnTqDZzn6GeR74uYiC65eXzdWwPlIBU4KzxQbSoKmswQt9UqucqYInd/IcvmPaYxkamqFnT8OdfSdGcz2/oBvmT+YLR4MXgpaZu0pLz7viVSfv4V8TUtGx95/OL3
+    appleClientId:
+      secure: AAABABe5GePYDxcK+9QGqmQV7zE3Pv5wWtGkfFOV1MosH+KVFIfK6Is=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
