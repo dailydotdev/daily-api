@@ -578,11 +578,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       },
     },
     questRotationUpdate: {
-      subscribe: async (
-        _,
-        __,
-        ctx: SubscriptionContext,
-      ): Promise<
+      subscribe: async (): Promise<
         AsyncIterable<{ questRotationUpdate: GQLQuestRotationUpdate }>
       > => {
         const iterator = redisPubSub.asyncIterator<GQLQuestRotationUpdate>(
