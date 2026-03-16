@@ -1,19 +1,17 @@
-import { MeterProvider } from '@opentelemetry/sdk-metrics';
-import * as otelApi from '@opentelemetry/api';
+import { metrics } from '@opentelemetry/api';
 import { counters, initCounters } from '../../src/telemetry/metrics';
 import { logger } from '../../src/logger';
+
+const mockCounter = { add: jest.fn() };
+const mockMeter = { createCounter: jest.fn().mockReturnValue(mockCounter) };
+
+jest.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter as never);
 
 beforeEach(() => {
   for (const key of Object.keys(counters)) {
     delete counters[key as keyof typeof counters];
   }
-
-  const meterProvider = new MeterProvider();
-  otelApi.metrics.setGlobalMeterProvider(meterProvider);
-});
-
-afterEach(() => {
-  otelApi.metrics.disable();
+  mockMeter.createCounter.mockClear();
 });
 
 describe('initCounters', () => {
