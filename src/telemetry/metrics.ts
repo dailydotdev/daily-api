@@ -118,6 +118,7 @@ const counterMap = {
   },
   temporal: {},
   'worker-job': {},
+  websocket: {},
 };
 
 export type ServiceName = keyof typeof counterMap;
