@@ -147,25 +147,28 @@ export const createMetricReader = (): IMetricReader => {
 export const initCounters = (serviceName: ServiceName): void => {
   const currentCounter = counterMap[serviceName];
 
-  if (currentCounter) {
-    const meter = metrics.getMeter(serviceName);
-    if (!counters[serviceName]) {
-      counters[serviceName] = {};
-    }
+  if (!currentCounter) {
+    logger.warn({ serviceName }, 'Unknown service name for counter init');
+    return;
+  }
 
-    for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
-      currentCounter,
-    )) {
-      const counter: Counter = meter.createCounter(
-        counterOptions.name,
-        counterOptions,
-      );
-      // @ts-expect-error - property keys are statically defined above
-      counters[serviceName][counterKey] = counter;
+  const meter = metrics.getMeter(serviceName);
+  if (!counters[serviceName]) {
+    counters[serviceName] = {};
+  }
 
-      if (process.env.OTEL_METRICS_EXPORTER === 'prometheus') {
-        counter.add(0);
-      }
+  for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
+    currentCounter,
+  )) {
+    const counter: Counter = meter.createCounter(
+      counterOptions.name,
+      counterOptions,
+    );
+    // @ts-expect-error - property keys are statically defined above
+    counters[serviceName][counterKey] = counter;
+
+    if (process.env.OTEL_METRICS_EXPORTER === 'prometheus') {
+      counter.add(0);
     }
   }
 };

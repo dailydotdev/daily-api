@@ -36,7 +36,7 @@ import { logger } from '../logger';
 
 const resourceDetectors = [hostDetector, containerDetector];
 
-export const startTelemetry = (): void => {
+export const startTelemetry = (serviceName?: ServiceName): void => {
   if (!enableOpenTelemetry) {
     return;
   }
@@ -87,7 +87,7 @@ export const startTelemetry = (): void => {
   // Register instrumentations
   registerInstrumentations({ instrumentations });
 
-  initCounters(service.name as ServiceName);
+  initCounters(serviceName ?? (service.name as ServiceName));
   subscribeMetricsHooks();
 
   closeWithGrace(async ({ signal, err }) => {
