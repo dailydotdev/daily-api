@@ -47,6 +47,8 @@ export const twitterSocialReferenceSchema = z
     content_html: z.string().nullish(),
     sub_type: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
+    image: z.string().nullish(),
+    video_id: z.string().nullish(),
     author_username: z.string().nullish(),
     author_name: z.string().nullish(),
     author_avatar: z.string().nullish(),
