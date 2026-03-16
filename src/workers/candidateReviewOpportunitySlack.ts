@@ -5,8 +5,18 @@ import { ONE_DAY_IN_MINUTES, webhooks } from '../common';
 import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
+
+export const AUTO_REJECT_SCORE_THRESHOLD = 3.5;
+
+const getRandomMention = (): string | null => {
+  const ids =
+    process.env.SLACK_AUTO_REJECT_MENTION_IDS?.split(',').filter(Boolean);
+  if (!ids?.length) return null;
+  return ids[Math.floor(Math.random() * ids.length)];
+};
 
 const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
   subscription: 'api.candidate-review-opportunity-slack',
@@ -61,6 +71,136 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
       ? await generateResumeSignedUrl(cv.blob, 2 * ONE_DAY_IN_MINUTES)
       : null;
     const matchScore = match.description?.matchScore;
+
+    const isAutoRejected =
+      applicationScore != null &&
+      applicationScore < AUTO_REJECT_SCORE_THRESHOLD;
+
+    if (isAutoRejected) {
+      await con
+        .getRepository(OpportunityMatch)
+        .update(
+          { opportunityId, userId },
+          { status: OpportunityMatchStatus.AutoRejected },
+        );
+
+      const mentionId = getRandomMention();
+      const mentionText = mentionId ? `\ncc <@${mentionId}>` : '';
+
+      await webhooks.recruiterAutoReject.send({
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: 'Candidate Auto-Rejected (Low Score)',
+              emoji: true,
+            },
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Opportunity:*\n<${process.env.COMMENTS_PREFIX}/jobs/${opportunityId}|${opportunity?.title || opportunityId}>`,
+              },
+              { type: 'mrkdwn', text: `*Organization:*\n${org || 'N/A'}` },
+            ],
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Candidate:*\n<${process.env.COMMENTS_PREFIX}/${user?.username || userId}|${user?.name || user?.username || 'Unknown'}>`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Match Score:*\n${matchScore != null ? `${Math.round(matchScore * 100)}%` : 'N/A'}`,
+              },
+            ],
+          },
+          {
+            type: 'section',
+            fields: [
+              {
+                type: 'mrkdwn',
+                text: `*Application Score:*\n${applicationScore.toFixed(1)}`,
+              },
+              {
+                type: 'mrkdwn',
+                text: `*Salary:*\n${salary?.min ? `$${salary.min}+${salary.period ? `/${salary.period}` : ''}` : 'N/A'}`,
+              },
+            ],
+          },
+          {
+            type: 'section',
+            fields: [
+              { type: 'mrkdwn', text: `*Location:*\n${location || 'N/A'}` },
+            ],
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Skills:*\n${keywords.map((k) => k.keyword).join(', ') || 'N/A'}`,
+            },
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Self applied:*\n${match.applicationRank?.selfApplied ? 'Yes' : 'No'}`,
+            },
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*CV:*\n${cvSignedUrl ? `<${cvSignedUrl}|Download CV>` : 'N/A'}`,
+            },
+          },
+          ...(description
+            ? [
+                {
+                  type: 'section' as const,
+                  text: {
+                    type: 'mrkdwn' as const,
+                    text: `*Application Summary:*\n${description}`,
+                  },
+                },
+              ]
+            : []),
+          ...(match.screening?.length
+            ? [
+                {
+                  type: 'section' as const,
+                  text: {
+                    type: 'mrkdwn' as const,
+                    text: `*Screening:*\n\`\`\`${JSON.stringify(
+                      match.screening.map((s) => ({
+                        q: s.screening,
+                        a: s.answer,
+                      })),
+                      null,
+                      2,
+                    )}\`\`\``,
+                  },
+                },
+              ]
+            : []),
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Status:* Auto-rejected (score ${applicationScore.toFixed(1)} < ${AUTO_REJECT_SCORE_THRESHOLD})${mentionText}`,
+            },
+          },
+        ],
+      });
+
+      return;
+    }
 
     await webhooks.recruiterReview.send({
       blocks: [
