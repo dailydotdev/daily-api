@@ -11,4 +11,5 @@ export enum OpportunityMatchStatus {
   RecruiterAccepted = 'recruiter_accepted',
   RecruiterRejected = 'recruiter_rejected',
   CandidateApplied = 'candidate_applied',
+  AutoRejected = 'auto_rejected',
 }

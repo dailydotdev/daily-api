@@ -1,5 +1,6 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/candidateReviewOpportunitySlack';
+import { AUTO_REJECT_SCORE_THRESHOLD } from '../../src/workers/candidateReviewOpportunitySlack';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { User } from '../../src/entity/user/User';
 import createOrGetConnection from '../../src/db';
@@ -16,7 +17,17 @@ import { usersFixture } from '../fixture/user';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 import { ApplicationScored } from '@dailydotdev/schema';
 
-jest.spyOn(webhooks.recruiterReview, 'send').mockResolvedValue(undefined);
+jest.mock('../../src/common/slack', () => {
+  const actual = jest.requireActual('../../src/common/slack');
+  return {
+    ...actual,
+    webhooks: {
+      ...actual.webhooks,
+      recruiterReview: { send: jest.fn().mockResolvedValue(undefined) },
+      recruiterAutoReject: { send: jest.fn().mockResolvedValue(undefined) },
+    },
+  };
+});
 
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -53,12 +64,125 @@ describe('candidateReviewOpportunitySlack worker', () => {
     );
 
     expect(webhooks.recruiterReview.send).toHaveBeenCalledTimes(1);
+    expect(webhooks.recruiterAutoReject.send).not.toHaveBeenCalled();
     const blocks = (webhooks.recruiterReview.send as jest.Mock).mock.calls[0][0]
       .blocks;
     const actions = blocks.find((b: { type: string }) => b.type === 'actions');
     expect(actions.elements).toHaveLength(2);
     expect(actions.elements[0].action_id).toBe('candidate_review_accept');
     expect(actions.elements[1].action_id).toBe('candidate_review_reject');
+  });
+
+  it('should auto-reject and send notification to auto-reject channel when score is below threshold', async () => {
+    const con = await createOrGetConnection();
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateReview,
+        screening: [{ screening: 'Favorite language?', answer: 'TypeScript' }],
+        applicationRank: { score: 2 },
+      },
+    ]);
+
+    const data = new ApplicationScored({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      score: 2.0,
+      description: 'Weak candidate',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+      worker,
+      data,
+    );
+
+    expect(webhooks.recruiterAutoReject.send).toHaveBeenCalledTimes(1);
+    expect(webhooks.recruiterReview.send).not.toHaveBeenCalled();
+
+    const blocks = (webhooks.recruiterAutoReject.send as jest.Mock).mock
+      .calls[0][0].blocks;
+    const header = blocks.find((b: { type: string }) => b.type === 'header');
+    expect(header.text.text).toBe('Candidate Auto-Rejected (Low Score)');
+
+    const actions = blocks.find((b: { type: string }) => b.type === 'actions');
+    expect(actions).toBeUndefined();
+
+    const match = await con.getRepository(OpportunityMatch).findOneBy({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+    expect(match?.status).toBe(OpportunityMatchStatus.AutoRejected);
+  });
+
+  it('should send to review channel when score is exactly the threshold', async () => {
+    const con = await createOrGetConnection();
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateReview,
+        applicationRank: { score: AUTO_REJECT_SCORE_THRESHOLD },
+      },
+    ]);
+
+    const data = new ApplicationScored({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      score: AUTO_REJECT_SCORE_THRESHOLD,
+      description: 'Borderline candidate',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+      worker,
+      data,
+    );
+
+    expect(webhooks.recruiterReview.send).toHaveBeenCalledTimes(1);
+    expect(webhooks.recruiterAutoReject.send).not.toHaveBeenCalled();
+
+    const match = await con.getRepository(OpportunityMatch).findOneBy({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+    expect(match?.status).toBe(OpportunityMatchStatus.CandidateReview);
+  });
+
+  it('should include mention in auto-reject slack message when SLACK_AUTO_REJECT_MENTION_IDS is set', async () => {
+    process.env.SLACK_AUTO_REJECT_MENTION_IDS = 'U123ABC,U456DEF';
+
+    const con = await createOrGetConnection();
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateReview,
+        applicationRank: { score: 1 },
+      },
+    ]);
+
+    const data = new ApplicationScored({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      score: 1.0,
+      description: 'Low score candidate',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+      worker,
+      data,
+    );
+
+    expect(webhooks.recruiterAutoReject.send).toHaveBeenCalledTimes(1);
+    const blocks = (webhooks.recruiterAutoReject.send as jest.Mock).mock
+      .calls[0][0].blocks;
+    const statusBlock = blocks.find(
+      (b: { type: string; text?: { text?: string } }) =>
+        b.type === 'section' && b.text?.text?.includes('Auto-rejected'),
+    );
+    expect(statusBlock.text.text).toMatch(/cc <@U(123ABC|456DEF)>/);
+
+    delete process.env.SLACK_AUTO_REJECT_MENTION_IDS;
   });
 
   it('should throw when opportunityId is not a valid UUID', async () => {
