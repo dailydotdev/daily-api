@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Post, User, UserAction, UserActionType } from '../entity';
+import { FreeformPost } from '../entity/posts/FreeformPost';
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
@@ -36,6 +37,7 @@ import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/que
 import { z } from 'zod';
 import { counters } from '../telemetry';
 import { applyVordrToUsers } from '../common/vordr';
+import { updatePostContentSchema } from '../common/schema/posts';
 
 interface SearchUsername {
   search: string;
@@ -353,6 +355,65 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .status(500)
         .send({ error: 'Failed to apply Vordr to all users' });
     }
+  });
+
+  fastify.post<{
+    Body: z.infer<typeof updatePostContentSchema>;
+  }>('/updatePostContent', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const body = updatePostContentSchema.safeParse(req.body);
+
+    if (body.error) {
+      return res.status(400).send({
+        error: {
+          name: body.error.name,
+          issues: body.error.issues,
+        },
+      });
+    }
+
+    const { postId, content, mode, title } = body.data;
+    const con = await createOrGetConnection();
+
+    const post = await con.getRepository(FreeformPost).findOne({
+      select: ['id', 'content'],
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return res.status(404).send({ error: 'post not found' });
+    }
+
+    let updatedContent: string;
+    switch (mode) {
+      case 'append':
+        updatedContent = `${post.content || ''}\n\n${content}`;
+        break;
+      case 'prepend':
+        updatedContent = `${content}\n\n${post.content || ''}`;
+        break;
+      default:
+        updatedContent = content;
+        break;
+    }
+
+    const updatedContentHtml = markdown.render(updatedContent);
+
+    const updatePayload: Partial<FreeformPost> = {
+      content: updatedContent,
+      contentHtml: updatedContentHtml,
+    };
+
+    if (title !== undefined) {
+      updatePayload.title = title;
+    }
+
+    await con.getRepository(FreeformPost).update({ id: postId }, updatePayload);
+
+    return res.status(200).send({ id: postId });
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });
