@@ -33,6 +33,7 @@ import rotateDailyQuests from './rotateDailyQuests';
 import rotateWeeklyQuests from './rotateWeeklyQuests';
 import backfillGearCategory from './backfillGearCategory';
 import agentsDigest from './agentsDigest';
+import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
 
 export const crons: Cron[] = [
   updateViews,
@@ -69,4 +70,5 @@ export const crons: Cron[] = [
   rotateWeeklyQuests,
   backfillGearCategory,
   agentsDigest,
+  cleanExpiredBetterAuthSessions,
 ];

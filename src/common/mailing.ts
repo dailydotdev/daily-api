@@ -41,6 +41,8 @@ export enum CioTransactionalMessageTemplateId {
   OrganizationMemberLeft = '77',
   OrganizationMemberRemoved = '78',
   FeedbackReply = '95',
+  AuthVerificationOTP = '96',
+  AuthResetPassword = '97',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
@@ -192,8 +194,8 @@ export const sendEmail = async (
   data: SendEmailRequestWithTemplate,
 ): Promise<void> => {
   if (process.env.CIO_APP_KEY) {
-    if (!('id' in data.identifiers)) {
-      throw new Error('identifiers.id is required');
+    if (!('id' in data.identifiers) && !('email' in data.identifiers)) {
+      throw new Error('identifiers.id or identifiers.email is required');
     }
     const req = new SendEmailRequest({
       ...baseNotificationEmailData,

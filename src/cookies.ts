@@ -69,6 +69,16 @@ export const cookies: {
     key: 'ory_kratos_continuity',
     opts: {},
   },
+  authSession: {
+    key: 'daily.session_token',
+    opts: {
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      signed: false,
+      httpOnly: true,
+      secure: env === 'production',
+      sameSite: 'lax',
+    },
+  },
 };
 
 const extractDomain = (req: FastifyRequest): string => {
