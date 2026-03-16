@@ -12,6 +12,8 @@ import {
   UserActionType,
   UserPersonalizedDigest,
 } from '../src/entity';
+import { FreeformPost } from '../src/entity/posts/FreeformPost';
+import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { usersFixture } from './fixture/user';
@@ -1567,5 +1569,144 @@ describe('POST /p/newOpportunity', () => {
     expect(['golang', 'kubernetes']).toEqual(
       expect.arrayContaining(keywords.map((k) => k.keyword)),
     );
+  });
+});
+
+describe('POST /p/updatePostContent', () => {
+  const createFreeformPost = async (
+    overrides: Partial<FreeformPost> = {},
+  ): Promise<FreeformPost> => {
+    const id = await generateShortId();
+    const repo = con.getRepository(FreeformPost);
+    await repo.insert({
+      id,
+      shortId: id,
+      title: 'Test freeform post',
+      content: 'Original content',
+      contentHtml: '<p>Original content</p>\n',
+      sourceId: 'a',
+      type: PostType.Freeform,
+      ...overrides,
+    });
+    return repo.findOneByOrFail({ id });
+  };
+
+  it('should return 404 when not authorized', async () => {
+    return request(app.server)
+      .post('/p/updatePostContent')
+      .send({ postId: 'p1', content: 'new content' })
+      .expect(404);
+  });
+
+  it('should return 404 when post does not exist', async () => {
+    return request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postId: 'nonexistent', content: 'new content' })
+      .expect(404);
+  });
+
+  it('should return 404 when post is not a freeform post', async () => {
+    await saveFixtures(con, ArticlePost, postsFixture);
+    return request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postId: postsFixture[0].id, content: 'new content' })
+      .expect(404);
+  });
+
+  it('should return 400 when content is missing', async () => {
+    const post = await createFreeformPost();
+    return request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postId: post.id })
+      .expect(400);
+  });
+
+  it('should replace content by default', async () => {
+    const post = await createFreeformPost();
+    const res = await request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postId: post.id, content: 'Replaced content' })
+      .expect(200);
+
+    expect(res.body).toEqual({ id: post.id });
+
+    const updated = await con
+      .getRepository(FreeformPost)
+      .findOneByOrFail({ id: post.id });
+    expect(updated.content).toBe('Replaced content');
+    expect(updated.contentHtml).toContain('Replaced content');
+  });
+
+  it('should append content when mode is append', async () => {
+    const post = await createFreeformPost({
+      content: 'First paragraph',
+      contentHtml: '<p>First paragraph</p>\n',
+    });
+    const res = await request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        postId: post.id,
+        content: 'Second paragraph',
+        mode: 'append',
+      })
+      .expect(200);
+
+    expect(res.body).toEqual({ id: post.id });
+
+    const updated = await con
+      .getRepository(FreeformPost)
+      .findOneByOrFail({ id: post.id });
+    expect(updated.content).toBe('First paragraph\n\nSecond paragraph');
+    expect(updated.contentHtml).toContain('First paragraph');
+    expect(updated.contentHtml).toContain('Second paragraph');
+  });
+
+  it('should prepend content when mode is prepend', async () => {
+    const post = await createFreeformPost({
+      content: 'Existing content',
+      contentHtml: '<p>Existing content</p>\n',
+    });
+    const res = await request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        postId: post.id,
+        content: 'New header',
+        mode: 'prepend',
+      })
+      .expect(200);
+
+    expect(res.body).toEqual({ id: post.id });
+
+    const updated = await con
+      .getRepository(FreeformPost)
+      .findOneByOrFail({ id: post.id });
+    expect(updated.content).toBe('New header\n\nExisting content');
+    expect(updated.contentHtml).toContain('New header');
+    expect(updated.contentHtml).toContain('Existing content');
+  });
+
+  it('should update title when provided', async () => {
+    const post = await createFreeformPost();
+    await request(app.server)
+      .post('/p/updatePostContent')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        postId: post.id,
+        content: 'New content',
+        title: 'Updated title',
+      })
+      .expect(200);
+
+    const updated = await con
+      .getRepository(FreeformPost)
+      .findOneByOrFail({ id: post.id });
+    expect(updated.title).toBe('Updated title');
+    expect(updated.content).toBe('New content');
   });
 });
