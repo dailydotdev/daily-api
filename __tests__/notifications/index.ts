@@ -574,6 +574,21 @@ describe('generateNotification', () => {
     expect(actual.notification.uniqueKey).toEqual('04-10-2024 23:59:59');
   });
 
+  it('should generate dev_card_unlocked notification', () => {
+    const type = NotificationType.DevCardUnlocked;
+    const actual = generateNotificationV2(type, { userIds: [userId] });
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/settings/customization/devcard',
+    );
+    expect(actual.notification.description).toEqual(
+      'You can now generate your own DevCard to showcase your daily.dev achievements.',
+    );
+    expect(actual.notification.uniqueKey).toEqual(userId);
+  });
+
   it('should generate article_upvote_milestone notification', () => {
     const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
