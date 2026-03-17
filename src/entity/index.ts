@@ -47,3 +47,4 @@ export * from './Achievement';
 export * from './Quest';
 export * from './QuestReward';
 export * from './QuestRotation';
+export * from './PostHighlight';
