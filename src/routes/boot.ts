@@ -739,7 +739,7 @@ const loggedInBoot = async ({
           }
         } catch (err) {
           logger.error(
-            { err: err instanceof Error ? err.message : String(err), userId },
+            { err: err instanceof Error ? err.message : String(err) },
             'Failed to check ba_account for auth strategy override',
           );
         }
