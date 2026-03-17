@@ -13,6 +13,7 @@ import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
 import { fetchOptions } from './http';
 import { retryFetch } from './integrations/retry';
+import { cookies } from './cookies';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -36,6 +37,26 @@ type BetterAuthHookContext = {
 };
 
 type KratosVerifyResult = { valid: true; userId: string } | { valid: false };
+
+const TRACKING_COOKIE_KEY = cookies.tracking.key;
+
+const parseTrackingIdFromCookieHeader = (
+  cookieHeader: string,
+): string | undefined => {
+  for (const part of cookieHeader.split(';')) {
+    const [name, ...valueParts] = part.trim().split('=');
+    if (name === TRACKING_COOKIE_KEY) {
+      const value = valueParts.join('=');
+      return value || undefined;
+    }
+  }
+  return undefined;
+};
+
+type BetterAuthDbHookContext = {
+  request?: Request;
+  body?: Record<string, unknown>;
+};
 
 const throwBadRequest = (message: string): never => {
   throw APIError.from('BAD_REQUEST', {
@@ -399,15 +420,54 @@ const createAuth = (): BetterAuthHandler => {
     databaseHooks: {
       user: {
         create: {
-          after: async (user) => {
+          before: async (user, ctx) => {
+            try {
+              const hookCtx = ctx as BetterAuthDbHookContext;
+              const cookieHeader =
+                hookCtx?.request?.headers?.get('cookie') ?? '';
+              const trackingId = parseTrackingIdFromCookieHeader(cookieHeader);
+              if (trackingId) {
+                return { data: { id: trackingId } };
+              }
+            } catch (err) {
+              logger.error(
+                { err: err instanceof Error ? err.message : String(err) },
+                'Failed to extract tracking ID for new user',
+              );
+            }
+          },
+          after: async (user, ctx) => {
             try {
               await pool.query(
                 'INSERT INTO feed (id, "userId") VALUES (gen_random_uuid(), $1) ON CONFLICT DO NOTHING',
                 [user.id],
               );
+
+              const setClauses: string[] = [
+                `flags = CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}' ELSE flags END`,
+              ];
+              const values: string[] = [user.id];
+              let paramIndex = 2;
+
+              const hookCtx = ctx as BetterAuthDbHookContext;
+              const body = hookCtx?.body;
+              const addField = (column: string, value: unknown): void => {
+                if (typeof value === 'string' && value.length > 0) {
+                  setClauses.push(`"${column}" = $${paramIndex}`);
+                  values.push(value);
+                  paramIndex++;
+                }
+              };
+
+              if (body) {
+                addField('referralId', body.referral);
+                addField('referralOrigin', body.referralOrigin);
+                addField('timezone', body.timezone);
+              }
+
               await pool.query(
-                `UPDATE public."user" SET flags = '{"trustScore": 1, "vordr": false}' WHERE id = $1 AND flags = '{}'`,
-                [user.id],
+                `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $1`,
+                values,
               );
             } catch (err) {
               logger.error(
