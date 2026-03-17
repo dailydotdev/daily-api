@@ -9,7 +9,7 @@ import {
   QUEST_ROTATION_UPDATE_CHANNEL,
 } from '../common/quest';
 import { transferCores } from '../common/njord';
-import { systemUser } from '../common/utils';
+import { questUser } from '../common/utils';
 import {
   Quest,
   QuestReward,
@@ -297,7 +297,7 @@ const applyQuestRewards = async ({
       receiverId: ctx.userId,
       status: UserTransactionStatus.Success,
       productId: null,
-      senderId: systemUser.id,
+      senderId: questUser.id,
       value: rewardTotals.cores,
       valueIncFees: rewardTotals.cores,
       fee: 0,

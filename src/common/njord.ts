@@ -24,7 +24,12 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../entity/user/UserTransaction';
-import { isSpecialUser, parseBigInt, systemUser } from './utils';
+import {
+  isSpecialUser,
+  parseBigInt,
+  systemEntityIds,
+  systemUser,
+} from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import {
   checkCoresAccess,
@@ -219,11 +224,13 @@ export const transferCores = createAuthProtectedFn(
     }
 
     const senderId = transaction.senderId;
-    const senderType =
-      senderId === systemUser.id ? EntityType.SYSTEM : EntityType.USER;
+    const senderType = systemEntityIds.includes(senderId)
+      ? EntityType.SYSTEM
+      : EntityType.USER;
     const receiverId = transaction.receiverId;
-    const receiverType =
-      receiverId === systemUser.id ? EntityType.SYSTEM : EntityType.USER;
+    const receiverType = systemEntityIds.includes(receiverId)
+      ? EntityType.SYSTEM
+      : EntityType.USER;
 
     const response = await garmNjordService.execute(async () => {
       const payload = new TransferRequest({

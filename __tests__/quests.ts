@@ -21,6 +21,8 @@ import {
   UserQuestProfile,
   UserQuestStatus,
 } from '../src/entity/user';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
+import { questUser } from '../src/common';
 import appFunc from '../src';
 import type { Context } from '../src/Context';
 import { FastifyInstance } from 'fastify';
@@ -101,6 +103,7 @@ let isPlus = false;
 const questUserId = '99999999-9999-4999-8999-999999999999';
 const questId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const questRewardXpId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const questRewardCoresId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const questRotationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const userQuestId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const extraQuestId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
@@ -125,6 +128,7 @@ beforeEach(async () => {
   await con.createQueryBuilder().delete().from(UserQuestProfile).execute();
   await con.createQueryBuilder().delete().from(QuestRotation).execute();
   await con.createQueryBuilder().delete().from(QuestReward).execute();
+  await con.getRepository(UserTransaction).delete({ receiverId: questUserId });
   await con.createQueryBuilder().delete().from(Quest).execute();
   await con.getRepository(User).delete({ id: questUserId });
 });
@@ -326,5 +330,54 @@ describe('claimQuestReward mutation', () => {
 
     expect(res.errors).toHaveLength(1);
     expect(res.errors?.[0]?.message).toBe('Quest is not completed yet');
+  });
+
+  it('should award quest core rewards from the quest account', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    await seedQuest({
+      userQuestStatus: UserQuestStatus.Completed,
+      periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+      periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+    });
+
+    await saveFixtures(con, QuestReward, [
+      {
+        id: questRewardCoresId,
+        questId,
+        type: QuestRewardType.Cores,
+        amount: 5,
+        metadata: {},
+      },
+    ]);
+
+    const res = await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: {
+        userQuestId,
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const transaction = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({
+        receiverId: questUserId,
+        referenceType: `quest_reward:${userQuestId}`,
+      });
+
+    expect(transaction).toMatchObject({
+      receiverId: questUserId,
+      senderId: questUser.id,
+      value: 5,
+      valueIncFees: 5,
+      fee: 0,
+      referenceId: questId,
+      referenceType: `quest_reward:${userQuestId}`,
+      flags: {
+        note: 'Quest reward: Hold my upvote',
+      },
+    });
   });
 });

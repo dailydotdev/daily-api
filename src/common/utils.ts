@@ -33,7 +33,19 @@ export const systemUser = {
   name: 'System',
 };
 
-export const systemUserIds = [systemUser.id, ghostUser.id, playwrightUser.id];
+export const questUser = {
+  id: 'quest',
+  username: 'quest',
+  name: 'Quest',
+};
+
+export const systemEntityIds = [systemUser.id, questUser.id];
+
+export const systemUserIds = [
+  ...systemEntityIds,
+  ghostUser.id,
+  playwrightUser.id,
+];
 
 export const demoCompany = {
   id: 'e8c7a930-ca69-4cba-b26c-b6c810d6ab7d',
@@ -269,7 +281,7 @@ export const isSpecialUser = ({
 }: {
   userId?: string | null;
 }): boolean => {
-  return !!userId && [ghostUser.id, systemUser.id].includes(userId);
+  return !!userId && [ghostUser.id, ...systemEntityIds].includes(userId);
 };
 
 export const getCurrencySymbol = ({

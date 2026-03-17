@@ -6,7 +6,13 @@ import { UserQuestProfile } from '../entity/user';
 import { UserAchievement } from '../entity/user/UserAchievement';
 import { Achievement } from '../entity/Achievement';
 import { DataSource, In, Not } from 'typeorm';
-import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
+import {
+  getLimit,
+  ghostUser,
+  GQLCompany,
+  questUser,
+  systemUser,
+} from '../common';
 import { MODERATORS } from '../config';
 import graphorm from '../graphorm';
 import type { GQLHotTake } from './userHotTake';
@@ -153,6 +159,7 @@ export const typeDefs = /* GraphQL */ `
 const excludedUsers = [
   ghostUser.id,
   systemUser.id,
+  questUser.id,
   ...MODERATORS,
   '6h7QO55AFClNmsV1zBaJt',
   'rgFi4sbhpMZwIZZlSjl8d',
