@@ -1,5 +1,7 @@
 import z from 'zod';
+import { ValidationError } from 'apollo-server-errors';
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
+import { TypeOrmError, TypeORMQueryFailedError } from '../errors';
 import {
   Connection,
   ConnectionArguments,
@@ -195,6 +197,14 @@ export interface PageGenerator<
 export const getSearchQuery = (param: string): string =>
   `SELECT to_tsquery('english', ${param}) AS query`;
 
+export const handleSearchQueryError = (error: unknown): never => {
+  const err = error as TypeORMQueryFailedError;
+  if (err?.code === TypeOrmError.SYNTAX_ERROR) {
+    throw new ValidationError('Invalid search query');
+  }
+  throw error;
+};
+
 export const processSearchQuery = (query: string): string => {
   const trimmed = query.trim();
 
@@ -203,14 +213,22 @@ export const processSearchQuery = (query: string): string => {
   const hasSpecialChars = /[#+.\-]/.test(trimmed);
 
   if (hasSpecialChars) {
-    // For queries with special characters, use phrase search to preserve them
-    // Replace single quotes with double single quotes to escape them
-    const escaped = trimmed.replace(/'/g, "''");
+    // Strip tsquery metacharacters but preserve programming language chars (#+.-)
+    const stripped = trimmed.replace(/[&|!()<>:*]/g, ' ').trim();
+    if (!stripped) {
+      throw new ValidationError('Invalid search query');
+    }
+    const escaped = stripped.replace(/'/g, "''");
     return `'${escaped}':*`;
   }
 
-  // For regular queries, use the original AND logic with prefix matching
-  return trimmed.split(' ').join(' & ') + ':*';
+  // Strip tsquery metacharacters from regular queries
+  const stripped = trimmed.replace(/[&|!()<>:*']/g, ' ').trim();
+  if (!stripped) {
+    throw new ValidationError('Invalid search query');
+  }
+
+  return stripped.split(/\s+/).join(' & ') + ':*';
 };
 
 export const mimirOffsetGenerator = <

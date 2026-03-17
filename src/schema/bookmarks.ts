@@ -3,6 +3,7 @@ import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   getSearchQuery,
   GQLEmptyResponse,
+  handleSearchQueryError,
   offsetPageGenerator,
   Page,
   PageGenerator,
@@ -625,8 +626,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { query }: { query: string },
       ctx: AuthContext,
     ) => {
-      const hits: { title: string }[] = await ctx.con.query(
-        `
+      try {
+        const hits: { title: string }[] = await ctx.con.query(
+          `
           WITH search AS (${getSearchQuery('$2')})
           select ts_headline(title, search.query,
                              'StartSel = <strong>, StopSel = </strong>') as title
@@ -638,12 +640,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           order by views desc
             limit 5;
         `,
-        [ctx.userId, processSearchQuery(query)],
-      );
-      return {
-        query,
-        hits,
-      };
+          [ctx.userId, processSearchQuery(query)],
+        );
+        return {
+          query,
+          hits,
+        };
+      } catch (error) {
+        return handleSearchQueryError(error);
+      }
     },
     searchBookmarks: async (
       source,
@@ -651,11 +656,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLPost> & { query: string }> => {
-      const res = await searchResolver(source, args, ctx, info);
-      return {
-        ...res,
-        query: args.query,
-      };
+      try {
+        const res = await searchResolver(source, args, ctx, info);
+        return {
+          ...res,
+          query: args.query,
+        };
+      } catch (error) {
+        return handleSearchQueryError(error);
+      }
     },
   },
 };

@@ -1241,6 +1241,15 @@ describe('query searchBookmarksSuggestions', () => {
     expect(res.data.searchBookmarksSuggestions.hits.length).toBeGreaterThan(0);
   });
 
+  it('should return ValidationError for invalid tsquery syntax', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query(QUERY('& | !'));
+    expect(res.errors?.length).toBe(1);
+    expect(res.errors[0].extensions?.code).toBe('BAD_USER_INPUT');
+    expect(res.errors[0].message).toBe('Invalid search query');
+  });
+
   it('should handle special characters in search (C#)', async () => {
     loggedUser = '1';
     await con.getRepository(ArticlePost).save({
@@ -1301,6 +1310,15 @@ describe('query searchBookmarks', () => {
     await saveFixtures(con, Bookmark, bookmarksFixture);
     const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return ValidationError for invalid tsquery syntax', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query(QUERY('((!))'));
+    expect(res.errors?.length).toBe(1);
+    expect(res.errors[0].extensions?.code).toBe('BAD_USER_INPUT');
+    expect(res.errors[0].message).toBe('Invalid search query');
   });
 });
 
