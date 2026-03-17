@@ -20,6 +20,9 @@ import { BRIEFING_SOURCE } from '../../entity/Source';
 import { getPostVisible, parseReadTime } from '../../entity/posts/utils';
 import { UserActionType } from '../../entity/user/UserAction';
 import { Not } from 'typeorm';
+import { alphabet, shortIdLength } from '../../ids';
+
+const validPostIdRegex = new RegExp(`^[${alphabet}]{${shortIdLength}}$`);
 
 const generateItemLinkMarkdown = ({ item }: { item: BriefingItem }): string => {
   if (!item.postIds?.length) {
@@ -148,7 +151,29 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
 
-      const content = generateMarkdown(brief);
+      let hasInvalidPostIds = false;
+      const sanitizedSections = brief.sections.map((section) => ({
+        ...section,
+        items: section.items.map((item) => {
+          const postIds = item.postIds.filter((id) => {
+            const valid = validPostIdRegex.test(id);
+            if (!valid) {
+              hasInvalidPostIds = true;
+            }
+            return valid;
+          });
+          return { ...item, postIds };
+        }),
+      }));
+
+      if (hasInvalidPostIds) {
+        logger.warn({ data }, 'filtered invalid postIds from briefing');
+      }
+
+      const content = generateMarkdown({
+        ...brief,
+        sections: sanitizedSections,
+      } as Briefing);
       const title = format(new Date(), 'MMM d, yyyy');
 
       const post = con.getRepository(BriefPost).create({
