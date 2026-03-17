@@ -207,25 +207,20 @@ export const handleSearchQueryError = (error: unknown): never => {
 
 export const processSearchQuery = (query: string): string => {
   const trimmed = query.trim();
-
-  // Check if query contains special characters that should be preserved
-  // Common programming language patterns: c#, c++, f#, .net, node.js, etc.
-  const hasSpecialChars = /[#+.\-]/.test(trimmed);
-
-  if (hasSpecialChars) {
-    // Strip tsquery metacharacters but preserve programming language chars (#+.-)
-    const stripped = trimmed.replace(/[&|!()<>:*]/g, ' ').trim();
-    if (!stripped) {
-      throw new ValidationError('Invalid search query');
-    }
-    const escaped = stripped.replace(/'/g, "''");
-    return `'${escaped}':*`;
-  }
-
-  // Strip tsquery metacharacters from regular queries
   const stripped = trimmed.replace(/[&|!()<>:*']/g, ' ').trim();
+
   if (!stripped) {
     throw new ValidationError('Invalid search query');
+  }
+
+  // Programming language patterns (c#, c++, .net, node.js) use phrase search
+  const hasSpecialChars = /[#+.\-]/.test(trimmed);
+  if (hasSpecialChars) {
+    const escaped = trimmed
+      .replace(/[&|!()<>:*]/g, ' ')
+      .trim()
+      .replace(/'/g, "''");
+    return `'${escaped}':*`;
   }
 
   return stripped.split(/\s+/).join(' & ') + ':*';
