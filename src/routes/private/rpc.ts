@@ -96,11 +96,6 @@ export default function (router: ConnectRouter) {
     } catch (originalError) {
       const error = originalError as TypeORMQueryFailedError;
 
-      logger.error(
-        { err: error, data: originalReq.toJson() },
-        'error while creating post',
-      );
-
       if (error instanceof ConnectError) {
         throw error;
       }
@@ -115,6 +110,11 @@ export default function (router: ConnectRouter) {
       ) {
         throw new ConnectError('source not found', Code.NotFound);
       }
+
+      logger.error(
+        { err: error, data: originalReq.toJson() },
+        'error while creating post',
+      );
 
       throw new ConnectError(error.message, Code.Internal);
     }

@@ -213,10 +213,10 @@ const worker: Worker = {
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 
-        // Foreign / unique
         if (
           err?.code === TypeOrmError.NULL_VIOLATION ||
-          err?.code === TypeOrmError.FOREIGN_KEY
+          err?.code === TypeOrmError.FOREIGN_KEY ||
+          err?.code === TypeOrmError.DUPLICATE_ENTRY
         ) {
           return;
         }
