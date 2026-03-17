@@ -56,7 +56,6 @@ import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 import {
   createSquadWelcomePost,
   emptyImage,
-  generateDevCard,
   notificationsLink,
   squadsFeaturedPage,
 } from '../../src/common';
@@ -581,7 +580,9 @@ describe('generateNotification', () => {
 
     expect(actual.notification.type).toEqual(type);
     expect(actual.userIds).toEqual([userId]);
-    expect(actual.notification.targetUrl).toEqual(generateDevCard);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/settings/customization/devcard',
+    );
     expect(actual.notification.description).toEqual(
       'You can now generate your own DevCard to showcase your daily.dev achievements.',
     );
