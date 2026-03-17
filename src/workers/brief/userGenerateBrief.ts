@@ -167,7 +167,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       }));
 
       if (hasInvalidPostIds) {
-        logger.warn({ postId }, 'filtered invalid postIds from briefing');
+        logger.warn({ data }, 'filtered invalid postIds from briefing');
       }
 
       const content = generateMarkdown({
@@ -190,9 +190,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
           generatedAt: new Date(),
         },
         collectionSources: brief.sourceIds || [],
-        contentJSON: sanitizedSections.map((section) =>
-          new BriefingSection(section).toJson(),
-        ),
+        contentJSON: brief.sections.map((section) => section.toJson()),
         private: false,
       });
       post.visible = getPostVisible({ post });
