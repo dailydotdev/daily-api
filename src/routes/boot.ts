@@ -954,14 +954,24 @@ export const getBootData = async (
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
 
+  const baForceCookie = req.cookies[cookies.baForce.key];
   const trackingIdForGb = req.userId || req.trackingId || '';
   const gb = getUserGrowthBookInstance(trackingIdForGb, {
     allocationClient,
   });
-  const authStrategy = gb.getFeatureValue(
-    gbFeatures.authStrategy.id,
-    gbFeatures.authStrategy.defaultValue,
-  );
+  const authStrategy = baForceCookie
+    ? 'betterauth'
+    : gb.getFeatureValue(
+        gbFeatures.authStrategy.id,
+        gbFeatures.authStrategy.defaultValue,
+      );
+
+  const setForceBACookie = (data: AnonymousBoot | LoggedInBoot) => {
+    if (data.exp?.a?.authStrategy === 'betterauth') {
+      setCookie(req, res, 'baForce', '1');
+    }
+    return data;
+  };
 
   const baSessionCookie = req.cookies[cookies.authSession.key];
   if (baSessionCookie) {
@@ -980,15 +990,17 @@ export const getBootData = async (
           const jwtValid =
             req.accessToken?.expiresIn &&
             differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
-          return loggedInBoot({
-            con,
-            req,
-            res,
-            refreshToken: !jwtValid,
-            middleware,
-            userId: req.userId,
-            authStrategy,
-          });
+          return setForceBACookie(
+            await loggedInBoot({
+              con,
+              req,
+              res,
+              refreshToken: !jwtValid,
+              middleware,
+              userId: req.userId,
+              authStrategy,
+            }),
+          );
         }
 
         req.log.warn('BetterAuth getSession returned null');
@@ -1017,15 +1029,24 @@ export const getBootData = async (
     req.accessToken?.expiresIn &&
     differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
   ) {
-    return loggedInBoot({
-      con,
-      req,
-      res,
-      refreshToken: false,
-      middleware,
-      userId: req.userId,
-      authStrategy,
-    });
+    if (authStrategy === 'betterauth' && !baSessionCookie) {
+      await createBetterAuthSessionFromKratos({
+        req,
+        res,
+        userId: req.userId,
+      });
+    }
+    return setForceBACookie(
+      await loggedInBoot({
+        con,
+        req,
+        res,
+        refreshToken: false,
+        middleware,
+        userId: req.userId,
+        authStrategy,
+      }),
+    );
   }
 
   const whoami = await dispatchWhoami(req);
@@ -1034,15 +1055,17 @@ export const getBootData = async (
       setRawCookie(res, whoami.cookie);
     }
     if (whoami.verified === false) {
-      return anonymousBoot(
-        con,
-        req,
-        res,
-        middleware,
-        true,
-        whoami?.email,
-        referrer,
-        authStrategy,
+      return setForceBACookie(
+        await anonymousBoot(
+          con,
+          req,
+          res,
+          middleware,
+          true,
+          whoami?.email,
+          referrer,
+          authStrategy,
+        ),
       );
     }
     if (req.userId !== whoami.userId) {
@@ -1065,18 +1088,34 @@ export const getBootData = async (
         userId: whoami.userId,
       });
     }
-    return loggedInBoot({
-      con,
-      req,
-      res,
-      refreshToken: true,
-      middleware,
-      userId: req.userId,
-      authStrategy,
-    });
+    return setForceBACookie(
+      await loggedInBoot({
+        con,
+        req,
+        res,
+        refreshToken: true,
+        middleware,
+        userId: req.userId,
+        authStrategy,
+      }),
+    );
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
-    return anonymousBoot(
+    return setForceBACookie(
+      await anonymousBoot(
+        con,
+        req,
+        res,
+        middleware,
+        false,
+        undefined,
+        referrer,
+        authStrategy,
+      ),
+    );
+  }
+  return setForceBACookie(
+    await anonymousBoot(
       con,
       req,
       res,
@@ -1085,17 +1124,7 @@ export const getBootData = async (
       undefined,
       referrer,
       authStrategy,
-    );
-  }
-  return anonymousBoot(
-    con,
-    req,
-    res,
-    middleware,
-    false,
-    undefined,
-    referrer,
-    authStrategy,
+    ),
   );
 };
 
