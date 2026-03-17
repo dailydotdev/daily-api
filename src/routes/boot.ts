@@ -678,6 +678,7 @@ const loggedInBoot = async ({
       balance,
       clickbaitTries,
       anonymousTheme,
+      hasBetterAuthAccount,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -704,6 +705,14 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
+      authStrategy && authStrategy !== 'betterauth'
+        ? con
+            .query(`SELECT 1 FROM ba_account WHERE "userId" = $1 LIMIT 1`, [
+              userId,
+            ])
+            .then((rows) => rows.length > 0)
+            .catch(() => false)
+        : Promise.resolve(false),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -727,24 +736,7 @@ const loggedInBoot = async ({
     }
 
     if (authStrategy) {
-      let finalAuthStrategy = authStrategy;
-      if (finalAuthStrategy !== 'betterauth') {
-        try {
-          const baAccountExists = await con.query(
-            `SELECT 1 FROM ba_account WHERE "userId" = $1 LIMIT 1`,
-            [userId],
-          );
-          if (baAccountExists.length > 0) {
-            finalAuthStrategy = 'betterauth';
-          }
-        } catch (err) {
-          logger.error(
-            { err: err instanceof Error ? err.message : String(err) },
-            'Failed to check ba_account for auth strategy override',
-          );
-        }
-      }
-      exp.a.authStrategy = finalAuthStrategy;
+      exp.a.authStrategy = hasBetterAuthAccount ? 'betterauth' : authStrategy;
     }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
