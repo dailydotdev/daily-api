@@ -1,6 +1,8 @@
 import '../src/config';
 import { parseArgs } from 'node:util';
 import { uploadLogoFromUrl } from '../src/common/cloudinary';
+import createOrGetConnection from '../src/db';
+import { Source } from '../src/entity';
 
 const start = async (): Promise<void> => {
   const { values } = parseArgs({
@@ -39,6 +41,17 @@ const start = async (): Promise<void> => {
 
   console.log('\nUpload result');
   console.log({ deliveryUrl });
+
+  const con = await createOrGetConnection();
+  const result = await con
+    .getRepository(Source)
+    .update({ id: sourceId }, { image: deliveryUrl });
+
+  if (!result.affected) {
+    console.warn(`Source "${sourceId}" not found in database`);
+  } else {
+    console.log(`Updated source "${sourceId}" image in database`);
+  }
 };
 
 start()
