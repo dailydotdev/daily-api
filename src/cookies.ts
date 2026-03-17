@@ -79,6 +79,16 @@ export const cookies: {
       sameSite: 'lax',
     },
   },
+  baForce: {
+    key: 'da_ba',
+    opts: {
+      maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+      httpOnly: true,
+      signed: false,
+      secure: env === 'production',
+      sameSite: 'lax',
+    },
+  },
 };
 
 const extractDomain = (req: FastifyRequest): string => {

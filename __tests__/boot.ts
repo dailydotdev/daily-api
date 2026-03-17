@@ -113,8 +113,11 @@ const BASE_BODY = {
   geo: {},
 };
 
+const BOOT_EXP_WITH_AUTH = { f: 'enc', e: [], a: { authStrategy: 'gbId' } };
+
 const LOGGED_IN_BODY = {
   ...BASE_BODY,
+  exp: BOOT_EXP_WITH_AUTH,
   alerts: {
     ...BASE_BODY.alerts,
     bootPopup: true,
@@ -181,6 +184,7 @@ const LOGGED_IN_BODY = {
 
 const ANONYMOUS_BODY = {
   ...BASE_BODY,
+  exp: BOOT_EXP_WITH_AUTH,
   settings: SETTINGS_DEFAULT,
   user: {
     id: expect.any(String),
@@ -1770,7 +1774,11 @@ describe('boot experimentation', () => {
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.exp.a).toEqual({ search: 1, squad: 1 });
+    expect(res.body.exp.a).toEqual({
+      search: 1,
+      squad: 1,
+      authStrategy: 'gbId',
+    });
   });
 });
 
@@ -1909,6 +1917,7 @@ describe('funnel boot', () => {
 
   const FUNNEL_BOOT_BODY: FunnelBoot = {
     ...ANONYMOUS_BODY,
+    exp: BASE_BODY.exp,
     funnelState: FUNNEL_DATA,
   };
 
