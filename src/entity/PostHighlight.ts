@@ -3,25 +3,20 @@ import {
   Entity,
   Index,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  Unique,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { Post } from './posts/Post';
 
 @Entity()
-@Unique('UQ_post_highlight_channel_post', ['channel', 'postId'])
 @Index('IDX_post_highlight_channel_rank', ['channel', 'rank'])
 export class PostHighlight {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryColumn({ type: 'text' })
+  channel: string;
 
-  @Column({ type: 'text' })
+  @PrimaryColumn({ type: 'text' })
   @Index('IDX_post_highlight_post')
   postId: string;
-
-  @Column({ type: 'text' })
-  channel: string;
 
   @Column({ type: 'smallint' })
   rank: number;

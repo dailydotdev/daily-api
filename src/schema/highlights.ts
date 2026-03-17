@@ -4,7 +4,6 @@ import graphorm from '../graphorm';
 
 export const typeDefs = /* GraphQL */ `
   type PostHighlight {
-    id: ID!
     post: Post!
     channel: String!
     rank: Int!
@@ -18,7 +17,6 @@ export const typeDefs = /* GraphQL */ `
     Get highlights for a channel, ordered by rank
     """
     postHighlights(channel: String!): [PostHighlight!]!
-      @cacheControl(maxAge: 60)
   }
 `;
 

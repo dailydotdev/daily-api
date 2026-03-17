@@ -80,7 +80,6 @@ beforeEach(async () => {
 const QUERY = `
   query PostHighlights($channel: String!) {
     postHighlights(channel: $channel) {
-      id
       channel
       rank
       headline
