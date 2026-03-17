@@ -4,7 +4,7 @@ import {
   SentimentDigestRequest,
 } from '@dailydotdev/schema';
 import type { DataSource } from 'typeorm';
-import { Brackets } from 'typeorm';
+import type { ChannelDigest } from '../../entity/ChannelDigest';
 import { generateShortId } from '../../ids';
 import { getBragiClient } from '../../integrations/bragi/clients';
 import { yggdrasilSentimentClient } from '../../integrations/yggdrasil/clients';
@@ -15,10 +15,7 @@ import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
-import {
-  getChannelDigestLookbackSeconds,
-  type ChannelDigestDefinition,
-} from './definitions';
+import { getChannelDigestLookbackSeconds } from './definitions';
 
 type DigestPostRow = {
   title: string | null;
@@ -49,7 +46,7 @@ const getDigestWindowStart = async ({
 }: {
   con: DataSource;
   now: Date;
-  definition: ChannelDigestDefinition;
+  definition: ChannelDigest;
 }): Promise<Date> => {
   const fallback = new Date(
     now.getTime() - getChannelDigestLookbackSeconds(definition) * 1000,
@@ -78,13 +75,13 @@ const getDigestWindowStart = async ({
 const findDigestPosts = async ({
   con,
   from,
-  channels,
+  channel,
 }: {
   con: DataSource;
   from: Date;
-  channels: string[];
+  channel: string;
 }): Promise<DigestPostRow[]> => {
-  if (!channels.length) {
+  if (!channel) {
     return [];
   }
 
@@ -104,21 +101,9 @@ const findDigestPosts = async ({
     .addSelect('post.content', 'content')
     .where('post.createdAt >= :from', { from })
     .andWhere('post.deleted = false')
-    .andWhere(
-      new Brackets((qb) => {
-        channels.forEach((channel, index) => {
-          const condition = `(post."contentMeta"->'channels') ? :channel${index}`;
-          const params = { [`channel${index}`]: channel };
-
-          if (!index) {
-            qb.where(condition, params);
-            return;
-          }
-
-          qb.orWhere(condition, params);
-        });
-      }),
-    )
+    .andWhere(`(post."contentMeta"->'channels') ? :channel`, {
+      channel,
+    })
     .andWhere('relation."relatedPostId" IS NULL')
     .orderBy('post.createdAt', 'DESC')
     .getRawMany<DigestPostRow>();
@@ -129,11 +114,11 @@ const findSentimentItems = async ({
   from,
   to,
 }: {
-  definition: ChannelDigestDefinition;
+  definition: ChannelDigest;
   from: Date;
   to: Date;
 }) => {
-  if (!definition.includeSentiment || !definition.sentimentGroupIds?.length) {
+  if (!definition.includeSentiment || !definition.sentimentGroupIds.length) {
     return [];
   }
 
@@ -143,7 +128,7 @@ const findSentimentItems = async ({
         groupId,
         from: from.toISOString(),
         to: to.toISOString(),
-        minHighlightScore: definition.minHighlightScore,
+        minHighlightScore: definition.minHighlightScore ?? undefined,
         orderBy: 'recency',
       }),
     ),
@@ -211,7 +196,7 @@ export const generateChannelDigest = async ({
   now = new Date(),
 }: {
   con: DataSource;
-  definition: ChannelDigestDefinition;
+  definition: ChannelDigest;
   now?: Date;
 }): Promise<FreeformPost | null> => {
   const from = await getDigestWindowStart({
@@ -228,7 +213,7 @@ export const generateChannelDigest = async ({
     findDigestPosts({
       con,
       from,
-      channels: definition.channels,
+      channel: definition.channel,
     }),
   ]);
 

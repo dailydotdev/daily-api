@@ -1,18 +1,23 @@
 import {
-  channelDigestDefinitions,
+  getChannelDigestDefinitions,
   isChannelDigestScheduledForDate,
 } from '../common/channelDigest/definitions';
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { Cron } from './cron';
 
+export const getChannelDigestsNow = (): Date => new Date();
+
 const cron: Cron = {
   name: 'channel-digests',
-  handler: async (_, logger) => {
-    const now = new Date();
+  handler: async (con, logger) => {
+    const now = getChannelDigestsNow();
     const scheduledAt = now.toISOString();
+    const definitions = await getChannelDigestDefinitions({
+      con,
+    });
 
     await Promise.all(
-      channelDigestDefinitions
+      definitions
         .filter((definition) =>
           isChannelDigestScheduledForDate({
             definition,

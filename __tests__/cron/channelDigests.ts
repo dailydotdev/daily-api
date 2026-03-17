@@ -1,89 +1,126 @@
-import type { FastifyLoggerInstance } from 'fastify';
-import { PubSub } from '@google-cloud/pubsub';
-import cron from '../../src/cron/channelDigests';
-import {
-  channelDigestDefinitions,
-  channelDigestDefinitionsByKey,
-} from '../../src/common/channelDigest/definitions';
-import { triggerTypedEvent } from '../../src/common/typedPubsub';
+import type { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
+import { ChannelDigest } from '../../src/entity/ChannelDigest';
+import { AGENTS_DIGEST_SOURCE } from '../../src/entity/Source';
+import * as typedPubsub from '../../src/common/typedPubsub';
+import * as channelDigestsModule from '../../src/cron/channelDigests';
 import { crons } from '../../src/cron/index';
 
-jest.mock('../../src/common/typedPubsub', () => ({
-  triggerTypedEvent: jest.fn(),
-}));
+let con: DataSource;
 
-const triggerTypedEventMock = triggerTypedEvent as jest.MockedFunction<
-  typeof triggerTypedEvent
->;
-
-const logger = {} as FastifyLoggerInstance;
-const pubsub = {} as PubSub;
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
 
 describe('channelDigests cron', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-    jest.useFakeTimers().setSystemTime(new Date('2026-03-03T10:00:00.000Z'));
-    triggerTypedEventMock.mockResolvedValue();
-  });
-
   afterEach(() => {
-    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it('should be registered', () => {
-    const registeredCron = crons.find((item) => item.name === cron.name);
+    const registeredCron = crons.find(
+      (item) => item.name === channelDigestsModule.default.name,
+    );
 
     expect(registeredCron).toBeDefined();
   });
 
-  it('should enqueue all configured digests', async () => {
-    await cron.handler({} as never, logger, pubsub);
+  it('should enqueue all configured digests for the current day', async () => {
+    jest
+      .spyOn(channelDigestsModule, 'getChannelDigestsNow')
+      .mockReturnValue(new Date('2026-03-02T10:00:00.000Z'));
+    const triggerTypedEventSpy = jest
+      .spyOn(typedPubsub, 'triggerTypedEvent')
+      .mockResolvedValue();
 
-    expect(triggerTypedEventMock.mock.calls).toEqual(
-      channelDigestDefinitions.map(({ key }) => [
-        logger,
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'agentic',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        channel: 'vibes',
+        targetAudience: 'audience',
+        frequency: 'daily',
+        includeSentiment: true,
+        minHighlightScore: 0.65,
+        sentimentGroupIds: ['group-1'],
+        enabled: true,
+      },
+      {
+        key: 'weekly-test',
+        sourceId: 'weekly-source',
+        channel: 'weekly',
+        targetAudience: 'weekly audience',
+        frequency: 'weekly',
+        includeSentiment: false,
+        sentimentGroupIds: [],
+        enabled: true,
+      },
+    ]);
+
+    await channelDigestsModule.default.handler(con, {} as never, {} as never);
+
+    expect(triggerTypedEventSpy.mock.calls).toEqual([
+      [
+        {},
         'api.v1.generate-channel-digest',
         {
-          digestKey: key,
-          scheduledAt: '2026-03-03T10:00:00.000Z',
+          digestKey: 'agentic',
+          scheduledAt: '2026-03-02T10:00:00.000Z',
         },
-      ]),
-    );
+      ],
+      [
+        {},
+        'api.v1.generate-channel-digest',
+        {
+          digestKey: 'weekly-test',
+          scheduledAt: '2026-03-02T10:00:00.000Z',
+        },
+      ],
+    ]);
   });
 
   it('should skip weekly digests when it is not monday', async () => {
-    const weeklyDefinition = {
-      key: 'weekly-test',
-      sourceId: 'weekly-test-source',
-      channels: ['weekly-test'],
-      targetAudience: 'weekly digest audience',
-      frequency: 'weekly',
-      includeSentiment: false,
-    };
+    jest
+      .spyOn(channelDigestsModule, 'getChannelDigestsNow')
+      .mockReturnValue(new Date('2026-03-04T10:00:00.000Z'));
+    const triggerTypedEventSpy = jest
+      .spyOn(typedPubsub, 'triggerTypedEvent')
+      .mockResolvedValue();
 
-    channelDigestDefinitions.push(weeklyDefinition);
-    channelDigestDefinitionsByKey.set(weeklyDefinition.key, weeklyDefinition);
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'agentic',
+        sourceId: AGENTS_DIGEST_SOURCE,
+        channel: 'vibes',
+        targetAudience: 'audience',
+        frequency: 'daily',
+        includeSentiment: true,
+        minHighlightScore: 0.65,
+        sentimentGroupIds: ['group-1'],
+        enabled: true,
+      },
+      {
+        key: 'weekly-test',
+        sourceId: 'weekly-source',
+        channel: 'weekly',
+        targetAudience: 'weekly audience',
+        frequency: 'weekly',
+        includeSentiment: false,
+        sentimentGroupIds: [],
+        enabled: true,
+      },
+    ]);
+    await channelDigestsModule.default.handler(con, {} as never, {} as never);
 
-    try {
-      jest.setSystemTime(new Date('2026-03-04T10:00:00.000Z'));
-
-      await cron.handler({} as never, logger, pubsub);
-
-      expect(triggerTypedEventMock.mock.calls).toEqual(
-        channelDigestDefinitions
-          .filter(({ key }) => key !== weeklyDefinition.key)
-          .map(({ key }) => [
-            logger,
-            'api.v1.generate-channel-digest',
-            {
-              digestKey: key,
-              scheduledAt: '2026-03-04T10:00:00.000Z',
-            },
-          ]),
-      );
-    } finally {
-      channelDigestDefinitions.pop();
-      channelDigestDefinitionsByKey.delete(weeklyDefinition.key);
-    }
+    expect(triggerTypedEventSpy.mock.calls).toEqual([
+      [
+        {},
+        'api.v1.generate-channel-digest',
+        {
+          digestKey: 'agentic',
+          scheduledAt: '2026-03-04T10:00:00.000Z',
+        },
+      ],
+    ]);
   });
 });

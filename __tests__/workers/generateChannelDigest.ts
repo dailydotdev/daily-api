@@ -1,63 +1,98 @@
-import type { FastifyLoggerInstance } from 'fastify';
+import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import { PubSub } from '@google-cloud/pubsub';
 import {
   ONE_DAY_IN_SECONDS,
   ONE_WEEK_IN_SECONDS,
 } from '../../src/common/constants';
-import { channelDigestDefinitionsByKey } from '../../src/common/channelDigest/definitions';
-import { generateChannelDigest } from '../../src/common/channelDigest/generate';
+import createOrGetConnection from '../../src/db';
+import { ChannelDigest } from '../../src/entity/ChannelDigest';
+import { AGENTS_DIGEST_SOURCE, Source } from '../../src/entity/Source';
+import { FreeformPost } from '../../src/entity/posts/FreeformPost';
 import {
   checkRedisObjectExists,
-  deleteRedisKey,
+  deleteKeysByPattern,
+  getRedisObjectExpiry,
   setRedisObjectIfNotExistsWithExpiry,
   setRedisObjectWithExpiry,
 } from '../../src/redis';
 import { typedWorkers } from '../../src/workers/index';
 import worker from '../../src/workers/generateChannelDigest';
+import { createMockLogger, expectSuccessfulTypedBackground } from '../helpers';
+import { createSource } from '../fixture/source';
 
-jest.mock('../../src/common/channelDigest/generate', () => ({
-  generateChannelDigest: jest.fn(),
-}));
+const yggdrasilOrigin = process.env.YGGDRASIL_SENTIMENT_ORIGIN;
 
-jest.mock('../../src/redis', () => ({
-  checkRedisObjectExists: jest.fn(),
-  deleteRedisKey: jest.fn(),
-  setRedisObjectIfNotExistsWithExpiry: jest.fn(),
-  setRedisObjectWithExpiry: jest.fn(),
-}));
+if (!yggdrasilOrigin) {
+  throw new Error('Missing YGGDRASIL_SENTIMENT_ORIGIN');
+}
 
-const generateChannelDigestMock = generateChannelDigest as jest.MockedFunction<
-  typeof generateChannelDigest
->;
-const checkRedisObjectExistsMock =
-  checkRedisObjectExists as jest.MockedFunction<typeof checkRedisObjectExists>;
-const deleteRedisKeyMock = deleteRedisKey as jest.MockedFunction<
-  typeof deleteRedisKey
->;
-const setRedisObjectIfNotExistsWithExpiryMock =
-  setRedisObjectIfNotExistsWithExpiry as jest.MockedFunction<
-    typeof setRedisObjectIfNotExistsWithExpiry
-  >;
-const setRedisObjectWithExpiryMock =
-  setRedisObjectWithExpiry as jest.MockedFunction<
-    typeof setRedisObjectWithExpiry
-  >;
+let con: DataSource;
 
-const logger = {
-  error: jest.fn(),
-} as unknown as FastifyLoggerInstance;
-const con = {} as DataSource;
-const pubsub = {} as PubSub;
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
+
+const saveDefinition = async ({
+  key = 'agentic',
+  sourceId = AGENTS_DIGEST_SOURCE,
+  channel = 'vibes',
+  targetAudience = 'audience',
+  frequency = 'daily',
+  includeSentiment = false,
+  minHighlightScore = null,
+  sentimentGroupIds = [],
+}: Partial<ChannelDigest> = {}): Promise<ChannelDigest> =>
+  con.getRepository(ChannelDigest).save({
+    key,
+    sourceId,
+    channel,
+    targetAudience,
+    frequency,
+    includeSentiment,
+    minHighlightScore,
+    sentimentGroupIds,
+    enabled: true,
+  });
+
+const savePost = async ({
+  id,
+  sourceId = 'content-source',
+  title,
+  content,
+  createdAt,
+  channel,
+}: {
+  id: string;
+  sourceId?: string;
+  title: string;
+  content: string;
+  createdAt: Date;
+  channel: string;
+}) =>
+  con.getRepository(FreeformPost).save({
+    id,
+    shortId: id,
+    sourceId,
+    title,
+    content,
+    contentHtml: `<p>${content}</p>`,
+    createdAt,
+    contentMeta: {
+      channels: [channel],
+    },
+  });
+
+const getDoneKey = (digestKey: string, scheduledAt: string) =>
+  `channel-digest:done:${digestKey}:${scheduledAt}`;
+
+const getLockKey = (digestKey: string, scheduledAt: string) =>
+  `channel-digest:lock:${digestKey}:${scheduledAt}`;
 
 describe('generateChannelDigest worker', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-    checkRedisObjectExistsMock.mockResolvedValue(0);
-    deleteRedisKeyMock.mockResolvedValue(1);
-    setRedisObjectIfNotExistsWithExpiryMock.mockResolvedValue(true);
-    setRedisObjectWithExpiryMock.mockResolvedValue('OK');
-    generateChannelDigestMock.mockResolvedValue(null);
+  afterEach(async () => {
+    nock.cleanAll();
+    await deleteKeysByPattern('channel-digest:*');
   });
 
   it('should be registered', () => {
@@ -69,6 +104,8 @@ describe('generateChannelDigest worker', () => {
   });
 
   it('should log and skip unknown digests', async () => {
+    const logger = createMockLogger();
+
     await worker.handler(
       {
         messageId: '1',
@@ -79,16 +116,23 @@ describe('generateChannelDigest worker', () => {
       },
       con,
       logger,
-      pubsub,
+      new PubSub(),
     );
 
-    expect(generateChannelDigestMock).not.toHaveBeenCalled();
-    expect((logger.error as jest.Mock).mock.calls[0][1]).toBe(
+    expect(logger.error).toHaveBeenCalledWith(
+      {
+        digestKey: 'missing',
+        scheduledAt: '2026-03-03T10:00:00.000Z',
+        messageId: '1',
+      },
       'Channel digest definition not found',
     );
   });
 
   it('should log and skip invalid scheduledAt values', async () => {
+    const logger = createMockLogger();
+    await saveDefinition();
+
     await worker.handler(
       {
         messageId: '1',
@@ -99,114 +143,169 @@ describe('generateChannelDigest worker', () => {
       },
       con,
       logger,
-      pubsub,
+      new PubSub(),
     );
 
-    expect(generateChannelDigestMock).not.toHaveBeenCalled();
-    expect((logger.error as jest.Mock).mock.calls[0][1]).toBe(
+    expect(logger.error).toHaveBeenCalledWith(
+      {
+        digestKey: 'agentic',
+        scheduledAt: 'not-a-date',
+        messageId: '1',
+      },
       'Channel digest scheduledAt is invalid',
     );
   });
 
-  it('should skip if the digest run is already marked done', async () => {
-    checkRedisObjectExistsMock.mockResolvedValue(1);
+  it('should skip when the digest run is already marked done', async () => {
+    const scheduledAt = '2026-03-03T10:00:00.000Z';
+    await saveDefinition();
+    await setRedisObjectWithExpiry(getDoneKey('agentic', scheduledAt), '1', 60);
 
-    await worker.handler(
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
+      worker,
       {
-        messageId: '1',
-        data: {
-          digestKey: 'agentic',
-          scheduledAt: '2026-03-03T10:00:00.000Z',
-        },
+        digestKey: 'agentic',
+        scheduledAt,
       },
-      con,
-      logger,
-      pubsub,
     );
 
-    expect(setRedisObjectIfNotExistsWithExpiryMock).not.toHaveBeenCalled();
-    expect(generateChannelDigestMock).not.toHaveBeenCalled();
-  });
-
-  it('should skip if the digest lock cannot be acquired', async () => {
-    setRedisObjectIfNotExistsWithExpiryMock.mockResolvedValue(false);
-
-    await worker.handler(
-      {
-        messageId: '1',
-        data: {
-          digestKey: 'agentic',
-          scheduledAt: '2026-03-03T10:00:00.000Z',
-        },
-      },
-      con,
-      logger,
-      pubsub,
-    );
-
-    expect(generateChannelDigestMock).not.toHaveBeenCalled();
-  });
-
-  it('should run the digest with the scheduled timestamp and mark it done', async () => {
-    await worker.handler(
-      {
-        messageId: 'message-1',
-        data: {
-          digestKey: 'agentic',
-          scheduledAt: '2026-03-03T10:00:00.000Z',
-        },
-      },
-      con,
-      logger,
-      pubsub,
-    );
-
-    expect(generateChannelDigestMock).toHaveBeenCalledWith({
-      con,
-      definition: channelDigestDefinitionsByKey.get('agentic'),
-      now: new Date('2026-03-03T10:00:00.000Z'),
+    const posts = await con.getRepository(FreeformPost).findBy({
+      sourceId: AGENTS_DIGEST_SOURCE,
     });
-    expect(setRedisObjectWithExpiryMock).toHaveBeenCalledWith(
-      'channel-digest:done:agentic:2026-03-03T10:00:00.000Z',
-      '1',
-      2 * ONE_DAY_IN_SECONDS,
-    );
-    expect(deleteRedisKeyMock).toHaveBeenCalledWith(
-      'channel-digest:lock:agentic:2026-03-03T10:00:00.000Z',
-    );
+    expect(posts).toHaveLength(0);
   });
 
-  it('should use the weekly done ttl for weekly digests', async () => {
-    channelDigestDefinitionsByKey.set('weekly-test', {
+  it('should skip when the digest lock cannot be acquired', async () => {
+    const scheduledAt = '2026-03-03T10:00:00.000Z';
+    await saveDefinition();
+    await setRedisObjectIfNotExistsWithExpiry(
+      getLockKey('agentic', scheduledAt),
+      'lock-holder',
+      60,
+    );
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
+      worker,
+      {
+        digestKey: 'agentic',
+        scheduledAt,
+      },
+    );
+
+    const posts = await con.getRepository(FreeformPost).findBy({
+      sourceId: AGENTS_DIGEST_SOURCE,
+    });
+    expect(posts).toHaveLength(0);
+  });
+
+  it('should generate the digest and mark the run done', async () => {
+    const scheduledAt = '2026-03-03T10:00:00.000Z';
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          'content-source',
+          'Content',
+          'https://daily.dev/content.png',
+        ),
+        createSource(
+          AGENTS_DIGEST_SOURCE,
+          'Agents Digest',
+          'https://daily.dev/agents.png',
+        ),
+      ]);
+    await saveDefinition({
+      key: 'agentic',
+      sourceId: AGENTS_DIGEST_SOURCE,
+      channel: 'vibes',
+      targetAudience:
+        'software engineers and engineering leaders who care about AI tooling, agentic engineering, models, and vibe coding. They range from vibe coders to seasoned engineers tracking how AI is reshaping their craft.',
+      frequency: 'daily',
+      includeSentiment: true,
+      minHighlightScore: 0.65,
+      sentimentGroupIds: ['group-1', 'group-2'],
+    });
+    await savePost({
+      id: 'post-1',
+      title: 'Agentic post',
+      content: 'Agentic content',
+      createdAt: new Date('2026-03-03T09:00:00.000Z'),
+      channel: 'vibes',
+    });
+
+    nock(yggdrasilOrigin)
+      .get('/api/sentiment/highlights')
+      .query(true)
+      .times(2)
+      .reply(200, {
+        items: [],
+        cursor: null,
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
+      worker,
+      {
+        digestKey: 'agentic',
+        scheduledAt,
+      },
+    );
+
+    const digest = await con.getRepository(FreeformPost).findOneBy({
+      sourceId: AGENTS_DIGEST_SOURCE,
+      title: 'Mock sentiment digest',
+    });
+    expect(digest).toMatchObject({
+      sourceId: AGENTS_DIGEST_SOURCE,
+      title: 'Mock sentiment digest',
+      content: 'Mock digest content',
+    });
+    expect(
+      await checkRedisObjectExists(getDoneKey('agentic', scheduledAt)),
+    ).toBe(1);
+    expect(
+      await checkRedisObjectExists(getLockKey('agentic', scheduledAt)),
+    ).toBe(0);
+    expect(
+      await getRedisObjectExpiry(getDoneKey('agentic', scheduledAt)),
+    ).toBeGreaterThan(ONE_DAY_IN_SECONDS);
+  });
+
+  it('should use a weekly done ttl for weekly digests', async () => {
+    const scheduledAt = '2026-03-02T10:00:00.000Z';
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          'content-source',
+          'Content',
+          'https://daily.dev/content.png',
+        ),
+        createSource('weekly-source', 'Weekly', 'https://daily.dev/weekly.png'),
+      ]);
+    await saveDefinition({
       key: 'weekly-test',
-      sourceId: 'weekly-test-source',
-      channels: ['weekly-test'],
-      targetAudience: 'weekly digest audience',
+      sourceId: 'weekly-source',
+      channel: 'weekly',
       frequency: 'weekly',
-      includeSentiment: false,
+    });
+    await savePost({
+      id: 'weekly-post',
+      title: 'Weekly post',
+      content: 'Weekly content',
+      createdAt: new Date('2026-02-28T09:00:00.000Z'),
+      channel: 'weekly',
     });
 
-    try {
-      await worker.handler(
-        {
-          messageId: 'message-1',
-          data: {
-            digestKey: 'weekly-test',
-            scheduledAt: '2026-03-02T10:00:00.000Z',
-          },
-        },
-        con,
-        logger,
-        pubsub,
-      );
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
+      worker,
+      {
+        digestKey: 'weekly-test',
+        scheduledAt,
+      },
+    );
 
-      expect(setRedisObjectWithExpiryMock).toHaveBeenCalledWith(
-        'channel-digest:done:weekly-test:2026-03-02T10:00:00.000Z',
-        '1',
-        2 * ONE_WEEK_IN_SECONDS,
-      );
-    } finally {
-      channelDigestDefinitionsByKey.delete('weekly-test');
-    }
+    expect(
+      await getRedisObjectExpiry(getDoneKey('weekly-test', scheduledAt)),
+    ).toBeGreaterThan(ONE_WEEK_IN_SECONDS);
   });
 });

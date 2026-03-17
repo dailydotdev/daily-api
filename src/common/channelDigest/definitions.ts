@@ -1,58 +1,48 @@
+import type { DataSource } from 'typeorm';
+import { ChannelDigest } from '../../entity/ChannelDigest';
 import { ONE_DAY_IN_SECONDS, ONE_WEEK_IN_SECONDS } from '../constants';
-import { AGENTS_DIGEST_SOURCE } from '../../entity/Source';
+import { queryReadReplica } from '../queryReadReplica';
 
-export type ChannelDigestDefinition = {
+export const getChannelDigestDefinitions = async ({
+  con,
+}: {
+  con: DataSource;
+}): Promise<ChannelDigest[]> =>
+  queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(ChannelDigest).find({
+      where: {
+        enabled: true,
+      },
+      order: {
+        key: 'ASC',
+      },
+    }),
+  );
+
+export const getChannelDigestDefinitionByKey = async ({
+  con,
+  key,
+}: {
+  con: DataSource;
   key: string;
-  sourceId: string;
-  channels: string[];
-  targetAudience: string;
-  frequency: string;
-  includeSentiment: boolean;
-  minHighlightScore?: number;
-  sentimentGroupIds?: string[];
-};
-
-export const channelDigestDefinitions: ChannelDigestDefinition[] = [
-  {
-    key: 'agentic',
-    sourceId: AGENTS_DIGEST_SOURCE,
-    channels: ['vibes'],
-    targetAudience:
-      'software engineers and engineering leaders who care about AI tooling, agentic engineering, models, and vibe coding. They range from vibe coders to seasoned engineers tracking how AI is reshaping their craft.',
-    frequency: 'daily',
-    includeSentiment: true,
-    minHighlightScore: 0.65,
-    sentimentGroupIds: [
-      '385404b4-f0f4-4e81-a338-bdca851eca31',
-      '970ab2c9-f845-4822-82f0-02169713b814',
-    ],
-  },
-];
-
-export const channelDigestDefinitionsByKey = new Map(
-  channelDigestDefinitions.map((definition) => [definition.key, definition]),
-);
-
-export const getChannelDigestCadence = (
-  definition: ChannelDigestDefinition,
-): 'daily' | 'weekly' => {
-  const frequency = definition.frequency.trim().toLowerCase();
-
-  if (frequency.includes('week')) {
-    return 'weekly';
-  }
-
-  return 'daily';
-};
+}): Promise<ChannelDigest | null> =>
+  queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(ChannelDigest).findOne({
+      where: {
+        key,
+        enabled: true,
+      },
+    }),
+  );
 
 export const isChannelDigestScheduledForDate = ({
   definition,
   now,
 }: {
-  definition: ChannelDigestDefinition;
+  definition: Pick<ChannelDigest, 'frequency'>;
   now: Date;
 }): boolean => {
-  switch (getChannelDigestCadence(definition)) {
+  switch (definition.frequency) {
     case 'weekly':
       return now.getUTCDay() === 1;
     case 'daily':
@@ -62,9 +52,9 @@ export const isChannelDigestScheduledForDate = ({
 };
 
 export const getChannelDigestLookbackSeconds = (
-  definition: ChannelDigestDefinition,
+  definition: Pick<ChannelDigest, 'frequency'>,
 ): number => {
-  switch (getChannelDigestCadence(definition)) {
+  switch (definition.frequency) {
     case 'weekly':
       return ONE_WEEK_IN_SECONDS;
     case 'daily':

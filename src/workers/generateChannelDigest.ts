@@ -1,8 +1,4 @@
-import {
-  channelDigestDefinitionsByKey,
-  getChannelDigestCadence,
-  type ChannelDigestDefinition,
-} from '../common/channelDigest/definitions';
+import { getChannelDigestDefinitionByKey } from '../common/channelDigest/definitions';
 import { generateChannelDigest } from '../common/channelDigest/generate';
 import {
   ONE_DAY_IN_SECONDS,
@@ -19,10 +15,8 @@ import { TypedWorker } from './worker';
 
 const CHANNEL_DIGEST_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 
-const getChannelDigestDoneTtl = (
-  definition: ChannelDigestDefinition,
-): number => {
-  switch (getChannelDigestCadence(definition)) {
+const getChannelDigestDoneTtl = (frequency: 'daily' | 'weekly'): number => {
+  switch (frequency) {
     case 'weekly':
       return 2 * ONE_WEEK_IN_SECONDS;
     case 'daily':
@@ -52,7 +46,10 @@ const worker: TypedWorker<'api.v1.generate-channel-digest'> = {
   handler: async (message, con, logger): Promise<void> => {
     const { digestKey, scheduledAt } = message.data;
     const logDetails = { digestKey, scheduledAt, messageId: message.messageId };
-    const definition = channelDigestDefinitionsByKey.get(digestKey);
+    const definition = await getChannelDigestDefinitionByKey({
+      con,
+      key: digestKey,
+    });
 
     if (!definition) {
       logger.error(logDetails, 'Channel digest definition not found');
@@ -95,7 +92,7 @@ const worker: TypedWorker<'api.v1.generate-channel-digest'> = {
       await setRedisObjectWithExpiry(
         doneKey,
         '1',
-        getChannelDigestDoneTtl(definition),
+        getChannelDigestDoneTtl(definition.frequency),
       );
     } catch (err) {
       logger.error({ ...logDetails, err }, 'Failed to generate channel digest');
