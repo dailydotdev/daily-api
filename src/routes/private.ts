@@ -38,6 +38,12 @@ import { z } from 'zod';
 import { counters } from '../telemetry';
 import { applyVordrToUsers } from '../common/vordr';
 import { updatePostContentSchema } from '../common/schema/posts';
+import { PostHighlight } from '../entity/PostHighlight';
+import {
+  setHighlightsSchema,
+  postHighlightItemSchema,
+  updateHighlightSchema,
+} from '../common/schema/postHighlight';
 
 interface SearchUsername {
   search: string;
@@ -414,6 +420,111 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     await con.getRepository(FreeformPost).update({ id: postId }, updatePayload);
 
     return res.status(200).send({ id: postId });
+  });
+
+  // PostHighlight endpoints
+  fastify.put<{
+    Params: { channel: string };
+    Body: z.infer<typeof setHighlightsSchema>;
+  }>('/highlights/:channel', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const { channel } = req.params;
+    const items = setHighlightsSchema.safeParse(req.body);
+
+    if (items.error) {
+      return res.status(400).send({
+        error: { name: items.error.name, issues: items.error.issues },
+      });
+    }
+
+    const con = await createOrGetConnection();
+
+    await con.transaction(async (manager) => {
+      const repo = manager.getRepository(PostHighlight);
+      await repo.delete({ channel });
+      await repo.insert(
+        items.data.map((item) => ({
+          ...item,
+          channel,
+        })),
+      );
+    });
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.post<{
+    Params: { channel: string };
+    Body: z.infer<typeof postHighlightItemSchema>;
+  }>('/highlights/:channel/items', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const { channel } = req.params;
+    const item = postHighlightItemSchema.safeParse(req.body);
+
+    if (item.error) {
+      return res.status(400).send({
+        error: { name: item.error.name, issues: item.error.issues },
+      });
+    }
+
+    const con = await createOrGetConnection();
+    await con
+      .getRepository(PostHighlight)
+      .upsert(
+        { ...item.data, channel },
+        { conflictPaths: ['channel', 'postId'] },
+      );
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.delete<{
+    Params: { channel: string; postId: string };
+  }>('/highlights/:channel/items/:postId', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const { channel, postId } = req.params;
+    const con = await createOrGetConnection();
+    await con.getRepository(PostHighlight).delete({ channel, postId });
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.patch<{
+    Params: { channel: string; postId: string };
+    Body: z.infer<typeof updateHighlightSchema>;
+  }>('/highlights/:channel/items/:postId', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const { channel, postId } = req.params;
+    const update = updateHighlightSchema.safeParse(req.body);
+
+    if (update.error) {
+      return res.status(400).send({
+        error: { name: update.error.name, issues: update.error.issues },
+      });
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(PostHighlight)
+      .update({ channel, postId }, update.data);
+
+    if (result.affected === 0) {
+      return res.status(404).send({ error: 'highlight not found' });
+    }
+
+    return res.status(200).send({ success: true });
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });
