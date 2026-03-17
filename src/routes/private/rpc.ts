@@ -101,17 +101,8 @@ export default function (router: ConnectRouter) {
       }
 
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        logger.warn(
-          { err: error, data: originalReq.toJson() },
-          'duplicate post entry',
-        );
         return await getDuplicatePost({ req, con });
       }
-
-      logger.error(
-        { err: error, data: originalReq.toJson() },
-        'error while creating post',
-      );
 
       if (
         error?.code === TypeOrmError.FOREIGN_KEY &&
@@ -119,6 +110,11 @@ export default function (router: ConnectRouter) {
       ) {
         throw new ConnectError('source not found', Code.NotFound);
       }
+
+      logger.error(
+        { err: error, data: originalReq.toJson() },
+        'error while creating post',
+      );
 
       throw new ConnectError(error.message, Code.Internal);
     }
