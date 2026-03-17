@@ -42,7 +42,10 @@ import { DigestPost } from '../../src/entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../../src/entity/Source';
 import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
-import { NotificationType } from '../../src/notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -709,7 +712,10 @@ describe('personalizedDigestEmail worker', () => {
       { id: '1' },
       {
         notificationFlags: {
-          briefing_ready: { email: 'muted', inApp: 'subscribed' },
+          briefing_ready: {
+            email: NotificationPreferenceStatus.Muted,
+            inApp: NotificationPreferenceStatus.Subscribed,
+          },
         },
       },
     );
@@ -737,6 +743,44 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(NotificationV2)
       .findOneBy({ type: NotificationType.DigestReady });
     expect(notification).not.toBeNull();
+  });
+
+  it('should create DigestPost but skip notification when BriefingReady inApp is muted', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        notificationFlags: {
+          briefing_ready: {
+            email: NotificationPreferenceStatus.Subscribed,
+            inApp: NotificationPreferenceStatus.Muted,
+          },
+        },
+      },
+    );
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeTruthy();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+    expect(notification).toBeNull();
   });
 
   it('should store ad snapshot in DigestPost flags for non-Plus user', async () => {
