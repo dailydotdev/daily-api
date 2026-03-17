@@ -401,13 +401,23 @@ const handleNonExistentUser = async (
   req: FastifyRequest,
   res: FastifyReply,
   middleware?: BootMiddleware,
+  authStrategy?: string,
 ): Promise<AnonymousBoot> => {
   req.log.info(
     { userId: req.userId },
     'could not find the logged user in the api',
   );
   await clearAuthentication(req, res, 'user not found');
-  return anonymousBoot(con, req, res, middleware);
+  return anonymousBoot(
+    con,
+    req,
+    res,
+    middleware,
+    false,
+    undefined,
+    undefined,
+    authStrategy,
+  );
 };
 
 const setAuthCookie = async (
@@ -699,7 +709,7 @@ const loggedInBoot = async ({
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
 
     if (!user) {
-      return handleNonExistentUser(con, req, res, middleware);
+      return handleNonExistentUser(con, req, res, middleware, authStrategy);
     }
 
     // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
@@ -896,6 +906,7 @@ const anonymousBoot = async (
   shouldVerify = false,
   email?: string,
   referrer?: string,
+  authStrategy?: string,
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
@@ -911,6 +922,10 @@ const anonymousBoot = async (
   const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
   if (!existingTheme && req.trackingId) {
     await setAnonymousTheme(req.trackingId, theme);
+  }
+
+  if (authStrategy) {
+    exp.a.authStrategy = authStrategy;
   }
 
   return {
@@ -1035,6 +1050,7 @@ export const getBootData = async (
         true,
         whoami?.email,
         referrer,
+        authStrategy,
       );
     }
     if (req.userId !== whoami.userId) {
@@ -1068,9 +1084,27 @@ export const getBootData = async (
     });
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
-    return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
+    return anonymousBoot(
+      con,
+      req,
+      res,
+      middleware,
+      false,
+      undefined,
+      referrer,
+      authStrategy,
+    );
   }
-  return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
+  return anonymousBoot(
+    con,
+    req,
+    res,
+    middleware,
+    false,
+    undefined,
+    referrer,
+    authStrategy,
+  );
 };
 
 const COMPANION_QUERY = parse(`query Post($url: String) {
