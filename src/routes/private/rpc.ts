@@ -96,18 +96,22 @@ export default function (router: ConnectRouter) {
     } catch (originalError) {
       const error = originalError as TypeORMQueryFailedError;
 
-      logger.error(
-        { err: error, data: originalReq.toJson() },
-        'error while creating post',
-      );
-
       if (error instanceof ConnectError) {
         throw error;
       }
 
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
+        logger.warn(
+          { err: error, data: originalReq.toJson() },
+          'duplicate post entry',
+        );
         return await getDuplicatePost({ req, con });
       }
+
+      logger.error(
+        { err: error, data: originalReq.toJson() },
+        'error while creating post',
+      );
 
       if (
         error?.code === TypeOrmError.FOREIGN_KEY &&
