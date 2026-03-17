@@ -20,6 +20,9 @@ import { BRIEFING_SOURCE } from '../../entity/Source';
 import { getPostVisible, parseReadTime } from '../../entity/posts/utils';
 import { UserActionType } from '../../entity/user/UserAction';
 import { Not } from 'typeorm';
+import { alphabet, shortIdLength } from '../../ids';
+
+const validPostIdRegex = new RegExp(`^[${alphabet}]{${shortIdLength}}$`);
 
 const generateItemLinkMarkdown = ({ item }: { item: BriefingItem }): string => {
   if (!item.postIds?.length) {
@@ -147,6 +150,29 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       }
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
+
+      const invalidPostIds: string[] = [];
+      for (const section of brief.sections) {
+        for (const item of section.items) {
+          const filtered = item.postIds.filter((id) => {
+            if (validPostIdRegex.test(id)) {
+              return true;
+            }
+            invalidPostIds.push(id);
+            return false;
+          });
+          if (filtered.length !== item.postIds.length) {
+            item.postIds.splice(0, item.postIds.length, ...filtered);
+          }
+        }
+      }
+
+      if (invalidPostIds.length) {
+        logger.warn(
+          { invalidPostIds, postId },
+          'filtered invalid postIds from briefing',
+        );
+      }
 
       const content = generateMarkdown(brief);
       const title = format(new Date(), 'MMM d, yyyy');
