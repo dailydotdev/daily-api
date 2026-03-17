@@ -633,6 +633,7 @@ const loggedInBoot = async ({
   refreshToken,
   middleware,
   userId,
+  authStrategy,
 }: {
   con: DataSource;
   req: FastifyRequest;
@@ -640,6 +641,7 @@ const loggedInBoot = async ({
   refreshToken: boolean;
   middleware?: BootMiddleware;
   userId: string;
+  authStrategy?: string;
 }): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async (span) => {
     span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
@@ -712,6 +714,27 @@ const loggedInBoot = async ({
 
     if (isPlus) {
       exp.a.plus = 1;
+    }
+
+    if (authStrategy) {
+      let finalAuthStrategy = authStrategy;
+      if (finalAuthStrategy !== 'betterauth') {
+        try {
+          const baAccountExists = await con.query(
+            `SELECT 1 FROM ba_account WHERE "userId" = $1 LIMIT 1`,
+            [userId],
+          );
+          if (baAccountExists.length > 0) {
+            finalAuthStrategy = 'betterauth';
+          }
+        } catch (err) {
+          logger.error(
+            { err: err instanceof Error ? err.message : String(err), userId },
+            'Failed to check ba_account for auth strategy override',
+          );
+        }
+      }
+      exp.a.authStrategy = finalAuthStrategy;
     }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
@@ -957,6 +980,7 @@ export const getBootData = async (
             refreshToken: !jwtValid,
             middleware,
             userId: req.userId,
+            authStrategy,
           });
         }
 
@@ -993,6 +1017,7 @@ export const getBootData = async (
       refreshToken: false,
       middleware,
       userId: req.userId,
+      authStrategy,
     });
   }
 
@@ -1039,6 +1064,7 @@ export const getBootData = async (
       refreshToken: true,
       middleware,
       userId: req.userId,
+      authStrategy,
     });
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');

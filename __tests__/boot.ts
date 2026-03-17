@@ -113,8 +113,11 @@ const BASE_BODY = {
   geo: {},
 };
 
+const LOGGED_IN_EXP = { f: 'enc', e: [], a: { authStrategy: 'gbId' } };
+
 const LOGGED_IN_BODY = {
   ...BASE_BODY,
+  exp: LOGGED_IN_EXP,
   alerts: {
     ...BASE_BODY.alerts,
     bootPopup: true,
@@ -1770,7 +1773,11 @@ describe('boot experimentation', () => {
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.exp.a).toEqual({ search: 1, squad: 1 });
+    expect(res.body.exp.a).toEqual({
+      search: 1,
+      squad: 1,
+      authStrategy: 'gbId',
+    });
   });
 });
 
