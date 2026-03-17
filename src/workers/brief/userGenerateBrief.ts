@@ -151,30 +151,29 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
 
-      const invalidPostIds: string[] = [];
-      for (const section of brief.sections) {
-        for (const item of section.items) {
-          const filtered = item.postIds.filter((id) => {
-            if (validPostIdRegex.test(id)) {
-              return true;
+      let hasInvalidPostIds = false;
+      const sanitizedSections = brief.sections.map((section) => ({
+        ...section,
+        items: section.items.map((item) => {
+          const postIds = item.postIds.filter((id) => {
+            const valid = validPostIdRegex.test(id);
+            if (!valid) {
+              hasInvalidPostIds = true;
             }
-            invalidPostIds.push(id);
-            return false;
+            return valid;
           });
-          if (filtered.length !== item.postIds.length) {
-            item.postIds.splice(0, item.postIds.length, ...filtered);
-          }
-        }
+          return { ...item, postIds };
+        }),
+      }));
+
+      if (hasInvalidPostIds) {
+        logger.warn({ postId }, 'filtered invalid postIds from briefing');
       }
 
-      if (invalidPostIds.length) {
-        logger.warn(
-          { invalidPostIds, postId },
-          'filtered invalid postIds from briefing',
-        );
-      }
-
-      const content = generateMarkdown(brief);
+      const content = generateMarkdown({
+        ...brief,
+        sections: sanitizedSections,
+      } as Briefing);
       const title = format(new Date(), 'MMM d, yyyy');
 
       const post = con.getRepository(BriefPost).create({
@@ -191,7 +190,9 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
           generatedAt: new Date(),
         },
         collectionSources: brief.sourceIds || [],
-        contentJSON: brief.sections.map((section) => section.toJson()),
+        contentJSON: sanitizedSections.map((section) =>
+          new BriefingSection(section).toJson(),
+        ),
         private: false,
       });
       post.visible = getPostVisible({ post });
