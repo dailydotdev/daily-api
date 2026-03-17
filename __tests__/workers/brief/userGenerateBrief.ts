@@ -655,7 +655,7 @@ describe('userGenerateBrief worker', () => {
               {
                 title: 'OpenAI gets a DoD contract, Microsoft gets salty',
                 body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
-                postIds: ['post-1', 'post-2', 'post-3'],
+                postIds: ['aB3cD4eF1', 'aB3cD4eF2', 'aB3cD4eF3'],
               },
             ],
           },
@@ -670,23 +670,23 @@ describe('userGenerateBrief worker', () => {
                 title: 'Threads gets Fediverse feed',
                 body: "Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date.",
                 postIds: [
-                  'post-4',
-                  'post-5',
-                  'post-6',
-                  'post-7',
-                  'post-8',
-                  'post-9',
-                  'post-10',
-                  'post-11',
-                  'post-12',
-                  'post-13',
-                  'post-14',
+                  'aB3cD4eF4',
+                  'aB3cD4eF5',
+                  'aB3cD4eF6',
+                  'aB3cD4eF7',
+                  'aB3cD4eF8',
+                  'aB3cD4eF9',
+                  'aB3cD4eFa',
+                  'aB3cD4eFb',
+                  'aB3cD4eFc',
+                  'aB3cD4eFd',
+                  'aB3cD4eFe',
                 ],
               },
               {
                 title: 'AI lied again',
                 body: 'Enough said...',
-                postIds: ['post-1'],
+                postIds: ['aB3cD4eF1'],
               },
             ],
           },
@@ -722,13 +722,13 @@ describe('userGenerateBrief worker', () => {
     expect(briefPost!.visible).toBe(true);
     expect(briefPost!.content).toBe(`## Must know
 
-- **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip. [Read more](http://localhost:5002/feed-by-ids?id=post-1&id=post-2&id=post-3)
+- **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip. [Read more](http://localhost:5002/feed-by-ids?id=aB3cD4eF1&id=aB3cD4eF2&id=aB3cD4eF3)
 
 ## Good to know
 
 - **AI agents are still pretty dumb, and dangerous**: Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.
-- **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date. [Read more](http://localhost:5002/feed-by-ids?id=post-4&id=post-5&id=post-6&id=post-7&id=post-8&id=post-9&id=post-10&id=post-11&id=post-12&id=post-13)
-- **AI lied again**: Enough said... [Read more](http://localhost:5002/posts/post-1)`);
+- **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date. [Read more](http://localhost:5002/feed-by-ids?id=aB3cD4eF4&id=aB3cD4eF5&id=aB3cD4eF6&id=aB3cD4eF7&id=aB3cD4eF8&id=aB3cD4eF9&id=aB3cD4eFa&id=aB3cD4eFb&id=aB3cD4eFc&id=aB3cD4eFd)
+- **AI lied again**: Enough said... [Read more](http://localhost:5002/posts/aB3cD4eF1)`);
 
     expect(triggerTypedEvent).toHaveBeenCalledWith(
       expect.anything(),
@@ -746,5 +746,80 @@ describe('userGenerateBrief worker', () => {
       },
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should filter invalid postIds from read more links', async () => {
+    const postId = await generateShortId();
+
+    await con.getRepository(BriefPost).save(
+      con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: false,
+      }),
+    );
+
+    nock('http://api')
+      .post('/api/user/briefing')
+      .reply(200, {
+        sections: [
+          {
+            title: 'Must know',
+            items: [
+              {
+                title: 'Valid and invalid mix',
+                body: 'Some body text.',
+                postIds: ['NzXNrxQGj', 'NzXNrxQGj] ', 'abc', 'Ab3Kd9xZq'],
+              },
+            ],
+          },
+          {
+            title: 'Good to know',
+            items: [
+              {
+                title: 'All invalid postIds',
+                body: 'Another body.',
+                postIds: ['bad] ', 'toolongid99', ''],
+              },
+              {
+                title: 'Single invalid postId',
+                body: 'Yet another body.',
+                postIds: ['NzXNrxQGj] '],
+              },
+              {
+                title: 'Single valid postId',
+                body: 'Valid single.',
+                postIds: ['Ab3Kd9xZq'],
+              },
+            ],
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: 'ugbw-1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    const briefPost = await con.getRepository(BriefPost).findOne({
+      where: { id: postId },
+    });
+
+    expect(briefPost).toBeDefined();
+    expect(briefPost!.content).toBe(`## Must know
+
+- **Valid and invalid mix**: Some body text. [Read more](http://localhost:5002/feed-by-ids?id=NzXNrxQGj&id=Ab3Kd9xZq)
+
+## Good to know
+
+- **All invalid postIds**: Another body.
+- **Single invalid postId**: Yet another body.
+- **Single valid postId**: Valid single. [Read more](http://localhost:5002/posts/Ab3Kd9xZq)`);
   });
 });
