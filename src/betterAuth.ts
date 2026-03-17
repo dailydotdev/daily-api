@@ -39,6 +39,10 @@ type BetterAuthHookContext = {
 type KratosVerifyResult = { valid: true; userId: string } | { valid: false };
 
 const TRACKING_COOKIE_KEY = cookies.tracking.key;
+const TRACKING_ID_REGEX = /^[0-9A-Za-z]{21}$/;
+
+const isValidTrackingId = (value: string): boolean =>
+  TRACKING_ID_REGEX.test(value);
 
 const parseTrackingIdFromCookieHeader = (
   cookieHeader: string,
@@ -47,7 +51,10 @@ const parseTrackingIdFromCookieHeader = (
     const [name, ...valueParts] = part.trim().split('=');
     if (name === TRACKING_COOKIE_KEY) {
       const value = valueParts.join('=');
-      return value || undefined;
+      if (value && isValidTrackingId(value)) {
+        return value;
+      }
+      return undefined;
     }
   }
   return undefined;
