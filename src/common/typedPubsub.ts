@@ -290,6 +290,9 @@ export type PubSubSchema = {
   'api.v1.worker-job-execute': {
     jobId: string;
   };
+  'api.v1.ba-user-created': {
+    userId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

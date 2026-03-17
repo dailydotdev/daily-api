@@ -6,6 +6,7 @@ import * as argon2 from 'argon2';
 import { z } from 'zod';
 import { AppDataSource } from './data-source';
 import { logger } from './logger';
+import { triggerTypedEvent } from './common/typedPubsub';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 import { handleRegex } from './common/object';
 import { validateAndTransformHandle } from './common/handles';
@@ -476,6 +477,10 @@ const createAuth = (): BetterAuthHandler => {
                 `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $1`,
                 values,
               );
+
+              await triggerTypedEvent(logger, 'api.v1.ba-user-created', {
+                userId: user.id,
+              });
             } catch (err) {
               logger.error(
                 {
