@@ -70,7 +70,7 @@ export const cookies: {
     opts: {},
   },
   authSession: {
-    key: 'daily.session_token',
+    key: 'dast',
     opts: {
       maxAge: 1000 * 60 * 60 * 24 * 7,
       signed: false,
@@ -91,9 +91,8 @@ export const cookies: {
   },
 };
 
-const extractDomain = (req: FastifyRequest): string => {
-  const host = req.hostname.split(':')[0];
-  // Localhost fix for local testing
+export const extractRootDomain = (hostname: string): string => {
+  const host = hostname.split(':')[0];
   if (host === '127.0.0.1') return host;
   const parts = host.split('.');
   while (parts.length > 2) {
@@ -101,6 +100,9 @@ const extractDomain = (req: FastifyRequest): string => {
   }
   return parts.join('.');
 };
+
+const extractDomain = (req: FastifyRequest): string =>
+  extractRootDomain(req.hostname);
 
 const addSubdomainOpts = (
   req: FastifyRequest,

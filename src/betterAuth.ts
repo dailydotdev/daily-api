@@ -14,7 +14,7 @@ import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
 import { fetchOptions } from './http';
 import { retryFetch } from './integrations/retry';
-import { cookies } from './cookies';
+import { cookies, extractRootDomain } from './cookies';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
@@ -316,6 +316,10 @@ const migrateLegacyCredentialIfNeeded = async ({
   }
 };
 
+const cookieDomain = process.env.BETTER_AUTH_BASE_URL
+  ? extractRootDomain(new URL(process.env.BETTER_AUTH_BASE_URL).hostname)
+  : undefined;
+
 const createAuth = (): BetterAuthHandler => {
   const pool = getPool();
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
@@ -363,6 +367,15 @@ const createAuth = (): BetterAuthHandler => {
     advanced: {
       cookiePrefix: 'daily',
       useSecureCookies: process.env.NODE_ENV === 'production',
+      crossSubDomainCookies: {
+        enabled: !!cookieDomain,
+        domain: cookieDomain,
+      },
+      cookies: {
+        session_token: {
+          name: 'dast',
+        },
+      },
     },
     rateLimit: {
       storage: 'secondary-storage',
