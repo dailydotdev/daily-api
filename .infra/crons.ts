@@ -171,7 +171,7 @@ export const crons: Cron[] = [
     schedule: '0 0 * * 1',
   },
   {
-    name: 'agents-digest',
+    name: 'channel-digests',
     schedule: '17 4 * * *',
   },
   {

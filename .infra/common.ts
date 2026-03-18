@@ -502,6 +502,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.achievement-unlocked',
     subscription: 'api.achievement-unlocked-notification',
   },
+  {
+    topic: 'api.v1.generate-channel-digest',
+    subscription: 'api.generate-channel-digest',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
