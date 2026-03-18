@@ -32,7 +32,7 @@ import updateAchievementRarity from './updateAchievementRarity';
 import rotateDailyQuests from './rotateDailyQuests';
 import rotateWeeklyQuests from './rotateWeeklyQuests';
 import backfillGearCategory from './backfillGearCategory';
-import agentsDigest from './agentsDigest';
+import channelDigests from './channelDigests';
 import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
 
 export const crons: Cron[] = [
@@ -69,6 +69,6 @@ export const crons: Cron[] = [
   rotateDailyQuests,
   rotateWeeklyQuests,
   backfillGearCategory,
-  agentsDigest,
+  channelDigests,
   cleanExpiredBetterAuthSessions,
 ];
