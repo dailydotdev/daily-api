@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { FastifyReply } from 'fastify';
 import type { FastifyRequest } from 'fastify';
+import { fromNodeHeaders } from 'better-auth/node';
 import { getBetterAuth } from '../betterAuth';
 
 const formatError = (err: unknown): string =>
@@ -38,14 +39,7 @@ const stripBetterAuthStateMarker = (url: URL): URL => {
   return url;
 };
 
-// Better Auth returns a Fetch Response, not a Fastify reply. We forward it
-// through Fastify so the standard middleware stack stays in control, while
-// preserving multiple Set-Cookie headers for session/verification flows.
-const sendBetterAuthResponse = async (
-  reply: FastifyReply,
-  response: Response,
-): Promise<FastifyReply> => {
-  reply.status(response.status);
+const forwardHeaders = (reply: FastifyReply, response: Response): void => {
   response.headers.forEach((value, key) => {
     if (key.toLowerCase() !== 'set-cookie') {
       reply.header(key, value);
@@ -59,12 +53,42 @@ const sendBetterAuthResponse = async (
   if (setCookies.length > 0) {
     reply.header('set-cookie', setCookies);
   }
+};
 
-  if (!response.body) {
-    return reply.send();
+type CallBetterAuthOptions = {
+  req: FastifyRequest;
+  reply?: FastifyReply;
+  path?: string;
+  method?: string;
+  body?: string;
+};
+
+export const callBetterAuth = async ({
+  req,
+  reply,
+  path,
+  method,
+  body,
+}: CallBetterAuthOptions): Promise<Response> => {
+  const baseUrl = new URL(req.url, `${req.protocol}://${req.host}`);
+  const url = path ? new URL(path, baseUrl.origin) : baseUrl;
+  const headers = fromNodeHeaders(
+    req.headers as Record<string, string | string[] | undefined>,
+  );
+
+  const authRequest = new Request(stripBetterAuthStateMarker(url), {
+    method: method ?? req.method,
+    headers,
+    ...(body ? { body } : {}),
+  });
+
+  const response = await getBetterAuth().handler(authRequest);
+
+  if (reply) {
+    forwardHeaders(reply, response);
   }
 
-  return reply.send(await response.text());
+  return response;
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
@@ -73,17 +97,17 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     url: '/auth/*',
     handler: async (request, reply) => {
       try {
-        const url = stripBetterAuthStateMarker(
-          new URL(request.url, `${request.protocol}://${request.host}`),
-        );
         const body = toRequestBody(request);
-        const authRequest = new Request(url, {
-          method: request.method,
-          headers: new Headers(request.headers as unknown as HeadersInit),
-          ...(body ? { body } : {}),
+        const response = await callBetterAuth({
+          req: request,
+          reply,
+          body,
         });
-        const response = await getBetterAuth().handler(authRequest);
-        return sendBetterAuthResponse(reply, response);
+        reply.status(response.status);
+        if (!response.body) {
+          return reply.send();
+        }
+        return reply.send(await response.text());
       } catch (error) {
         request.log.error(
           { err: formatError(error) },

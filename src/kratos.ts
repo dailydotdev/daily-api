@@ -8,8 +8,7 @@ import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
 import { LogoutReason } from './common';
 import { counters } from './telemetry';
-import { fromNodeHeaders } from 'better-auth/node';
-import { getBetterAuth } from './betterAuth';
+import { callBetterAuth } from './routes/betterAuth';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -159,18 +158,17 @@ export const dispatchWhoami = async (
 // The app still uses a unified logout endpoint while both Kratos and Better
 // Auth sessions can exist. Triggering BA sign-out here keeps `/v1/users/logout`
 // as the single logout path during the migration.
-const logoutBetterAuth = async (req: FastifyRequest): Promise<void> => {
+const logoutBetterAuth = async (
+  req: FastifyRequest,
+  res: FastifyReply,
+): Promise<void> => {
   try {
-    const auth = getBetterAuth();
-    const headers = fromNodeHeaders(
-      req.headers as Record<string, string | string[] | undefined>,
-    );
-    const baseUrl = new URL(req.url, `${req.protocol}://${req.host}`);
-    const signOutReq = new Request(`${baseUrl.origin}/auth/sign-out`, {
+    await callBetterAuth({
+      req,
+      reply: res,
+      path: '/auth/sign-out',
       method: 'POST',
-      headers,
     });
-    await auth.handler(signOutReq);
   } catch (err) {
     req.log.warn({ err }, 'error during BetterAuth sign-out');
   }
@@ -205,7 +203,7 @@ export const logout = async (
     }
   }
 
-  await logoutBetterAuth(req);
+  await logoutBetterAuth(req, res);
 
   await clearAuthentication(
     req,
