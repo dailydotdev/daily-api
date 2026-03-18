@@ -20,8 +20,15 @@ export enum QuestEventType {
   BookmarkPost = 'bookmark_post',
   BriefRead = 'brief_read',
   HotTakeVote = 'hot_take_vote',
+  HotTakeCreate = 'hot_take_create',
   UserFollow = 'user_follow',
+  ViewUserProfile = 'view_user_profile',
   PostShare = 'post_share',
+  VisitArena = 'visit_arena',
+  VisitExplorePage = 'visit_explore_page',
+  VisitDiscussionsPage = 'visit_discussions_page',
+  VisitReadItLaterPage = 'visit_read_it_later_page',
+  FeedbackSubmit = 'feedback_submit',
   SquadJoin = 'squad_join',
 }
 
