@@ -85,7 +85,7 @@ import {
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { isDemoCompanyId } from '../common';
+import { demoCompany, isDemoCompanyId } from '../common';
 import { applyDeterministicVariation } from '../common/number';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
@@ -1662,7 +1662,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         { key: 'updatedAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder.where({ userId: ctx.userId });
+            builder.queryBuilder
+              .where({ userId: ctx.userId })
+              .andWhere(
+                `${builder.alias}."opportunityId" NOT IN (SELECT id FROM opportunity WHERE "organizationId" = :demoCompanyId)`,
+                { demoCompanyId: demoCompany.id },
+              );
 
             return builder;
           },
