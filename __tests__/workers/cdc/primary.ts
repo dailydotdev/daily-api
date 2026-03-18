@@ -76,7 +76,6 @@ import { addDays, addYears, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
   debeziumTimeToDate,
-  demoCompany,
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyCommentCommented,
