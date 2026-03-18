@@ -146,6 +146,10 @@ const digestTypeToFunctionMap: Record<
 
     await dedupedSend(
       async () => {
+        const inAppPref =
+          user.notificationFlags?.[NotificationType.BriefingReady]?.inApp ??
+          NotificationPreferenceStatus.Subscribed;
+
         if (remoteConfig.vars.digestPostEnabled) {
           const digestPostId = await upsertDigestPost({
             con,
@@ -156,7 +160,10 @@ const digestTypeToFunctionMap: Record<
             adIndex: digestFeature.adIndex,
           });
 
-          if (digestPostId) {
+          if (
+            digestPostId &&
+            inAppPref !== NotificationPreferenceStatus.Muted
+          ) {
             const [postCtx] = await Promise.all([
               buildPostContext(con, digestPostId),
               cleanupDigestReadyNotifications(con.manager, user.id),
@@ -181,12 +188,7 @@ const digestTypeToFunctionMap: Record<
           user.notificationFlags?.[NotificationType.BriefingReady]?.email ??
           NotificationPreferenceStatus.Subscribed;
 
-        if (emailPref === NotificationPreferenceStatus.Muted) {
-          logger.warn(
-            { userId: user.id },
-            'Skipping digest email, user has BriefingReady email muted',
-          );
-        } else {
+        if (emailPref !== NotificationPreferenceStatus.Muted) {
           await sendEmail(emailPayload);
         }
       },
