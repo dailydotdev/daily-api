@@ -8,7 +8,7 @@ import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
 import { LogoutReason } from './common';
 import { counters } from './telemetry';
-import { callBetterAuth, forwardBetterAuthHeaders } from './routes/betterAuth';
+import { callBetterAuth } from './routes/betterAuth';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -163,12 +163,12 @@ const logoutBetterAuth = async (
   res: FastifyReply,
 ): Promise<void> => {
   try {
-    const response = await callBetterAuth({
+    await callBetterAuth({
       req,
+      reply: res,
       path: '/auth/sign-out',
       method: 'POST',
     });
-    forwardBetterAuthHeaders(res, response);
   } catch (err) {
     req.log.warn({ err }, 'error during BetterAuth sign-out');
   }

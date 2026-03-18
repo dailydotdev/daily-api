@@ -39,31 +39,25 @@ const stripBetterAuthStateMarker = (url: URL): URL => {
   return url;
 };
 
-export const forwardBetterAuthHeaders = (
-  reply: FastifyReply,
-  response: Response,
-): void => {
+const forwardHeaders = (reply: FastifyReply, response: Response): void => {
   response.headers.forEach((value, key) => {
-    reply.header(key, value);
+    if (key.toLowerCase() !== 'set-cookie') {
+      reply.header(key, value);
+    }
   });
-};
 
-const sendBetterAuthResponse = async (
-  reply: FastifyReply,
-  response: Response,
-): Promise<FastifyReply> => {
-  reply.status(response.status);
-  forwardBetterAuthHeaders(reply, response);
-
-  if (!response.body) {
-    return reply.send();
+  const nodeHeaders = response.headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+  const setCookies = nodeHeaders.getSetCookie?.() ?? [];
+  if (setCookies.length > 0) {
+    reply.header('set-cookie', setCookies);
   }
-
-  return reply.send(await response.text());
 };
 
 type CallBetterAuthOptions = {
   req: FastifyRequest;
+  reply?: FastifyReply;
   path?: string;
   method?: string;
   body?: string;
@@ -71,6 +65,7 @@ type CallBetterAuthOptions = {
 
 export const callBetterAuth = async ({
   req,
+  reply,
   path,
   method,
   body,
@@ -87,7 +82,13 @@ export const callBetterAuth = async ({
     ...(body ? { body } : {}),
   });
 
-  return getBetterAuth().handler(authRequest);
+  const response = await getBetterAuth().handler(authRequest);
+
+  if (reply) {
+    forwardHeaders(reply, response);
+  }
+
+  return response;
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
@@ -99,9 +100,14 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         const body = toRequestBody(request);
         const response = await callBetterAuth({
           req: request,
+          reply,
           body,
         });
-        return sendBetterAuthResponse(reply, response);
+        reply.status(response.status);
+        if (!response.body) {
+          return reply.send();
+        }
+        return reply.send(await response.text());
       } catch (error) {
         request.log.error(
           { err: formatError(error) },
