@@ -316,6 +316,9 @@ const migrateLegacyCredentialIfNeeded = async ({
   }
 };
 
+const cookieDomain =
+  process.env.NODE_ENV === 'production' ? '.daily.dev' : undefined;
+
 const createAuth = (): BetterAuthHandler => {
   const pool = getPool();
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
@@ -363,6 +366,15 @@ const createAuth = (): BetterAuthHandler => {
     advanced: {
       cookiePrefix: 'daily',
       useSecureCookies: process.env.NODE_ENV === 'production',
+      crossSubDomainCookies: {
+        enabled: !!cookieDomain,
+        domain: cookieDomain,
+      },
+      cookies: {
+        session_token: {
+          name: 'dast',
+        },
+      },
     },
     rateLimit: {
       storage: 'secondary-storage',

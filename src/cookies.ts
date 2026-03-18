@@ -70,7 +70,7 @@ export const cookies: {
     opts: {},
   },
   authSession: {
-    key: 'daily.session_token',
+    key: 'dast',
     opts: {
       maxAge: 1000 * 60 * 60 * 24 * 7,
       signed: false,

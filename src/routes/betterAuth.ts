@@ -93,7 +93,7 @@ export const callBetterAuth = async ({
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   fastify.route({
-    method: ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'],
+    method: ['GET', 'POST'],
     url: '/auth/*',
     handler: async (request, reply) => {
       try {
