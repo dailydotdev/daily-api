@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
@@ -313,6 +314,75 @@ describe('checkQuestProgress', () => {
     expect(userQuest.status).toBe(UserQuestStatus.Completed);
     expect(userQuest.completedAt).toBeTruthy();
   });
+
+  it.each([
+    {
+      eventType: QuestEventType.PostShare,
+      name: 'Link drop',
+      description: 'Create a shared link post',
+    },
+    {
+      eventType: QuestEventType.BookmarkPost,
+      name: 'Save point',
+      description: 'Bookmark 1 post',
+    },
+  ])(
+    'should complete single-step daily quests for %s',
+    async ({ eventType, name, description }) => {
+      const now = new Date();
+      const logger = createMockLogger();
+      const rotationId = randomUUID();
+      const questId = randomUUID();
+      const periodStart = new Date(now.getTime() - 60 * 60 * 1000);
+      const periodEnd = new Date(now.getTime() + 60 * 60 * 1000);
+
+      await saveFixtures(con, Quest, [
+        {
+          id: questId,
+          name,
+          description,
+          type: QuestType.Daily,
+          eventType,
+          criteria: { targetCount: 1 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: rotationId,
+          questId,
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 1,
+          periodStart,
+          periodEnd,
+        },
+      ]);
+
+      const didUpdate = await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType,
+        incrementBy: 1,
+        now,
+      });
+
+      expect(didUpdate).toBe(true);
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        userId,
+        rotationId,
+      });
+
+      expect(userQuest).toMatchObject({
+        progress: 1,
+        status: UserQuestStatus.Completed,
+      });
+      expect(userQuest.completedAt).toBeTruthy();
+    },
+  );
 
   it('should rethrow quest progress errors for caller retries', async () => {
     const logger = createMockLogger();

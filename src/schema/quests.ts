@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { In, LessThanOrEqual, MoreThan, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext, SubscriptionContext } from '../Context';
 import {
+  checkQuestProgress,
   getQuestLevelState,
   publishQuestUpdate,
   QUEST_ROTATION_UPDATE_CHANNEL,
@@ -12,6 +13,7 @@ import { transferCores } from '../common/njord';
 import { systemUser } from '../common/utils';
 import {
   Quest,
+  QuestEventType,
   QuestReward,
   QuestRewardType,
   QuestRotation,
@@ -26,6 +28,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { NotFoundError } from '../errors';
 import { redisPubSub } from '../redis';
+import { GQLEmptyResponse } from './common';
 
 type GQLQuestLevel = ReturnType<typeof getQuestLevelState>;
 
@@ -72,6 +75,13 @@ type QuestRewardTotals = {
 };
 
 const DEFAULT_QUEST_STATUS = UserQuestStatus.InProgress;
+const CLIENT_TRACKABLE_QUEST_EVENT_TYPES = new Set<QuestEventType>([
+  QuestEventType.VisitArena,
+  QuestEventType.VisitExplorePage,
+  QuestEventType.VisitDiscussionsPage,
+  QuestEventType.VisitReadItLaterPage,
+  QuestEventType.ViewUserProfile,
+]);
 
 const toQuestBucket = (quests: GQLUserQuest[]): GQLQuestBucket => ({
   regular: quests.filter((quest) => !quest.isPlusSlot),
@@ -480,12 +490,21 @@ export const typeDefs = /* GraphQL */ `
     periodEnd: DateTime!
   }
 
+  enum ClientQuestEventType {
+    visit_arena
+    visit_explore_page
+    visit_discussions_page
+    visit_read_it_later_page
+    view_user_profile
+  }
+
   extend type Query {
     questDashboard: QuestDashboard! @auth
   }
 
   extend type Mutation {
     claimQuestReward(userQuestId: ID!): QuestDashboard! @auth
+    trackQuestEvent(eventType: ClientQuestEventType!): EmptyResponse! @auth
   }
 
   extend type Subscription {
@@ -541,6 +560,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       return dashboard;
+    },
+    trackQuestEvent: async (
+      _,
+      { eventType }: { eventType: QuestEventType },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!CLIENT_TRACKABLE_QUEST_EVENT_TYPES.has(eventType)) {
+        throw new ValidationError('Quest event cannot be tracked directly');
+      }
+
+      await checkQuestProgress({
+        con: ctx.con.manager,
+        logger: ctx.log,
+        userId: ctx.userId,
+        eventType,
+      });
+
+      return {
+        _: true,
+      };
     },
   },
   Subscription: {

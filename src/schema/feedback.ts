@@ -13,6 +13,7 @@ import {
   feedbackClientInfoSchema,
   feedbackInputSchema,
 } from '../common/schema/feedback';
+import { checkQuestProgress } from '../common/quest';
 import { ZodError } from 'zod';
 import {
   connectionFromNodes,
@@ -21,6 +22,7 @@ import {
 } from './common';
 import { Roles } from '../roles';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { QuestEventType } from '../entity/Quest';
 
 type GQLFeedbackInput = {
   category: number;
@@ -416,6 +418,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           usedById: feedback.id,
         });
       }
+
+      await checkQuestProgress({
+        con: ctx.con.manager,
+        logger: ctx.log,
+        userId: ctx.userId,
+        eventType: QuestEventType.FeedbackSubmit,
+      });
 
       return {
         _: true,

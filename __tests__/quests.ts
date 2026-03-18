@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import createOrGetConnection from '../src/db';
 import {
   initializeGraphQLTesting,
@@ -8,6 +10,7 @@ import {
   type GraphQLTestingState,
 } from './helpers';
 import {
+  Feedback,
   Quest,
   QuestEventType,
   QuestReward,
@@ -21,6 +24,7 @@ import {
   UserQuestProfile,
   UserQuestStatus,
 } from '../src/entity/user';
+import { HotTake } from '../src/entity/user/HotTake';
 import appFunc from '../src';
 import type { Context } from '../src/Context';
 import { FastifyInstance } from 'fastify';
@@ -92,6 +96,30 @@ query QuestDashboard {
 }
 `;
 
+const TRACK_QUEST_EVENT_MUTATION = `
+mutation TrackQuestEvent($eventType: ClientQuestEventType!) {
+  trackQuestEvent(eventType: $eventType) {
+    _
+  }
+}
+`;
+
+const ADD_HOT_TAKE_MUTATION = `
+mutation AddHotTake($input: AddHotTakeInput!) {
+  addHotTake(input: $input) {
+    id
+  }
+}
+`;
+
+const SUBMIT_FEEDBACK_MUTATION = `
+mutation SubmitFeedback($input: FeedbackInput!) {
+  submitFeedback(input: $input) {
+    _
+  }
+}
+`;
+
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -126,6 +154,8 @@ beforeEach(async () => {
   await con.createQueryBuilder().delete().from(QuestRotation).execute();
   await con.createQueryBuilder().delete().from(QuestReward).execute();
   await con.createQueryBuilder().delete().from(Quest).execute();
+  await con.createQueryBuilder().delete().from(Feedback).execute();
+  await con.createQueryBuilder().delete().from(HotTake).execute();
   await con.getRepository(User).delete({ id: questUserId });
 });
 
@@ -188,6 +218,53 @@ const seedQuest = async ({
       claimedAt: null,
     },
   ]);
+};
+
+const seedActiveQuest = async ({
+  eventType,
+  targetCount = 1,
+  name = 'Quest under test',
+  description = 'Quest under test',
+}: {
+  eventType: QuestEventType;
+  targetCount?: number;
+  name?: string;
+  description?: string;
+}) => {
+  const seededQuestId = randomUUID();
+  const seededRotationId = randomUUID();
+  const now = new Date();
+
+  await saveFixtures(con, Quest, [
+    {
+      id: seededQuestId,
+      name,
+      description,
+      type: QuestType.Daily,
+      eventType,
+      criteria: {
+        targetCount,
+      },
+      active: true,
+    },
+  ]);
+
+  await saveFixtures(con, QuestRotation, [
+    {
+      id: seededRotationId,
+      questId: seededQuestId,
+      type: QuestType.Daily,
+      plusOnly: false,
+      slot: 1,
+      periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+      periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+    },
+  ]);
+
+  return {
+    questId: seededQuestId,
+    rotationId: seededRotationId,
+  };
 };
 
 describe('claimQuestReward mutation', () => {
@@ -326,5 +403,164 @@ describe('claimQuestReward mutation', () => {
 
     expect(res.errors).toHaveLength(1);
     expect(res.errors?.[0]?.message).toBe('Quest is not completed yet');
+  });
+});
+
+describe('quest progress hooks', () => {
+  it.each([
+    {
+      eventType: QuestEventType.VisitArena,
+      name: 'Arena scout',
+      description: 'Visit the Arena',
+    },
+    {
+      eventType: QuestEventType.VisitExplorePage,
+      name: 'Exploration mode',
+      description: 'Visit the Explore page',
+    },
+    {
+      eventType: QuestEventType.VisitDiscussionsPage,
+      name: 'Discussion diver',
+      description: 'Visit the Discussions page',
+    },
+    {
+      eventType: QuestEventType.VisitReadItLaterPage,
+      name: 'Rainy day queue',
+      description: 'Visit the Read it later page',
+    },
+  ])(
+    'should complete %s client-side page visit quests',
+    async ({ eventType, name, description }) => {
+      loggedUser = questUserId;
+
+      await saveFixtures(con, User, [{ id: questUserId }]);
+      const { rotationId } = await seedActiveQuest({
+        eventType,
+        name,
+        description,
+      });
+
+      const res = await client.mutate(TRACK_QUEST_EVENT_MUTATION, {
+        variables: {
+          eventType,
+        },
+      });
+
+      expect(res.errors).toBeUndefined();
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        userId: questUserId,
+        rotationId,
+      });
+
+      expect(userQuest).toMatchObject({
+        progress: 1,
+        status: UserQuestStatus.Completed,
+      });
+    },
+  );
+
+  it('should track client-side profile view quest progress', async () => {
+    loggedUser = questUserId;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    const { rotationId } = await seedActiveQuest({
+      eventType: QuestEventType.ViewUserProfile,
+      targetCount: 3,
+      name: 'People watcher',
+      description: 'View 3 other user profiles',
+    });
+
+    await client.mutate(TRACK_QUEST_EVENT_MUTATION, {
+      variables: {
+        eventType: QuestEventType.ViewUserProfile,
+      },
+    });
+    await client.mutate(TRACK_QUEST_EVENT_MUTATION, {
+      variables: {
+        eventType: QuestEventType.ViewUserProfile,
+      },
+    });
+    const res = await client.mutate(TRACK_QUEST_EVENT_MUTATION, {
+      variables: {
+        eventType: QuestEventType.ViewUserProfile,
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 3,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  it('should complete hot take quests when creating a hot take', async () => {
+    loggedUser = questUserId;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    const { rotationId } = await seedActiveQuest({
+      eventType: QuestEventType.HotTakeCreate,
+      name: 'Hot take mic check',
+      description: 'Create a hot take',
+    });
+
+    const res = await client.mutate(ADD_HOT_TAKE_MUTATION, {
+      variables: {
+        input: {
+          emoji: '🔥',
+          title: 'Ship it',
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  it('should complete feedback quests when submitting feedback', async () => {
+    loggedUser = questUserId;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    const { rotationId } = await seedActiveQuest({
+      eventType: QuestEventType.FeedbackSubmit,
+      name: 'Feedback loop',
+      description: 'Submit feedback',
+    });
+
+    const res = await client.mutate(SUBMIT_FEEDBACK_MUTATION, {
+      variables: {
+        input: {
+          category: UserFeedbackCategory.BUG,
+          description: 'Something feels off here',
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
   });
 });
