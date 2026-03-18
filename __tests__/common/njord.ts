@@ -27,7 +27,7 @@ import {
 } from '../../src/entity/user/UserTransaction';
 import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
-import { parseBigInt } from '../../src/common';
+import { parseBigInt, questUser } from '../../src/common';
 import { TransferError } from '../../src/errors';
 import { verifyJwt } from '../../src/auth';
 import { serviceClientId } from '../../src/types';
@@ -187,6 +187,58 @@ describe('transferCores', () => {
         },
       });
     });
+  });
+
+  it('should treat quest as a system sender', async () => {
+    const mockTransport = createMockNjordTransport();
+    const mockedClient = createClient(Credits, mockTransport);
+    const clientSpy = jest.spyOn(mockedClient, 'transfer');
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => mockedClient);
+
+    const transaction = await con.getRepository(UserTransaction).save(
+      con.getRepository(UserTransaction).create({
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tc-2',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: questUser.id,
+        value: 42,
+        valueIncFees: 42,
+        fee: 0,
+        request: {},
+        flags: {
+          note: 'Quest reward test',
+        },
+      }),
+    );
+
+    await njordCommon.transferCores({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      transaction,
+      entityManager: con.manager,
+    });
+
+    expect(clientSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transfers: [
+          expect.objectContaining({
+            sender: {
+              id: questUser.id,
+              type: EntityType.SYSTEM,
+            },
+            receiver: {
+              id: 't-tc-2',
+              type: EntityType.USER,
+            },
+          }),
+        ],
+      }),
+      expect.anything(),
+    );
   });
 
   it('should throw on njord error', async () => {
