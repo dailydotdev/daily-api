@@ -39,6 +39,9 @@ export const demoCompany = {
   id: 'e8c7a930-ca69-4cba-b26c-b6c810d6ab7d',
 };
 
+export const isDemoCompanyId = (organizationId: string | null | undefined) =>
+  organizationId === demoCompany.id;
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;

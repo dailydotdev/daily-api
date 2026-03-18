@@ -21,6 +21,7 @@ import {
   OpportunityPermissions,
 } from '../../opportunity/accessControl';
 import {
+  isDemoCompanyId,
   updateFlagsStatement,
   updateRecruiterSubscriptionFlags,
 } from '../../utils';
@@ -197,7 +198,7 @@ export const createOpportunitySubscription = async ({
   });
 
   // If this is an external payment, notify existing recruiters
-  if (external_pay) {
+  if (external_pay && !isDemoCompanyId(opportunity.organizationId)) {
     await triggerTypedEvent(logger, 'api.v1.opportunity-external-payment', {
       opportunityId: opportunity_id,
       title: opportunity.title,
