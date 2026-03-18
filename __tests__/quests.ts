@@ -407,6 +407,59 @@ describe('claimQuestReward mutation', () => {
 });
 
 describe('quest progress hooks', () => {
+  it.each([
+    {
+      eventType: QuestEventType.VisitArena,
+      name: 'Arena scout',
+      description: 'Visit the Arena',
+    },
+    {
+      eventType: QuestEventType.VisitExplorePage,
+      name: 'Exploration mode',
+      description: 'Visit the Explore page',
+    },
+    {
+      eventType: QuestEventType.VisitDiscussionsPage,
+      name: 'Discussion diver',
+      description: 'Visit the Discussions page',
+    },
+    {
+      eventType: QuestEventType.VisitReadItLaterPage,
+      name: 'Rainy day queue',
+      description: 'Visit the Read it later page',
+    },
+  ])(
+    'should complete %s client-side page visit quests',
+    async ({ eventType, name, description }) => {
+      loggedUser = questUserId;
+
+      await saveFixtures(con, User, [{ id: questUserId }]);
+      const { rotationId } = await seedActiveQuest({
+        eventType,
+        name,
+        description,
+      });
+
+      const res = await client.mutate(TRACK_QUEST_EVENT_MUTATION, {
+        variables: {
+          eventType,
+        },
+      });
+
+      expect(res.errors).toBeUndefined();
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        userId: questUserId,
+        rotationId,
+      });
+
+      expect(userQuest).toMatchObject({
+        progress: 1,
+        status: UserQuestStatus.Completed,
+      });
+    },
+  );
+
   it('should track client-side profile view quest progress', async () => {
     loggedUser = questUserId;
 
