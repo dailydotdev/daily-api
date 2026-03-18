@@ -513,6 +513,18 @@ const handleSharePostsClicked: RetroactiveHandler = async (con, userIds) => {
   return toProgressMap(rows);
 };
 
+const handleQuestClaim: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT "userId", COUNT(*)::int AS count
+     FROM user_quest
+     WHERE "userId" = ANY($1) AND status = 'claimed'
+     GROUP BY "userId"`,
+    [userIds],
+  );
+
+  return toProgressMap(rows);
+};
+
 const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.ProfileImageUpdate]: handleProfileImageUpdate,
   [AchievementEventType.ProfileCoverUpdate]: handleProfileCoverUpdate,
@@ -561,6 +573,7 @@ const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.PostImpressions]: handlePostImpressions,
   [AchievementEventType.ShareClickMilestone]: handleShareClickMilestone,
   [AchievementEventType.SharePostsClicked]: handleSharePostsClicked,
+  [AchievementEventType.QuestClaim]: handleQuestClaim,
 };
 
 export const syncUsersRetroactiveAchievements = async ({

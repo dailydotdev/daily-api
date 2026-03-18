@@ -8,6 +8,9 @@ import {
   type GraphQLTestingState,
 } from './helpers';
 import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
   Quest,
   QuestEventType,
   QuestReward,
@@ -17,6 +20,7 @@ import {
   User,
 } from '../src/entity';
 import {
+  UserAchievement,
   UserQuest,
   UserQuestProfile,
   UserQuestStatus,
@@ -121,6 +125,8 @@ beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
 
+  await con.createQueryBuilder().delete().from(UserAchievement).execute();
+  await con.createQueryBuilder().delete().from(Achievement).execute();
   await con.createQueryBuilder().delete().from(UserQuest).execute();
   await con.createQueryBuilder().delete().from(UserQuestProfile).execute();
   await con.createQueryBuilder().delete().from(QuestRotation).execute();
@@ -326,5 +332,169 @@ describe('claimQuestReward mutation', () => {
 
     expect(res.errors).toHaveLength(1);
     expect(res.errors?.[0]?.message).toBe('Quest is not completed yet');
+  });
+
+  it('should increment achievement progress on claim', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    const achievementId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await con.getRepository(Achievement).save({
+      id: achievementId,
+      name: 'Quest enthusiast test',
+      description: 'Complete and claim 10 quests',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.QuestClaim,
+      criteria: { targetCount: 10 },
+      points: 5,
+    });
+
+    await seedQuest({
+      userQuestStatus: UserQuestStatus.Completed,
+      periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+      periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+    });
+
+    const res = await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: { userQuestId },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId, userId: questUserId });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(1);
+    expect(userAchievement?.unlockedAt).toBeNull();
+  });
+
+  it('should unlock achievement when target reached', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    const achievementId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await con.getRepository(Achievement).save({
+      id: achievementId,
+      name: 'Quest enthusiast test',
+      description: 'Complete and claim 1 quest',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.QuestClaim,
+      criteria: { targetCount: 1 },
+      points: 5,
+    });
+
+    await seedQuest({
+      userQuestStatus: UserQuestStatus.Completed,
+      periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+      periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+    });
+
+    const res = await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: { userQuestId },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId, userId: questUserId });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBeGreaterThanOrEqual(1);
+    expect(userAchievement?.unlockedAt).not.toBeNull();
+  });
+
+  it('should accumulate progress across multiple claims', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    const achievementId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    await con.getRepository(Achievement).save({
+      id: achievementId,
+      name: 'Quest enthusiast test',
+      description: 'Complete and claim 10 quests',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.QuestClaim,
+      criteria: { targetCount: 10 },
+      points: 5,
+    });
+
+    const secondQuestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab';
+    const secondRotationId = 'dddddddd-dddd-4ddd-8ddd-ddddddddddde';
+    const secondUserQuestId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeed';
+
+    await seedQuest({
+      userQuestStatus: UserQuestStatus.Completed,
+      periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+      periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+    });
+
+    await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: { userQuestId },
+    });
+
+    await saveFixtures(con, Quest, [
+      {
+        id: secondQuestId,
+        name: 'Second quest',
+        description: 'Write 2 comments',
+        type: QuestType.Daily,
+        eventType: QuestEventType.CommentCreate,
+        criteria: { targetCount: 2 },
+        active: true,
+      },
+    ]);
+
+    await saveFixtures(con, QuestReward, [
+      {
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+        questId: secondQuestId,
+        type: QuestRewardType.XP,
+        amount: 10,
+        metadata: {},
+      },
+    ]);
+
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: secondRotationId,
+        questId: secondQuestId,
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 2,
+        periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+        periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+      },
+    ]);
+
+    await saveFixtures(con, UserQuest, [
+      {
+        id: secondUserQuestId,
+        rotationId: secondRotationId,
+        userId: questUserId,
+        progress: 2,
+        status: UserQuestStatus.Completed,
+        completedAt: new Date(),
+        claimedAt: null,
+      },
+    ]);
+
+    const res = await client.mutate(CLAIM_QUEST_REWARD_MUTATION, {
+      variables: { userQuestId: secondUserQuestId },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId, userId: questUserId });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(2);
   });
 });
