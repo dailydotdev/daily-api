@@ -293,6 +293,10 @@ export type PubSubSchema = {
   'api.v1.ba-user-created': {
     userId: string;
   };
+  'api.v1.generate-channel-digest': {
+    digestKey: string;
+    scheduledAt: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

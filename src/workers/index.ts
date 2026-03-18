@@ -82,6 +82,7 @@ import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import gearClassify from './gearClassify';
 import agenticDigestTweet from './agenticDigestTweet';
+import generateChannelDigest from './generateChannelDigest';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 
@@ -169,6 +170,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackUpdatedSlack,
   gearClassify,
   agenticDigestTweet,
+  generateChannelDigest,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
