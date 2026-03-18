@@ -1,8 +1,10 @@
 import { TypedWorker } from '../worker';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
-import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
+import type { Opportunity } from '../../entity/opportunities/Opportunity';
 import { cio, identifyUserOpportunities } from '../../cio';
+import { isDemoCompanyId } from '../../common';
 
 export const syncOpportunityRemindersCio: TypedWorker<'api.v1.opportunity-flags-change'> =
   {
@@ -14,6 +16,13 @@ export const syncOpportunityRemindersCio: TypedWorker<'api.v1.opportunity-flags-
         throw new Error(
           'Missing opportunityId in opportunity flags change event',
         );
+      }
+
+      const opportunity = await con
+        .getRepository(OpportunityJob)
+        .findOne({ select: ['organizationId'], where: { id: opportunityId } });
+      if (isDemoCompanyId(opportunity?.organizationId)) {
+        return;
       }
 
       // Parse before and after flags to check if reminders changed

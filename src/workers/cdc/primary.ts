@@ -59,6 +59,7 @@ import {
   decreaseReputation,
   DEFAULT_TIMEZONE,
   increaseReputation,
+  isDemoCompanyId,
   isNumber,
   NotificationReason,
   notifyBannerCreated,
@@ -1874,6 +1875,17 @@ const onOpportunityMatchChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<OpportunityMatch>,
 ) => {
+  const opportunityId =
+    data.payload.after?.opportunityId ?? data.payload.before?.opportunityId;
+  if (opportunityId) {
+    const opportunity = await con
+      .getRepository(OpportunityJob)
+      .findOne({ select: ['organizationId'], where: { id: opportunityId } });
+    if (isDemoCompanyId(opportunity?.organizationId)) {
+      return;
+    }
+  }
+
   await identifyUserOpportunities({
     con,
     cio,
@@ -1983,6 +1995,11 @@ const onOpportunityChange = async (
   data: ChangeMessage<Opportunity>,
 ) => {
   if (data.payload.op !== 'c' && data.payload.op !== 'u') {
+    return;
+  }
+
+  const opportunityData = data.payload.after as ChangeObject<OpportunityJob>;
+  if (isDemoCompanyId(opportunityData?.organizationId)) {
     return;
   }
 

@@ -10,6 +10,7 @@ import {
 import {
   camelCaseToSnakeCase,
   getDateBaseFromType,
+  isDemoCompanyId,
   isProd,
 } from './common/utils';
 import { getFirstName } from './common/mailing';
@@ -196,7 +197,14 @@ export const identifyUserOpportunities = async ({
       }),
     )
   )
-    .filter((item) => item.hasReminders)
+    .filter(
+      (item) =>
+        item.hasReminders &&
+        !isDemoCompanyId(
+          (item.opportunity as unknown as { organizationId?: string })
+            ?.organizationId,
+        ),
+    )
     .map((item) => ({
       id: item.match.opportunityId,
       title: item.opportunity?.title || '',

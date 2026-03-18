@@ -85,6 +85,7 @@ import {
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { isDemoCompanyId } from '../common';
 import { applyDeterministicVariation } from '../common/number';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
@@ -2245,11 +2246,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       );
 
-      await notifyOpportunityFeedbackSubmitted({
-        logger: log,
-        opportunityId,
-        userId,
-      });
+      if (!isDemoCompanyId(opportunity.organizationId)) {
+        await notifyOpportunityFeedbackSubmitted({
+          logger: log,
+          opportunityId,
+          userId,
+        });
+      }
 
       return { _: true };
     },
