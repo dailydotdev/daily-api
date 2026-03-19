@@ -4,7 +4,12 @@ import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDef
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
 import { ChannelHighlightState } from '../../src/entity/ChannelHighlightState';
 import { PostHighlight } from '../../src/entity/PostHighlight';
-import { CollectionPost, ArticlePost, Source } from '../../src/entity';
+import {
+  CollectionPost,
+  ArticlePost,
+  SocialTwitterPost,
+  Source,
+} from '../../src/entity';
 import {
   PostRelation,
   PostRelationType,
@@ -92,6 +97,48 @@ const saveCollection = async ({
     type: PostType.Collection,
     contentMeta: {
       channels: [channel],
+    },
+  });
+
+const saveTwitterPost = async ({
+  id,
+  title,
+  url,
+  createdAt,
+  channel = 'vibes',
+  sourceId = 'content-source',
+  sharedPostId,
+  contentMeta,
+}: {
+  id: string;
+  title: string;
+  url: string;
+  createdAt: Date;
+  channel?: string;
+  sourceId?: string;
+  sharedPostId?: string;
+  contentMeta?: Record<string, unknown>;
+}) =>
+  con.getRepository(SocialTwitterPost).save({
+    id,
+    shortId: id,
+    title,
+    url,
+    canonicalUrl: url,
+    score: 0,
+    sourceId,
+    visible: true,
+    deleted: false,
+    banned: false,
+    showOnFeed: true,
+    createdAt,
+    metadataChangedAt: createdAt,
+    statsUpdatedAt: createdAt,
+    type: PostType.SocialTwitter,
+    sharedPostId,
+    contentMeta: {
+      channels: [channel],
+      ...(contentMeta || {}),
     },
   });
 
@@ -481,6 +528,62 @@ describe('generateChannelHighlight worker', () => {
     expect(evaluatorSpy.mock.calls[0][0].candidates).toEqual([
       expect.objectContaining({
         canonicalPostId: 'fresh-1',
+      }),
+    ]);
+  });
+
+  it('should prefer referenced tweet identity for quote tweets', async () => {
+    const now = new Date('2026-03-03T13:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      enabled: true,
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveTwitterPost({
+      id: 'tweet-quote-1',
+      title: 'Quote tweet',
+      url: 'https://x.com/quoter/status/1234567890123456789',
+      createdAt: new Date('2026-03-03T12:45:00.000Z'),
+      contentMeta: {
+        social_twitter: {
+          tweet_id: '1234567890123456789',
+          reference: {
+            tweet_id: '9876543210987654321',
+            url: 'https://x.com/original/status/9876543210987654321',
+          },
+        },
+      },
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockImplementation(async ({ candidates }) => ({
+        items: candidates.map((candidate, index) => ({
+          storyKey: candidate.storyKey,
+          postId: candidate.canonicalPostId,
+          headline: candidate.title,
+          significanceScore: 0.8,
+          significanceLabel: 'major',
+          rank: index + 1,
+          reason: 'test',
+        })),
+      }));
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].candidates).toEqual([
+      expect.objectContaining({
+        canonicalPostId: 'tweet-quote-1',
+        storyKey: 'twitter:9876543210987654321',
       }),
     ]);
   });

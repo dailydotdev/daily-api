@@ -1,3 +1,4 @@
+import { extractTwitterStatusId } from '../twitterSocial';
 import { PostType, type PostContentQuality } from '../../entity/posts/Post';
 import { PostRelation } from '../../entity/posts/PostRelation';
 import { ONE_DAY_IN_SECONDS } from '../constants';
@@ -11,9 +12,6 @@ import type {
   HighlightQualitySummary,
   HighlightStoryCandidate,
 } from './evaluate';
-
-const TWITTER_STATUS_URL_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/[^/?#]+\/status\/(\d+)/i;
 
 const toLastActivityAt = (post: HighlightPost): Date => {
   const candidates = [
@@ -41,19 +39,74 @@ export const toQualitySummary = (
       : null,
 });
 
+const getTwitterSocialMeta = (
+  post: HighlightPost,
+): Record<string, unknown> | null => {
+  const socialTwitter = (post.contentMeta as Record<string, unknown> | null)
+    ?.social_twitter;
+
+  if (!socialTwitter || typeof socialTwitter !== 'object') {
+    return null;
+  }
+
+  return socialTwitter as Record<string, unknown>;
+};
+
+const getTwitterReferenceStatusId = (
+  post: HighlightPost,
+): string | undefined => {
+  const reference = getTwitterSocialMeta(post)?.reference;
+  if (!reference || typeof reference !== 'object') {
+    return undefined;
+  }
+
+  const referenceRecord = reference as Record<string, unknown>;
+  const tweetId =
+    typeof referenceRecord.tweet_id === 'string'
+      ? referenceRecord.tweet_id.trim()
+      : undefined;
+
+  if (tweetId) {
+    return tweetId;
+  }
+
+  const referenceUrl =
+    typeof referenceRecord.url === 'string' ? referenceRecord.url : undefined;
+  return extractTwitterStatusId(referenceUrl);
+};
+
+const getTwitterRootStatusId = (post: HighlightPost): string | undefined => {
+  const socialMeta = getTwitterSocialMeta(post);
+  const tweetId =
+    typeof socialMeta?.tweet_id === 'string' ? socialMeta.tweet_id.trim() : '';
+
+  if (tweetId) {
+    return tweetId;
+  }
+
+  return extractTwitterStatusId(post.canonicalUrl || post.url);
+};
+
 const getTwitterStoryKey = (post: HighlightPost): string | null => {
   if (post.type !== PostType.SocialTwitter) {
     return null;
+  }
+
+  const referenceStatusId = getTwitterReferenceStatusId(post);
+  if (referenceStatusId) {
+    return `twitter:${referenceStatusId}`;
+  }
+
+  const rootStatusId = getTwitterRootStatusId(post);
+  if (rootStatusId) {
+    return `twitter:${rootStatusId}`;
   }
 
   if (post.sharedPostId) {
     return `twitter:${post.sharedPostId}`;
   }
 
-  const match = (post.canonicalUrl || post.url || '').match(
-    TWITTER_STATUS_URL_REGEX,
-  );
-  return match?.[1] ? `twitter:${match[1]}` : null;
+  return null;
 };
 
 export const getStoryKey = ({
