@@ -25,7 +25,7 @@ describe('channelHighlights cron', () => {
     expect(registeredCron).toBeDefined();
   });
 
-  it('should enqueue enabled highlight definitions', async () => {
+  it('should enqueue active highlight definitions', async () => {
     const triggerTypedEventSpy = jest
       .spyOn(typedPubsub, 'triggerTypedEvent')
       .mockResolvedValue();
@@ -33,22 +33,19 @@ describe('channelHighlights cron', () => {
     await con.getRepository(ChannelHighlightDefinition).save([
       {
         channel: 'backend',
-        enabled: true,
         mode: 'shadow',
         candidateHorizonHours: 72,
         maxItems: 10,
       },
       {
         channel: 'vibes',
-        enabled: true,
         mode: 'shadow',
         candidateHorizonHours: 72,
         maxItems: 10,
       },
       {
         channel: 'disabled',
-        enabled: false,
-        mode: 'shadow',
+        mode: 'disabled',
         candidateHorizonHours: 72,
         maxItems: 10,
       },

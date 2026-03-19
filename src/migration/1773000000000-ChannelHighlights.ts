@@ -7,8 +7,7 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       CREATE TABLE "channel_highlight_definition" (
         "channel" text NOT NULL,
-        "enabled" boolean NOT NULL DEFAULT false,
-        "mode" text NOT NULL DEFAULT 'shadow',
+        "mode" text NOT NULL DEFAULT 'disabled',
         "candidateHorizonHours" smallint NOT NULL DEFAULT 72,
         "maxItems" smallint NOT NULL DEFAULT 10,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -57,12 +56,11 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       INSERT INTO "channel_highlight_definition" (
         "channel",
-        "enabled",
         "mode",
         "candidateHorizonHours",
         "maxItems"
       )
-      VALUES ('vibes', false, 'shadow', 72, 10)
+      VALUES ('vibes', 'disabled', 72, 10)
       ON CONFLICT ("channel") DO NOTHING
     `);
   }

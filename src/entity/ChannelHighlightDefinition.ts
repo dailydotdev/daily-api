@@ -12,10 +12,7 @@ export class ChannelHighlightDefinition {
   @PrimaryColumn({ type: 'text' })
   channel: string;
 
-  @Column({ type: 'boolean', default: false })
-  enabled: boolean;
-
-  @Column({ type: 'text', default: 'shadow' })
+  @Column({ type: 'text', default: 'disabled' })
   mode: ChannelHighlightMode;
 
   @Column({ type: 'smallint', default: 72 })

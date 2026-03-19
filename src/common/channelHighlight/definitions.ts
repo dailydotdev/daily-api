@@ -1,4 +1,5 @@
 import type { DataSource } from 'typeorm';
+import { Not } from 'typeorm';
 import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 
 export const getChannelHighlightDefinitions = async ({
@@ -8,7 +9,7 @@ export const getChannelHighlightDefinitions = async ({
 }): Promise<ChannelHighlightDefinition[]> =>
   con.getRepository(ChannelHighlightDefinition).find({
     where: {
-      enabled: true,
+      mode: Not('disabled'),
     },
     order: {
       channel: 'ASC',
@@ -25,6 +26,6 @@ export const getChannelHighlightDefinitionByChannel = async ({
   con.getRepository(ChannelHighlightDefinition).findOne({
     where: {
       channel,
-      enabled: true,
+      mode: Not('disabled'),
     },
   });

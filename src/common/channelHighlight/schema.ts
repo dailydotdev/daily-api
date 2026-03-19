@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const channelHighlightModes = ['shadow', 'publish'] as const;
+export const channelHighlightModes = ['disabled', 'shadow', 'publish'] as const;
 export type ChannelHighlightMode = (typeof channelHighlightModes)[number];
 
 export const channelHighlightStatuses = [

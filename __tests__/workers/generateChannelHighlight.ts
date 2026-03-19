@@ -193,7 +193,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T10:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'shadow',
       candidateHorizonHours: 72,
       maxItems: 3,
@@ -294,7 +293,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T11:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'publish',
       candidateHorizonHours: 72,
       maxItems: 3,
@@ -343,7 +341,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T11:30:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'publish',
       candidateHorizonHours: 72,
       maxItems: 3,
@@ -409,7 +406,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T12:30:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'shadow',
       candidateHorizonHours: 72,
       maxItems: 3,
@@ -484,7 +480,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'shadow',
       candidateHorizonHours: 72,
       maxItems: 3,
@@ -536,7 +531,6 @@ describe('generateChannelHighlight worker', () => {
     const now = new Date('2026-03-03T13:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      enabled: true,
       mode: 'shadow',
       candidateHorizonHours: 72,
       maxItems: 3,

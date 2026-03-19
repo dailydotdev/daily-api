@@ -124,126 +124,145 @@ export const generateChannelHighlight = async ({
   definition: ChannelHighlightDefinition;
   now?: Date;
 }): Promise<GenerateChannelHighlightResult> => {
-  const state = await fetchDefinitionState({
-    con,
-    channel: definition.channel,
-  });
-  const previousPool = parseCandidatePool(state?.candidatePool);
-  const currentHighlights = await fetchCurrentHighlights({
-    con,
-    channel: definition.channel,
-  });
-  const horizonStart = getHorizonStart({
-    now,
-    definition,
-  });
-  const fetchStart = getFetchStart({
-    now,
-    definition,
-    state,
-  });
-
-  const retainedPostIds = new Set([
-    ...previousPool.stories.flatMap((story) => story.memberPostIds),
-    ...currentHighlights.map((item) => item.postId),
-  ]);
-  const retainedPosts = await fetchPostsByIds({
-    con,
-    ids: [...retainedPostIds],
-    horizonStart,
-  });
-  const incrementalPosts = await fetchIncrementalPosts({
-    con,
-    channel: definition.channel,
-    fetchStart,
-    horizonStart,
-  });
-  const basePosts = mergePosts([retainedPosts, incrementalPosts]);
-  const baseRelations = await fetchRelations({
-    con,
-    postIds: basePosts.map((post) => post.id),
-  });
-  const relationPosts = await fetchPostsByIds({
-    con,
-    ids: [
-      ...new Set(
-        baseRelations.flatMap((relation) => [
-          relation.postId,
-          relation.relatedPostId,
-        ]),
-      ),
-    ],
-    horizonStart,
-  });
-  const stories = buildStories({
-    posts: mergePosts([basePosts, relationPosts]),
-    relations: baseRelations,
-    previousPool,
-    horizonStart,
-    referenceTime: now,
-  });
-  const storiesByPostId = buildStoriesByPostId(stories);
-  const shortlist = stories.slice(
-    0,
-    definition.maxItems * SHORTLIST_MULTIPLIER,
-  );
-  const baselineSnapshot = buildBaselineSnapshot({
-    highlights: currentHighlights,
-    storiesByPostId,
-  });
-
-  const reusedEvaluation = shouldReuseEvaluations({
-    shortlist,
-  });
-  const evaluatedItems = reusedEvaluation
-    ? reuseEvaluations({
-        shortlist,
-        maxItems: definition.maxItems,
-      })
-    : (
-        await evaluateChannelHighlights({
-          channel: definition.channel,
-          maxItems: definition.maxItems,
-          currentHighlights: baselineSnapshot,
-          candidates: shortlist.map(toStoryCandidate),
-        })
-      ).items;
-
-  const comparison = compareSnapshots({
-    baseline: baselineSnapshot,
-    internal: evaluatedItems,
-  });
-  const wouldPublish = shouldPublish({
-    baseline: baselineSnapshot,
-    internal: evaluatedItems,
-  });
-  const publish = definition.mode === 'publish' && wouldPublish;
-  const metrics = buildMetrics({
-    incrementalPosts,
-    retainedPosts,
-    stories,
-    shortlist,
-    reusedEvaluation,
-  });
-
   const runRepo = con.getRepository(ChannelHighlightRun);
-  let run = runRepo.create({
-    channel: definition.channel,
-    scheduledAt: now,
-    status: 'processing',
-    baselineSnapshot,
-    inputSummary: buildInputSummary({
-      fetchStart,
-      horizonStart,
-      shortlist,
+  const run = await runRepo.save(
+    runRepo.create({
+      channel: definition.channel,
+      scheduledAt: now,
+      status: 'processing',
+      baselineSnapshot: [],
+      inputSummary: {},
+      internalSnapshot: [],
+      comparison: {},
+      metrics: {},
     }),
-    internalSnapshot: [],
-    comparison: {},
-    metrics,
-  });
-  run = await runRepo.save(run);
+  );
 
   try {
+    const [state, currentHighlights] = await Promise.all([
+      fetchDefinitionState({
+        con,
+        channel: definition.channel,
+      }),
+      fetchCurrentHighlights({
+        con,
+        channel: definition.channel,
+      }),
+    ]);
+    const previousPool = parseCandidatePool(state?.candidatePool);
+    const horizonStart = getHorizonStart({
+      now,
+      definition,
+    });
+    const fetchStart = getFetchStart({
+      now,
+      definition,
+      state,
+    });
+
+    const retainedPostIds = new Set([
+      ...previousPool.stories.flatMap((story) => story.memberPostIds),
+      ...currentHighlights.map((item) => item.postId),
+    ]);
+    const [retainedPosts, incrementalPosts] = await Promise.all([
+      fetchPostsByIds({
+        con,
+        ids: [...retainedPostIds],
+        horizonStart,
+      }),
+      fetchIncrementalPosts({
+        con,
+        channel: definition.channel,
+        fetchStart,
+        horizonStart,
+      }),
+    ]);
+    const basePosts = mergePosts([retainedPosts, incrementalPosts]);
+    const baseRelations = await fetchRelations({
+      con,
+      postIds: basePosts.map((post) => post.id),
+    });
+    const relationPosts = await fetchPostsByIds({
+      con,
+      ids: [
+        ...new Set(
+          baseRelations.flatMap((relation) => [
+            relation.postId,
+            relation.relatedPostId,
+          ]),
+        ),
+      ],
+      horizonStart,
+    });
+    const stories = buildStories({
+      posts: mergePosts([basePosts, relationPosts]),
+      relations: baseRelations,
+      previousPool,
+      horizonStart,
+      referenceTime: now,
+    });
+    const storiesByPostId = buildStoriesByPostId(stories);
+    // We only send a bounded candidate set into the evaluator. The shortlist is
+    // intentionally larger than `maxItems` so the editorial step can still
+    // rank, dedupe, and discard borderline stories without seeing the entire
+    // pool.
+    const shortlist = stories.slice(
+      0,
+      definition.maxItems * SHORTLIST_MULTIPLIER,
+    );
+    const baselineSnapshot = buildBaselineSnapshot({
+      highlights: currentHighlights,
+      storiesByPostId,
+    });
+
+    const reusedEvaluation = shouldReuseEvaluations({
+      shortlist,
+    });
+    const evaluatedItems = reusedEvaluation
+      ? reuseEvaluations({
+          shortlist,
+          maxItems: definition.maxItems,
+        })
+      : (
+          await evaluateChannelHighlights({
+            channel: definition.channel,
+            maxItems: definition.maxItems,
+            currentHighlights: baselineSnapshot,
+            candidates: shortlist.map(toStoryCandidate),
+          })
+        ).items;
+
+    const comparison = compareSnapshots({
+      baseline: baselineSnapshot,
+      internal: evaluatedItems,
+    });
+    const wouldPublish = shouldPublish({
+      baseline: baselineSnapshot,
+      internal: evaluatedItems,
+    });
+    const publish = definition.mode === 'publish' && wouldPublish;
+    const metrics = buildMetrics({
+      incrementalPosts,
+      retainedPosts,
+      stories,
+      shortlist,
+      reusedEvaluation,
+    });
+    await runRepo.update(
+      {
+        id: run.id,
+      },
+      {
+        baselineSnapshot,
+        inputSummary: buildInputSummary({
+          fetchStart,
+          horizonStart,
+          shortlist,
+        }),
+        metrics,
+      },
+    );
+
     await con.transaction(async (manager) => {
       await manager.getRepository(ChannelHighlightState).save({
         channel: definition.channel,

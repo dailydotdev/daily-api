@@ -2,21 +2,18 @@ import type { EvaluatedHighlightItem } from './evaluate';
 import type { StoredHighlightStory } from './schema';
 import type { HighlightBaselineItem, HighlightStory } from './types';
 
-const arePostIdsEqual = (left: string[], right: string[]): boolean =>
-  left.length === right.length &&
-  left.every((postId, index) => postId === right[index]);
+const toSortedPostIdsKey = (postIds: string[]): string =>
+  [...postIds].sort().join('|');
 
 const hasCachedStoryChanged = (story: HighlightStory): boolean => {
   if (!story.cached) {
     return true;
   }
 
-  const cachedMemberPostIds = [...story.cached.memberPostIds].sort();
-  const storyMemberPostIds = story.memberPosts.map((post) => post.id).sort();
-
   return (
     story.cached.canonicalPostId !== story.canonicalPost.id ||
-    !arePostIdsEqual(cachedMemberPostIds, storyMemberPostIds)
+    toSortedPostIdsKey(story.cached.memberPostIds) !==
+      toSortedPostIdsKey(story.memberPosts.map((post) => post.id))
   );
 };
 
