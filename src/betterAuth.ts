@@ -4,6 +4,8 @@ import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
 import { z } from 'zod';
+import { decodeProtectedHeader, jwtVerify } from 'jose';
+import { getGooglePublicKey } from '@better-auth/core/social-providers';
 import { AppDataSource } from './data-source';
 import { logger } from './logger';
 import { triggerTypedEvent } from './common/typedPubsub';
@@ -18,6 +20,7 @@ import { cookies, extractRootDomain } from './cookies';
 
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
+const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 const userExperienceLevels = [
   'LESS_THAN_1_YEAR',
@@ -560,6 +563,37 @@ const createAuth = (): BetterAuthHandler => {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
           redirectURI: getSocialRedirectUri('google'),
+          ...(googleIosClientId && {
+            verifyIdToken: async (token: string, nonce?: string) => {
+              try {
+                const { kid, alg: jwtAlg } = decodeProtectedHeader(token);
+                if (!kid || !jwtAlg) return false;
+
+                const publicKey = await getGooglePublicKey(kid);
+                const { payload: jwtClaims } = await jwtVerify(
+                  token,
+                  publicKey,
+                  {
+                    algorithms: [jwtAlg],
+                    issuer: [
+                      'https://accounts.google.com',
+                      'accounts.google.com',
+                    ],
+                    audience: [
+                      process.env.GOOGLE_CLIENT_ID!,
+                      googleIosClientId,
+                    ],
+                    maxTokenAge: '1h',
+                  },
+                );
+
+                if (nonce && jwtClaims.nonce !== nonce) return false;
+                return true;
+              } catch {
+                return false;
+              }
+            },
+          }),
         },
       }),
       ...(process.env.GITHUB_CLIENT_ID && {

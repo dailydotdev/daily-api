@@ -261,6 +261,8 @@ config:
       secure: AAABAKJ1kXfmD4g3p/fZg5Gbid2scaPO4VQeK2VAWyZW/J54OvGGFuWg34X+YLyTPJbsyA6TsutCdSQsO9hRWXIzNFjZK9XZo4PmnCD5/MJbReYI6M3ayqc8M2bLBRaaDSj0/nrop+P9J3cMy/944b1F271lXOsCgNrHn4dkYLX0tkIuCnu86VSPaxJ9bRPRy83igX8w7P0gE5vKrnmLj29CSXk7iZGB1yikFPWddHLZUCxkX8gZ15kanvg6bvVdkrlotKdl8kV12iClSDc5gYDG/qsHsuHTixQ3vTmwf2R7svAAA3DeD6gJhXobRkbpNQMYMmwm2lwMzvwv394gMCKJ4/OsruktloyorRKIZP3jSrgs4XHT/buQC87H7n9WxGU/twKvzpbpkqi3ibdNhh9wKYVhTe/HCbZvv8rsCX+wbEeb
     appleClientId:
       secure: AAABABe5GePYDxcK+9QGqmQV7zE3Pv5wWtGkfFOV1MosH+KVFIfK6Is=
+    googleIosClientId:
+      secure: AAABAENK/HL3DH78uShJwePe91GmOlM4YkNuaLsXkPrWp8p6tvW5XAlTMCN5XCSFCkQog94YZHEO0idbBTKPF1H727qb7XvUqVjkEP8yY7Sf77geK2VHUN+NMAkkeuaFar5dlJUkqCY=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
