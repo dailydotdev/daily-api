@@ -506,6 +506,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.generate-channel-digest',
     subscription: 'api.generate-channel-digest',
   },
+  {
+    topic: 'api.v1.generate-channel-highlight',
+    subscription: 'api.generate-channel-highlight',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
