@@ -2,7 +2,7 @@ import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import * as typedPubsub from '../../src/common/typedPubsub';
-import * as channelHighlightsModule from '../../src/cron/channelHighlights';
+import channelHighlights from '../../src/cron/channelHighlights';
 import { crons } from '../../src/cron/index';
 
 let con: DataSource;
@@ -19,16 +19,13 @@ describe('channelHighlights cron', () => {
 
   it('should be registered', () => {
     const registeredCron = crons.find(
-      (item) => item.name === channelHighlightsModule.default.name,
+      (item) => item.name === channelHighlights.name,
     );
 
     expect(registeredCron).toBeDefined();
   });
 
   it('should enqueue enabled highlight definitions', async () => {
-    jest
-      .spyOn(channelHighlightsModule, 'getChannelHighlightsNow')
-      .mockReturnValue(new Date('2026-03-02T10:00:00.000Z'));
     const triggerTypedEventSpy = jest
       .spyOn(typedPubsub, 'triggerTypedEvent')
       .mockResolvedValue();
@@ -57,11 +54,9 @@ describe('channelHighlights cron', () => {
       },
     ]);
 
-    await channelHighlightsModule.default.handler(
-      con,
-      {} as never,
-      {} as never,
-    );
+    const startedAt = Date.now();
+    await channelHighlights.handler(con, {} as never, {} as never);
+    const completedAt = Date.now();
 
     expect(triggerTypedEventSpy.mock.calls).toEqual([
       [
@@ -69,7 +64,7 @@ describe('channelHighlights cron', () => {
         'api.v1.generate-channel-highlight',
         {
           channel: 'backend',
-          scheduledAt: '2026-03-02T10:00:00.000Z',
+          scheduledAt: expect.any(String),
         },
       ],
       [
@@ -77,9 +72,18 @@ describe('channelHighlights cron', () => {
         'api.v1.generate-channel-highlight',
         {
           channel: 'vibes',
-          scheduledAt: '2026-03-02T10:00:00.000Z',
+          scheduledAt: expect.any(String),
         },
       ],
     ]);
+
+    const scheduledAt = Date.parse(
+      triggerTypedEventSpy.mock.calls[0][2].scheduledAt,
+    );
+    expect(scheduledAt).toBeGreaterThanOrEqual(startedAt);
+    expect(scheduledAt).toBeLessThanOrEqual(completedAt);
+    expect(triggerTypedEventSpy.mock.calls[0][2].scheduledAt).toBe(
+      triggerTypedEventSpy.mock.calls[1][2].scheduledAt,
+    );
   });
 });

@@ -2,13 +2,10 @@ import { getChannelHighlightDefinitions } from '../common/channelHighlight/defin
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { Cron } from './cron';
 
-export const getChannelHighlightsNow = (): Date => new Date();
-
 const cron: Cron = {
   name: 'channel-highlights',
   handler: async (con, logger) => {
-    const now = getChannelHighlightsNow();
-    const scheduledAt = now.toISOString();
+    const scheduledAt = new Date().toISOString();
     const definitions = await getChannelHighlightDefinitions({
       con,
     });

@@ -1,13 +1,8 @@
 import { ONE_DAY_IN_SECONDS, ONE_MINUTE_IN_SECONDS } from '../common/constants';
 import { getChannelHighlightDefinitionByChannel } from '../common/channelHighlight/definitions';
 import { generateChannelHighlight } from '../common/channelHighlight/generate';
-import {
-  checkRedisObjectExists,
-  deleteRedisKey,
-  setRedisObjectIfNotExistsWithExpiry,
-  setRedisObjectWithExpiry,
-} from '../redis';
 import { TypedWorker } from './worker';
+import { withRedisDoneLock } from './withRedisDoneLock';
 
 const CHANNEL_HIGHLIGHT_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 const CHANNEL_HIGHLIGHT_DONE_TTL_SECONDS = 2 * ONE_DAY_IN_SECONDS;
@@ -49,46 +44,32 @@ const worker: TypedWorker<'api.v1.generate-channel-highlight'> = {
       return;
     }
 
-    const doneKey = getChannelHighlightDoneKey({
-      channel,
-      scheduledAt,
-    });
-    if (await checkRedisObjectExists(doneKey)) {
-      return;
-    }
-
-    const lockKey = getChannelHighlightLockKey({
-      channel,
-      scheduledAt,
-    });
-    const lockAcquired = await setRedisObjectIfNotExistsWithExpiry(
-      lockKey,
-      message.messageId || channel,
-      CHANNEL_HIGHLIGHT_LOCK_TTL_SECONDS,
-    );
-    if (!lockAcquired) {
-      return;
-    }
-
     try {
-      await generateChannelHighlight({
-        con,
-        definition,
-        now,
+      await withRedisDoneLock({
+        doneKey: getChannelHighlightDoneKey({
+          channel,
+          scheduledAt,
+        }),
+        lockKey: getChannelHighlightLockKey({
+          channel,
+          scheduledAt,
+        }),
+        lockValue: message.messageId || channel,
+        lockTtlSeconds: CHANNEL_HIGHLIGHT_LOCK_TTL_SECONDS,
+        doneTtlSeconds: CHANNEL_HIGHLIGHT_DONE_TTL_SECONDS,
+        execute: () =>
+          generateChannelHighlight({
+            con,
+            definition,
+            now,
+          }).then(() => undefined),
       });
-      await setRedisObjectWithExpiry(
-        doneKey,
-        '1',
-        CHANNEL_HIGHLIGHT_DONE_TTL_SECONDS,
-      );
     } catch (err) {
       logger.error(
         { ...logDetails, err },
         'Failed to generate channel highlight',
       );
       throw err;
-    } finally {
-      await deleteRedisKey(lockKey);
     }
   },
 };

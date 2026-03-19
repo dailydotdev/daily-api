@@ -1,22 +1,19 @@
 import type { DataSource } from 'typeorm';
 import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
-import { queryReadReplica } from '../queryReadReplica';
 
 export const getChannelHighlightDefinitions = async ({
   con,
 }: {
   con: DataSource;
 }): Promise<ChannelHighlightDefinition[]> =>
-  queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(ChannelHighlightDefinition).find({
-      where: {
-        enabled: true,
-      },
-      order: {
-        channel: 'ASC',
-      },
-    }),
-  );
+  con.getRepository(ChannelHighlightDefinition).find({
+    where: {
+      enabled: true,
+    },
+    order: {
+      channel: 'ASC',
+    },
+  });
 
 export const getChannelHighlightDefinitionByChannel = async ({
   con,
@@ -25,11 +22,9 @@ export const getChannelHighlightDefinitionByChannel = async ({
   con: DataSource;
   channel: string;
 }): Promise<ChannelHighlightDefinition | null> =>
-  queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(ChannelHighlightDefinition).findOne({
-      where: {
-        channel,
-        enabled: true,
-      },
-    }),
-  );
+  con.getRepository(ChannelHighlightDefinition).findOne({
+    where: {
+      channel,
+      enabled: true,
+    },
+  });
