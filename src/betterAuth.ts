@@ -15,9 +15,54 @@ import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
 import { fetchOptions } from './http';
 import { retryFetch } from './integrations/retry';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
 import { cookies, extractRootDomain } from './cookies';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+const generateAppleClientSecret = (): string | undefined => {
+  const {
+    APPLE_CLIENT_ID,
+    APPLE_TEAM_ID,
+    APPLE_KEY_ID,
+    APPLE_SIGNING_KEY_PATH,
+  } = process.env;
+
+  if (
+    !APPLE_CLIENT_ID ||
+    !APPLE_TEAM_ID ||
+    !APPLE_KEY_ID ||
+    !APPLE_SIGNING_KEY_PATH
+  ) {
+    return undefined;
+  }
+
+  const privateKey = fs.readFileSync(APPLE_SIGNING_KEY_PATH, 'utf8');
+
+  const toBase64Url = (data: object): string =>
+    Buffer.from(JSON.stringify(data)).toString('base64url');
+
+  const header = toBase64Url({ alg: 'ES256', kid: APPLE_KEY_ID, typ: 'JWT' });
+  const now = Math.floor(Date.now() / 1000);
+  const payload = toBase64Url({
+    iss: APPLE_TEAM_ID,
+    iat: now,
+    exp: now + 7 * 24 * 60 * 60, // 7 days — regenerated on every app start
+    aud: 'https://appleid.apple.com',
+    sub: APPLE_CLIENT_ID,
+  });
+
+  const signingInput = `${header}.${payload}`;
+  const signature = crypto
+    .sign('SHA256', Buffer.from(signingInput), {
+      key: privateKey,
+      dsaEncoding: 'ieee-p1363',
+    })
+    .toString('base64url');
+
+  return `${signingInput}.${signature}`;
+};
 
 const getGooglePublicKey = async (kid: string) => {
   const res = await fetch(GOOGLE_CERTS_URL);
@@ -617,7 +662,10 @@ const createAuth = (): BetterAuthHandler => {
       ...(process.env.APPLE_CLIENT_ID && {
         apple: {
           clientId: process.env.APPLE_CLIENT_ID,
-          clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
+          clientSecret:
+            generateAppleClientSecret() ??
+            process.env.APPLE_CLIENT_SECRET ??
+            '',
           appBundleIdentifier: process.env.APPLE_APP_BUNDLE_ID || undefined,
           redirectURI: getSocialRedirectUri('apple'),
         },
