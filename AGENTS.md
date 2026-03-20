@@ -707,15 +707,15 @@ Hooks are configured in `.claude/settings.json`:
 When upgrading Node.js version, update these files:
 
 - `.nvmrc`
-- `package.json` (volta section)
+- `package.json` (volta section + `@types/node` in devDependencies)
 - `Dockerfile`
 - `Dockerfile.dev`
 - `.circleci/config.yml` (2 places: executor tag and docker image)
 - `.infra/.nvmrc`
-- `.infra/package.json` (volta section)
+- `.infra/package.json` (volta section + `@types/node` in devDependencies)
 - This file (`AGENTS.md` - Prerequisites section)
 
-After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
+After updating, run `pnpm install` in **both** the root directory and `.infra/` directory to regenerate their respective lock files, and commit any changes.
 
 ## Sentiment API Contract Notes
 
