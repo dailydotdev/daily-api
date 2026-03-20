@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Prerequisites
 
-- **Node.js**: 22.22.0 (managed via Volta)
+- **Node.js**: 24.14.0 (managed via Volta)
 - **Package Manager**: pnpm 9.14.4
 
 ## Essential Commands
@@ -31,7 +31,7 @@ This file provides guidance to coding agents when working with code in this repo
 When adding or modifying entity columns, **always generate a migration** using:
 
 ```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.22)
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.14)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
@@ -707,15 +707,15 @@ Hooks are configured in `.claude/settings.json`:
 When upgrading Node.js version, update these files:
 
 - `.nvmrc`
-- `package.json` (volta section)
+- `package.json` (volta section + `@types/node` in devDependencies)
 - `Dockerfile`
 - `Dockerfile.dev`
 - `.circleci/config.yml` (2 places: executor tag and docker image)
 - `.infra/.nvmrc`
-- `.infra/package.json` (volta section)
+- `.infra/package.json` (volta section + `@types/node` in devDependencies)
 - This file (`AGENTS.md` - Prerequisites section)
 
-After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
+After updating, run `pnpm install` in **both** the root directory and `.infra/` directory to regenerate their respective lock files, and commit any changes.
 
 ## Sentiment API Contract Notes
 
