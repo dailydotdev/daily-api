@@ -32,8 +32,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`"${builder.alias}"."channel" = :channel`, {
               channel: args.channel,
             })
-            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
-            .addOrderBy(`"${builder.alias}"."createdAt"`, 'DESC');
+            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
           return builder;
         },
         true,

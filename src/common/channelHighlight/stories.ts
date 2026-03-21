@@ -56,24 +56,104 @@ const buildCollectionByChildId = (
   return collectionByChildId;
 };
 
+type EngagementPost = {
+  upvotes: number;
+  comments: number;
+  views: number;
+};
+
+const toEngagementScore = (post: EngagementPost): number =>
+  post.upvotes + post.comments * 2 + post.views / 200;
+
 const selectCanonicalPost = ({
   posts,
   canonicalPostId,
 }: {
   posts: HighlightPost[];
   canonicalPostId: string;
-}): HighlightPost =>
-  posts.find((post) => post.id === canonicalPostId) ||
-  posts.slice().sort((left, right) => {
-    const leftScore = left.upvotes + left.comments * 2 + left.views / 200;
-    const rightScore = right.upvotes + right.comments * 2 + right.views / 200;
+}): HighlightPost => {
+  const canonicalPost = posts.find((post) => post.id === canonicalPostId);
+  if (canonicalPost) {
+    return canonicalPost;
+  }
 
-    if (leftScore !== rightScore) {
-      return rightScore - leftScore;
+  return [...posts].sort((left, right) => {
+    const engagementDelta = toEngagementScore(right) - toEngagementScore(left);
+    if (engagementDelta !== 0) {
+      return engagementDelta;
     }
 
     return right.createdAt.getTime() - left.createdAt.getTime();
   })[0];
+};
+
+const groupPostsByCanonicalPostId = ({
+  posts,
+  collectionByChildId,
+}: {
+  posts: HighlightPost[];
+  collectionByChildId: Map<string, string>;
+}): Map<string, HighlightPost[]> => {
+  const groupedPosts = new Map<string, HighlightPost[]>();
+
+  for (const post of posts) {
+    const canonicalPostId = collectionByChildId.get(post.id) || post.id;
+    const members = groupedPosts.get(canonicalPostId) || [];
+    members.push(post);
+    groupedPosts.set(canonicalPostId, members);
+  }
+
+  return groupedPosts;
+};
+
+const buildCandidate = ({
+  canonicalPostId,
+  memberPosts,
+}: {
+  canonicalPostId: string;
+  memberPosts: HighlightPost[];
+}): HighlightCandidate => {
+  const canonicalPost = selectCanonicalPost({
+    posts: memberPosts,
+    canonicalPostId,
+  });
+  const lastActivityAt = memberPosts.reduce((current, post) => {
+    const activityAt = toLastActivityAt(post);
+    return activityAt > current ? activityAt : current;
+  }, toLastActivityAt(canonicalPost));
+
+  return {
+    postId: canonicalPost.id,
+    title: canonicalPost.title || '',
+    summary: canonicalPost.summary || '',
+    createdAt: canonicalPost.createdAt,
+    lastActivityAt,
+    upvotes: canonicalPost.upvotes,
+    comments: canonicalPost.comments,
+    views: canonicalPost.views,
+    relatedItemsCount: memberPosts.length,
+    contentCuration: canonicalPost.contentCuration || [],
+    quality: toQualitySummary(canonicalPost.contentQuality || {}),
+  };
+};
+
+const compareCandidates = (
+  left: HighlightCandidate,
+  right: HighlightCandidate,
+): number => {
+  const activityDelta =
+    right.lastActivityAt.getTime() - left.lastActivityAt.getTime();
+  if (activityDelta !== 0) {
+    return activityDelta;
+  }
+
+  const engagementDelta = toEngagementScore(right) - toEngagementScore(left);
+  if (engagementDelta !== 0) {
+    return engagementDelta;
+  }
+
+  return right.createdAt.getTime() - left.createdAt.getTime();
+};
 
 // API owns story canonicalization. If a post is part of a collection, the
 // collection becomes the candidate Bragi sees and the live highlight should be
@@ -92,61 +172,20 @@ export const buildCandidates = ({
     relations,
     availablePostIds,
   );
-  const groupedPosts = new Map<string, HighlightPost[]>();
-
-  for (const post of posts) {
-    const canonicalPostId = collectionByChildId.get(post.id) || post.id;
-    if (!groupedPosts.has(canonicalPostId)) {
-      groupedPosts.set(canonicalPostId, []);
-    }
-
-    groupedPosts.get(canonicalPostId)!.push(post);
-  }
+  const groupedPosts = groupPostsByCanonicalPostId({
+    posts,
+    collectionByChildId,
+  });
 
   return [...groupedPosts.entries()]
-    .map(([canonicalPostId, memberPosts]) => {
-      const canonicalPost = selectCanonicalPost({
-        posts: memberPosts,
+    .map(([canonicalPostId, memberPosts]) =>
+      buildCandidate({
         canonicalPostId,
-      });
-      const lastActivityAt = memberPosts.reduce((current, post) => {
-        const activityAt = toLastActivityAt(post);
-        return activityAt > current ? activityAt : current;
-      }, toLastActivityAt(canonicalPost));
-
-      return {
-        postId: canonicalPost.id,
-        title: canonicalPost.title || '',
-        summary: canonicalPost.summary || '',
-        createdAt: canonicalPost.createdAt,
-        lastActivityAt,
-        upvotes: canonicalPost.upvotes,
-        comments: canonicalPost.comments,
-        views: canonicalPost.views,
-        relatedItemsCount: memberPosts.length,
-        contentCuration: canonicalPost.contentCuration || [],
-        quality: toQualitySummary(canonicalPost.contentQuality || {}),
-      };
-    })
+        memberPosts,
+      }),
+    )
     .filter((candidate) => candidate.lastActivityAt >= horizonStart)
-    .sort((left, right) => {
-      const activityDelta =
-        right.lastActivityAt.getTime() - left.lastActivityAt.getTime();
-      if (activityDelta !== 0) {
-        return activityDelta;
-      }
-
-      const engagementDelta =
-        right.upvotes +
-        right.comments * 2 +
-        right.views / 200 -
-        (left.upvotes + left.comments * 2 + left.views / 200);
-      if (engagementDelta !== 0) {
-        return engagementDelta;
-      }
-
-      return right.createdAt.getTime() - left.createdAt.getTime();
-    });
+    .sort(compareCandidates);
 };
 
 export const toHighlightItem = (

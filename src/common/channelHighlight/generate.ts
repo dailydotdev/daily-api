@@ -7,7 +7,6 @@ import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
 import {
   fetchCurrentHighlights,
-  fetchDigestTargetAudience,
   fetchIncrementalPosts,
   fetchPostsByIds,
   fetchRelations,
@@ -23,6 +22,8 @@ import {
 } from './stories';
 import type { GenerateChannelHighlightResult, HighlightItem } from './types';
 
+const RUN_RETENTION_DAYS = 7;
+
 const trimHighlights = ({
   items,
   maxItems,
@@ -36,6 +37,12 @@ const trimHighlights = ({
         right.highlightedAt.getTime() - left.highlightedAt.getTime(),
     )
     .slice(0, maxItems);
+
+const getRunRetentionCutoff = (now: Date): Date => {
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - RUN_RETENTION_DAYS);
+  return cutoff;
+};
 
 // High-level flow:
 // 1. Keep only currently highlighted items that are still inside the horizon.
@@ -130,23 +137,15 @@ export const generateChannelHighlight = async ({
       horizonStart,
     }).filter((candidate) => !currentHighlightPostIds.has(candidate.postId));
 
-    const targetAudience =
-      definition.targetAudience.trim() ||
-      (
-        await fetchDigestTargetAudience({
-          con,
-          channel: definition.channel,
-        })
-      )?.trim() ||
-      `daily.dev readers following ${definition.channel}`;
-
     const admittedHighlights =
       newCandidates.length === 0
         ? []
         : (
             await evaluateChannelHighlights({
               channel: definition.channel,
-              targetAudience,
+              targetAudience:
+                definition.targetAudience.trim() ||
+                `daily.dev readers following ${definition.channel}`,
               maxItems: definition.maxItems,
               currentHighlights: liveHighlights,
               newCandidates,
@@ -168,6 +167,7 @@ export const generateChannelHighlight = async ({
       internal: internalHighlights,
     });
     const publish = definition.mode === 'publish' && comparison.changed;
+    const runRetentionCutoff = getRunRetentionCutoff(now);
 
     await con.transaction(async (manager) => {
       await manager.getRepository(ChannelHighlightDefinition).update(
@@ -216,6 +216,15 @@ export const generateChannelHighlight = async ({
           },
         },
       );
+
+      await manager
+        .getRepository(ChannelHighlightRun)
+        .createQueryBuilder()
+        .delete()
+        .where('"channel" = :channel', { channel: definition.channel })
+        .andWhere('"completedAt" IS NOT NULL')
+        .andWhere('"completedAt" < :cutoff', { cutoff: runRetentionCutoff })
+        .execute();
     });
 
     return {

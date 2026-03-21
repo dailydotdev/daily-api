@@ -1,6 +1,5 @@
 import { Brackets, In, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
-import { ChannelDigest } from '../../entity/ChannelDigest';
 import { PostHighlight } from '../../entity/PostHighlight';
 import { Post } from '../../entity/posts/Post';
 import {
@@ -63,7 +62,6 @@ export const fetchCurrentHighlights = async ({
     },
     order: {
       highlightedAt: 'DESC',
-      createdAt: 'DESC',
     },
   });
 
@@ -118,28 +116,6 @@ export const fetchIncrementalPosts = async ({
       }),
     )
     .getMany() as unknown as Promise<HighlightPost[]>;
-
-export const fetchDigestTargetAudience = async ({
-  con,
-  channel,
-}: {
-  con: DataSource;
-  channel: string;
-}): Promise<string | null> => {
-  const digest = await con.getRepository(ChannelDigest).findOne({
-    select: {
-      targetAudience: true,
-    },
-    where: {
-      channel,
-    },
-    order: {
-      updatedAt: 'DESC',
-    },
-  });
-
-  return digest?.targetAudience || null;
-};
 
 export const fetchRelations = async ({
   con,
