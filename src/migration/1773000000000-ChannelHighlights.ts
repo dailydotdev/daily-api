@@ -8,18 +8,20 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
       ALTER TABLE "post_highlight"
         ADD COLUMN "id" uuid DEFAULT uuid_generate_v4(),
         ADD COLUMN "highlightedAt" TIMESTAMP,
-        ADD COLUMN "significanceLabel" text,
+        ADD COLUMN "significance" smallint NOT NULL DEFAULT 0,
         ADD COLUMN "reason" text
     `);
 
     await queryRunner.query(/* sql */ `
-      UPDATE "post_highlight"
+      UPDATE "post_highlight" AS highlight
       SET
-        "id" = COALESCE("id", uuid_generate_v4()),
+        "id" = COALESCE(highlight."id", uuid_generate_v4()),
         "highlightedAt" = COALESCE(
-          "highlightedAt",
-          now() - make_interval(secs => GREATEST("rank" - 1, 0))
+          highlight."highlightedAt",
+          post."createdAt"
         )
+      FROM "post" AS post
+      WHERE post."id" = highlight."postId"
     `);
 
     await queryRunner.query(/* sql */ `
@@ -62,20 +64,11 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
         "targetAudience" text NOT NULL DEFAULT '',
         "candidateHorizonHours" smallint NOT NULL DEFAULT 72,
         "maxItems" smallint NOT NULL DEFAULT 10,
+        "lastFetchedAt" TIMESTAMP,
+        "lastPublishedAt" TIMESTAMP,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_channel_highlight_definition_channel"
-          PRIMARY KEY ("channel")
-      )
-    `);
-
-    await queryRunner.query(/* sql */ `
-      CREATE TABLE "channel_highlight_state" (
-        "channel" text NOT NULL,
-        "lastFetchedAt" TIMESTAMP,
-        "lastPublishedAt" TIMESTAMP,
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_channel_highlight_state_channel"
           PRIMARY KEY ("channel")
       )
     `);
@@ -151,9 +144,6 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
       DROP TABLE IF EXISTS "channel_highlight_run"
     `);
     await queryRunner.query(/* sql */ `
-      DROP TABLE IF EXISTS "channel_highlight_state"
-    `);
-    await queryRunner.query(/* sql */ `
       DROP TABLE IF EXISTS "channel_highlight_definition"
     `);
 
@@ -170,7 +160,7 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "post_highlight"
         DROP COLUMN "reason",
-        DROP COLUMN "significanceLabel",
+        DROP COLUMN "significance",
         DROP COLUMN "highlightedAt",
         DROP COLUMN "id"
     `);

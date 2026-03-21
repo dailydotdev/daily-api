@@ -1,6 +1,6 @@
 import type { PostContentQuality } from '../../entity/posts/Post';
+import { toPostHighlightSignificanceLabel } from '../../entity/PostHighlight';
 import type { PostRelation } from '../../entity/posts/PostRelation';
-import { ONE_DAY_IN_SECONDS } from '../constants';
 import type {
   CurrentHighlight,
   HighlightCandidate,
@@ -36,38 +36,6 @@ export const toQualitySummary = (
       ? quality.self_promotion_score
       : null,
 });
-
-const toPreliminaryScore = ({
-  post,
-  horizonStart,
-  referenceTime,
-}: {
-  post: HighlightPost;
-  horizonStart: Date;
-  referenceTime: Date;
-}): number => {
-  const ageSeconds = Math.max(
-    1,
-    (referenceTime.getTime() - post.createdAt.getTime()) / 1000,
-  );
-  const horizonSeconds = Math.max(
-    ONE_DAY_IN_SECONDS,
-    (referenceTime.getTime() - horizonStart.getTime()) / 1000,
-  );
-  const recency = Math.max(0.15, 1 - ageSeconds / horizonSeconds);
-  const engagement = post.upvotes + post.comments * 2 + post.views / 200;
-  const curationBoost = post.contentCuration.some((value) =>
-    ['news', 'release', 'milestone', 'leak', 'drama'].includes(value),
-  )
-    ? 5
-    : 0;
-  const quality = toQualitySummary(post.contentQuality || {});
-  const penalty =
-    (quality.clickbaitProbability || 0) * 5 +
-    (quality.selfPromotionScore || 0) * 3;
-
-  return Number((engagement * recency + curationBoost - penalty).toFixed(3));
-};
 
 const buildCollectionByChildId = (
   relations: PostRelation[],
@@ -115,12 +83,10 @@ export const buildCandidates = ({
   posts,
   relations,
   horizonStart,
-  referenceTime,
 }: {
   posts: HighlightPost[];
   relations: PostRelation[];
   horizonStart: Date;
-  referenceTime: Date;
 }): HighlightCandidate[] => {
   const availablePostIds = new Set(posts.map((post) => post.id));
   const collectionByChildId = buildCollectionByChildId(
@@ -162,27 +128,39 @@ export const buildCandidates = ({
           memberPosts.filter((post) => post.id !== canonicalPostId).length || 1,
         contentCuration: canonicalPost.contentCuration || [],
         quality: toQualitySummary(canonicalPost.contentQuality || {}),
-        preliminaryScore: toPreliminaryScore({
-          post: canonicalPost,
-          horizonStart,
-          referenceTime,
-        }),
       };
     })
     .filter((candidate) => candidate.lastActivityAt >= horizonStart)
-    .sort((left, right) => right.preliminaryScore - left.preliminaryScore);
+    .sort((left, right) => {
+      const activityDelta =
+        right.lastActivityAt.getTime() - left.lastActivityAt.getTime();
+      if (activityDelta !== 0) {
+        return activityDelta;
+      }
+
+      const engagementDelta =
+        right.upvotes +
+        right.comments * 2 +
+        right.views / 200 -
+        (left.upvotes + left.comments * 2 + left.views / 200);
+      if (engagementDelta !== 0) {
+        return engagementDelta;
+      }
+
+      return right.createdAt.getTime() - left.createdAt.getTime();
+    });
 };
 
 export const toHighlightSnapshotItem = (
   item: Pick<
     CurrentHighlight,
-    'postId' | 'headline' | 'highlightedAt' | 'significanceLabel' | 'reason'
+    'postId' | 'headline' | 'highlightedAt' | 'significance' | 'reason'
   >,
 ): HighlightSnapshotItem => ({
   postId: item.postId,
   headline: item.headline,
   highlightedAt: item.highlightedAt,
-  significanceLabel: item.significanceLabel,
+  significanceLabel: toPostHighlightSignificanceLabel(item.significance),
   reason: item.reason,
 });
 
@@ -215,14 +193,9 @@ export const canonicalizeCurrentHighlights = ({
       continue;
     }
 
-    const headline =
-      canonicalPostId === highlight.postId
-        ? highlight.headline
-        : canonicalPost.title || highlight.headline;
-
     canonicalHighlights.set(canonicalPostId, {
       postId: canonicalPostId,
-      headline,
+      headline: highlight.headline,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
       reason: highlight.reason,

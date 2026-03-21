@@ -2,8 +2,10 @@ import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
-import { ChannelHighlightState } from '../../src/entity/ChannelHighlightState';
-import { PostHighlight } from '../../src/entity/PostHighlight';
+import {
+  PostHighlight,
+  PostHighlightSignificance,
+} from '../../src/entity/PostHighlight';
 import { ArticlePost, CollectionPost, Source } from '../../src/entity';
 import {
   PostRelation,
@@ -117,7 +119,6 @@ describe('generateChannelHighlight worker', () => {
     jest.restoreAllMocks();
     await deleteKeysByPattern('channel-highlight:*');
     await con.getRepository(ChannelHighlightRun).clear();
-    await con.getRepository(ChannelHighlightState).clear();
     await con.getRepository(ChannelHighlightDefinition).clear();
     await con.getRepository(PostHighlight).clear();
     await con.getRepository(PostRelation).clear();
@@ -296,7 +297,7 @@ describe('generateChannelHighlight worker', () => {
     expect(liveHighlights[0]).toMatchObject({
       postId: 'fresh-1',
       headline: 'Fresh headline',
-      significanceLabel: 'breaking',
+      significance: PostHighlightSignificance.Breaking,
       reason: 'test',
     });
     expect(liveHighlights[1]).toMatchObject({
@@ -333,7 +334,7 @@ describe('generateChannelHighlight worker', () => {
       postId: 'child-upgrade',
       highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
       headline: 'Original child headline',
-      significanceLabel: 'major',
+      significance: PostHighlightSignificance.Major,
       reason: 'existing',
     });
 
@@ -355,8 +356,8 @@ describe('generateChannelHighlight worker', () => {
     expect(liveHighlights).toEqual([
       expect.objectContaining({
         postId: 'col-upgrade',
-        headline: 'Collection upgrade',
-        significanceLabel: 'major',
+        headline: 'Original child headline',
+        significance: PostHighlightSignificance.Major,
         reason: 'existing',
       }),
     ]);

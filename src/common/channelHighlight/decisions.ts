@@ -6,25 +6,12 @@ const toItemSignature = (item: {
   significanceLabel: string | null;
   reason: string | null;
 }): string =>
-  JSON.stringify([
+  [
     item.postId,
     item.headline,
-    item.significanceLabel,
-    item.reason,
-  ]);
-
-export const shouldPublish = ({
-  baseline,
-  internal,
-}: {
-  baseline: HighlightSnapshotItem[];
-  internal: HighlightSnapshotItem[];
-}): boolean => {
-  const baselineSignature = baseline.map(toItemSignature).join('|');
-  const internalSignature = internal.map(toItemSignature).join('|');
-
-  return baselineSignature !== internalSignature;
-};
+    item.significanceLabel || '',
+    item.reason || '',
+  ].join('|');
 
 export const compareSnapshots = ({
   baseline,
@@ -38,8 +25,12 @@ export const compareSnapshots = ({
   const overlap = [...internalByPostId.keys()].filter((postId) =>
     baselineByPostId.has(postId),
   );
+  const changed =
+    baseline.map(toItemSignature).join('||') !==
+    internal.map(toItemSignature).join('||');
 
   return {
+    changed,
     baselineCount: baseline.length,
     internalCount: internal.length,
     overlapCount: overlap.length,

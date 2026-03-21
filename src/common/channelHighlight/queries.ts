@@ -1,6 +1,6 @@
 import { Brackets, In, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
-import { ChannelHighlightState } from '../../entity/ChannelHighlightState';
+import { ChannelDigest } from '../../entity/ChannelDigest';
 import { PostHighlight } from '../../entity/PostHighlight';
 import { Post } from '../../entity/posts/Post';
 import {
@@ -27,40 +27,28 @@ export const getHorizonStart = ({
 export const getFetchStart = ({
   now,
   definition,
-  state,
 }: {
   now: Date;
-  definition: Pick<ChannelHighlightDefinition, 'candidateHorizonHours'>;
-  state: Pick<ChannelHighlightState, 'lastFetchedAt'> | null;
+  definition: Pick<
+    ChannelHighlightDefinition,
+    'candidateHorizonHours' | 'lastFetchedAt'
+  >;
 }): Date => {
   const horizonStart = getHorizonStart({
     now,
     definition,
   });
 
-  if (!state?.lastFetchedAt) {
+  if (!definition.lastFetchedAt) {
     return horizonStart;
   }
 
   const overlapStart = new Date(
-    state.lastFetchedAt.getTime() - HIGHLIGHT_FETCH_OVERLAP_SECONDS * 1000,
+    definition.lastFetchedAt.getTime() - HIGHLIGHT_FETCH_OVERLAP_SECONDS * 1000,
   );
 
   return overlapStart > horizonStart ? overlapStart : horizonStart;
 };
-
-export const fetchDefinitionState = async ({
-  con,
-  channel,
-}: {
-  con: DataSource;
-  channel: string;
-}): Promise<ChannelHighlightState | null> =>
-  con.getRepository(ChannelHighlightState).findOne({
-    where: {
-      channel,
-    },
-  });
 
 export const fetchCurrentHighlights = async ({
   con,
@@ -119,6 +107,7 @@ export const fetchIncrementalPosts = async ({
     .andWhere('post.deleted = false')
     .andWhere('post.banned = false')
     .andWhere('post.showOnFeed = true')
+    .andWhere('post.sharedPostId IS NULL')
     .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
     .andWhere(
       new Brackets((builder) => {
@@ -129,6 +118,28 @@ export const fetchIncrementalPosts = async ({
       }),
     )
     .getMany() as unknown as Promise<HighlightPost[]>;
+
+export const fetchDigestTargetAudience = async ({
+  con,
+  channel,
+}: {
+  con: DataSource;
+  channel: string;
+}): Promise<string | null> => {
+  const digest = await con.getRepository(ChannelDigest).findOne({
+    select: {
+      targetAudience: true,
+    },
+    where: {
+      channel,
+    },
+    order: {
+      updatedAt: 'DESC',
+    },
+  });
+
+  return digest?.targetAudience || null;
+};
 
 export const fetchRelations = async ({
   con,

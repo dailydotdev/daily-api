@@ -38,7 +38,10 @@ import { z } from 'zod';
 import { counters } from '../telemetry';
 import { applyVordrToUsers } from '../common/vordr';
 import { updatePostContentSchema } from '../common/schema/posts';
-import { PostHighlight } from '../entity/PostHighlight';
+import {
+  PostHighlight,
+  toPostHighlightSignificance,
+} from '../entity/PostHighlight';
 import {
   setHighlightsSchema,
   postHighlightItemSchema,
@@ -54,7 +57,6 @@ const MAX_VORDR_BATCH_SIZE = 500;
 type HighlightRouteItem = {
   postId: string;
   headline: string;
-  rank?: number;
   highlightedAt?: string;
   significanceLabel?: string | null;
   reason?: string | null;
@@ -110,31 +112,7 @@ const withHighlightTimestamps = (
     }));
   }
 
-  const orderedItems = items
-    .map((item, index) => ({
-      ...item,
-      orderIndex: index,
-    }))
-    .sort((left, right) => {
-      const leftRank = left.rank ?? Number.MAX_SAFE_INTEGER;
-      const rightRank = right.rank ?? Number.MAX_SAFE_INTEGER;
-
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
-
-      return left.orderIndex - right.orderIndex;
-    })
-    .map((item) => ({
-      postId: item.postId,
-      headline: item.headline,
-      rank: item.rank,
-      highlightedAt: item.highlightedAt,
-      significanceLabel: item.significanceLabel,
-      reason: item.reason,
-    }));
-
-  return normalizeHighlightOrder(orderedItems);
+  return normalizeHighlightOrder(items);
 };
 
 const toStoredHighlightItem = (
@@ -150,43 +128,6 @@ const toStoredHighlightItem = (
 const toStoredHighlightItems = (
   items: TimestampedHighlightRouteItem[],
 ): StoredHighlightItem[] => items.map(toStoredHighlightItem);
-
-const reorderHighlightsByRank = ({
-  currentHighlights,
-  nextItem,
-  rank,
-}: {
-  currentHighlights: PostHighlight[];
-  nextItem: HighlightRouteItem;
-  rank: number;
-}): StoredHighlightItem[] => {
-  const remainingHighlights = currentHighlights
-    .filter((highlight) => highlight.postId !== nextItem.postId)
-    .map<StoredHighlightItem>((highlight) => ({
-      postId: highlight.postId,
-      headline: highlight.headline,
-      highlightedAt: highlight.highlightedAt,
-      significanceLabel: highlight.significanceLabel,
-      reason: highlight.reason,
-    }));
-  const insertionIndex = Math.max(
-    0,
-    Math.min(rank - 1, remainingHighlights.length),
-  );
-  const reorderedHighlights = remainingHighlights.slice();
-
-  reorderedHighlights.splice(insertionIndex, 0, {
-    postId: nextItem.postId,
-    headline: nextItem.headline,
-    highlightedAt: new Date(),
-    significanceLabel: nextItem.significanceLabel ?? null,
-    reason: nextItem.reason ?? null,
-  });
-
-  return normalizeHighlightOrder(reorderedHighlights).map(
-    toStoredHighlightItem,
-  );
-};
 
 const upsertHighlightsForChannel = async ({
   con,
@@ -207,38 +148,10 @@ const upsertHighlightsForChannel = async ({
       postId: item.postId,
       highlightedAt: item.highlightedAt,
       headline: item.headline,
-      significanceLabel: item.significanceLabel,
+      significance: toPostHighlightSignificance(item.significanceLabel),
       reason: item.reason,
     })),
     { conflictPaths: ['channel', 'postId'] },
-  );
-};
-
-const replaceHighlightsForChannel = async ({
-  con,
-  channel,
-  items,
-}: {
-  con: HighlightRepositoryAccessor;
-  channel: string;
-  items: StoredHighlightItem[];
-}): Promise<void> => {
-  const repo = con.getRepository(PostHighlight);
-  await repo.delete({ channel });
-
-  if (!items.length) {
-    return;
-  }
-
-  await repo.insert(
-    items.map((item) => ({
-      channel,
-      postId: item.postId,
-      highlightedAt: item.highlightedAt,
-      headline: item.headline,
-      significanceLabel: item.significanceLabel,
-      reason: item.reason,
-    })),
   );
 };
 
@@ -643,7 +556,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           postId: item.postId,
           highlightedAt: item.highlightedAt,
           headline: item.headline,
-          significanceLabel: item.significanceLabel,
+          significance: toPostHighlightSignificance(item.significanceLabel),
           reason: item.reason,
         })),
       );
@@ -670,34 +583,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    if (item.data.highlightedAt || item.data.rank === undefined) {
-      const [itemWithTimestamp] = withHighlightTimestamps([item.data]);
-      await upsertHighlightsForChannel({
-        con,
-        channel,
-        items: [toStoredHighlightItem(itemWithTimestamp)],
-      });
-    } else {
-      await con.transaction(async (manager) => {
-        const currentHighlights = await manager
-          .getRepository(PostHighlight)
-          .find({
-            where: { channel },
-            order: { highlightedAt: 'DESC', createdAt: 'DESC' },
-          });
-        const reorderedHighlights = reorderHighlightsByRank({
-          currentHighlights,
-          nextItem: item.data,
-          rank: item.data.rank,
-        });
-
-        await replaceHighlightsForChannel({
-          con: manager,
-          channel,
-          items: reorderedHighlights,
-        });
-      });
-    }
+    const [itemWithTimestamp] = withHighlightTimestamps([item.data]);
+    await upsertHighlightsForChannel({
+      con,
+      channel,
+      items: [toStoredHighlightItem(itemWithTimestamp)],
+    });
 
     return res.status(200).send({ success: true });
   });
@@ -735,68 +626,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const con = await createOrGetConnection();
     const repo = con.getRepository(PostHighlight);
-
-    if (update.data.highlightedAt || update.data.rank === undefined) {
-      const partialUpdate = {
+    const result = await repo.update(
+      { channel, postId },
+      {
         headline: update.data.headline,
-        highlightedAt: update.data.highlightedAt,
-        significanceLabel: update.data.significanceLabel,
-        reason: update.data.reason,
-      };
-      const updatePayload = {
-        ...partialUpdate,
-        highlightedAt: partialUpdate.highlightedAt
-          ? new Date(partialUpdate.highlightedAt)
+        highlightedAt: update.data.highlightedAt
+          ? new Date(update.data.highlightedAt)
           : undefined,
-      };
-      const result = await repo.update({ channel, postId }, updatePayload);
+        significance:
+          update.data.significanceLabel !== undefined
+            ? toPostHighlightSignificance(update.data.significanceLabel)
+            : undefined,
+        reason: update.data.reason,
+      },
+    );
 
-      if (result.affected === 0) {
-        return res.status(404).send({ error: 'highlight not found' });
-      }
-    } else {
-      let foundHighlight = true;
-
-      await con.transaction(async (manager) => {
-        const currentHighlight = await manager
-          .getRepository(PostHighlight)
-          .findOneBy({ channel, postId });
-
-        if (!currentHighlight) {
-          foundHighlight = false;
-          return;
-        }
-
-        const currentHighlights = await manager
-          .getRepository(PostHighlight)
-          .find({
-            where: { channel },
-            order: { highlightedAt: 'DESC', createdAt: 'DESC' },
-          });
-        const reorderedHighlights = reorderHighlightsByRank({
-          currentHighlights,
-          nextItem: {
-            postId,
-            headline: update.data.headline ?? currentHighlight.headline,
-            rank: update.data.rank,
-            significanceLabel:
-              update.data.significanceLabel ??
-              currentHighlight.significanceLabel,
-            reason: update.data.reason ?? currentHighlight.reason,
-          },
-          rank: update.data.rank,
-        });
-
-        await replaceHighlightsForChannel({
-          con: manager,
-          channel,
-          items: reorderedHighlights,
-        });
-      });
-
-      if (!foundHighlight) {
-        return res.status(404).send({ error: 'highlight not found' });
-      }
+    if (result.affected === 0) {
+      return res.status(404).send({ error: 'highlight not found' });
     }
 
     return res.status(200).send({ success: true });

@@ -1,14 +1,13 @@
 import type { DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
+import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
-import { ChannelHighlightState } from '../../entity/ChannelHighlightState';
-import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
-import { compareSnapshots, shouldPublish } from './decisions';
+import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
 import {
   fetchCurrentHighlights,
-  fetchDefinitionState,
+  fetchDigestTargetAudience,
   fetchIncrementalPosts,
   fetchPostsByIds,
   fetchRelations,
@@ -28,23 +27,19 @@ import type {
   HighlightSyncItem,
 } from './types';
 
-const sortByHighlightedAtDesc = <T extends { highlightedAt: Date }>(
-  items: T[],
-): T[] =>
-  items
-    .slice()
-    .sort(
-      (left, right) =>
-        right.highlightedAt.getTime() - left.highlightedAt.getTime(),
-    );
-
 const trimHighlights = ({
   items,
   maxItems,
 }: {
   items: HighlightSyncItem[];
   maxItems: number;
-}): HighlightSyncItem[] => sortByHighlightedAtDesc(items).slice(0, maxItems);
+}): HighlightSyncItem[] =>
+  [...items]
+    .sort(
+      (left, right) =>
+        right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+    )
+    .slice(0, maxItems);
 
 const toInputSummary = ({
   fetchStart,
@@ -91,10 +86,13 @@ const toMetrics = ({
 
 const getTargetAudience = ({
   definition,
+  digestTargetAudience,
 }: {
   definition: Pick<ChannelHighlightDefinition, 'channel' | 'targetAudience'>;
+  digestTargetAudience: string | null;
 }): string =>
   definition.targetAudience.trim() ||
+  digestTargetAudience?.trim() ||
   `daily.dev readers following ${definition.channel}`;
 
 // High-level flow:
@@ -127,12 +125,12 @@ export const generateChannelHighlight = async ({
   );
 
   try {
-    const [state, currentHighlights] = await Promise.all([
-      fetchDefinitionState({
+    const [currentHighlights, digestTargetAudience] = await Promise.all([
+      fetchCurrentHighlights({
         con,
         channel: definition.channel,
       }),
-      fetchCurrentHighlights({
+      fetchDigestTargetAudience({
         con,
         channel: definition.channel,
       }),
@@ -144,7 +142,6 @@ export const generateChannelHighlight = async ({
     const fetchStart = getFetchStart({
       now,
       definition,
-      state,
     });
 
     const baselineSnapshot = currentHighlights.map(toHighlightSnapshotItem);
@@ -197,7 +194,6 @@ export const generateChannelHighlight = async ({
       posts: availablePosts,
       relations,
       horizonStart,
-      referenceTime: now,
     }).filter((candidate) => !currentHighlightPostIds.has(candidate.postId));
 
     const admittedHighlights =
@@ -208,6 +204,7 @@ export const generateChannelHighlight = async ({
               channel: definition.channel,
               targetAudience: getTargetAudience({
                 definition,
+                digestTargetAudience,
               }),
               maxItems: definition.maxItems,
               currentHighlights: canonicalCurrentHighlights,
@@ -229,11 +226,7 @@ export const generateChannelHighlight = async ({
       baseline: baselineSnapshot,
       internal: internalHighlights,
     });
-    const wouldPublish = shouldPublish({
-      baseline: baselineSnapshot,
-      internal: internalHighlights,
-    });
-    const publish = definition.mode === 'publish' && wouldPublish;
+    const publish = definition.mode === 'publish' && comparison.changed;
     const metrics = toMetrics({
       fetchedPosts: incrementalPosts.length + highlightedPosts.length,
       relationPosts: relationPosts.length,
@@ -244,26 +237,14 @@ export const generateChannelHighlight = async ({
       admittedHighlights: admittedHighlights.length,
     });
 
-    await runRepo.update(
-      { id: run.id },
-      {
-        baselineSnapshot: baselineSnapshot.map(toStoredSnapshotItem),
-        inputSummary: toInputSummary({
-          fetchStart,
-          horizonStart,
-          currentHighlights: canonicalCurrentHighlights,
-          candidatePostIds: newCandidates.map((candidate) => candidate.postId),
-        }),
-        metrics,
-      },
-    );
-
     await con.transaction(async (manager) => {
-      await manager.getRepository(ChannelHighlightState).save({
-        channel: definition.channel,
-        lastFetchedAt: now,
-        lastPublishedAt: publish ? now : state?.lastPublishedAt || null,
-      });
+      await manager.getRepository(ChannelHighlightDefinition).update(
+        { channel: definition.channel },
+        {
+          lastFetchedAt: now,
+          lastPublishedAt: publish ? now : definition.lastPublishedAt || null,
+        },
+      );
 
       if (publish) {
         await replaceHighlightsForChannel({
@@ -278,10 +259,19 @@ export const generateChannelHighlight = async ({
         {
           status: 'completed',
           completedAt: new Date(),
+          baselineSnapshot: baselineSnapshot.map(toStoredSnapshotItem),
+          inputSummary: toInputSummary({
+            fetchStart,
+            horizonStart,
+            currentHighlights: canonicalCurrentHighlights,
+            candidatePostIds: newCandidates.map(
+              (candidate) => candidate.postId,
+            ),
+          }),
           internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
           comparison: {
             ...comparison,
-            wouldPublish,
+            wouldPublish: comparison.changed,
             published: publish,
           },
           metrics,

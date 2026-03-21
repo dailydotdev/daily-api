@@ -11,7 +11,10 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { ArticlePost, Source } from '../src/entity';
-import { PostHighlight } from '../src/entity/PostHighlight';
+import {
+  PostHighlight,
+  PostHighlightSignificance,
+} from '../src/entity/PostHighlight';
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 
@@ -87,8 +90,6 @@ const QUERY = `
       channel
       highlightedAt
       headline
-      significanceLabel
-      reason
       post {
         id
         title
@@ -198,41 +199,6 @@ describe('PUT /p/highlights/:channel', () => {
     expect(res.status).toBe(400);
   });
 
-  it('should reject duplicate postIds in a bulk payload', async () => {
-    await createTestPosts();
-
-    const res = await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([
-        { postId: 'h1', headline: 'First copy' },
-        { postId: 'h1', headline: 'Second copy' },
-      ]);
-
-    expect(res.status).toBe(400);
-  });
-
-  it('should reject mixed timestamp ordering in a bulk payload', async () => {
-    await createTestPosts();
-
-    const res = await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([
-        {
-          postId: 'h1',
-          highlightedAt: '2026-03-19T10:05:00.000Z',
-          headline: 'Timestamped',
-        },
-        {
-          postId: 'h2',
-          headline: 'Untimestamped',
-        },
-      ]);
-
-    expect(res.status).toBe(400);
-  });
-
   it('should replace all highlights for a channel', async () => {
     await createTestPosts();
 
@@ -274,31 +240,6 @@ describe('PUT /p/highlights/:channel', () => {
       postId: 'h3',
       headline: 'New second',
     });
-  });
-
-  it('should accept legacy rank ordering', async () => {
-    await createTestPosts();
-
-    const res = await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([
-        { postId: 'h3', rank: 3, headline: 'Third legacy' },
-        { postId: 'h1', rank: 1, headline: 'First legacy' },
-        { postId: 'h2', rank: 2, headline: 'Second legacy' },
-      ]);
-
-    expect(res.status).toBe(200);
-
-    const highlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'happening-now' },
-      order: { highlightedAt: 'DESC' },
-    });
-    expect(highlights.map((highlight) => highlight.postId)).toEqual([
-      'h1',
-      'h2',
-      'h3',
-    ]);
   });
 
   it('should not affect other channels', async () => {
@@ -351,22 +292,6 @@ describe('POST /p/highlights/:channel/items', () => {
     expect(highlight?.highlightedAt).toBeInstanceOf(Date);
   });
 
-  it('should reject rank together with highlightedAt', async () => {
-    await createTestPosts();
-
-    const res = await request(app.server)
-      .post('/p/highlights/happening-now/items')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({
-        postId: 'h1',
-        rank: 1,
-        highlightedAt: '2026-03-19T10:10:00.000Z',
-        headline: 'Ambiguous ordering',
-      });
-
-    expect(res.status).toBe(400);
-  });
-
   it('should upsert on conflict', async () => {
     await createTestPosts();
 
@@ -396,45 +321,9 @@ describe('POST /p/highlights/:channel/items', () => {
     expect(highlights).toHaveLength(1);
     expect(highlights[0]).toMatchObject({
       headline: 'Updated via upsert',
-      significanceLabel: 'major',
+      significance: PostHighlightSignificance.Major,
       reason: 'editorial test',
     });
-  });
-
-  it('should accept legacy rank when inserting a single highlight', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T10:00:00.000Z'),
-        headline: 'First headline',
-      },
-      {
-        postId: 'h3',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T09:00:00.000Z'),
-        headline: 'Third headline',
-      },
-    ]);
-
-    const res = await request(app.server)
-      .post('/p/highlights/happening-now/items')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({ postId: 'h2', rank: 2, headline: 'Second headline' });
-
-    expect(res.status).toBe(200);
-
-    const highlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'happening-now' },
-      order: { highlightedAt: 'DESC' },
-    });
-    expect(highlights.map((highlight) => highlight.postId)).toEqual([
-      'h1',
-      'h2',
-      'h3',
-    ]);
   });
 });
 
@@ -501,7 +390,7 @@ describe('PATCH /p/highlights/:channel/items/:postId', () => {
       .findOneBy({ channel: 'happening-now', postId: 'h1' });
     expect(highlight).toMatchObject({
       headline: 'Updated headline',
-      significanceLabel: 'breaking',
+      significance: PostHighlightSignificance.Breaking,
       reason: 'manual update',
     });
     expect(highlight?.highlightedAt.toISOString()).toBe(
@@ -534,55 +423,5 @@ describe('PATCH /p/highlights/:channel/items/:postId', () => {
       .send({ headline: 'Updated headline' });
 
     expect(res.status).toBe(404);
-  });
-
-  it('should accept legacy rank when reordering a highlight', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T10:00:00.000Z'),
-        headline: 'First headline',
-      },
-      {
-        postId: 'h2',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T09:00:00.000Z'),
-        headline: 'Second headline',
-      },
-      {
-        postId: 'h3',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T08:00:00.000Z'),
-        headline: 'Third headline',
-      },
-    ]);
-
-    const res = await request(app.server)
-      .patch('/p/highlights/happening-now/items/h3')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({
-        rank: 1,
-        headline: 'Third promoted',
-        significanceLabel: 'major',
-      });
-
-    expect(res.status).toBe(200);
-
-    const highlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'happening-now' },
-      order: { highlightedAt: 'DESC' },
-    });
-    expect(highlights.map((highlight) => highlight.postId)).toEqual([
-      'h3',
-      'h1',
-      'h2',
-    ]);
-    expect(highlights[0]).toMatchObject({
-      headline: 'Third promoted',
-      significanceLabel: 'major',
-    });
   });
 });

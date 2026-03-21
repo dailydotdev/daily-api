@@ -49,5 +49,4 @@ export * from './QuestReward';
 export * from './QuestRotation';
 export * from './PostHighlight';
 export * from './ChannelHighlightDefinition';
-export * from './ChannelHighlightState';
 export * from './ChannelHighlightRun';

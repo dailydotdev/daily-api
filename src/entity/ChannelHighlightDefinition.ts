@@ -24,6 +24,12 @@ export class ChannelHighlightDefinition {
   @Column({ type: 'smallint', default: 10 })
   maxItems: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastFetchedAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastPublishedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

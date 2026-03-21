@@ -1,5 +1,8 @@
 import type { EntityManager } from 'typeorm';
-import { PostHighlight } from '../../entity/PostHighlight';
+import {
+  PostHighlight,
+  toPostHighlightSignificance,
+} from '../../entity/PostHighlight';
 import type { HighlightSyncItem } from './types';
 
 export type PublishHighlightItem = HighlightSyncItem;
@@ -26,7 +29,7 @@ export const replaceHighlightsForChannel = async ({
       postId: item.postId,
       highlightedAt: item.highlightedAt,
       headline: item.headline,
-      significanceLabel: item.significanceLabel,
+      significance: toPostHighlightSignificance(item.significanceLabel),
       reason: item.reason,
     })),
   );

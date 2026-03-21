@@ -9,8 +9,6 @@ export const typeDefs = /* GraphQL */ `
     channel: String!
     highlightedAt: DateTime!
     headline: String!
-    significanceLabel: String
-    reason: String
     createdAt: DateTime!
     updatedAt: DateTime!
   }
