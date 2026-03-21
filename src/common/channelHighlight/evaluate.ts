@@ -6,13 +6,13 @@ import {
   EvaluateChannelHighlightsRequest as BragiEvaluateChannelHighlightsRequest,
 } from '@dailydotdev/schema';
 import { getBragiClient } from '../../integrations/bragi/clients';
-import type { HighlightCandidate, HighlightSnapshotItem } from './types';
+import type { HighlightCandidate, HighlightItem } from './types';
 
 export type EvaluateChannelHighlightsRequest = {
   channel: string;
   targetAudience: string;
   maxItems: number;
-  currentHighlights: HighlightSnapshotItem[];
+  currentHighlights: HighlightItem[];
   newCandidates: HighlightCandidate[];
 };
 
@@ -64,9 +64,7 @@ const toSignificanceLabel = (
   }
 };
 
-const toCurrentHighlight = (
-  item: HighlightSnapshotItem,
-): ChannelHighlightCurrentItem =>
+const toCurrentHighlight = (item: HighlightItem): ChannelHighlightCurrentItem =>
   new ChannelHighlightCurrentItem({
     postId: item.postId,
     headline: item.headline,

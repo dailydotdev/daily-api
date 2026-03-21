@@ -60,15 +60,7 @@ export type CurrentHighlight = {
   reason: string | null;
 };
 
-export type HighlightSnapshotItem = {
-  postId: string;
-  headline: string;
-  highlightedAt: Date;
-  significanceLabel: string | null;
-  reason: string | null;
-};
-
-export type HighlightSyncItem = {
+export type HighlightItem = {
   postId: string;
   headline: string;
   highlightedAt: Date;

@@ -4,10 +4,9 @@ import type { PostRelation } from '../../entity/posts/PostRelation';
 import type {
   CurrentHighlight,
   HighlightCandidate,
+  HighlightItem,
   HighlightPost,
   HighlightQualitySummary,
-  HighlightSnapshotItem,
-  HighlightSyncItem,
 } from './types';
 
 const toLastActivityAt = (post: HighlightPost): Date => {
@@ -124,8 +123,7 @@ export const buildCandidates = ({
         upvotes: canonicalPost.upvotes,
         comments: canonicalPost.comments,
         views: canonicalPost.views,
-        relatedItemsCount:
-          memberPosts.filter((post) => post.id !== canonicalPostId).length || 1,
+        relatedItemsCount: memberPosts.length,
         contentCuration: canonicalPost.contentCuration || [],
         quality: toQualitySummary(canonicalPost.contentQuality || {}),
       };
@@ -151,12 +149,12 @@ export const buildCandidates = ({
     });
 };
 
-export const toHighlightSnapshotItem = (
+export const toHighlightItem = (
   item: Pick<
     CurrentHighlight,
     'postId' | 'headline' | 'highlightedAt' | 'significance' | 'reason'
   >,
-): HighlightSnapshotItem => ({
+): HighlightItem => ({
   postId: item.postId,
   headline: item.headline,
   highlightedAt: item.highlightedAt,
@@ -169,16 +167,16 @@ export const canonicalizeCurrentHighlights = ({
   relations,
   posts,
 }: {
-  highlights: HighlightSnapshotItem[];
+  highlights: HighlightItem[];
   relations: PostRelation[];
   posts: HighlightPost[];
-}): HighlightSyncItem[] => {
+}): HighlightItem[] => {
   const postsById = new Map(posts.map((post) => [post.id, post]));
   const collectionByChildId = buildCollectionByChildId(
     relations,
     new Set(postsById.keys()),
   );
-  const canonicalHighlights = new Map<string, HighlightSyncItem>();
+  const canonicalHighlights = new Map<string, HighlightItem>();
 
   for (const highlight of highlights) {
     const canonicalPostId =
@@ -209,7 +207,7 @@ export const canonicalizeCurrentHighlights = ({
 };
 
 export const toStoredSnapshotItem = (
-  item: HighlightSnapshotItem | HighlightSyncItem,
+  item: HighlightItem,
 ): {
   postId: string;
   headline: string;

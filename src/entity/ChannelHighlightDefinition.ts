@@ -27,9 +27,6 @@ export class ChannelHighlightDefinition {
   @Column({ type: 'timestamp', nullable: true })
   lastFetchedAt: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
-  lastPublishedAt: Date | null;
-
   @CreateDateColumn()
   createdAt: Date;
 

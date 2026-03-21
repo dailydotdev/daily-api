@@ -3,9 +3,7 @@ import {
   PostHighlight,
   toPostHighlightSignificance,
 } from '../../entity/PostHighlight';
-import type { HighlightSyncItem } from './types';
-
-export type PublishHighlightItem = HighlightSyncItem;
+import type { HighlightItem } from './types';
 
 export const replaceHighlightsForChannel = async ({
   manager,
@@ -14,7 +12,7 @@ export const replaceHighlightsForChannel = async ({
 }: {
   manager: EntityManager;
   channel: string;
-  items: PublishHighlightItem[];
+  items: HighlightItem[];
 }): Promise<void> => {
   const repo = manager.getRepository(PostHighlight);
   await repo.delete({ channel });

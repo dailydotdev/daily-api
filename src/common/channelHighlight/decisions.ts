@@ -1,4 +1,4 @@
-import type { HighlightSnapshotItem } from './types';
+import type { HighlightItem } from './types';
 
 const toItemSignature = (item: {
   postId: string;
@@ -17,8 +17,8 @@ export const compareSnapshots = ({
   baseline,
   internal,
 }: {
-  baseline: HighlightSnapshotItem[];
-  internal: HighlightSnapshotItem[];
+  baseline: HighlightItem[];
+  internal: HighlightItem[];
 }) => {
   const baselineByPostId = new Map(baseline.map((item) => [item.postId, item]));
   const internalByPostId = new Map(internal.map((item) => [item.postId, item]));

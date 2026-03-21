@@ -65,7 +65,6 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
         "candidateHorizonHours" smallint NOT NULL DEFAULT 72,
         "maxItems" smallint NOT NULL DEFAULT 10,
         "lastFetchedAt" TIMESTAMP,
-        "lastPublishedAt" TIMESTAMP,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_channel_highlight_definition_channel"

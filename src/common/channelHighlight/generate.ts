@@ -18,82 +18,24 @@ import {
 import {
   buildCandidates,
   canonicalizeCurrentHighlights,
-  toHighlightSnapshotItem,
+  toHighlightItem,
   toStoredSnapshotItem,
 } from './stories';
-import type {
-  GenerateChannelHighlightResult,
-  HighlightSnapshotItem,
-  HighlightSyncItem,
-} from './types';
+import type { GenerateChannelHighlightResult, HighlightItem } from './types';
 
 const trimHighlights = ({
   items,
   maxItems,
 }: {
-  items: HighlightSyncItem[];
+  items: HighlightItem[];
   maxItems: number;
-}): HighlightSyncItem[] =>
+}): HighlightItem[] =>
   [...items]
     .sort(
       (left, right) =>
         right.highlightedAt.getTime() - left.highlightedAt.getTime(),
     )
     .slice(0, maxItems);
-
-const toInputSummary = ({
-  fetchStart,
-  horizonStart,
-  currentHighlights,
-  candidatePostIds,
-}: {
-  fetchStart: Date;
-  horizonStart: Date;
-  currentHighlights: HighlightSnapshotItem[];
-  candidatePostIds: string[];
-}) => ({
-  fetchStart: fetchStart.toISOString(),
-  horizonStart: horizonStart.toISOString(),
-  currentHighlightPostIds: currentHighlights.map((item) => item.postId),
-  candidatePostIds,
-});
-
-const toMetrics = ({
-  fetchedPosts,
-  relationPosts,
-  currentHighlights,
-  activeHighlights,
-  canonicalizedHighlights,
-  newCandidates,
-  admittedHighlights,
-}: {
-  fetchedPosts: number;
-  relationPosts: number;
-  currentHighlights: number;
-  activeHighlights: number;
-  canonicalizedHighlights: number;
-  newCandidates: number;
-  admittedHighlights: number;
-}) => ({
-  fetchedPosts,
-  relationPosts,
-  currentHighlights,
-  activeHighlights,
-  canonicalizedHighlights,
-  newCandidates,
-  admittedHighlights,
-});
-
-const getTargetAudience = ({
-  definition,
-  digestTargetAudience,
-}: {
-  definition: Pick<ChannelHighlightDefinition, 'channel' | 'targetAudience'>;
-  digestTargetAudience: string | null;
-}): string =>
-  definition.targetAudience.trim() ||
-  digestTargetAudience?.trim() ||
-  `daily.dev readers following ${definition.channel}`;
 
 // High-level flow:
 // 1. Keep only currently highlighted items that are still inside the horizon.
@@ -125,16 +67,10 @@ export const generateChannelHighlight = async ({
   );
 
   try {
-    const [currentHighlights, digestTargetAudience] = await Promise.all([
-      fetchCurrentHighlights({
-        con,
-        channel: definition.channel,
-      }),
-      fetchDigestTargetAudience({
-        con,
-        channel: definition.channel,
-      }),
-    ]);
+    const currentHighlights = await fetchCurrentHighlights({
+      con,
+      channel: definition.channel,
+    });
     const horizonStart = getHorizonStart({
       now,
       definition,
@@ -144,14 +80,12 @@ export const generateChannelHighlight = async ({
       definition,
     });
 
-    const baselineSnapshot = currentHighlights.map(toHighlightSnapshotItem);
-    const activeCurrentHighlights = baselineSnapshot.filter(
+    const baselineHighlights = currentHighlights.map(toHighlightItem);
+    const activeHighlights = baselineHighlights.filter(
       (item) => item.highlightedAt >= horizonStart,
     );
 
-    const highlightedPostIds = activeCurrentHighlights.map(
-      (item) => item.postId,
-    );
+    const highlightedPostIds = activeHighlights.map((item) => item.postId);
     const [incrementalPosts, highlightedPosts] = await Promise.all([
       fetchIncrementalPosts({
         con,
@@ -181,14 +115,14 @@ export const generateChannelHighlight = async ({
       ],
     });
     const availablePosts = mergePosts([basePosts, relationPosts]);
-    const canonicalCurrentHighlights = canonicalizeCurrentHighlights({
-      highlights: activeCurrentHighlights,
+    const liveHighlights = canonicalizeCurrentHighlights({
+      highlights: activeHighlights,
       relations,
       posts: availablePosts,
     });
 
     const currentHighlightPostIds = new Set(
-      canonicalCurrentHighlights.map((item) => item.postId),
+      liveHighlights.map((item) => item.postId),
     );
     const newCandidates = buildCandidates({
       posts: availablePosts,
@@ -196,21 +130,28 @@ export const generateChannelHighlight = async ({
       horizonStart,
     }).filter((candidate) => !currentHighlightPostIds.has(candidate.postId));
 
+    const targetAudience =
+      definition.targetAudience.trim() ||
+      (
+        await fetchDigestTargetAudience({
+          con,
+          channel: definition.channel,
+        })
+      )?.trim() ||
+      `daily.dev readers following ${definition.channel}`;
+
     const admittedHighlights =
       newCandidates.length === 0
         ? []
         : (
             await evaluateChannelHighlights({
               channel: definition.channel,
-              targetAudience: getTargetAudience({
-                definition,
-                digestTargetAudience,
-              }),
+              targetAudience,
               maxItems: definition.maxItems,
-              currentHighlights: canonicalCurrentHighlights,
+              currentHighlights: liveHighlights,
               newCandidates,
             })
-          ).items.map<HighlightSyncItem>((item) => ({
+          ).items.map<HighlightItem>((item) => ({
             postId: item.postId,
             headline: item.headline,
             highlightedAt: now,
@@ -219,30 +160,20 @@ export const generateChannelHighlight = async ({
           }));
 
     const internalHighlights = trimHighlights({
-      items: [...canonicalCurrentHighlights, ...admittedHighlights],
+      items: [...liveHighlights, ...admittedHighlights],
       maxItems: definition.maxItems,
     });
     const comparison = compareSnapshots({
-      baseline: baselineSnapshot,
+      baseline: baselineHighlights,
       internal: internalHighlights,
     });
     const publish = definition.mode === 'publish' && comparison.changed;
-    const metrics = toMetrics({
-      fetchedPosts: incrementalPosts.length + highlightedPosts.length,
-      relationPosts: relationPosts.length,
-      currentHighlights: baselineSnapshot.length,
-      activeHighlights: activeCurrentHighlights.length,
-      canonicalizedHighlights: canonicalCurrentHighlights.length,
-      newCandidates: newCandidates.length,
-      admittedHighlights: admittedHighlights.length,
-    });
 
     await con.transaction(async (manager) => {
       await manager.getRepository(ChannelHighlightDefinition).update(
         { channel: definition.channel },
         {
           lastFetchedAt: now,
-          lastPublishedAt: publish ? now : definition.lastPublishedAt || null,
         },
       );
 
@@ -259,22 +190,30 @@ export const generateChannelHighlight = async ({
         {
           status: 'completed',
           completedAt: new Date(),
-          baselineSnapshot: baselineSnapshot.map(toStoredSnapshotItem),
-          inputSummary: toInputSummary({
-            fetchStart,
-            horizonStart,
-            currentHighlights: canonicalCurrentHighlights,
+          baselineSnapshot: baselineHighlights.map(toStoredSnapshotItem),
+          inputSummary: {
+            fetchStart: fetchStart.toISOString(),
+            horizonStart: horizonStart.toISOString(),
+            currentHighlightPostIds: liveHighlights.map((item) => item.postId),
             candidatePostIds: newCandidates.map(
               (candidate) => candidate.postId,
             ),
-          }),
+          },
           internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
           comparison: {
             ...comparison,
             wouldPublish: comparison.changed,
             published: publish,
           },
-          metrics,
+          metrics: {
+            fetchedPosts: incrementalPosts.length + highlightedPosts.length,
+            relationPosts: relationPosts.length,
+            currentHighlights: baselineHighlights.length,
+            activeHighlights: activeHighlights.length,
+            canonicalizedHighlights: liveHighlights.length,
+            newCandidates: newCandidates.length,
+            admittedHighlights: admittedHighlights.length,
+          },
         },
       );
     });
