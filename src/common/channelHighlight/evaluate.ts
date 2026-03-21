@@ -1,52 +1,25 @@
-import type { PostType } from '../../entity/posts/Post';
-
-export type HighlightQualitySummary = {
-  clickbaitProbability: number | null;
-  specificity: string | null;
-  intent: string | null;
-  substanceDepth: string | null;
-  titleContentAlignment: string | null;
-  selfPromotionScore: number | null;
-};
-
-export type HighlightStoryCandidate = {
-  storyKey: string;
-  canonicalPostId: string;
-  collectionId: string | null;
-  memberPostIds: string[];
-  title: string;
-  summary: string;
-  type: PostType;
-  sourceId: string;
-  createdAt: string;
-  lastActivityAt: string;
-  upvotes: number;
-  comments: number;
-  views: number;
-  contentCuration: string[];
-  quality: HighlightQualitySummary;
-  preliminaryScore: number;
-};
+import { Timestamp } from '@bufbuild/protobuf';
+import {
+  ChannelHighlightCandidateItem,
+  ChannelHighlightCurrentItem,
+  ChannelHighlightSignificance,
+  EvaluateChannelHighlightsRequest as BragiEvaluateChannelHighlightsRequest,
+} from '@dailydotdev/schema';
+import { getBragiClient } from '../../integrations/bragi/clients';
+import type { HighlightCandidate, HighlightSnapshotItem } from './types';
 
 export type EvaluateChannelHighlightsRequest = {
   channel: string;
+  targetAudience: string;
   maxItems: number;
-  currentHighlights: {
-    postId: string;
-    rank: number;
-    headline: string;
-    storyKey: string;
-  }[];
-  candidates: HighlightStoryCandidate[];
+  currentHighlights: HighlightSnapshotItem[];
+  newCandidates: HighlightCandidate[];
 };
 
 export type EvaluatedHighlightItem = {
-  storyKey: string;
   postId: string;
   headline: string;
-  significanceScore: number;
-  significanceLabel: string;
-  rank: number;
+  significanceLabel: string | null;
   reason: string;
 };
 
@@ -54,74 +27,117 @@ export type EvaluateChannelHighlightsResponse = {
   items: EvaluatedHighlightItem[];
 };
 
-const clampScore = (score: number): number =>
-  Math.max(0, Math.min(1, Number(score.toFixed(3))));
+const toTimestamp = (date: Date | undefined): Timestamp | undefined =>
+  date ? Timestamp.fromDate(date) : undefined;
 
-const toHeadline = (title: string): string => title.trim().slice(0, 200);
-
-const toSignificance = (
-  candidate: HighlightStoryCandidate,
-): Pick<
-  EvaluatedHighlightItem,
-  'significanceLabel' | 'significanceScore' | 'reason'
-> => {
-  const curation = new Set(candidate.contentCuration);
-  const isBreaking =
-    curation.has('news') ||
-    curation.has('release') ||
-    curation.has('leak') ||
-    curation.has('milestone') ||
-    curation.has('drama');
-  const strongEngagement =
-    candidate.upvotes + candidate.comments * 2 + candidate.views / 250;
-  const score = clampScore(
-    candidate.preliminaryScore / 100 + (isBreaking ? 0.25 : 0),
-  );
-
-  if (score >= 0.8 || (isBreaking && strongEngagement >= 20)) {
-    return {
-      significanceLabel: 'breaking',
-      significanceScore: score,
-      reason: 'Mock evaluator marked the story as breaking',
-    };
+const toProtoSignificance = (
+  significanceLabel: string | null | undefined,
+): ChannelHighlightSignificance => {
+  switch ((significanceLabel || '').toLowerCase()) {
+    case 'breaking':
+      return ChannelHighlightSignificance.BREAKING;
+    case 'major':
+      return ChannelHighlightSignificance.MAJOR;
+    case 'notable':
+      return ChannelHighlightSignificance.NOTABLE;
+    case 'routine':
+      return ChannelHighlightSignificance.ROUTINE;
+    default:
+      return ChannelHighlightSignificance.UNSPECIFIED;
   }
-
-  if (score >= 0.55) {
-    return {
-      significanceLabel: 'notable',
-      significanceScore: score,
-      reason: 'Mock evaluator marked the story as notable',
-    };
-  }
-
-  return {
-    significanceLabel: 'routine',
-    significanceScore: score,
-    reason: 'Mock evaluator marked the story as routine',
-  };
 };
 
-// This is an API-side placeholder until the Bragi contract is finalized.
+const toSignificanceLabel = (
+  significance: ChannelHighlightSignificance,
+): string | null => {
+  switch (significance) {
+    case ChannelHighlightSignificance.BREAKING:
+      return 'breaking';
+    case ChannelHighlightSignificance.MAJOR:
+      return 'major';
+    case ChannelHighlightSignificance.NOTABLE:
+      return 'notable';
+    case ChannelHighlightSignificance.ROUTINE:
+      return 'routine';
+    default:
+      return null;
+  }
+};
+
+const toCurrentHighlight = (
+  item: HighlightSnapshotItem,
+): ChannelHighlightCurrentItem =>
+  new ChannelHighlightCurrentItem({
+    postId: item.postId,
+    headline: item.headline,
+    highlightedAt: toTimestamp(item.highlightedAt),
+    significance: toProtoSignificance(item.significanceLabel),
+  });
+
+const toCandidate = (
+  candidate: HighlightCandidate,
+): ChannelHighlightCandidateItem =>
+  new ChannelHighlightCandidateItem({
+    postId: candidate.postId,
+    title: candidate.title,
+    summary: candidate.summary || undefined,
+    createdAt: toTimestamp(candidate.createdAt),
+    upvotes: candidate.upvotes,
+    comments: candidate.comments,
+    views: candidate.views,
+    contentCuration: candidate.contentCuration,
+    specificity: candidate.quality.specificity || '',
+    intent: candidate.quality.intent || '',
+    substanceDepth: candidate.quality.substanceDepth || '',
+    titleContentAlignment: candidate.quality.titleContentAlignment || '',
+    selfPromotionScore: candidate.quality.selfPromotionScore || 0,
+    clickbaitProbability: candidate.quality.clickbaitProbability ?? undefined,
+    relatedItemsCount: candidate.relatedItemsCount,
+  });
+
 export const evaluateChannelHighlights = async ({
+  channel,
+  targetAudience,
   maxItems,
-  candidates,
+  currentHighlights,
+  newCandidates,
 }: EvaluateChannelHighlightsRequest): Promise<EvaluateChannelHighlightsResponse> => {
-  const items = candidates
-    .sort((left, right) => right.preliminaryScore - left.preliminaryScore)
-    .slice(0, maxItems)
-    .map((candidate, index) => {
-      const significance = toSignificance(candidate);
-      return {
-        storyKey: candidate.storyKey,
-        postId: candidate.canonicalPostId,
-        headline: toHeadline(candidate.title),
-        rank: index + 1,
-        ...significance,
-      };
-    })
-    .filter((item) => item.significanceLabel !== 'routine' || item.rank === 1);
+  if (!newCandidates.length) {
+    return {
+      items: [],
+    };
+  }
+
+  const bragiClient = getBragiClient();
+  const request = new BragiEvaluateChannelHighlightsRequest({
+    channel,
+    targetAudience,
+    maxItems,
+    currentHighlights: currentHighlights.map(toCurrentHighlight),
+    newCandidates: newCandidates.map(toCandidate),
+  });
+  const response = await bragiClient.garmr.execute(() =>
+    bragiClient.instance.evaluateChannelHighlights(request),
+  );
 
   return {
-    items,
+    items: response.highlights.map((item) => {
+      if (!item.postId) {
+        throw new Error('bragi channel highlights response is missing postId');
+      }
+
+      if (!item.headline) {
+        throw new Error(
+          `bragi channel highlights response is missing headline for ${item.postId}`,
+        );
+      }
+
+      return {
+        postId: item.postId,
+        headline: item.headline,
+        significanceLabel: toSignificanceLabel(item.significance),
+        reason: item.reason || '',
+      };
+    }),
   };
 };

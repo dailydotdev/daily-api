@@ -51,6 +51,164 @@ interface SearchUsername {
 
 const MAX_VORDR_BATCH_SIZE = 500;
 
+type HighlightRouteItem = {
+  postId: string;
+  headline: string;
+  rank?: number;
+  highlightedAt?: string;
+  significanceLabel?: string | null;
+  reason?: string | null;
+};
+
+type TimestampedHighlightRouteItem = Omit<
+  HighlightRouteItem,
+  'highlightedAt'
+> & {
+  highlightedAt: Date;
+};
+
+type StoredHighlightItem = {
+  postId: string;
+  headline: string;
+  highlightedAt: Date;
+  significanceLabel: string | null;
+  reason: string | null;
+};
+
+const normalizeHighlightOrder = <
+  T extends {
+    postId: string;
+    headline: string;
+    significanceLabel?: string | null;
+    reason?: string | null;
+  },
+>(
+  items: T[],
+): Array<T & { highlightedAt: Date }> => {
+  const baseTimestamp = Date.now();
+
+  return items.map((item, index) => ({
+    ...item,
+    highlightedAt: new Date(baseTimestamp - index * 1000),
+  }));
+};
+
+const withHighlightTimestamps = (
+  items: HighlightRouteItem[],
+): TimestampedHighlightRouteItem[] => {
+  const allItemsHaveTimestamps = items.every((item) => item.highlightedAt);
+
+  if (allItemsHaveTimestamps) {
+    return items.map((item) => ({
+      ...item,
+      highlightedAt: new Date(item.highlightedAt!),
+    }));
+  }
+
+  const orderedItems = items
+    .map((item, index) => ({
+      ...item,
+      orderIndex: index,
+    }))
+    .sort((left, right) => {
+      const leftRank = left.rank ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = right.rank ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      return left.orderIndex - right.orderIndex;
+    })
+    .map((item) => ({
+      postId: item.postId,
+      headline: item.headline,
+      rank: item.rank,
+      highlightedAt: item.highlightedAt,
+      significanceLabel: item.significanceLabel,
+      reason: item.reason,
+    }));
+
+  return normalizeHighlightOrder(orderedItems);
+};
+
+const toStoredHighlightItem = (
+  item: TimestampedHighlightRouteItem,
+): StoredHighlightItem => ({
+  postId: item.postId,
+  headline: item.headline,
+  highlightedAt: item.highlightedAt,
+  significanceLabel: item.significanceLabel ?? null,
+  reason: item.reason ?? null,
+});
+
+const toStoredHighlightItems = (
+  items: TimestampedHighlightRouteItem[],
+): StoredHighlightItem[] => items.map(toStoredHighlightItem);
+
+const reorderHighlightsByRank = ({
+  currentHighlights,
+  nextItem,
+  rank,
+}: {
+  currentHighlights: PostHighlight[];
+  nextItem: HighlightRouteItem;
+  rank: number;
+}): StoredHighlightItem[] => {
+  const remainingHighlights = currentHighlights
+    .filter((highlight) => highlight.postId !== nextItem.postId)
+    .map<StoredHighlightItem>((highlight) => ({
+      postId: highlight.postId,
+      headline: highlight.headline,
+      highlightedAt: highlight.highlightedAt,
+      significanceLabel: highlight.significanceLabel,
+      reason: highlight.reason,
+    }));
+  const insertionIndex = Math.max(
+    0,
+    Math.min(rank - 1, remainingHighlights.length),
+  );
+  const reorderedHighlights = remainingHighlights.slice();
+
+  reorderedHighlights.splice(insertionIndex, 0, {
+    postId: nextItem.postId,
+    headline: nextItem.headline,
+    highlightedAt: new Date(),
+    significanceLabel: nextItem.significanceLabel ?? null,
+    reason: nextItem.reason ?? null,
+  });
+
+  return normalizeHighlightOrder(reorderedHighlights).map(
+    toStoredHighlightItem,
+  );
+};
+
+const upsertHighlightsForChannel = async ({
+  con,
+  channel,
+  items,
+}: {
+  con: Awaited<ReturnType<typeof createOrGetConnection>>;
+  channel: string;
+  items: StoredHighlightItem[];
+}): Promise<void> => {
+  if (!items.length) {
+    return;
+  }
+
+  await con.getRepository(PostHighlight).upsert(
+    items.map((item) => ({
+      channel,
+      postId: item.postId,
+      highlightedAt: item.highlightedAt,
+      headline: item.headline,
+      significanceLabel: item.significanceLabel,
+      reason: item.reason,
+    })),
+    { conflictPaths: ['channel', 'postId'] },
+  );
+};
+
 const vordrUsersSchema = z.object({
   userIds: z
     .array(z.string().trim().min(1).max(36))
@@ -441,14 +599,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
+    const itemsWithTimestamps = withHighlightTimestamps(items.data);
 
     await con.transaction(async (manager) => {
       const repo = manager.getRepository(PostHighlight);
       await repo.delete({ channel });
       await repo.insert(
-        items.data.map((item) => ({
-          ...item,
+        toStoredHighlightItems(itemsWithTimestamps).map((item) => ({
           channel,
+          postId: item.postId,
+          highlightedAt: item.highlightedAt,
+          headline: item.headline,
+          significanceLabel: item.significanceLabel,
+          reason: item.reason,
         })),
       );
     });
@@ -474,12 +637,30 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    await con
-      .getRepository(PostHighlight)
-      .upsert(
-        { ...item.data, channel },
-        { conflictPaths: ['channel', 'postId'] },
-      );
+    if (item.data.highlightedAt || item.data.rank === undefined) {
+      const [itemWithTimestamp] = withHighlightTimestamps([item.data]);
+      await upsertHighlightsForChannel({
+        con,
+        channel,
+        items: [toStoredHighlightItem(itemWithTimestamp)],
+      });
+    } else {
+      const currentHighlights = await con.getRepository(PostHighlight).find({
+        where: { channel },
+        order: { highlightedAt: 'DESC', createdAt: 'DESC' },
+      });
+      const reorderedHighlights = reorderHighlightsByRank({
+        currentHighlights,
+        nextItem: item.data,
+        rank: item.data.rank,
+      });
+
+      await upsertHighlightsForChannel({
+        con,
+        channel,
+        items: reorderedHighlights,
+      });
+    }
 
     return res.status(200).send({ success: true });
   });
@@ -516,12 +697,55 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    const result = await con
-      .getRepository(PostHighlight)
-      .update({ channel, postId }, update.data);
+    const repo = con.getRepository(PostHighlight);
 
-    if (result.affected === 0) {
-      return res.status(404).send({ error: 'highlight not found' });
+    if (update.data.highlightedAt || update.data.rank === undefined) {
+      const partialUpdate = {
+        headline: update.data.headline,
+        highlightedAt: update.data.highlightedAt,
+        significanceLabel: update.data.significanceLabel,
+        reason: update.data.reason,
+      };
+      const updatePayload = {
+        ...partialUpdate,
+        highlightedAt: partialUpdate.highlightedAt
+          ? new Date(partialUpdate.highlightedAt)
+          : undefined,
+      };
+      const result = await repo.update({ channel, postId }, updatePayload);
+
+      if (result.affected === 0) {
+        return res.status(404).send({ error: 'highlight not found' });
+      }
+    } else {
+      const currentHighlight = await repo.findOneBy({ channel, postId });
+
+      if (!currentHighlight) {
+        return res.status(404).send({ error: 'highlight not found' });
+      }
+
+      const currentHighlights = await repo.find({
+        where: { channel },
+        order: { highlightedAt: 'DESC', createdAt: 'DESC' },
+      });
+      const reorderedHighlights = reorderHighlightsByRank({
+        currentHighlights,
+        nextItem: {
+          postId,
+          headline: update.data.headline ?? currentHighlight.headline,
+          rank: update.data.rank,
+          significanceLabel:
+            update.data.significanceLabel ?? currentHighlight.significanceLabel,
+          reason: update.data.reason ?? currentHighlight.reason,
+        },
+        rank: update.data.rank,
+      });
+
+      await upsertHighlightsForChannel({
+        con,
+        channel,
+        items: reorderedHighlights,
+      });
     }
 
     return res.status(200).send({ success: true });

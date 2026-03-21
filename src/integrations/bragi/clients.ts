@@ -8,6 +8,7 @@ import {
   ClassifyGearResponse,
   ClassifyRejectionFeedbackResponse,
   ClassifyUserFeedbackResponse,
+  EvaluateChannelHighlightsResponse,
   FeedbackCategory,
   FeedbackClassification,
   FeedbackPlatform,
@@ -118,6 +119,10 @@ export const getBragiClient = (
             id: 'mock-id',
             title: 'Mock sentiment digest',
             content: 'Mock digest content',
+          }),
+        evaluateChannelHighlights: async () =>
+          new EvaluateChannelHighlightsResponse({
+            highlights: [],
           }),
         classifyRejectionFeedback: async () =>
           new ClassifyRejectionFeedbackResponse({

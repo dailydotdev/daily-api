@@ -1,4 +1,4 @@
-import { Brackets, In, MoreThanOrEqual, type DataSource } from 'typeorm';
+import { Brackets, In, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { ChannelHighlightState } from '../../entity/ChannelHighlightState';
 import { PostHighlight } from '../../entity/PostHighlight';
@@ -7,11 +7,6 @@ import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
-import {
-  channelHighlightCandidatePoolSchema,
-  emptyChannelHighlightCandidatePool,
-  type ChannelHighlightCandidatePool,
-} from './schema';
 import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import type { HighlightPost } from './types';
 
@@ -54,13 +49,6 @@ export const getFetchStart = ({
   return overlapStart > horizonStart ? overlapStart : horizonStart;
 };
 
-export const parseCandidatePool = (
-  value: ChannelHighlightState['candidatePool'] | null | undefined,
-): ChannelHighlightCandidatePool => {
-  const parsed = channelHighlightCandidatePoolSchema.safeParse(value);
-  return parsed.success ? parsed.data : emptyChannelHighlightCandidatePool();
-};
-
 export const fetchDefinitionState = async ({
   con,
   channel,
@@ -86,18 +74,17 @@ export const fetchCurrentHighlights = async ({
       channel,
     },
     order: {
-      rank: 'ASC',
+      highlightedAt: 'DESC',
+      createdAt: 'DESC',
     },
   });
 
 export const fetchPostsByIds = async ({
   con,
   ids,
-  horizonStart,
 }: {
   con: DataSource;
   ids: string[];
-  horizonStart: Date;
 }): Promise<HighlightPost[]> => {
   if (!ids.length) {
     return [];
@@ -106,11 +93,9 @@ export const fetchPostsByIds = async ({
   return con.getRepository(Post).find({
     where: {
       id: In(ids),
-      createdAt: MoreThanOrEqual(horizonStart),
       visible: true,
       deleted: false,
       banned: false,
-      showOnFeed: true,
     },
   }) as unknown as Promise<HighlightPost[]>;
 };

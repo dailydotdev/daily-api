@@ -1,25 +1,23 @@
-import { extractTwitterStatusId } from '../twitterSocial';
-import { PostType, type PostContentQuality } from '../../entity/posts/Post';
-import { PostRelation } from '../../entity/posts/PostRelation';
+import type { PostContentQuality } from '../../entity/posts/Post';
+import type { PostRelation } from '../../entity/posts/PostRelation';
 import { ONE_DAY_IN_SECONDS } from '../constants';
-import type { ChannelHighlightCandidatePool } from './schema';
 import type {
-  HighlightBaselineItem,
+  CurrentHighlight,
+  HighlightCandidate,
   HighlightPost,
-  HighlightStory,
-} from './types';
-import type {
   HighlightQualitySummary,
-  HighlightStoryCandidate,
-} from './evaluate';
+  HighlightSnapshotItem,
+  HighlightSyncItem,
+} from './types';
 
 const toLastActivityAt = (post: HighlightPost): Date => {
-  const candidates = [
+  const timestamps = [
     post.createdAt?.getTime() || 0,
     post.metadataChangedAt?.getTime() || 0,
     post.statsUpdatedAt?.getTime() || 0,
   ];
-  return new Date(Math.max(...candidates));
+
+  return new Date(Math.max(...timestamps));
 };
 
 export const toQualitySummary = (
@@ -39,144 +37,70 @@ export const toQualitySummary = (
       : null,
 });
 
-const getTwitterSocialMeta = (
-  post: HighlightPost,
-): Record<string, unknown> | null => {
-  const socialTwitter = (post.contentMeta as Record<string, unknown> | null)
-    ?.social_twitter;
-
-  if (!socialTwitter || typeof socialTwitter !== 'object') {
-    return null;
-  }
-
-  return socialTwitter as Record<string, unknown>;
-};
-
-const getTwitterReferenceStatusId = (
-  post: HighlightPost,
-): string | undefined => {
-  const reference = getTwitterSocialMeta(post)?.reference;
-  if (!reference || typeof reference !== 'object') {
-    return undefined;
-  }
-
-  const referenceRecord = reference as Record<string, unknown>;
-  const tweetId =
-    typeof referenceRecord.tweet_id === 'string'
-      ? referenceRecord.tweet_id.trim()
-      : undefined;
-
-  if (tweetId) {
-    return tweetId;
-  }
-
-  const referenceUrl =
-    typeof referenceRecord.url === 'string' ? referenceRecord.url : undefined;
-  return extractTwitterStatusId(referenceUrl);
-};
-
-const getTwitterRootStatusId = (post: HighlightPost): string | undefined => {
-  const socialMeta = getTwitterSocialMeta(post);
-  const tweetId =
-    typeof socialMeta?.tweet_id === 'string' ? socialMeta.tweet_id.trim() : '';
-
-  if (tweetId) {
-    return tweetId;
-  }
-
-  return extractTwitterStatusId(post.canonicalUrl || post.url);
-};
-
-const getTwitterStoryKey = (post: HighlightPost): string | null => {
-  if (post.type !== PostType.SocialTwitter) {
-    return null;
-  }
-
-  const referenceStatusId = getTwitterReferenceStatusId(post);
-  if (referenceStatusId) {
-    return `twitter:${referenceStatusId}`;
-  }
-
-  const rootStatusId = getTwitterRootStatusId(post);
-  if (rootStatusId) {
-    return `twitter:${rootStatusId}`;
-  }
-
-  if (post.sharedPostId) {
-    return `twitter:${post.sharedPostId}`;
-  }
-
-  return null;
-};
-
-export const getStoryKey = ({
-  canonicalPost,
-  collectionId,
-}: {
-  canonicalPost: HighlightPost;
-  collectionId: string | null;
-}): string => {
-  if (collectionId) {
-    return `collection:${collectionId}`;
-  }
-
-  const twitterStoryKey = getTwitterStoryKey(canonicalPost);
-  if (twitterStoryKey) {
-    return twitterStoryKey;
-  }
-
-  const canonicalUrl = canonicalPost.canonicalUrl || canonicalPost.url;
-  if (canonicalUrl) {
-    return `url:${canonicalUrl.toLowerCase().trim()}`;
-  }
-
-  return `post:${canonicalPost.id}`;
-};
-
 const toPreliminaryScore = ({
-  story,
+  post,
   horizonStart,
   referenceTime,
 }: {
-  story: Omit<HighlightStory, 'preliminaryScore'>;
+  post: HighlightPost;
   horizonStart: Date;
   referenceTime: Date;
 }): number => {
   const ageSeconds = Math.max(
     1,
-    (referenceTime.getTime() - story.canonicalPost.createdAt.getTime()) / 1000,
+    (referenceTime.getTime() - post.createdAt.getTime()) / 1000,
   );
   const horizonSeconds = Math.max(
     ONE_DAY_IN_SECONDS,
     (referenceTime.getTime() - horizonStart.getTime()) / 1000,
   );
   const recency = Math.max(0.15, 1 - ageSeconds / horizonSeconds);
-  const engagement =
-    story.canonicalPost.upvotes +
-    story.canonicalPost.comments * 2 +
-    story.canonicalPost.views / 200;
-  const collectionBoost = story.collectionId ? 8 : 0;
-  const curationBoost = story.canonicalPost.contentCuration.some((value) =>
+  const engagement = post.upvotes + post.comments * 2 + post.views / 200;
+  const curationBoost = post.contentCuration.some((value) =>
     ['news', 'release', 'milestone', 'leak', 'drama'].includes(value),
   )
     ? 5
     : 0;
-  const quality = toQualitySummary(story.canonicalPost.contentQuality || {});
+  const quality = toQualitySummary(post.contentQuality || {});
   const penalty =
     (quality.clickbaitProbability || 0) * 5 +
     (quality.selfPromotionScore || 0) * 3;
 
-  return Number(
-    (engagement * recency + collectionBoost + curationBoost - penalty).toFixed(
-      3,
-    ),
-  );
+  return Number((engagement * recency + curationBoost - penalty).toFixed(3));
 };
 
-const selectCanonicalPost = (posts: HighlightPost[]): HighlightPost =>
+const buildCollectionByChildId = (
+  relations: PostRelation[],
+  availablePostIds: Set<string>,
+): Map<string, string> => {
+  const collectionByChildId = new Map<string, string>();
+
+  for (const relation of relations) {
+    if (
+      !availablePostIds.has(relation.postId) ||
+      !availablePostIds.has(relation.relatedPostId)
+    ) {
+      continue;
+    }
+
+    collectionByChildId.set(relation.relatedPostId, relation.postId);
+  }
+
+  return collectionByChildId;
+};
+
+const selectCanonicalPost = ({
+  posts,
+  canonicalPostId,
+}: {
+  posts: HighlightPost[];
+  canonicalPostId: string;
+}): HighlightPost =>
+  posts.find((post) => post.id === canonicalPostId) ||
   posts.slice().sort((left, right) => {
     const leftScore = left.upvotes + left.comments * 2 + left.views / 200;
     const rightScore = right.upvotes + right.comments * 2 + right.views / 200;
+
     if (leftScore !== rightScore) {
       return rightScore - leftScore;
     }
@@ -184,156 +108,145 @@ const selectCanonicalPost = (posts: HighlightPost[]): HighlightPost =>
     return right.createdAt.getTime() - left.createdAt.getTime();
   })[0];
 
-// Highlights reason about stories, not raw posts. Collections are the primary
-// story boundary, while social/twitter posts fall back to a stable tweet key.
-export const buildStories = ({
+// API owns story canonicalization. If a post is part of a collection, the
+// collection becomes the candidate Bragi sees and the live highlight should be
+// upgraded in place without re-evaluation.
+export const buildCandidates = ({
   posts,
   relations,
-  previousPool,
   horizonStart,
   referenceTime,
 }: {
   posts: HighlightPost[];
   relations: PostRelation[];
-  previousPool: ChannelHighlightCandidatePool;
   horizonStart: Date;
   referenceTime: Date;
-}): HighlightStory[] => {
-  const postsById = new Map(posts.map((post) => [post.id, post]));
-  const previousStories = new Map(
-    previousPool.stories.map((story) => [story.storyKey, story]),
+}): HighlightCandidate[] => {
+  const availablePostIds = new Set(posts.map((post) => post.id));
+  const collectionByChildId = buildCollectionByChildId(
+    relations,
+    availablePostIds,
   );
-  const collectionByChildId = new Map<string, string>();
-  const collectionIds = new Set<string>();
-  const relationActivityByCollectionId = new Map<string, Date>();
-
-  for (const relation of relations) {
-    if (
-      !postsById.has(relation.postId) ||
-      !postsById.has(relation.relatedPostId)
-    ) {
-      continue;
-    }
-
-    collectionIds.add(relation.postId);
-    collectionByChildId.set(relation.relatedPostId, relation.postId);
-    const currentActivity = relationActivityByCollectionId.get(relation.postId);
-    if (!currentActivity || relation.createdAt > currentActivity) {
-      relationActivityByCollectionId.set(relation.postId, relation.createdAt);
-    }
-  }
-
-  const groupedStories = new Map<string, HighlightPost[]>();
-  const storyCollections = new Map<string, string | null>();
+  const groupedPosts = new Map<string, HighlightPost[]>();
 
   for (const post of posts) {
-    const collectionId =
-      collectionByChildId.get(post.id) ||
-      (collectionIds.has(post.id) ? post.id : null);
-    const canonicalPost =
-      collectionId && postsById.has(collectionId)
-        ? postsById.get(collectionId)!
-        : post;
-    const storyKey = getStoryKey({
-      canonicalPost,
-      collectionId,
-    });
-
-    if (!groupedStories.has(storyKey)) {
-      groupedStories.set(storyKey, []);
-      storyCollections.set(storyKey, collectionId);
+    const canonicalPostId = collectionByChildId.get(post.id) || post.id;
+    if (!groupedPosts.has(canonicalPostId)) {
+      groupedPosts.set(canonicalPostId, []);
     }
 
-    groupedStories.get(storyKey)!.push(post);
+    groupedPosts.get(canonicalPostId)!.push(post);
   }
 
-  return [...groupedStories.entries()]
-    .map(([storyKey, memberPosts]) => {
-      const collectionId = storyCollections.get(storyKey) || null;
-      const canonicalPost =
-        collectionId && postsById.has(collectionId)
-          ? postsById.get(collectionId)!
-          : selectCanonicalPost(memberPosts);
-      const firstSeenAt = memberPosts.reduce(
-        (current, post) =>
-          post.createdAt < current ? post.createdAt : current,
-        canonicalPost.createdAt,
-      );
-      const postActivityAt = memberPosts.reduce((current, post) => {
-        const lastActivityAt = toLastActivityAt(post);
-        return lastActivityAt > current ? lastActivityAt : current;
+  return [...groupedPosts.entries()]
+    .map(([canonicalPostId, memberPosts]) => {
+      const canonicalPost = selectCanonicalPost({
+        posts: memberPosts,
+        canonicalPostId,
+      });
+      const lastActivityAt = memberPosts.reduce((current, post) => {
+        const activityAt = toLastActivityAt(post);
+        return activityAt > current ? activityAt : current;
       }, toLastActivityAt(canonicalPost));
-      const relationActivityAt = collectionId
-        ? relationActivityByCollectionId.get(collectionId)
-        : null;
-      const baseStory = {
-        storyKey,
-        canonicalPost,
-        memberPosts,
-        collectionId,
-        firstSeenAt,
-        lastSeenAt:
-          relationActivityAt && relationActivityAt > postActivityAt
-            ? relationActivityAt
-            : postActivityAt,
-        cached: previousStories.get(storyKey) || null,
-      };
 
       return {
-        ...baseStory,
+        postId: canonicalPost.id,
+        title: canonicalPost.title || '',
+        summary: canonicalPost.summary || '',
+        createdAt: canonicalPost.createdAt,
+        lastActivityAt,
+        upvotes: canonicalPost.upvotes,
+        comments: canonicalPost.comments,
+        views: canonicalPost.views,
+        relatedItemsCount:
+          memberPosts.filter((post) => post.id !== canonicalPostId).length || 1,
+        contentCuration: canonicalPost.contentCuration || [],
+        quality: toQualitySummary(canonicalPost.contentQuality || {}),
         preliminaryScore: toPreliminaryScore({
-          story: baseStory,
+          post: canonicalPost,
           horizonStart,
           referenceTime,
         }),
       };
     })
-    .filter((story) => story.lastSeenAt >= horizonStart)
+    .filter((candidate) => candidate.lastActivityAt >= horizonStart)
     .sort((left, right) => right.preliminaryScore - left.preliminaryScore);
 };
 
-export const toStoryCandidate = (
-  story: HighlightStory,
-): HighlightStoryCandidate => ({
-  storyKey: story.storyKey,
-  canonicalPostId: story.canonicalPost.id,
-  collectionId: story.collectionId,
-  memberPostIds: story.memberPosts.map((post) => post.id).sort(),
-  title: story.canonicalPost.title || '',
-  summary: story.canonicalPost.summary || '',
-  type: story.canonicalPost.type,
-  sourceId: story.canonicalPost.sourceId,
-  createdAt: story.canonicalPost.createdAt.toISOString(),
-  lastActivityAt: story.lastSeenAt.toISOString(),
-  upvotes: story.canonicalPost.upvotes,
-  comments: story.canonicalPost.comments,
-  views: story.canonicalPost.views,
-  contentCuration: story.canonicalPost.contentCuration || [],
-  quality: toQualitySummary(story.canonicalPost.contentQuality || {}),
-  preliminaryScore: story.preliminaryScore,
+export const toHighlightSnapshotItem = (
+  item: Pick<
+    CurrentHighlight,
+    'postId' | 'headline' | 'highlightedAt' | 'significanceLabel' | 'reason'
+  >,
+): HighlightSnapshotItem => ({
+  postId: item.postId,
+  headline: item.headline,
+  highlightedAt: item.highlightedAt,
+  significanceLabel: item.significanceLabel,
+  reason: item.reason,
 });
 
-const toBaselineStoryKey = ({
-  postId,
-  storiesByPostId,
-}: {
-  postId: string;
-  storiesByPostId: Map<string, HighlightStory>;
-}): string => storiesByPostId.get(postId)?.storyKey || `post:${postId}`;
-
-export const buildBaselineSnapshot = ({
+export const canonicalizeCurrentHighlights = ({
   highlights,
-  storiesByPostId,
+  relations,
+  posts,
 }: {
-  highlights: { postId: string; rank: number; headline: string }[];
-  storiesByPostId: Map<string, HighlightStory>;
-}): HighlightBaselineItem[] =>
-  highlights.map((highlight) => ({
-    postId: highlight.postId,
-    rank: highlight.rank,
-    headline: highlight.headline,
-    storyKey: toBaselineStoryKey({
-      postId: highlight.postId,
-      storiesByPostId,
-    }),
-  }));
+  highlights: HighlightSnapshotItem[];
+  relations: PostRelation[];
+  posts: HighlightPost[];
+}): HighlightSyncItem[] => {
+  const postsById = new Map(posts.map((post) => [post.id, post]));
+  const collectionByChildId = buildCollectionByChildId(
+    relations,
+    new Set(postsById.keys()),
+  );
+  const canonicalHighlights = new Map<string, HighlightSyncItem>();
+
+  for (const highlight of highlights) {
+    const canonicalPostId =
+      collectionByChildId.get(highlight.postId) || highlight.postId;
+    const canonicalPost = postsById.get(canonicalPostId);
+
+    if (!canonicalPost) {
+      continue;
+    }
+
+    if (canonicalHighlights.has(canonicalPostId)) {
+      continue;
+    }
+
+    const headline =
+      canonicalPostId === highlight.postId
+        ? highlight.headline
+        : canonicalPost.title || highlight.headline;
+
+    canonicalHighlights.set(canonicalPostId, {
+      postId: canonicalPostId,
+      headline,
+      highlightedAt: highlight.highlightedAt,
+      significanceLabel: highlight.significanceLabel,
+      reason: highlight.reason,
+    });
+  }
+
+  return [...canonicalHighlights.values()].sort(
+    (left, right) =>
+      right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+  );
+};
+
+export const toStoredSnapshotItem = (
+  item: HighlightSnapshotItem | HighlightSyncItem,
+): {
+  postId: string;
+  headline: string;
+  highlightedAt: string;
+  significanceLabel: string | null;
+  reason: string | null;
+} => ({
+  postId: item.postId,
+  headline: item.headline,
+  highlightedAt: item.highlightedAt.toISOString(),
+  significanceLabel: item.significanceLabel,
+  reason: item.reason,
+});

@@ -2,11 +2,10 @@ import type { DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
 import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
 import { ChannelHighlightState } from '../../entity/ChannelHighlightState';
+import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
+import { compareSnapshots, shouldPublish } from './decisions';
+import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
-import {
-  evaluateChannelHighlights,
-  type EvaluatedHighlightItem,
-} from './evaluate';
 import {
   fetchCurrentHighlights,
   fetchDefinitionState,
@@ -16,105 +15,94 @@ import {
   getFetchStart,
   getHorizonStart,
   mergePosts,
-  parseCandidatePool,
 } from './queries';
 import {
-  buildBaselineSnapshot,
-  buildStories,
-  toStoryCandidate,
+  buildCandidates,
+  canonicalizeCurrentHighlights,
+  toHighlightSnapshotItem,
+  toStoredSnapshotItem,
 } from './stories';
-import {
-  compareSnapshots,
-  reuseEvaluations,
-  shouldPublish,
-  shouldReuseEvaluations,
-  toPoolStory,
-} from './decisions';
-import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
-import type { GenerateChannelHighlightResult, HighlightStory } from './types';
+import type {
+  GenerateChannelHighlightResult,
+  HighlightSnapshotItem,
+  HighlightSyncItem,
+} from './types';
 
-const MAX_CANDIDATE_POOL_STORIES = 50;
-const SHORTLIST_MULTIPLIER = 3;
+const sortByHighlightedAtDesc = <T extends { highlightedAt: Date }>(
+  items: T[],
+): T[] =>
+  items
+    .slice()
+    .sort(
+      (left, right) =>
+        right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+    );
 
-const buildStoriesByPostId = (
-  stories: HighlightStory[],
-): Map<string, HighlightStory> => {
-  const storiesByPostId = new Map<string, HighlightStory>();
+const trimHighlights = ({
+  items,
+  maxItems,
+}: {
+  items: HighlightSyncItem[];
+  maxItems: number;
+}): HighlightSyncItem[] => sortByHighlightedAtDesc(items).slice(0, maxItems);
 
-  for (const story of stories) {
-    storiesByPostId.set(story.canonicalPost.id, story);
-    for (const memberPost of story.memberPosts) {
-      storiesByPostId.set(memberPost.id, story);
-    }
-  }
-
-  return storiesByPostId;
-};
-
-const buildInputSummary = ({
+const toInputSummary = ({
   fetchStart,
   horizonStart,
-  shortlist,
+  currentHighlights,
+  candidatePostIds,
 }: {
   fetchStart: Date;
   horizonStart: Date;
-  shortlist: HighlightStory[];
+  currentHighlights: HighlightSnapshotItem[];
+  candidatePostIds: string[];
 }) => ({
   fetchStart: fetchStart.toISOString(),
   horizonStart: horizonStart.toISOString(),
-  shortlist: shortlist.map((story) => ({
-    storyKey: story.storyKey,
-    canonicalPostId: story.canonicalPost.id,
-    preliminaryScore: story.preliminaryScore,
-  })),
+  currentHighlightPostIds: currentHighlights.map((item) => item.postId),
+  candidatePostIds,
 });
 
-const buildMetrics = ({
-  incrementalPosts,
-  retainedPosts,
-  stories,
-  shortlist,
-  reusedEvaluation,
+const toMetrics = ({
+  fetchedPosts,
+  relationPosts,
+  currentHighlights,
+  activeHighlights,
+  canonicalizedHighlights,
+  newCandidates,
+  admittedHighlights,
 }: {
-  incrementalPosts: { length: number };
-  retainedPosts: { length: number };
-  stories: { length: number };
-  shortlist: { length: number };
-  reusedEvaluation: boolean;
+  fetchedPosts: number;
+  relationPosts: number;
+  currentHighlights: number;
+  activeHighlights: number;
+  canonicalizedHighlights: number;
+  newCandidates: number;
+  admittedHighlights: number;
 }) => ({
-  fetchedPosts: incrementalPosts.length,
-  retainedPosts: retainedPosts.length,
-  totalStories: stories.length,
-  shortlistStories: shortlist.length,
-  evaluatedStories: reusedEvaluation ? 0 : shortlist.length,
-  reusedEvaluation,
+  fetchedPosts,
+  relationPosts,
+  currentHighlights,
+  activeHighlights,
+  canonicalizedHighlights,
+  newCandidates,
+  admittedHighlights,
 });
 
-const buildCandidatePool = ({
-  stories,
-  evaluatedItems,
-  now,
+const getTargetAudience = ({
+  definition,
 }: {
-  stories: HighlightStory[];
-  evaluatedItems: EvaluatedHighlightItem[];
-  now: Date;
-}) => ({
-  stories: stories.slice(0, MAX_CANDIDATE_POOL_STORIES).map((story) =>
-    toPoolStory({
-      story,
-      evaluation: evaluatedItems.find(
-        (item) => item.storyKey === story.storyKey,
-      ),
-      evaluatedAt: now,
-    }),
-  ),
-});
+  definition: Pick<ChannelHighlightDefinition, 'channel' | 'targetAudience'>;
+}): string =>
+  definition.targetAudience.trim() ||
+  `daily.dev readers following ${definition.channel}`;
 
 // High-level flow:
-// 1. Fetch fresh and retained posts inside the configured horizon.
-// 2. Collapse them into story candidates, preferring collections.
-// 3. Reuse cached editorial decisions only when the story is truly unchanged.
-// 4. Compare the internal result with the live highlights, then persist the run.
+// 1. Keep only currently highlighted items that are still inside the horizon.
+// 2. Canonicalize those highlights to collections on the API side.
+// 3. Build new canonical candidate posts from incremental post/relation fetches.
+// 4. Ask the evaluator only about new candidates.
+// 5. Append admitted items, trim FIFO by maxItems, then publish if the surface changed.
 export const generateChannelHighlight = async ({
   con,
   definition,
@@ -149,7 +137,6 @@ export const generateChannelHighlight = async ({
         channel: definition.channel,
       }),
     ]);
-    const previousPool = parseCandidatePool(state?.candidatePool);
     const horizonStart = getHorizonStart({
       now,
       definition,
@@ -160,25 +147,28 @@ export const generateChannelHighlight = async ({
       state,
     });
 
-    const retainedPostIds = new Set([
-      ...previousPool.stories.flatMap((story) => story.memberPostIds),
-      ...currentHighlights.map((item) => item.postId),
-    ]);
-    const [retainedPosts, incrementalPosts] = await Promise.all([
-      fetchPostsByIds({
-        con,
-        ids: [...retainedPostIds],
-        horizonStart,
-      }),
+    const baselineSnapshot = currentHighlights.map(toHighlightSnapshotItem);
+    const activeCurrentHighlights = baselineSnapshot.filter(
+      (item) => item.highlightedAt >= horizonStart,
+    );
+
+    const highlightedPostIds = activeCurrentHighlights.map(
+      (item) => item.postId,
+    );
+    const [incrementalPosts, highlightedPosts] = await Promise.all([
       fetchIncrementalPosts({
         con,
         channel: definition.channel,
         fetchStart,
         horizonStart,
       }),
+      fetchPostsByIds({
+        con,
+        ids: highlightedPostIds,
+      }),
     ]);
-    const basePosts = mergePosts([retainedPosts, incrementalPosts]);
-    const baseRelations = await fetchRelations({
+    const basePosts = mergePosts([incrementalPosts, highlightedPosts]);
+    const relations = await fetchRelations({
       con,
       postIds: basePosts.map((post) => post.id),
     });
@@ -186,78 +176,83 @@ export const generateChannelHighlight = async ({
       con,
       ids: [
         ...new Set(
-          baseRelations.flatMap((relation) => [
+          relations.flatMap((relation) => [
             relation.postId,
             relation.relatedPostId,
           ]),
         ),
       ],
-      horizonStart,
     });
-    const stories = buildStories({
-      posts: mergePosts([basePosts, relationPosts]),
-      relations: baseRelations,
-      previousPool,
+    const availablePosts = mergePosts([basePosts, relationPosts]);
+    const canonicalCurrentHighlights = canonicalizeCurrentHighlights({
+      highlights: activeCurrentHighlights,
+      relations,
+      posts: availablePosts,
+    });
+
+    const currentHighlightPostIds = new Set(
+      canonicalCurrentHighlights.map((item) => item.postId),
+    );
+    const newCandidates = buildCandidates({
+      posts: availablePosts,
+      relations,
       horizonStart,
       referenceTime: now,
-    });
-    const storiesByPostId = buildStoriesByPostId(stories);
-    // We only send a bounded candidate set into the evaluator. The shortlist is
-    // intentionally larger than `maxItems` so the editorial step can still
-    // rank, dedupe, and discard borderline stories without seeing the entire
-    // pool.
-    const shortlist = stories.slice(
-      0,
-      definition.maxItems * SHORTLIST_MULTIPLIER,
-    );
-    const baselineSnapshot = buildBaselineSnapshot({
-      highlights: currentHighlights,
-      storiesByPostId,
-    });
+    }).filter((candidate) => !currentHighlightPostIds.has(candidate.postId));
 
-    const reusedEvaluation = shouldReuseEvaluations({
-      shortlist,
-    });
-    const evaluatedItems = reusedEvaluation
-      ? reuseEvaluations({
-          shortlist,
-          maxItems: definition.maxItems,
-        })
-      : (
-          await evaluateChannelHighlights({
-            channel: definition.channel,
-            maxItems: definition.maxItems,
-            currentHighlights: baselineSnapshot,
-            candidates: shortlist.map(toStoryCandidate),
-          })
-        ).items;
+    const admittedHighlights =
+      newCandidates.length === 0
+        ? []
+        : (
+            await evaluateChannelHighlights({
+              channel: definition.channel,
+              targetAudience: getTargetAudience({
+                definition,
+              }),
+              maxItems: definition.maxItems,
+              currentHighlights: canonicalCurrentHighlights,
+              newCandidates,
+            })
+          ).items.map<HighlightSyncItem>((item) => ({
+            postId: item.postId,
+            headline: item.headline,
+            highlightedAt: now,
+            significanceLabel: item.significanceLabel,
+            reason: item.reason,
+          }));
 
+    const internalHighlights = trimHighlights({
+      items: [...canonicalCurrentHighlights, ...admittedHighlights],
+      maxItems: definition.maxItems,
+    });
     const comparison = compareSnapshots({
       baseline: baselineSnapshot,
-      internal: evaluatedItems,
+      internal: internalHighlights,
     });
     const wouldPublish = shouldPublish({
       baseline: baselineSnapshot,
-      internal: evaluatedItems,
+      internal: internalHighlights,
     });
     const publish = definition.mode === 'publish' && wouldPublish;
-    const metrics = buildMetrics({
-      incrementalPosts,
-      retainedPosts,
-      stories,
-      shortlist,
-      reusedEvaluation,
+    const metrics = toMetrics({
+      fetchedPosts: incrementalPosts.length + highlightedPosts.length,
+      relationPosts: relationPosts.length,
+      currentHighlights: baselineSnapshot.length,
+      activeHighlights: activeCurrentHighlights.length,
+      canonicalizedHighlights: canonicalCurrentHighlights.length,
+      newCandidates: newCandidates.length,
+      admittedHighlights: admittedHighlights.length,
     });
+
     await runRepo.update(
+      { id: run.id },
       {
-        id: run.id,
-      },
-      {
-        baselineSnapshot,
-        inputSummary: buildInputSummary({
+        baselineSnapshot: baselineSnapshot.map(toStoredSnapshotItem),
+        inputSummary: toInputSummary({
           fetchStart,
           horizonStart,
-          shortlist,
+          currentHighlights: canonicalCurrentHighlights,
+          candidatePostIds: newCandidates.map((candidate) => candidate.postId),
         }),
         metrics,
       },
@@ -268,33 +263,22 @@ export const generateChannelHighlight = async ({
         channel: definition.channel,
         lastFetchedAt: now,
         lastPublishedAt: publish ? now : state?.lastPublishedAt || null,
-        candidatePool: buildCandidatePool({
-          stories,
-          evaluatedItems,
-          now,
-        }),
       });
 
       if (publish) {
         await replaceHighlightsForChannel({
           manager,
           channel: definition.channel,
-          items: evaluatedItems.map((item) => ({
-            postId: item.postId,
-            rank: item.rank,
-            headline: item.headline,
-          })),
+          items: internalHighlights,
         });
       }
 
       await manager.getRepository(ChannelHighlightRun).update(
-        {
-          id: run.id,
-        },
+        { id: run.id },
         {
           status: 'completed',
           completedAt: new Date(),
-          internalSnapshot: evaluatedItems,
+          internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
           comparison: {
             ...comparison,
             wouldPublish,
@@ -317,9 +301,7 @@ export const generateChannelHighlight = async ({
       'Failed channel highlight run',
     );
     await runRepo.update(
-      {
-        id: run.id,
-      },
+      { id: run.id },
       {
         status: 'failed',
         completedAt: new Date(),

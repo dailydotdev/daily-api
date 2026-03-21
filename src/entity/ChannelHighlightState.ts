@@ -1,5 +1,4 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
-import type { ChannelHighlightCandidatePool } from '../common/channelHighlight/schema';
 
 @Entity()
 export class ChannelHighlightState {
@@ -11,9 +10,6 @@ export class ChannelHighlightState {
 
   @Column({ type: 'timestamp', nullable: true })
   lastPublishedAt: Date | null;
-
-  @Column({ type: 'jsonb', default: () => `'{"stories":[]}'::jsonb` })
-  candidatePool: ChannelHighlightCandidatePool;
 
   @UpdateDateColumn()
   updatedAt: Date;

@@ -1,11 +1,8 @@
 import type { EntityManager } from 'typeorm';
 import { PostHighlight } from '../../entity/PostHighlight';
+import type { HighlightSyncItem } from './types';
 
-export type PublishHighlightItem = {
-  postId: string;
-  rank: number;
-  headline: string;
-};
+export type PublishHighlightItem = HighlightSyncItem;
 
 export const replaceHighlightsForChannel = async ({
   manager,
@@ -25,8 +22,12 @@ export const replaceHighlightsForChannel = async ({
 
   await repo.insert(
     items.map((item) => ({
-      ...item,
       channel,
+      postId: item.postId,
+      highlightedAt: item.highlightedAt,
+      headline: item.headline,
+      significanceLabel: item.significanceLabel,
+      reason: item.reason,
     })),
   );
 };

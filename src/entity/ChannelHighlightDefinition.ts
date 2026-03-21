@@ -15,6 +15,9 @@ export class ChannelHighlightDefinition {
   @Column({ type: 'text', default: 'disabled' })
   mode: ChannelHighlightMode;
 
+  @Column({ type: 'text', default: '' })
+  targetAudience: string;
+
   @Column({ type: 'smallint', default: 72 })
   candidateHorizonHours: number;
 

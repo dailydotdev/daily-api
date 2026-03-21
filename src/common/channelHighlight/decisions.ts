@@ -1,166 +1,53 @@
-import type { EvaluatedHighlightItem } from './evaluate';
-import type { StoredHighlightStory } from './schema';
-import type { HighlightBaselineItem, HighlightStory } from './types';
-
-const toSortedPostIdsKey = (postIds: string[]): string =>
-  [...postIds].sort().join('|');
-
-const hasCachedStoryChanged = (story: HighlightStory): boolean => {
-  if (!story.cached) {
-    return true;
-  }
-
-  return (
-    story.cached.canonicalPostId !== story.canonicalPost.id ||
-    toSortedPostIdsKey(story.cached.memberPostIds) !==
-      toSortedPostIdsKey(story.memberPosts.map((post) => post.id))
-  );
-};
-
-// Reuse the prior LLM decision only when the underlying story is still the same
-// story, the canonical post did not change, and no newer post/relation activity
-// happened since that decision.
-export const shouldReuseEvaluations = ({
-  shortlist,
-}: {
-  shortlist: HighlightStory[];
-}): boolean =>
-  shortlist.length > 0 &&
-  shortlist.every((story) => {
-    if (
-      !story.cached?.lastHeadline ||
-      story.cached.lastSignificanceScore == null ||
-      !story.cached.lastLlmEvaluatedAt
-    ) {
-      return false;
-    }
-
-    if (hasCachedStoryChanged(story)) {
-      return false;
-    }
-
-    return (
-      new Date(story.cached.lastLlmEvaluatedAt).getTime() >=
-      story.lastSeenAt.getTime()
-    );
-  });
-
-export const reuseEvaluations = ({
-  shortlist,
-  maxItems,
-}: {
-  shortlist: HighlightStory[];
-  maxItems: number;
-}): EvaluatedHighlightItem[] =>
-  shortlist.slice(0, maxItems).map((story, index) => ({
-    storyKey: story.storyKey,
-    postId: story.canonicalPost.id,
-    headline: story.cached?.lastHeadline || story.canonicalPost.title || '',
-    significanceScore: story.cached?.lastSignificanceScore || 0,
-    significanceLabel: story.cached?.lastSignificanceLabel || 'routine',
-    rank: index + 1,
-    reason: 'Reused cached evaluation',
-  }));
-
-export const toPoolStory = ({
-  story,
-  evaluation,
-  evaluatedAt,
-}: {
-  story: HighlightStory;
-  evaluation?: EvaluatedHighlightItem;
-  evaluatedAt: Date;
-}): StoredHighlightStory => ({
-  storyKey: story.storyKey,
-  canonicalPostId: story.canonicalPost.id,
-  collectionId: story.collectionId,
-  memberPostIds: story.memberPosts.map((post) => post.id).sort(),
-  firstSeenAt: story.cached?.firstSeenAt || story.firstSeenAt.toISOString(),
-  lastSeenAt: story.lastSeenAt.toISOString(),
-  lastLlmEvaluatedAt: evaluation
-    ? evaluatedAt.toISOString()
-    : story.cached?.lastLlmEvaluatedAt || null,
-  lastSignificanceScore:
-    evaluation?.significanceScore ??
-    story.cached?.lastSignificanceScore ??
-    null,
-  lastSignificanceLabel:
-    evaluation?.significanceLabel ??
-    story.cached?.lastSignificanceLabel ??
-    null,
-  lastHeadline: evaluation?.headline ?? story.cached?.lastHeadline ?? null,
-  status: story.cached?.status || 'active',
-});
+import type { HighlightSnapshotItem } from './types';
 
 const toItemSignature = (item: {
-  storyKey: string;
-  rank: number;
   postId: string;
-}): string => `${item.storyKey}:${item.rank}:${item.postId}`;
+  headline: string;
+  significanceLabel: string | null;
+}): string => `${item.postId}:${item.headline}:${item.significanceLabel || ''}`;
 
-// Publishing depends on the editorial surface changing in a user-visible way:
-// a different story, a different canonical post for the same story, or a
-// different headline for the same ranked set.
 export const shouldPublish = ({
   baseline,
   internal,
 }: {
-  baseline: HighlightBaselineItem[];
-  internal: EvaluatedHighlightItem[];
+  baseline: HighlightSnapshotItem[];
+  internal: HighlightSnapshotItem[];
 }): boolean => {
-  if (!baseline.length) {
-    return internal.length > 0;
-  }
-
-  if (!internal.length) {
-    return false;
-  }
-
   const baselineSignature = baseline.map(toItemSignature).join('|');
   const internalSignature = internal.map(toItemSignature).join('|');
 
-  if (baselineSignature !== internalSignature) {
-    return true;
-  }
-
-  const baselineHeadlines = baseline.map((item) => item.headline).join('|');
-  const internalHeadlines = internal.map((item) => item.headline).join('|');
-  return baselineHeadlines !== internalHeadlines;
+  return baselineSignature !== internalSignature;
 };
 
 export const compareSnapshots = ({
   baseline,
   internal,
 }: {
-  baseline: HighlightBaselineItem[];
-  internal: EvaluatedHighlightItem[];
+  baseline: HighlightSnapshotItem[];
+  internal: HighlightSnapshotItem[];
 }) => {
-  const baselineByStory = new Map(
-    baseline.map((item) => [item.storyKey, item]),
-  );
-  const internalByStory = new Map(
-    internal.map((item) => [item.storyKey, item]),
-  );
-  const overlap = [...internalByStory.keys()].filter((storyKey) =>
-    baselineByStory.has(storyKey),
+  const baselineByPostId = new Map(baseline.map((item) => [item.postId, item]));
+  const internalByPostId = new Map(internal.map((item) => [item.postId, item]));
+  const overlap = [...internalByPostId.keys()].filter((postId) =>
+    baselineByPostId.has(postId),
   );
 
   return {
     baselineCount: baseline.length,
     internalCount: internal.length,
     overlapCount: overlap.length,
-    addedStoryKeys: [...internalByStory.keys()].filter(
-      (storyKey) => !baselineByStory.has(storyKey),
+    addedPostIds: [...internalByPostId.keys()].filter(
+      (postId) => !baselineByPostId.has(postId),
     ),
-    removedStoryKeys: [...baselineByStory.keys()].filter(
-      (storyKey) => !internalByStory.has(storyKey),
+    removedPostIds: [...baselineByPostId.keys()].filter(
+      (postId) => !internalByPostId.has(postId),
     ),
     churnCount:
-      [...internalByStory.keys()].filter(
-        (storyKey) => !baselineByStory.has(storyKey),
+      [...internalByPostId.keys()].filter(
+        (postId) => !baselineByPostId.has(postId),
       ).length +
-      [...baselineByStory.keys()].filter(
-        (storyKey) => !internalByStory.has(storyKey),
+      [...baselineByPostId.keys()].filter(
+        (postId) => !internalByPostId.has(postId),
       ).length,
   };
 };

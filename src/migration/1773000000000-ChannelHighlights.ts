@@ -8,6 +8,7 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
       CREATE TABLE "channel_highlight_definition" (
         "channel" text NOT NULL,
         "mode" text NOT NULL DEFAULT 'disabled',
+        "targetAudience" text NOT NULL DEFAULT '',
         "candidateHorizonHours" smallint NOT NULL DEFAULT 72,
         "maxItems" smallint NOT NULL DEFAULT 10,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -22,7 +23,6 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
         "channel" text NOT NULL,
         "lastFetchedAt" TIMESTAMP,
         "lastPublishedAt" TIMESTAMP,
-        "candidatePool" jsonb NOT NULL DEFAULT '{"stories":[]}'::jsonb,
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_channel_highlight_state_channel"
           PRIMARY KEY ("channel")
@@ -57,10 +57,11 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
       INSERT INTO "channel_highlight_definition" (
         "channel",
         "mode",
+        "targetAudience",
         "candidateHorizonHours",
         "maxItems"
       )
-      VALUES ('vibes', 'disabled', 72, 10)
+      VALUES ('vibes', 'disabled', '', 72, 10)
       ON CONFLICT ("channel") DO NOTHING
     `);
   }

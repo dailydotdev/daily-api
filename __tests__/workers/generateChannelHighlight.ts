@@ -4,12 +4,7 @@ import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDef
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
 import { ChannelHighlightState } from '../../src/entity/ChannelHighlightState';
 import { PostHighlight } from '../../src/entity/PostHighlight';
-import {
-  CollectionPost,
-  ArticlePost,
-  SocialTwitterPost,
-  Source,
-} from '../../src/entity';
+import { ArticlePost, CollectionPost, Source } from '../../src/entity';
 import {
   PostRelation,
   PostRelationType,
@@ -100,48 +95,6 @@ const saveCollection = async ({
     },
   });
 
-const saveTwitterPost = async ({
-  id,
-  title,
-  url,
-  createdAt,
-  channel = 'vibes',
-  sourceId = 'content-source',
-  sharedPostId,
-  contentMeta,
-}: {
-  id: string;
-  title: string;
-  url: string;
-  createdAt: Date;
-  channel?: string;
-  sourceId?: string;
-  sharedPostId?: string;
-  contentMeta?: Record<string, unknown>;
-}) =>
-  con.getRepository(SocialTwitterPost).save({
-    id,
-    shortId: id,
-    title,
-    url,
-    canonicalUrl: url,
-    score: 0,
-    sourceId,
-    visible: true,
-    deleted: false,
-    banned: false,
-    showOnFeed: true,
-    createdAt,
-    metadataChangedAt: createdAt,
-    statsUpdatedAt: createdAt,
-    type: PostType.SocialTwitter,
-    sharedPostId,
-    contentMeta: {
-      channels: [channel],
-      ...(contentMeta || {}),
-    },
-  });
-
 describe('generateChannelHighlight worker', () => {
   beforeEach(async () => {
     await con
@@ -194,6 +147,7 @@ describe('generateChannelHighlight worker', () => {
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
       mode: 'shadow',
+      targetAudience: 'Developers following vibes',
       candidateHorizonHours: 72,
       maxItems: 3,
     });
@@ -202,41 +156,30 @@ describe('generateChannelHighlight worker', () => {
       title: 'Live story',
       createdAt: new Date('2026-03-03T08:00:00.000Z'),
     });
-    await saveCollection({
-      id: 'collection-1',
-      title: 'Fresh collection',
-      createdAt: new Date('2026-03-03T09:30:00.000Z'),
-    });
     await saveArticle({
-      id: 'child-1',
-      title: 'Fresh child story',
+      id: 'fresh-1',
+      title: 'Fresh story',
       createdAt: new Date('2026-03-03T09:20:00.000Z'),
-    });
-    await con.getRepository(PostRelation).save({
-      postId: 'collection-1',
-      relatedPostId: 'child-1',
-      type: PostRelationType.Collection,
     });
     await con.getRepository(PostHighlight).save({
       channel: 'vibes',
       postId: 'live-1',
-      rank: 1,
+      highlightedAt: new Date('2026-03-03T09:00:00.000Z'),
       headline: 'Live headline',
     });
 
     const evaluatorSpy = jest
       .spyOn(evaluator, 'evaluateChannelHighlights')
-      .mockImplementation(async ({ candidates }) => ({
-        items: candidates.slice(0, 1).map((candidate, index) => ({
-          storyKey: candidate.storyKey,
-          postId: candidate.canonicalPostId,
-          headline: `${candidate.title} headline`,
-          significanceScore: 0.9,
-          significanceLabel: 'breaking',
-          rank: index + 1,
-          reason: 'test',
-        })),
-      }));
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'breaking',
+            reason: 'test',
+          },
+        ],
+      });
 
     await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
       worker,
@@ -247,15 +190,27 @@ describe('generateChannelHighlight worker', () => {
     );
 
     expect(evaluatorSpy).toHaveBeenCalledTimes(1);
-    expect(evaluatorSpy.mock.calls[0][0].candidates[0]).toMatchObject({
-      storyKey: 'collection:collection-1',
-      canonicalPostId: 'collection-1',
-      memberPostIds: ['child-1', 'collection-1'],
-    });
+    expect(evaluatorSpy.mock.calls[0][0].targetAudience).toBe(
+      'Developers following vibes',
+    );
+    expect(evaluatorSpy.mock.calls[0][0].maxItems).toBe(3);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'live-1',
+        headline: 'Live headline',
+      }),
+    ]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        title: 'Fresh story',
+        relatedItemsCount: 1,
+      }),
+    ]);
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes' },
-      order: { rank: 'ASC' },
+      order: { highlightedAt: 'DESC' },
     });
     expect(liveHighlights).toHaveLength(1);
     expect(liveHighlights[0]).toMatchObject({
@@ -271,47 +226,55 @@ describe('generateChannelHighlight worker', () => {
       wouldPublish: true,
       published: false,
       baselineCount: 1,
-      internalCount: 1,
-    });
-
-    const state = await con
-      .getRepository(ChannelHighlightState)
-      .findOneByOrFail({
-        channel: 'vibes',
-      });
-    expect(state.candidatePool).toEqual({
-      stories: expect.arrayContaining([
-        expect.objectContaining({
-          storyKey: 'collection:collection-1',
-          canonicalPostId: 'collection-1',
-        }),
-      ]),
+      internalCount: 2,
+      addedPostIds: ['fresh-1'],
     });
   });
 
-  it('should publish evaluated highlights in publish mode', async () => {
+  it('should publish admitted highlights in publish mode and trim FIFO by maxItems', async () => {
     const now = new Date('2026-03-03T11:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
       mode: 'publish',
       candidateHorizonHours: 72,
-      maxItems: 3,
+      maxItems: 2,
     });
     await saveArticle({
-      id: 'publish-1',
-      title: 'Publish me',
+      id: 'old-live',
+      title: 'Older live story',
+      createdAt: new Date('2026-03-03T08:00:00.000Z'),
+    });
+    await saveArticle({
+      id: 'new-live',
+      title: 'Newer live story',
+      createdAt: new Date('2026-03-03T09:00:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh candidate',
       createdAt: new Date('2026-03-03T10:30:00.000Z'),
     });
+    await con.getRepository(PostHighlight).save([
+      {
+        channel: 'vibes',
+        postId: 'new-live',
+        highlightedAt: new Date('2026-03-03T10:00:00.000Z'),
+        headline: 'Newer live headline',
+      },
+      {
+        channel: 'vibes',
+        postId: 'old-live',
+        highlightedAt: new Date('2026-03-03T09:00:00.000Z'),
+        headline: 'Older live headline',
+      },
+    ]);
 
     jest.spyOn(evaluator, 'evaluateChannelHighlights').mockResolvedValue({
       items: [
         {
-          storyKey: 'url:https://example.com/publish-1',
-          postId: 'publish-1',
-          headline: 'Publish headline',
-          significanceScore: 0.95,
+          postId: 'fresh-1',
+          headline: 'Fresh headline',
           significanceLabel: 'breaking',
-          rank: 1,
           reason: 'test',
         },
       ],
@@ -327,17 +290,22 @@ describe('generateChannelHighlight worker', () => {
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes' },
-      order: { rank: 'ASC' },
+      order: { highlightedAt: 'DESC' },
     });
-    expect(liveHighlights).toHaveLength(1);
+    expect(liveHighlights).toHaveLength(2);
     expect(liveHighlights[0]).toMatchObject({
-      postId: 'publish-1',
-      headline: 'Publish headline',
-      rank: 1,
+      postId: 'fresh-1',
+      headline: 'Fresh headline',
+      significanceLabel: 'breaking',
+      reason: 'test',
+    });
+    expect(liveHighlights[1]).toMatchObject({
+      postId: 'new-live',
+      headline: 'Newer live headline',
     });
   });
 
-  it('should publish a collection upgrade for the same story', async () => {
+  it('should upgrade a highlighted article to its collection without re-evaluating it', async () => {
     const now = new Date('2026-03-03T11:30:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
@@ -351,35 +319,25 @@ describe('generateChannelHighlight worker', () => {
       createdAt: new Date('2026-03-03T11:10:00.000Z'),
     });
     await saveArticle({
-      id: 'child-upgr',
-      title: 'Child upgrade',
+      id: 'child-upgrade',
+      title: 'Child story',
       createdAt: new Date('2026-03-03T11:05:00.000Z'),
     });
     await con.getRepository(PostRelation).save({
       postId: 'col-upgrade',
-      relatedPostId: 'child-upgr',
+      relatedPostId: 'child-upgrade',
       type: PostRelationType.Collection,
     });
     await con.getRepository(PostHighlight).save({
       channel: 'vibes',
-      postId: 'child-upgr',
-      rank: 1,
-      headline: 'Same story headline',
+      postId: 'child-upgrade',
+      highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
+      headline: 'Original child headline',
+      significanceLabel: 'major',
+      reason: 'existing',
     });
 
-    jest.spyOn(evaluator, 'evaluateChannelHighlights').mockResolvedValue({
-      items: [
-        {
-          storyKey: 'collection:col-upgrade',
-          postId: 'col-upgrade',
-          headline: 'Same story headline',
-          significanceScore: 0.96,
-          significanceLabel: 'breaking',
-          rank: 1,
-          reason: 'test',
-        },
-      ],
-    });
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
 
     await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
       worker,
@@ -389,81 +347,45 @@ describe('generateChannelHighlight worker', () => {
       },
     );
 
+    expect(evaluatorSpy).not.toHaveBeenCalled();
+
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes' },
-      order: { rank: 'ASC' },
     });
     expect(liveHighlights).toEqual([
       expect.objectContaining({
         postId: 'col-upgrade',
-        headline: 'Same story headline',
-        rank: 1,
+        headline: 'Collection upgrade',
+        significanceLabel: 'major',
+        reason: 'existing',
       }),
     ]);
+    expect(liveHighlights[0].highlightedAt.toISOString()).toBe(
+      '2026-03-03T11:00:00.000Z',
+    );
   });
 
-  it('should re-evaluate a cached story when a relation changed after the last evaluation', async () => {
-    const now = new Date('2026-03-03T12:30:00.000Z');
+  it('should remove highlights that aged past the configured horizon', async () => {
+    const now = new Date('2026-03-03T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
-      mode: 'shadow',
-      candidateHorizonHours: 72,
+      mode: 'publish',
+      candidateHorizonHours: 24,
       maxItems: 3,
     });
-    await saveCollection({
-      id: 'col-cached',
-      title: 'Cached collection',
-      createdAt: new Date('2026-03-03T11:00:00.000Z'),
-    });
     await saveArticle({
-      id: 'child-cach',
-      title: 'Cached child',
-      createdAt: new Date('2026-03-03T10:55:00.000Z'),
+      id: 'expired-live',
+      title: 'Expired live story',
+      createdAt: new Date('2026-03-01T10:00:00.000Z'),
     });
-    await con.getRepository(ChannelHighlightState).save({
+    await con.getRepository(PostHighlight).save({
       channel: 'vibes',
-      lastFetchedAt: new Date('2026-03-03T12:00:00.000Z'),
-      lastPublishedAt: null,
-      candidatePool: {
-        stories: [
-          {
-            storyKey: 'collection:col-cached',
-            canonicalPostId: 'col-cached',
-            collectionId: 'col-cached',
-            memberPostIds: ['child-cach', 'col-cached'],
-            firstSeenAt: '2026-03-03T10:55:00.000Z',
-            lastSeenAt: '2026-03-03T12:00:00.000Z',
-            lastLlmEvaluatedAt: '2026-03-03T12:05:00.000Z',
-            lastSignificanceScore: 0.82,
-            lastSignificanceLabel: 'breaking',
-            lastHeadline: 'Cached headline',
-            status: 'active',
-          },
-        ],
-      },
-    });
-    await con.getRepository(PostRelation).save({
-      postId: 'col-cached',
-      relatedPostId: 'child-cach',
-      type: PostRelationType.Collection,
-      createdAt: new Date('2026-03-03T12:10:00.000Z'),
+      postId: 'expired-live',
+      highlightedAt: new Date('2026-03-02T10:00:00.000Z'),
+      headline: 'Expired headline',
     });
 
-    const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
-      .mockResolvedValue({
-        items: [
-          {
-            storyKey: 'collection:col-cached',
-            postId: 'col-cached',
-            headline: 'Fresh headline',
-            significanceScore: 0.91,
-            significanceLabel: 'breaking',
-            rank: 1,
-            reason: 'test',
-          },
-        ],
-      });
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
 
     await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
       worker,
@@ -473,11 +395,16 @@ describe('generateChannelHighlight worker', () => {
       },
     );
 
-    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy).not.toHaveBeenCalled();
+
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes' },
+    });
+    expect(liveHighlights).toEqual([]);
   });
 
-  it('should exclude posts older than the configured horizon even when they were recently updated', async () => {
-    const now = new Date('2026-03-03T12:00:00.000Z');
+  it('should exclude posts older than the candidate horizon even when recently updated', async () => {
+    const now = new Date('2026-03-03T12:30:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
       mode: 'shadow',
@@ -499,71 +426,16 @@ describe('generateChannelHighlight worker', () => {
 
     const evaluatorSpy = jest
       .spyOn(evaluator, 'evaluateChannelHighlights')
-      .mockImplementation(async ({ candidates }) => ({
-        items: candidates.map((candidate, index) => ({
-          storyKey: candidate.storyKey,
-          postId: candidate.canonicalPostId,
-          headline: candidate.title,
-          significanceScore: 0.7,
-          significanceLabel: 'notable',
-          rank: index + 1,
-          reason: 'test',
-        })),
-      }));
-
-    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
-      worker,
-      {
-        channel: 'vibes',
-        scheduledAt: now.toISOString(),
-      },
-    );
-
-    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
-    expect(evaluatorSpy.mock.calls[0][0].candidates).toEqual([
-      expect.objectContaining({
-        canonicalPostId: 'fresh-1',
-      }),
-    ]);
-  });
-
-  it('should prefer referenced tweet identity for quote tweets', async () => {
-    const now = new Date('2026-03-03T13:00:00.000Z');
-    await con.getRepository(ChannelHighlightDefinition).save({
-      channel: 'vibes',
-      mode: 'shadow',
-      candidateHorizonHours: 72,
-      maxItems: 3,
-    });
-    await saveTwitterPost({
-      id: 'tweet-quote-1',
-      title: 'Quote tweet',
-      url: 'https://x.com/quoter/status/1234567890123456789',
-      createdAt: new Date('2026-03-03T12:45:00.000Z'),
-      contentMeta: {
-        social_twitter: {
-          tweet_id: '1234567890123456789',
-          reference: {
-            tweet_id: '9876543210987654321',
-            url: 'https://x.com/original/status/9876543210987654321',
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'notable',
+            reason: 'test',
           },
-        },
-      },
-    });
-
-    const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
-      .mockImplementation(async ({ candidates }) => ({
-        items: candidates.map((candidate, index) => ({
-          storyKey: candidate.storyKey,
-          postId: candidate.canonicalPostId,
-          headline: candidate.title,
-          significanceScore: 0.8,
-          significanceLabel: 'major',
-          rank: index + 1,
-          reason: 'test',
-        })),
-      }));
+        ],
+      });
 
     await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
       worker,
@@ -574,10 +446,11 @@ describe('generateChannelHighlight worker', () => {
     );
 
     expect(evaluatorSpy).toHaveBeenCalledTimes(1);
-    expect(evaluatorSpy.mock.calls[0][0].candidates).toEqual([
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
       expect.objectContaining({
-        canonicalPostId: 'tweet-quote-1',
-        storyKey: 'twitter:9876543210987654321',
+        postId: 'fresh-1',
+        title: 'Fresh candidate',
+        relatedItemsCount: 1,
       }),
     ]);
   });

@@ -2,29 +2,42 @@ import {
   Column,
   Entity,
   Index,
+  CreateDateColumn,
   ManyToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { Post } from './posts/Post';
 
 @Entity()
-@Index('IDX_post_highlight_channel_rank', ['channel', 'rank'])
+@Index('IDX_post_highlight_channel_highlightedAt', ['channel', 'highlightedAt'])
+@Index('UQ_post_highlight_channel_post', ['channel', 'postId'], {
+  unique: true,
+})
 export class PostHighlight {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'text' })
   channel: string;
 
-  @PrimaryColumn({ type: 'text' })
+  @Column({ type: 'text' })
   @Index('IDX_post_highlight_post')
   postId: string;
 
-  @Column({ type: 'smallint' })
-  rank: number;
+  @Column({ type: 'timestamp' })
+  highlightedAt: Date;
 
   @Column({ type: 'text' })
   headline: string;
 
-  @Column({ default: () => 'now()' })
+  @Column({ type: 'text', nullable: true })
+  significanceLabel: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  reason: string | null;
+
+  @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()

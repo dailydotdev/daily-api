@@ -1,6 +1,5 @@
 import type { Post } from '../../entity/posts/Post';
 import type { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
-import type { StoredHighlightStory } from './schema';
 
 export type HighlightPost = Pick<
   Post,
@@ -28,22 +27,53 @@ export type HighlightPost = Pick<
   sharedPostId?: string | null;
 };
 
-export type HighlightStory = {
-  storyKey: string;
-  canonicalPost: HighlightPost;
-  memberPosts: HighlightPost[];
-  collectionId: string | null;
-  firstSeenAt: Date;
-  lastSeenAt: Date;
-  preliminaryScore: number;
-  cached?: StoredHighlightStory | null;
+export type HighlightQualitySummary = {
+  clickbaitProbability: number | null;
+  specificity: string | null;
+  intent: string | null;
+  substanceDepth: string | null;
+  titleContentAlignment: string | null;
+  selfPromotionScore: number | null;
 };
 
-export type HighlightBaselineItem = {
+export type HighlightCandidate = {
   postId: string;
-  rank: number;
+  title: string;
+  summary: string;
+  createdAt: Date;
+  lastActivityAt: Date;
+  upvotes: number;
+  comments: number;
+  views: number;
+  relatedItemsCount: number;
+  contentCuration: string[];
+  quality: HighlightQualitySummary;
+  preliminaryScore: number;
+};
+
+export type CurrentHighlight = {
+  id: string;
+  postId: string;
+  highlightedAt: Date;
   headline: string;
-  storyKey: string;
+  significanceLabel: string | null;
+  reason: string | null;
+};
+
+export type HighlightSnapshotItem = {
+  postId: string;
+  headline: string;
+  highlightedAt: Date;
+  significanceLabel: string | null;
+  reason: string | null;
+};
+
+export type HighlightSyncItem = {
+  postId: string;
+  headline: string;
+  highlightedAt: Date;
+  significanceLabel: string | null;
+  reason: string | null;
 };
 
 export type GenerateChannelHighlightResult = {
