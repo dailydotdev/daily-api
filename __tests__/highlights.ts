@@ -198,6 +198,41 @@ describe('PUT /p/highlights/:channel', () => {
     expect(res.status).toBe(400);
   });
 
+  it('should reject duplicate postIds in a bulk payload', async () => {
+    await createTestPosts();
+
+    const res = await request(app.server)
+      .put('/p/highlights/happening-now')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send([
+        { postId: 'h1', headline: 'First copy' },
+        { postId: 'h1', headline: 'Second copy' },
+      ]);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('should reject mixed timestamp ordering in a bulk payload', async () => {
+    await createTestPosts();
+
+    const res = await request(app.server)
+      .put('/p/highlights/happening-now')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send([
+        {
+          postId: 'h1',
+          highlightedAt: '2026-03-19T10:05:00.000Z',
+          headline: 'Timestamped',
+        },
+        {
+          postId: 'h2',
+          headline: 'Untimestamped',
+        },
+      ]);
+
+    expect(res.status).toBe(400);
+  });
+
   it('should replace all highlights for a channel', async () => {
     await createTestPosts();
 
@@ -314,6 +349,22 @@ describe('POST /p/highlights/:channel/items', () => {
       headline: 'Added highlight',
     });
     expect(highlight?.highlightedAt).toBeInstanceOf(Date);
+  });
+
+  it('should reject rank together with highlightedAt', async () => {
+    await createTestPosts();
+
+    const res = await request(app.server)
+      .post('/p/highlights/happening-now/items')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        postId: 'h1',
+        rank: 1,
+        highlightedAt: '2026-03-19T10:10:00.000Z',
+        headline: 'Ambiguous ordering',
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it('should upsert on conflict', async () => {
@@ -456,6 +507,24 @@ describe('PATCH /p/highlights/:channel/items/:postId', () => {
     expect(highlight?.highlightedAt.toISOString()).toBe(
       '2026-03-19T10:15:00.000Z',
     );
+  });
+
+  it('should reject an empty update body', async () => {
+    await createTestPosts();
+
+    await con.getRepository(PostHighlight).save({
+      postId: 'h1',
+      channel: 'happening-now',
+      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
+      headline: 'Original headline',
+    });
+
+    const res = await request(app.server)
+      .patch('/p/highlights/happening-now/items/h1')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({});
+
+    expect(res.status).toBe(400);
   });
 
   it('should return 404 for non-existent highlight', async () => {

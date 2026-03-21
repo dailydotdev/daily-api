@@ -75,6 +75,11 @@ type StoredHighlightItem = {
   reason: string | null;
 };
 
+type HighlightRepositoryAccessor = Pick<
+  Awaited<ReturnType<typeof createOrGetConnection>>,
+  'getRepository'
+>;
+
 const normalizeHighlightOrder = <
   T extends {
     postId: string;
@@ -188,7 +193,7 @@ const upsertHighlightsForChannel = async ({
   channel,
   items,
 }: {
-  con: Awaited<ReturnType<typeof createOrGetConnection>>;
+  con: HighlightRepositoryAccessor;
   channel: string;
   items: StoredHighlightItem[];
 }): Promise<void> => {
@@ -206,6 +211,34 @@ const upsertHighlightsForChannel = async ({
       reason: item.reason,
     })),
     { conflictPaths: ['channel', 'postId'] },
+  );
+};
+
+const replaceHighlightsForChannel = async ({
+  con,
+  channel,
+  items,
+}: {
+  con: HighlightRepositoryAccessor;
+  channel: string;
+  items: StoredHighlightItem[];
+}): Promise<void> => {
+  const repo = con.getRepository(PostHighlight);
+  await repo.delete({ channel });
+
+  if (!items.length) {
+    return;
+  }
+
+  await repo.insert(
+    items.map((item) => ({
+      channel,
+      postId: item.postId,
+      highlightedAt: item.highlightedAt,
+      headline: item.headline,
+      significanceLabel: item.significanceLabel,
+      reason: item.reason,
+    })),
   );
 };
 
@@ -645,20 +678,24 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         items: [toStoredHighlightItem(itemWithTimestamp)],
       });
     } else {
-      const currentHighlights = await con.getRepository(PostHighlight).find({
-        where: { channel },
-        order: { highlightedAt: 'DESC', createdAt: 'DESC' },
-      });
-      const reorderedHighlights = reorderHighlightsByRank({
-        currentHighlights,
-        nextItem: item.data,
-        rank: item.data.rank,
-      });
+      await con.transaction(async (manager) => {
+        const currentHighlights = await manager
+          .getRepository(PostHighlight)
+          .find({
+            where: { channel },
+            order: { highlightedAt: 'DESC', createdAt: 'DESC' },
+          });
+        const reorderedHighlights = reorderHighlightsByRank({
+          currentHighlights,
+          nextItem: item.data,
+          rank: item.data.rank,
+        });
 
-      await upsertHighlightsForChannel({
-        con,
-        channel,
-        items: reorderedHighlights,
+        await replaceHighlightsForChannel({
+          con: manager,
+          channel,
+          items: reorderedHighlights,
+        });
       });
     }
 
@@ -718,34 +755,48 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send({ error: 'highlight not found' });
       }
     } else {
-      const currentHighlight = await repo.findOneBy({ channel, postId });
+      let foundHighlight = true;
 
-      if (!currentHighlight) {
+      await con.transaction(async (manager) => {
+        const currentHighlight = await manager
+          .getRepository(PostHighlight)
+          .findOneBy({ channel, postId });
+
+        if (!currentHighlight) {
+          foundHighlight = false;
+          return;
+        }
+
+        const currentHighlights = await manager
+          .getRepository(PostHighlight)
+          .find({
+            where: { channel },
+            order: { highlightedAt: 'DESC', createdAt: 'DESC' },
+          });
+        const reorderedHighlights = reorderHighlightsByRank({
+          currentHighlights,
+          nextItem: {
+            postId,
+            headline: update.data.headline ?? currentHighlight.headline,
+            rank: update.data.rank,
+            significanceLabel:
+              update.data.significanceLabel ??
+              currentHighlight.significanceLabel,
+            reason: update.data.reason ?? currentHighlight.reason,
+          },
+          rank: update.data.rank,
+        });
+
+        await replaceHighlightsForChannel({
+          con: manager,
+          channel,
+          items: reorderedHighlights,
+        });
+      });
+
+      if (!foundHighlight) {
         return res.status(404).send({ error: 'highlight not found' });
       }
-
-      const currentHighlights = await repo.find({
-        where: { channel },
-        order: { highlightedAt: 'DESC', createdAt: 'DESC' },
-      });
-      const reorderedHighlights = reorderHighlightsByRank({
-        currentHighlights,
-        nextItem: {
-          postId,
-          headline: update.data.headline ?? currentHighlight.headline,
-          rank: update.data.rank,
-          significanceLabel:
-            update.data.significanceLabel ?? currentHighlight.significanceLabel,
-          reason: update.data.reason ?? currentHighlight.reason,
-        },
-        rank: update.data.rank,
-      });
-
-      await upsertHighlightsForChannel({
-        con,
-        channel,
-        items: reorderedHighlights,
-      });
     }
 
     return res.status(200).send({ success: true });

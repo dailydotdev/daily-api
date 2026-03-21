@@ -4,7 +4,14 @@ const toItemSignature = (item: {
   postId: string;
   headline: string;
   significanceLabel: string | null;
-}): string => `${item.postId}:${item.headline}:${item.significanceLabel || ''}`;
+  reason: string | null;
+}): string =>
+  JSON.stringify([
+    item.postId,
+    item.headline,
+    item.significanceLabel,
+    item.reason,
+  ]);
 
 export const shouldPublish = ({
   baseline,

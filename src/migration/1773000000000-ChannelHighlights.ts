@@ -5,6 +5,57 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ADD COLUMN "id" uuid DEFAULT uuid_generate_v4(),
+        ADD COLUMN "highlightedAt" TIMESTAMP,
+        ADD COLUMN "significanceLabel" text,
+        ADD COLUMN "reason" text
+    `);
+
+    await queryRunner.query(/* sql */ `
+      UPDATE "post_highlight"
+      SET
+        "id" = COALESCE("id", uuid_generate_v4()),
+        "highlightedAt" = COALESCE(
+          "highlightedAt",
+          now() - make_interval(secs => GREATEST("rank" - 1, 0))
+        )
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ALTER COLUMN "id" SET NOT NULL,
+        ALTER COLUMN "highlightedAt" SET NOT NULL
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_post_highlight_channel_rank"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        DROP CONSTRAINT "PK_post_highlight"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ADD CONSTRAINT "PK_post_highlight"
+          PRIMARY KEY ("id"),
+        ADD CONSTRAINT "UQ_post_highlight_channel_post"
+          UNIQUE ("channel", "postId")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX "IDX_post_highlight_channel_highlightedAt"
+        ON "post_highlight" ("channel", "highlightedAt")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        DROP COLUMN "rank"
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE TABLE "channel_highlight_definition" (
         "channel" text NOT NULL,
         "mode" text NOT NULL DEFAULT 'disabled',
@@ -68,6 +119,32 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ADD COLUMN "rank" smallint
+    `);
+
+    await queryRunner.query(/* sql */ `
+      WITH ranked_highlights AS (
+        SELECT
+          "id",
+          ROW_NUMBER() OVER (
+            PARTITION BY "channel"
+            ORDER BY "highlightedAt" DESC, "createdAt" DESC
+          ) AS "rank"
+        FROM "post_highlight"
+      )
+      UPDATE "post_highlight" AS highlight
+      SET "rank" = ranked_highlights."rank"
+      FROM ranked_highlights
+      WHERE highlight."id" = ranked_highlights."id"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ALTER COLUMN "rank" SET NOT NULL
+    `);
+
+    await queryRunner.query(/* sql */ `
       DROP INDEX IF EXISTS "IDX_channel_highlight_run_channel_scheduledAt"
     `);
     await queryRunner.query(/* sql */ `
@@ -78,6 +155,35 @@ export class ChannelHighlights1773000000000 implements MigrationInterface {
     `);
     await queryRunner.query(/* sql */ `
       DROP TABLE IF EXISTS "channel_highlight_definition"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_post_highlight_channel_highlightedAt"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        DROP CONSTRAINT IF EXISTS "UQ_post_highlight_channel_post",
+        DROP CONSTRAINT "PK_post_highlight"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        DROP COLUMN "reason",
+        DROP COLUMN "significanceLabel",
+        DROP COLUMN "highlightedAt",
+        DROP COLUMN "id"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "post_highlight"
+        ADD CONSTRAINT "PK_post_highlight"
+          PRIMARY KEY ("channel", "postId")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX "IDX_post_highlight_channel_rank"
+        ON "post_highlight" ("channel", "rank")
     `);
   }
 }
