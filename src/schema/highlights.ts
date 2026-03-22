@@ -1,5 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
+import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import {
@@ -11,6 +12,7 @@ import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../entity/PostHighlight';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export const typeDefs = /* GraphQL */ `
   type PostHighlight {
@@ -53,6 +55,27 @@ const majorHeadlineSignificances = [
 
 const majorHeadlinesPageGenerator = offsetPageGenerator<PostHighlight>(10, 50);
 
+const addMajorHeadlineFilter = (
+  builder: SelectQueryBuilder<PostHighlight>,
+): SelectQueryBuilder<PostHighlight> =>
+  builder.where('highlight.significance IN (:...significances)', {
+    significances: majorHeadlineSignificances,
+  });
+
+const getDedupedMajorHeadlinesQuery = (repo: Repository<PostHighlight>) =>
+  addMajorHeadlineFilter(
+    repo.createQueryBuilder('highlight').select('highlight.id', 'id'),
+  )
+    .distinctOn(['highlight.postId'])
+    .orderBy('highlight.postId', 'ASC')
+    .addOrderBy('highlight.highlightedAt', 'DESC')
+    .addOrderBy('highlight.id', 'DESC');
+
+const getMajorHeadlinesCountQuery = (repo: Repository<PostHighlight>) =>
+  addMajorHeadlineFilter(repo.createQueryBuilder('highlight'))
+    .select('COUNT(DISTINCT highlight."postId")', 'count')
+    .getRawOne<{ count: string }>();
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     postHighlights: async (_, args: { channel: string }, ctx: Context, info) =>
@@ -74,46 +97,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       PostHighlight,
       ConnectionArguments,
       OffsetPage
-    >(async (_, args, ctx, page) => {
-      const repo = ctx.con.getRepository(PostHighlight);
-      const dedupedIdsQuery = repo
-        .createQueryBuilder('highlight')
-        .select('highlight.id', 'id')
-        .where('highlight.significance IN (:...significances)', {
-          significances: majorHeadlineSignificances,
-        })
-        .distinctOn(['highlight.postId'])
-        .orderBy('highlight.postId', 'ASC')
-        .addOrderBy('highlight.highlightedAt', 'DESC')
-        .addOrderBy('highlight.id', 'DESC');
+    >(
+      async (_, args, ctx, page) =>
+        queryReadReplica(ctx.con, async ({ queryRunner }) => {
+          const repo = queryRunner.manager.getRepository(PostHighlight);
+          const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(repo);
 
-      const majorHeadlines = await repo
-        .createQueryBuilder('highlight')
-        .innerJoin(
-          `(${dedupedIdsQuery.getQuery()})`,
-          'deduped',
-          'deduped.id = highlight.id',
-        )
-        .setParameters(dedupedIdsQuery.getParameters())
-        .orderBy('highlight.highlightedAt', 'DESC')
-        .addOrderBy('highlight.id', 'DESC')
-        .offset(page.offset)
-        .limit(page.limit)
-        .getMany();
+          const [nodes, totalResult] = await Promise.all([
+            repo
+              .createQueryBuilder('highlight')
+              .innerJoin(
+                `(${dedupedIdsQuery.getQuery()})`,
+                'deduped',
+                'deduped.id = highlight.id',
+              )
+              .setParameters(dedupedIdsQuery.getParameters())
+              .orderBy('highlight.highlightedAt', 'DESC')
+              .addOrderBy('highlight.id', 'DESC')
+              .offset(page.offset)
+              .limit(page.limit)
+              .getMany(),
+            getMajorHeadlinesCountQuery(repo),
+          ]);
 
-      const totalResult = await repo
-        .createQueryBuilder()
-        .select('COUNT(DISTINCT highlight."postId")', 'count')
-        .from(PostHighlight, 'highlight')
-        .where('highlight.significance IN (:...significances)', {
-          significances: majorHeadlineSignificances,
-        })
-        .getRawOne<{ count: string }>();
-
-      return {
-        nodes: majorHeadlines,
-        total: Number(totalResult?.count ?? 0),
-      };
-    }, majorHeadlinesPageGenerator),
+          return {
+            nodes,
+            total: Number(totalResult?.count ?? 0),
+          };
+        }),
+      majorHeadlinesPageGenerator,
+    ),
   },
 };
