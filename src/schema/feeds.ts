@@ -1530,7 +1530,7 @@ const postRepostsFeedResolver = feedResolver(
     removeHiddenPosts: false,
     removeBannedPosts: false,
     removeNonPublicThresholdSquads: false,
-    allowPrivatePosts: true,
+    allowPrivatePosts: false,
     fetchQueryParams: async (ctx, { id }: PostRepostsArgs) => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
