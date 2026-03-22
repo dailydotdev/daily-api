@@ -5,13 +5,8 @@ import {
   ONE_MINUTE_IN_SECONDS,
   ONE_WEEK_IN_SECONDS,
 } from '../common/constants';
-import {
-  checkRedisObjectExists,
-  deleteRedisKey,
-  setRedisObjectIfNotExistsWithExpiry,
-  setRedisObjectWithExpiry,
-} from '../redis';
 import { TypedWorker } from './worker';
+import { withRedisDoneLock } from './withRedisDoneLock';
 
 const CHANNEL_DIGEST_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 
@@ -62,43 +57,29 @@ const worker: TypedWorker<'api.v1.generate-channel-digest'> = {
       return;
     }
 
-    const doneKey = getChannelDigestDoneKey({
-      digestKey,
-      scheduledAt,
-    });
-    if (await checkRedisObjectExists(doneKey)) {
-      return;
-    }
-
-    const lockKey = getChannelDigestLockKey({
-      digestKey,
-      scheduledAt,
-    });
-    const lockAcquired = await setRedisObjectIfNotExistsWithExpiry(
-      lockKey,
-      message.messageId || digestKey,
-      CHANNEL_DIGEST_LOCK_TTL_SECONDS,
-    );
-    if (!lockAcquired) {
-      return;
-    }
-
     try {
-      await generateChannelDigest({
-        con,
-        definition,
-        now,
+      await withRedisDoneLock({
+        doneKey: getChannelDigestDoneKey({
+          digestKey,
+          scheduledAt,
+        }),
+        lockKey: getChannelDigestLockKey({
+          digestKey,
+          scheduledAt,
+        }),
+        lockValue: message.messageId || digestKey,
+        lockTtlSeconds: CHANNEL_DIGEST_LOCK_TTL_SECONDS,
+        doneTtlSeconds: getChannelDigestDoneTtl(definition.frequency),
+        execute: () =>
+          generateChannelDigest({
+            con,
+            definition,
+            now,
+          }).then(() => undefined),
       });
-      await setRedisObjectWithExpiry(
-        doneKey,
-        '1',
-        getChannelDigestDoneTtl(definition.frequency),
-      );
     } catch (err) {
       logger.error({ ...logDetails, err }, 'Failed to generate channel digest');
       throw err;
-    } finally {
-      await deleteRedisKey(lockKey);
     }
   },
 };

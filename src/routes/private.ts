@@ -38,7 +38,10 @@ import { z } from 'zod';
 import { counters } from '../telemetry';
 import { applyVordrToUsers } from '../common/vordr';
 import { updatePostContentSchema } from '../common/schema/posts';
-import { PostHighlight } from '../entity/PostHighlight';
+import {
+  PostHighlight,
+  toPostHighlightSignificance,
+} from '../entity/PostHighlight';
 import {
   setHighlightsSchema,
   postHighlightItemSchema,
@@ -50,6 +53,107 @@ interface SearchUsername {
 }
 
 const MAX_VORDR_BATCH_SIZE = 500;
+
+type HighlightRouteItem = {
+  postId: string;
+  headline: string;
+  highlightedAt?: string;
+  significanceLabel?: string | null;
+  reason?: string | null;
+};
+
+type TimestampedHighlightRouteItem = Omit<
+  HighlightRouteItem,
+  'highlightedAt'
+> & {
+  highlightedAt: Date;
+};
+
+type StoredHighlightItem = {
+  postId: string;
+  headline: string;
+  highlightedAt: Date;
+  significanceLabel: string | null;
+  reason: string | null;
+};
+
+type HighlightRepositoryAccessor = Pick<
+  Awaited<ReturnType<typeof createOrGetConnection>>,
+  'getRepository'
+>;
+
+const normalizeHighlightOrder = <
+  T extends {
+    postId: string;
+    headline: string;
+    significanceLabel?: string | null;
+    reason?: string | null;
+  },
+>(
+  items: T[],
+): Array<T & { highlightedAt: Date }> => {
+  const baseTimestamp = Date.now();
+
+  return items.map((item, index) => ({
+    ...item,
+    highlightedAt: new Date(baseTimestamp - index * 1000),
+  }));
+};
+
+const withHighlightTimestamps = (
+  items: HighlightRouteItem[],
+): TimestampedHighlightRouteItem[] => {
+  const allItemsHaveTimestamps = items.every((item) => item.highlightedAt);
+
+  if (allItemsHaveTimestamps) {
+    return items.map((item) => ({
+      ...item,
+      highlightedAt: new Date(item.highlightedAt!),
+    }));
+  }
+
+  return normalizeHighlightOrder(items);
+};
+
+const toStoredHighlightItem = (
+  item: TimestampedHighlightRouteItem,
+): StoredHighlightItem => ({
+  postId: item.postId,
+  headline: item.headline,
+  highlightedAt: item.highlightedAt,
+  significanceLabel: item.significanceLabel ?? null,
+  reason: item.reason ?? null,
+});
+
+const toStoredHighlightItems = (
+  items: TimestampedHighlightRouteItem[],
+): StoredHighlightItem[] => items.map(toStoredHighlightItem);
+
+const upsertHighlightsForChannel = async ({
+  con,
+  channel,
+  items,
+}: {
+  con: HighlightRepositoryAccessor;
+  channel: string;
+  items: StoredHighlightItem[];
+}): Promise<void> => {
+  if (!items.length) {
+    return;
+  }
+
+  await con.getRepository(PostHighlight).upsert(
+    items.map((item) => ({
+      channel,
+      postId: item.postId,
+      highlightedAt: item.highlightedAt,
+      headline: item.headline,
+      significance: toPostHighlightSignificance(item.significanceLabel),
+      reason: item.reason,
+    })),
+    { conflictPaths: ['channel', 'postId'] },
+  );
+};
 
 const vordrUsersSchema = z.object({
   userIds: z
@@ -441,14 +545,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
+    const itemsWithTimestamps = withHighlightTimestamps(items.data);
 
     await con.transaction(async (manager) => {
       const repo = manager.getRepository(PostHighlight);
       await repo.delete({ channel });
       await repo.insert(
-        items.data.map((item) => ({
-          ...item,
+        toStoredHighlightItems(itemsWithTimestamps).map((item) => ({
           channel,
+          postId: item.postId,
+          highlightedAt: item.highlightedAt,
+          headline: item.headline,
+          significance: toPostHighlightSignificance(item.significanceLabel),
+          reason: item.reason,
         })),
       );
     });
@@ -474,12 +583,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    await con
-      .getRepository(PostHighlight)
-      .upsert(
-        { ...item.data, channel },
-        { conflictPaths: ['channel', 'postId'] },
-      );
+    const [itemWithTimestamp] = withHighlightTimestamps([item.data]);
+    await upsertHighlightsForChannel({
+      con,
+      channel,
+      items: [toStoredHighlightItem(itemWithTimestamp)],
+    });
 
     return res.status(200).send({ success: true });
   });
@@ -516,9 +625,21 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    const result = await con
-      .getRepository(PostHighlight)
-      .update({ channel, postId }, update.data);
+    const repo = con.getRepository(PostHighlight);
+    const result = await repo.update(
+      { channel, postId },
+      {
+        headline: update.data.headline,
+        highlightedAt: update.data.highlightedAt
+          ? new Date(update.data.highlightedAt)
+          : undefined,
+        significance:
+          update.data.significanceLabel !== undefined
+            ? toPostHighlightSignificance(update.data.significanceLabel)
+            : undefined,
+        reason: update.data.reason,
+      },
+    );
 
     if (result.affected === 0) {
       return res.status(404).send({ error: 'highlight not found' });

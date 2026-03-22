@@ -4,9 +4,10 @@ import graphorm from '../graphorm';
 
 export const typeDefs = /* GraphQL */ `
   type PostHighlight {
+    id: ID!
     post: Post!
     channel: String!
-    rank: Int!
+    highlightedAt: DateTime!
     headline: String!
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -14,7 +15,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
-    Get highlights for a channel, ordered by rank
+    Get highlights for a channel, ordered by recency
     """
     postHighlights(channel: String!): [PostHighlight!]!
   }
@@ -31,7 +32,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`"${builder.alias}"."channel" = :channel`, {
               channel: args.channel,
             })
-            .orderBy(`"${builder.alias}"."rank"`, 'ASC');
+            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
           return builder;
         },
         true,
