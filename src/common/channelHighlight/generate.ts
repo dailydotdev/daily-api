@@ -22,8 +22,6 @@ import {
 } from './stories';
 import type { GenerateChannelHighlightResult, HighlightItem } from './types';
 
-const RUN_RETENTION_DAYS = 7;
-
 const trimHighlights = ({
   items,
   maxItems,
@@ -37,12 +35,6 @@ const trimHighlights = ({
         right.highlightedAt.getTime() - left.highlightedAt.getTime(),
     )
     .slice(0, maxItems);
-
-const getRunRetentionCutoff = (now: Date): Date => {
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - RUN_RETENTION_DAYS);
-  return cutoff;
-};
 
 // High-level flow:
 // 1. Keep only currently highlighted items that are still inside the horizon.
@@ -167,7 +159,6 @@ export const generateChannelHighlight = async ({
       internal: internalHighlights,
     });
     const publish = definition.mode === 'publish' && comparison.changed;
-    const runRetentionCutoff = getRunRetentionCutoff(now);
 
     await con.transaction(async (manager) => {
       await manager.getRepository(ChannelHighlightDefinition).update(
@@ -216,15 +207,6 @@ export const generateChannelHighlight = async ({
           },
         },
       );
-
-      await manager
-        .getRepository(ChannelHighlightRun)
-        .createQueryBuilder()
-        .delete()
-        .where('"channel" = :channel', { channel: definition.channel })
-        .andWhere('"completedAt" IS NOT NULL')
-        .andWhere('"completedAt" < :cutoff', { cutoff: runRetentionCutoff })
-        .execute();
     });
 
     return {

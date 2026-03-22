@@ -35,6 +35,7 @@ import backfillGearCategory from './backfillGearCategory';
 import channelDigests from './channelDigests';
 import channelHighlights from './channelHighlights';
 import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
+import { cleanChannelHighlights } from './cleanChannelHighlights';
 
 export const crons: Cron[] = [
   updateViews,
@@ -72,5 +73,6 @@ export const crons: Cron[] = [
   backfillGearCategory,
   channelDigests,
   channelHighlights,
+  cleanChannelHighlights,
   cleanExpiredBetterAuthSessions,
 ];

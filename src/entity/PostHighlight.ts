@@ -82,6 +82,9 @@ export class PostHighlight {
   @Column({ type: 'text', nullable: true })
   reason: string | null;
 
+  @Column({ type: 'timestamp', nullable: true })
+  retiredAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

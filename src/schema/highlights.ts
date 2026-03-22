@@ -94,6 +94,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`"${builder.alias}"."channel" = :channel`, {
               channel: args.channel,
             })
+            .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
             .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
           return builder;
         },
