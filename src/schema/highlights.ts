@@ -65,9 +65,11 @@ const getMajorHeadlinesPage = (args: ConnectionArguments): OffsetPage => ({
 const addMajorHeadlineFilter = <T extends PostHighlight>(
   builder: SelectQueryBuilder<T>,
 ): SelectQueryBuilder<T> =>
-  builder.where('highlight.significance IN (:...significances)', {
-    significances: majorHeadlineSignificances,
-  });
+  builder
+    .where('highlight.significance IN (:...significances)', {
+      significances: majorHeadlineSignificances,
+    })
+    .andWhere('highlight."retiredAt" IS NULL');
 
 const getDedupedMajorHeadlinesQuery = (
   queryBuilder: SelectQueryBuilder<PostHighlight>,

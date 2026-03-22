@@ -363,4 +363,38 @@ describe('query majorHeadlines', () => {
       secondPage.data.majorHeadlines.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
   });
+
+  it('should exclude retired major headlines', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Live breaking headline',
+        significance: PostHighlightSignificance.Breaking,
+        retiredAt: null,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Retired major headline',
+        significance: PostHighlightSignificance.Major,
+        retiredAt: new Date('2026-03-19T10:45:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(MAJOR_HEADLINES_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.majorHeadlines.edges).toHaveLength(1);
+    expect(res.data.majorHeadlines.edges[0].node).toMatchObject({
+      channel: 'vibes',
+      headline: 'Live breaking headline',
+      post: { id: 'h1' },
+    });
+  });
 });
