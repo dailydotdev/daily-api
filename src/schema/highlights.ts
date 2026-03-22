@@ -1,13 +1,14 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ConnectionArguments } from 'graphql-relay';
+import {
+  ConnectionArguments,
+  getOffsetWithDefault,
+  offsetToCursor,
+} from 'graphql-relay';
+import type { PageGenerator } from './common';
 import type { Repository, SelectQueryBuilder } from 'typeorm';
 import { BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
-import {
-  forwardPagination,
-  offsetPageGenerator,
-  type OffsetPage,
-} from './common';
+import { forwardPagination, type OffsetPage } from './common';
 import {
   PostHighlight,
   PostHighlightSignificance,
@@ -53,7 +54,33 @@ const majorHeadlineSignificances = [
   PostHighlightSignificance.Major,
 ];
 
-const majorHeadlinesPageGenerator = offsetPageGenerator<PostHighlight>(10, 50);
+const defaultMajorHeadlinesLimit = 10;
+const maxMajorHeadlinesLimit = 50;
+
+const majorHeadlinesPageGenerator: PageGenerator<
+  PostHighlight,
+  ConnectionArguments,
+  OffsetPage
+> = {
+  connArgsToPage: (args) => {
+    const limit =
+      Math.min(
+        args.first || defaultMajorHeadlinesLimit,
+        maxMajorHeadlinesLimit,
+      ) + 1;
+    const offset = getOffsetWithDefault(args.after, -1) + 1;
+
+    return {
+      limit,
+      offset,
+    };
+  },
+  nodeToCursor: (page, args, node, index) =>
+    offsetToCursor(page.offset + index),
+  hasNextPage: (page, nodesSize) => nodesSize >= page.limit,
+  hasPreviousPage: (page) => page.offset > 0,
+  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
+};
 
 const addMajorHeadlineFilter = (
   builder: SelectQueryBuilder<PostHighlight>,
@@ -70,11 +97,6 @@ const getDedupedMajorHeadlinesQuery = (repo: Repository<PostHighlight>) =>
     .orderBy('highlight.postId', 'ASC')
     .addOrderBy('highlight.highlightedAt', 'DESC')
     .addOrderBy('highlight.id', 'DESC');
-
-const getMajorHeadlinesCountQuery = (repo: Repository<PostHighlight>) =>
-  addMajorHeadlineFilter(repo.createQueryBuilder('highlight'))
-    .select('COUNT(DISTINCT highlight."postId")', 'count')
-    .getRawOne<{ count: string }>();
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -103,26 +125,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           const repo = queryRunner.manager.getRepository(PostHighlight);
           const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(repo);
 
-          const [nodes, totalResult] = await Promise.all([
-            repo
-              .createQueryBuilder('highlight')
-              .innerJoin(
-                `(${dedupedIdsQuery.getQuery()})`,
-                'deduped',
-                'deduped.id = highlight.id',
-              )
-              .setParameters(dedupedIdsQuery.getParameters())
-              .orderBy('highlight.highlightedAt', 'DESC')
-              .addOrderBy('highlight.id', 'DESC')
-              .offset(page.offset)
-              .limit(page.limit)
-              .getMany(),
-            getMajorHeadlinesCountQuery(repo),
-          ]);
+          const nodes = await repo
+            .createQueryBuilder('highlight')
+            .innerJoin(
+              `(${dedupedIdsQuery.getQuery()})`,
+              'deduped',
+              'deduped.id = highlight.id',
+            )
+            .setParameters(dedupedIdsQuery.getParameters())
+            .orderBy('highlight.highlightedAt', 'DESC')
+            .addOrderBy('highlight.id', 'DESC')
+            .offset(page.offset)
+            .limit(page.limit)
+            .getMany();
 
           return {
             nodes,
-            total: Number(totalResult?.count ?? 0),
           };
         }),
       majorHeadlinesPageGenerator,
