@@ -4,16 +4,14 @@ import {
   getOffsetWithDefault,
   offsetToCursor,
 } from 'graphql-relay';
-import type { PageGenerator } from './common';
-import type { Repository, SelectQueryBuilder } from 'typeorm';
+import type { SelectQueryBuilder } from 'typeorm';
 import { BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
-import { forwardPagination, type OffsetPage } from './common';
+import type { OffsetPage } from './common';
 import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../entity/PostHighlight';
-import { queryReadReplica } from '../common/queryReadReplica';
 
 export const typeDefs = /* GraphQL */ `
   type PostHighlight {
@@ -57,41 +55,28 @@ const majorHeadlineSignificances = [
 const defaultMajorHeadlinesLimit = 10;
 const maxMajorHeadlinesLimit = 50;
 
-const majorHeadlinesPageGenerator: PageGenerator<
-  PostHighlight,
-  ConnectionArguments,
-  OffsetPage
-> = {
-  connArgsToPage: (args) => {
-    const limit =
-      Math.min(
-        args.first || defaultMajorHeadlinesLimit,
-        maxMajorHeadlinesLimit,
-      ) + 1;
-    const offset = getOffsetWithDefault(args.after, -1) + 1;
+const getMajorHeadlinesPage = (args: ConnectionArguments): OffsetPage => ({
+  limit:
+    Math.min(args.first || defaultMajorHeadlinesLimit, maxMajorHeadlinesLimit) +
+    1,
+  offset: getOffsetWithDefault(args.after, -1) + 1,
+});
 
-    return {
-      limit,
-      offset,
-    };
-  },
-  nodeToCursor: (page, args, node, index) =>
-    offsetToCursor(page.offset + index),
-  hasNextPage: (page, nodesSize) => nodesSize >= page.limit,
-  hasPreviousPage: (page) => page.offset > 0,
-  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
-};
-
-const addMajorHeadlineFilter = (
-  builder: SelectQueryBuilder<PostHighlight>,
-): SelectQueryBuilder<PostHighlight> =>
+const addMajorHeadlineFilter = <T extends PostHighlight>(
+  builder: SelectQueryBuilder<T>,
+): SelectQueryBuilder<T> =>
   builder.where('highlight.significance IN (:...significances)', {
     significances: majorHeadlineSignificances,
   });
 
-const getDedupedMajorHeadlinesQuery = (repo: Repository<PostHighlight>) =>
+const getDedupedMajorHeadlinesQuery = (
+  queryBuilder: SelectQueryBuilder<PostHighlight>,
+) =>
   addMajorHeadlineFilter(
-    repo.createQueryBuilder('highlight').select('highlight.id', 'id'),
+    queryBuilder
+      .subQuery()
+      .select('highlight.id', 'id')
+      .from(PostHighlight, 'highlight'),
   )
     .distinctOn(['highlight.postId'])
     .orderBy('highlight.postId', 'ASC')
@@ -114,36 +99,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
         true,
       ),
-    majorHeadlines: forwardPagination<
-      unknown,
-      PostHighlight,
-      ConnectionArguments,
-      OffsetPage
-    >(
-      async (_, args, ctx, page) =>
-        queryReadReplica(ctx.con, async ({ queryRunner }) => {
-          const repo = queryRunner.manager.getRepository(PostHighlight);
-          const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(repo);
+    majorHeadlines: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info,
+    ) => {
+      const page = getMajorHeadlinesPage(args);
 
-          const nodes = await repo
-            .createQueryBuilder('highlight')
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        () => page.offset > 0,
+        (nodeSize) => nodeSize >= page.limit,
+        (_, index) => offsetToCursor(page.offset + index),
+        (builder) => {
+          const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(
+            builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
+          );
+
+          builder.queryBuilder
             .innerJoin(
               `(${dedupedIdsQuery.getQuery()})`,
               'deduped',
-              'deduped.id = highlight.id',
+              `deduped.id = ${builder.alias}.id`,
             )
             .setParameters(dedupedIdsQuery.getParameters())
-            .orderBy('highlight.highlightedAt', 'DESC')
-            .addOrderBy('highlight.id', 'DESC')
+            .orderBy(`${builder.alias}."highlightedAt"`, 'DESC')
+            .addOrderBy(`${builder.alias}."id"`, 'DESC')
             .offset(page.offset)
-            .limit(page.limit)
-            .getMany();
+            .limit(page.limit);
 
-          return {
-            nodes,
-          };
-        }),
-      majorHeadlinesPageGenerator,
-    ),
+          return builder;
+        },
+        (nodes) => nodes.slice(0, page.limit - 1),
+        true,
+      );
+    },
   },
 };
