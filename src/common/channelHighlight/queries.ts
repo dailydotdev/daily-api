@@ -1,4 +1,4 @@
-import { Brackets, In, type DataSource } from 'typeorm';
+import { Brackets, In, IsNull, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { PostHighlight } from '../../entity/PostHighlight';
 import { Post } from '../../entity/posts/Post';
@@ -69,6 +69,7 @@ export const fetchCurrentHighlights = async ({
   con.getRepository(PostHighlight).find({
     where: {
       channel,
+      retiredAt: IsNull(),
     },
     order: {
       highlightedAt: 'DESC',

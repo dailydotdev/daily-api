@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm';
+import { IsNull, type DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
@@ -213,7 +213,7 @@ describe('generateChannelHighlight worker', () => {
     ]);
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'vibes' },
+      where: { channel: 'vibes', retiredAt: IsNull() },
       order: { highlightedAt: 'DESC' },
     });
     expect(liveHighlights).toHaveLength(1);
@@ -293,7 +293,7 @@ describe('generateChannelHighlight worker', () => {
     );
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'vibes' },
+      where: { channel: 'vibes', retiredAt: IsNull() },
       order: { highlightedAt: 'DESC' },
     });
     expect(liveHighlights).toHaveLength(2);
@@ -307,6 +307,11 @@ describe('generateChannelHighlight worker', () => {
       postId: 'new-live',
       headline: 'Newer live headline',
     });
+    const retiredHighlight = await con.getRepository(PostHighlight).findOneBy({
+      channel: 'vibes',
+      postId: 'old-live',
+    });
+    expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
   });
 
   it('should upgrade a highlighted article to its collection without re-evaluating it', async () => {
@@ -354,7 +359,7 @@ describe('generateChannelHighlight worker', () => {
     expect(evaluatorSpy).not.toHaveBeenCalled();
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'vibes' },
+      where: { channel: 'vibes', retiredAt: IsNull() },
     });
     expect(liveHighlights).toEqual([
       expect.objectContaining({
@@ -367,6 +372,11 @@ describe('generateChannelHighlight worker', () => {
     expect(liveHighlights[0].highlightedAt.toISOString()).toBe(
       '2026-03-03T11:00:00.000Z',
     );
+    const retiredHighlight = await con.getRepository(PostHighlight).findOneBy({
+      channel: 'vibes',
+      postId: 'child-upgrade',
+    });
+    expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
   });
 
   it('should remove highlights that aged past the configured horizon', async () => {
@@ -402,9 +412,14 @@ describe('generateChannelHighlight worker', () => {
     expect(evaluatorSpy).not.toHaveBeenCalled();
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'vibes' },
+      where: { channel: 'vibes', retiredAt: IsNull() },
     });
     expect(liveHighlights).toEqual([]);
+    const retiredHighlight = await con.getRepository(PostHighlight).findOneBy({
+      channel: 'vibes',
+      postId: 'expired-live',
+    });
+    expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
   });
 
   it('should exclude posts older than the candidate horizon even when recently updated', async () => {

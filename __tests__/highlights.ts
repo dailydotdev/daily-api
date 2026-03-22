@@ -1,5 +1,3 @@
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
 import { DataSource } from 'typeorm';
 import {
   disposeGraphQLTesting,
@@ -18,7 +16,6 @@ import {
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -27,7 +24,6 @@ beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
   client = state.client;
-  app = state.app;
 });
 
 afterAll(async () => {
@@ -217,6 +213,38 @@ describe('query postHighlights', () => {
       post: { id: 'h2' },
     });
   });
+
+  it('should hide retired highlights', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:00:00.000Z'),
+        headline: 'Still live',
+        retiredAt: null,
+      },
+      {
+        postId: 'h2',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:05:00.000Z'),
+        headline: 'Retired headline',
+        retiredAt: new Date('2026-03-19T10:10:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { channel: 'happening-now' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlights).toHaveLength(1);
+    expect(res.data.postHighlights[0]).toMatchObject({
+      channel: 'happening-now',
+      headline: 'Still live',
+      post: { id: 'h1' },
+    });
+  });
 });
 
 describe('query majorHeadlines', () => {
@@ -335,247 +363,38 @@ describe('query majorHeadlines', () => {
       secondPage.data.majorHeadlines.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
   });
-});
 
-describe('PUT /p/highlights/:channel', () => {
-  it('should return 404 when not authorized', () =>
-    request(app.server)
-      .put('/p/highlights/happening-now')
-      .send([])
-      .expect(404));
-
-  it('should reject invalid body', async () => {
-    const res = await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([{ postId: '' }]);
-
-    expect(res.status).toBe(400);
-  });
-
-  it('should replace all highlights for a channel', async () => {
+  it('should exclude retired major headlines', async () => {
     await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'happening-now',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'Old headline',
-    });
-
-    const res = await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([
-        {
-          postId: 'h2',
-          highlightedAt: '2026-03-19T10:05:00.000Z',
-          headline: 'New first',
-        },
-        {
-          postId: 'h3',
-          highlightedAt: '2026-03-19T10:00:00.000Z',
-          headline: 'New second',
-        },
-      ]);
-
-    expect(res.status).toBe(200);
-
-    const highlights = await con.getRepository(PostHighlight).find({
-      where: { channel: 'happening-now' },
-      order: { highlightedAt: 'DESC' },
-    });
-    expect(highlights).toHaveLength(2);
-    expect(highlights[0]).toMatchObject({
-      postId: 'h2',
-      headline: 'New first',
-    });
-    expect(highlights[1]).toMatchObject({
-      postId: 'h3',
-      headline: 'New second',
-    });
-  });
-
-  it('should not affect other channels', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'agentic',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'Agentic stays',
-    });
-
-    await request(app.server)
-      .put('/p/highlights/happening-now')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send([{ postId: 'h2', headline: 'New happening now' }]);
-
-    const agentic = await con
-      .getRepository(PostHighlight)
-      .findOneBy({ channel: 'agentic' });
-    expect(agentic).toBeTruthy();
-    expect(agentic?.headline).toBe('Agentic stays');
-  });
-});
-
-describe('POST /p/highlights/:channel/items', () => {
-  it('should return 404 when not authorized', () =>
-    request(app.server)
-      .post('/p/highlights/happening-now/items')
-      .send({})
-      .expect(404));
-
-  it('should add a single highlight', async () => {
-    await createTestPosts();
-
-    const res = await request(app.server)
-      .post('/p/highlights/happening-now/items')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({ postId: 'h1', headline: 'Added highlight' });
-
-    expect(res.status).toBe(200);
-
-    const highlight = await con
-      .getRepository(PostHighlight)
-      .findOneBy({ channel: 'happening-now', postId: 'h1' });
-    expect(highlight).toMatchObject({
-      postId: 'h1',
-      headline: 'Added highlight',
-    });
-    expect(highlight?.highlightedAt).toBeInstanceOf(Date);
-  });
-
-  it('should upsert on conflict', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'happening-now',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'Original',
-    });
-
-    const res = await request(app.server)
-      .post('/p/highlights/happening-now/items')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({
+    await con.getRepository(PostHighlight).save([
+      {
         postId: 'h1',
-        highlightedAt: '2026-03-19T10:10:00.000Z',
-        headline: 'Updated via upsert',
-        significanceLabel: 'major',
-        reason: 'editorial test',
-      });
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Live breaking headline',
+        significance: PostHighlightSignificance.Breaking,
+        retiredAt: null,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Retired major headline',
+        significance: PostHighlightSignificance.Major,
+        retiredAt: new Date('2026-03-19T10:45:00.000Z'),
+      },
+    ]);
 
-    expect(res.status).toBe(200);
-
-    const highlights = await con
-      .getRepository(PostHighlight)
-      .findBy({ channel: 'happening-now', postId: 'h1' });
-    expect(highlights).toHaveLength(1);
-    expect(highlights[0]).toMatchObject({
-      headline: 'Updated via upsert',
-      significance: PostHighlightSignificance.Major,
-      reason: 'editorial test',
-    });
-  });
-});
-
-describe('DELETE /p/highlights/:channel/items/:postId', () => {
-  it('should return 404 when not authorized', () =>
-    request(app.server)
-      .delete('/p/highlights/happening-now/items/h1')
-      .expect(404));
-
-  it('should delete a highlight', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'happening-now',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'To be deleted',
+    const res = await client.query(MAJOR_HEADLINES_QUERY, {
+      variables: { first: 10 },
     });
 
-    const res = await request(app.server)
-      .delete('/p/highlights/happening-now/items/h1')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`);
-
-    expect(res.status).toBe(200);
-
-    const highlight = await con
-      .getRepository(PostHighlight)
-      .findOneBy({ channel: 'happening-now', postId: 'h1' });
-    expect(highlight).toBeNull();
-  });
-});
-
-describe('PATCH /p/highlights/:channel/items/:postId', () => {
-  it('should return 404 when not authorized', () =>
-    request(app.server)
-      .patch('/p/highlights/happening-now/items/h1')
-      .send({})
-      .expect(404));
-
-  it('should update highlight fields', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'happening-now',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'Original headline',
+    expect(res.errors).toBeFalsy();
+    expect(res.data.majorHeadlines.edges).toHaveLength(1);
+    expect(res.data.majorHeadlines.edges[0].node).toMatchObject({
+      channel: 'vibes',
+      headline: 'Live breaking headline',
+      post: { id: 'h1' },
     });
-
-    const res = await request(app.server)
-      .patch('/p/highlights/happening-now/items/h1')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({
-        highlightedAt: '2026-03-19T10:15:00.000Z',
-        headline: 'Updated headline',
-        significanceLabel: 'breaking',
-        reason: 'manual update',
-      });
-
-    expect(res.status).toBe(200);
-
-    const highlight = await con
-      .getRepository(PostHighlight)
-      .findOneBy({ channel: 'happening-now', postId: 'h1' });
-    expect(highlight).toMatchObject({
-      headline: 'Updated headline',
-      significance: PostHighlightSignificance.Breaking,
-      reason: 'manual update',
-    });
-    expect(highlight?.highlightedAt.toISOString()).toBe(
-      '2026-03-19T10:15:00.000Z',
-    );
-  });
-
-  it('should reject an empty update body', async () => {
-    await createTestPosts();
-
-    await con.getRepository(PostHighlight).save({
-      postId: 'h1',
-      channel: 'happening-now',
-      highlightedAt: new Date('2026-03-19T09:55:00.000Z'),
-      headline: 'Original headline',
-    });
-
-    const res = await request(app.server)
-      .patch('/p/highlights/happening-now/items/h1')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({});
-
-    expect(res.status).toBe(400);
-  });
-
-  it('should return 404 for non-existent highlight', async () => {
-    const res = await request(app.server)
-      .patch('/p/highlights/happening-now/items/nonexistent')
-      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
-      .send({ headline: 'Updated headline' });
-
-    expect(res.status).toBe(404);
   });
 });

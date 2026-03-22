@@ -65,9 +65,11 @@ const getMajorHeadlinesPage = (args: ConnectionArguments): OffsetPage => ({
 const addMajorHeadlineFilter = <T extends PostHighlight>(
   builder: SelectQueryBuilder<T>,
 ): SelectQueryBuilder<T> =>
-  builder.where('highlight.significance IN (:...significances)', {
-    significances: majorHeadlineSignificances,
-  });
+  builder
+    .where('highlight.significance IN (:...significances)', {
+      significances: majorHeadlineSignificances,
+    })
+    .andWhere('highlight."retiredAt" IS NULL');
 
 const getDedupedMajorHeadlinesQuery = (
   queryBuilder: SelectQueryBuilder<PostHighlight>,
@@ -94,6 +96,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`"${builder.alias}"."channel" = :channel`, {
               channel: args.channel,
             })
+            .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
             .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
           return builder;
         },

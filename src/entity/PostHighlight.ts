@@ -52,9 +52,18 @@ export const toPostHighlightSignificanceLabel = (
 };
 
 @Entity()
-@Index('IDX_post_highlight_channel_highlightedAt', ['channel', 'highlightedAt'])
+@Index(
+  'IDX_post_highlight_active_channel_highlightedAt',
+  ['channel', 'highlightedAt'],
+  {
+    where: '"retiredAt" IS NULL',
+  },
+)
 @Index('UQ_post_highlight_channel_post', ['channel', 'postId'], {
   unique: true,
+})
+@Index('IDX_post_highlight_retiredAt', ['retiredAt'], {
+  where: '"retiredAt" IS NOT NULL',
 })
 export class PostHighlight {
   @PrimaryGeneratedColumn('uuid')
@@ -81,6 +90,9 @@ export class PostHighlight {
 
   @Column({ type: 'text', nullable: true })
   reason: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  retiredAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
