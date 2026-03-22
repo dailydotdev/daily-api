@@ -9,6 +9,16 @@ import {
 import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import type { HighlightPost } from './types';
 
+const REJECTED_CONTENT_CURATIONS = [
+  'tutorial',
+  'listicle',
+  'comparison',
+  'endorsement',
+  'hot_take',
+  'opinion',
+  'product',
+];
+
 const HIGHLIGHT_FETCH_OVERLAP_SECONDS = 10 * 60;
 
 export const getHorizonStart = ({
@@ -107,6 +117,9 @@ export const fetchIncrementalPosts = async ({
     .andWhere('post.showOnFeed = true')
     .andWhere('post.sharedPostId IS NULL')
     .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
+    .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
+      rejectedCurations: REJECTED_CONTENT_CURATIONS,
+    })
     .andWhere(
       new Brackets((builder) => {
         builder

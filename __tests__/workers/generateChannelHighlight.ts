@@ -33,6 +33,7 @@ const saveArticle = async ({
   metadataChangedAt = createdAt,
   channel = 'vibes',
   sourceId = 'content-source',
+  contentCuration = [] as string[],
 }: {
   id: string;
   title: string;
@@ -41,6 +42,7 @@ const saveArticle = async ({
   metadataChangedAt?: Date;
   channel?: string;
   sourceId?: string;
+  contentCuration?: string[];
 }) =>
   con.getRepository(ArticlePost).save({
     id,
@@ -58,6 +60,7 @@ const saveArticle = async ({
     metadataChangedAt,
     statsUpdatedAt,
     type: PostType.Article,
+    contentCuration,
     contentMeta: {
       channels: [channel],
     },
@@ -454,5 +457,67 @@ describe('generateChannelHighlight worker', () => {
         relatedItemsCount: 1,
       }),
     ]);
+  });
+
+  it('should exclude posts with rejected content curation types from candidates', async () => {
+    const now = new Date('2026-03-03T13:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 5,
+    });
+    await saveArticle({
+      id: 'news-1',
+      title: 'News story',
+      createdAt: new Date('2026-03-03T12:00:00.000Z'),
+      contentCuration: ['news'],
+    });
+    await saveArticle({
+      id: 'release-1',
+      title: 'Release story',
+      createdAt: new Date('2026-03-03T12:10:00.000Z'),
+      contentCuration: ['release'],
+    });
+    await saveArticle({
+      id: 'tutorial-1',
+      title: 'Tutorial post',
+      createdAt: new Date('2026-03-03T12:20:00.000Z'),
+      contentCuration: ['tutorial'],
+    });
+    await saveArticle({
+      id: 'opinion-1',
+      title: 'Opinion post',
+      createdAt: new Date('2026-03-03T12:30:00.000Z'),
+      contentCuration: ['opinion'],
+    });
+    await saveArticle({
+      id: 'listicle-1',
+      title: 'Listicle post',
+      createdAt: new Date('2026-03-03T12:40:00.000Z'),
+      contentCuration: ['listicle'],
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    const candidateIds = evaluatorSpy.mock.calls[0][0].newCandidates.map(
+      (c: { postId: string }) => c.postId,
+    );
+    expect(candidateIds).toContain('news-1');
+    expect(candidateIds).toContain('release-1');
+    expect(candidateIds).not.toContain('tutorial-1');
+    expect(candidateIds).not.toContain('opinion-1');
+    expect(candidateIds).not.toContain('listicle-1');
   });
 });
