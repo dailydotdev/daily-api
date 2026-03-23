@@ -3027,7 +3027,7 @@ describe('recruiter_opportunity_live notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
 
     expect(args.message_data).toEqual({
-      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+      opportunity_link: `http://localhost:5002/jobs/${opportunitiesFixture[0].id}`,
     });
   });
 });
