@@ -15,7 +15,10 @@ import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
-import { getChannelDigestLookbackSeconds } from './definitions';
+import {
+  getChannelDigestLookbackSeconds,
+  getChannelDigestSourceIds,
+} from './definitions';
 
 type DigestPostRow = {
   title: string | null;
@@ -76,10 +79,12 @@ const findDigestPosts = async ({
   con,
   from,
   channel,
+  excludedSourceIds,
 }: {
   con: DataSource;
   from: Date;
   channel: string;
+  excludedSourceIds: string[];
 }): Promise<DigestPostRow[]> => {
   if (!channel) {
     return [];
@@ -104,6 +109,12 @@ const findDigestPosts = async ({
     .andWhere(`(post."contentMeta"->'channels') ? :channel`, {
       channel,
     })
+    .andWhere(
+      excludedSourceIds.length
+        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
+        : '1=1',
+      { excludedSourceIds },
+    )
     .andWhere('relation."relatedPostId" IS NULL')
     .orderBy('post.createdAt', 'DESC')
     .getRawMany<DigestPostRow>();
@@ -204,6 +215,9 @@ export const generateChannelDigest = async ({
     now,
     definition,
   });
+  const excludedSourceIds = await getChannelDigestSourceIds({
+    con,
+  });
   const [sentimentItems, posts] = await Promise.all([
     findSentimentItems({
       definition,
@@ -214,6 +228,7 @@ export const generateChannelDigest = async ({
       con,
       from,
       channel: definition.channel,
+      excludedSourceIds,
     }),
   ]);
 

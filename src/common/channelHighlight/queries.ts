@@ -1,4 +1,4 @@
-import { Brackets, In, IsNull, type DataSource } from 'typeorm';
+import { Brackets, In, IsNull, Not, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { PostHighlight } from '../../entity/PostHighlight';
 import { Post } from '../../entity/posts/Post';
@@ -76,12 +76,34 @@ export const fetchCurrentHighlights = async ({
     },
   });
 
+export const fetchRetiredHighlightPostIds = async ({
+  con,
+  channel,
+}: {
+  con: DataSource;
+  channel: string;
+}): Promise<string[]> => {
+  const highlights = await con.getRepository(PostHighlight).find({
+    select: {
+      postId: true,
+    },
+    where: {
+      channel,
+      retiredAt: Not(IsNull()),
+    },
+  });
+
+  return highlights.map((highlight) => highlight.postId);
+};
+
 export const fetchPostsByIds = async ({
   con,
   ids,
+  excludedSourceIds = [],
 }: {
   con: DataSource;
   ids: string[];
+  excludedSourceIds?: string[];
 }): Promise<HighlightPost[]> => {
   if (!ids.length) {
     return [];
@@ -90,6 +112,9 @@ export const fetchPostsByIds = async ({
   return con.getRepository(Post).find({
     where: {
       id: In(ids),
+      sourceId: excludedSourceIds.length
+        ? Not(In(excludedSourceIds))
+        : undefined,
       visible: true,
       deleted: false,
       banned: false,
@@ -102,11 +127,13 @@ export const fetchIncrementalPosts = async ({
   channel,
   fetchStart,
   horizonStart,
+  excludedSourceIds = [],
 }: {
   con: DataSource;
   channel: string;
   fetchStart: Date;
   horizonStart: Date;
+  excludedSourceIds?: string[];
 }): Promise<HighlightPost[]> =>
   con
     .getRepository(Post)
@@ -121,6 +148,12 @@ export const fetchIncrementalPosts = async ({
     .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
       rejectedCurations: REJECTED_CONTENT_CURATIONS,
     })
+    .andWhere(
+      excludedSourceIds.length
+        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
+        : '1=1',
+      { excludedSourceIds },
+    )
     .andWhere(
       new Brackets((builder) => {
         builder

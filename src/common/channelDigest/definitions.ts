@@ -35,6 +35,28 @@ export const getChannelDigestDefinitionByKey = async ({
     }),
   );
 
+export const getChannelDigestSourceIds = async ({
+  con,
+}: {
+  con: DataSource;
+}): Promise<string[]> => {
+  const definitions = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(ChannelDigest).find({
+      select: {
+        sourceId: true,
+      },
+      where: {
+        enabled: true,
+      },
+      order: {
+        sourceId: 'ASC',
+      },
+    }),
+  );
+
+  return definitions.map((definition) => definition.sourceId);
+};
+
 export const isChannelDigestScheduledForDate = ({
   definition,
   now,
