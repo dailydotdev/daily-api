@@ -227,3 +227,19 @@ export class PaymentRequiredError extends ApolloError {
     Object.defineProperty(this, 'name', { value: 'PaymentRequiredError' });
   }
 }
+
+export class ServiceError extends Error {
+  data?: JsonValue;
+  statusCode?: number;
+
+  constructor(payload: {
+    message: string;
+    data?: JsonValue;
+    statusCode?: number;
+  }) {
+    super(payload.message);
+
+    this.data = payload.data;
+    this.statusCode = payload.statusCode;
+  }
+}

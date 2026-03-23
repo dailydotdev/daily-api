@@ -1,11 +1,12 @@
 import { FeedConfig, FeedResponse, IFeedClient, BriefingModel } from './types';
-import { RequestInit } from 'node-fetch';
+import fetch, { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
 import { GenericMetadata } from '../lofn';
 import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
 import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
+import { ServiceError } from '../../errors';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -89,9 +90,8 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       recentBriefing,
     } = request;
 
-    const result = await this.garmr.execute(() => {
-      return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {
-        ...this.fetchOptions,
+    const result = await this.garmr.execute<JsonValue>(async () => {
+      const response = await fetch(`${this.url}/api/user/briefing`, {
         method: 'POST',
         body: JSON.stringify({
           user_id: userId,
@@ -116,6 +116,18 @@ export class FeedClient implements IFeedClient, IGarmrClient {
             : undefined,
         }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new ServiceError({
+          message: 'Brief request to feed failed',
+          data: result,
+          statusCode: response.status,
+        });
+      }
+
+      return result;
     });
 
     return Briefing.fromJson(result);

@@ -243,7 +243,7 @@ config:
     betterAuthSecret:
       secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
     betterAuthBaseUrl: https://api.daily.dev
-    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com
+    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.daily.dev
     betterAuthRedirectUrl: https://sso.daily.dev/api
     googleClientId:
       secure: AAABAKpAJnPFQwwZoZubPX++3FKQhi0/gw+Kh6AP0Ax7GApzkXoxOUXYrezrUyf02MIzIrsNlJAeZisv6p12U0ziCdKKhj7Jv/CZThEX9FB8uSWArHS68NdrQkcTL8gUk/PK/GU4cAM=

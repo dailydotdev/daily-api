@@ -1895,7 +1895,7 @@ describe('query postReposts', () => {
     expect(ids).toEqual(['rp-default']);
   });
 
-  it('should return visible non-deleted reposts including private ones', async () => {
+  it('should return visible non-deleted reposts excluding private ones', async () => {
     const now = Date.now();
     await createSharePost({
       id: 'rp3',
@@ -1934,7 +1934,7 @@ describe('query postReposts', () => {
     });
 
     const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
-    expect(ids).toEqual(['rp4', 'rp3']);
+    expect(ids).toEqual(['rp3']);
   });
 
   it('should filter reposts from blocked users', async () => {

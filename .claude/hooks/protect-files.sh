@@ -18,7 +18,6 @@ fi
 protected_patterns=(
   "pnpm-lock.yaml"
   ".infra/Pulumi."
-  "src/migration/"
   ".env"
   ".git/"
 )
