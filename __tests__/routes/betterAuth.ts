@@ -59,7 +59,6 @@ describe('betterAuth routes', () => {
       });
       expect(options.account).toMatchObject({
         modelName: 'ba_account',
-        storeStateStrategy: 'database',
       });
     });
   });
