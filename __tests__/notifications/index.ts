@@ -2407,7 +2407,7 @@ describe('recruiter_new_candidate notifications', () => {
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.uniqueKey).toEqual(candidate.id);
     expect(actual.notification.targetUrl).toEqual(
-      `http://localhost:5002/opportunity/${opportunityId}/matches`,
+      `http://localhost:5002/recruiter/${opportunityId}/matches`,
     );
     expect(actual.avatars).toEqual([
       {
