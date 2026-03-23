@@ -38,7 +38,7 @@ const createTestPosts = async () => {
 };
 
 beforeEach(async () => {
-  await con.getRepository(PostHighlight).delete({});
+  await con.getRepository(PostHighlight).clear();
   await con.getRepository(ArticlePost).delete(['p1', 'p2', 'p3', 'p4']);
   await con.getRepository(Source).delete(['a', 'b', 'c']);
 });
