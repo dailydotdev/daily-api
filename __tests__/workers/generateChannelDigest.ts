@@ -91,8 +91,21 @@ const getLockKey = (digestKey: string, scheduledAt: string) =>
 
 describe('generateChannelDigest worker', () => {
   afterEach(async () => {
+    jest.restoreAllMocks();
     nock.cleanAll();
     await deleteKeysByPattern('channel-digest:*');
+    await con.getRepository(ChannelDigest).clear();
+    await con
+      .createQueryBuilder()
+      .delete()
+      .from('post')
+      .where('"sourceId" IN (:...sourceIds)', {
+        sourceIds: ['content-source', AGENTS_DIGEST_SOURCE, 'weekly-source'],
+      })
+      .execute();
+    await con
+      .getRepository(Source)
+      .delete(['content-source', AGENTS_DIGEST_SOURCE, 'weekly-source']);
   });
 
   it('should be registered', () => {
@@ -268,6 +281,70 @@ describe('generateChannelDigest worker', () => {
     expect(
       await getRedisObjectExpiry(getDoneKey('agentic', scheduledAt)),
     ).toBeGreaterThan(ONE_DAY_IN_SECONDS);
+  });
+
+  it('should ignore posts from all channel digest sources when generating digests', async () => {
+    const scheduledAt = '2026-03-03T10:00:00.000Z';
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          AGENTS_DIGEST_SOURCE,
+          'Agents Digest',
+          'https://daily.dev/agents.png',
+        ),
+        createSource(
+          'weekly-source',
+          'Weekly Digest',
+          'https://daily.dev/weekly.png',
+        ),
+      ]);
+    await saveDefinition({
+      key: 'agentic',
+      sourceId: AGENTS_DIGEST_SOURCE,
+      channel: 'vibes',
+    });
+    await saveDefinition({
+      key: 'weekly-test',
+      sourceId: 'weekly-source',
+      channel: 'weekly',
+      frequency: 'weekly',
+    });
+    await savePost({
+      id: 'agents-post',
+      sourceId: AGENTS_DIGEST_SOURCE,
+      title: 'Agents digest post',
+      content: 'Agents digest body',
+      createdAt: new Date('2026-03-03T09:10:00.000Z'),
+      channel: 'vibes',
+    });
+    await savePost({
+      id: 'weekly-post',
+      sourceId: 'weekly-source',
+      title: 'Weekly digest post',
+      content: 'Weekly digest body',
+      createdAt: new Date('2026-03-03T09:20:00.000Z'),
+      channel: 'vibes',
+    });
+    const digestCountBefore = await con.getRepository(FreeformPost).countBy({
+      sourceId: AGENTS_DIGEST_SOURCE,
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
+      worker,
+      {
+        digestKey: 'agentic',
+        scheduledAt,
+      },
+    );
+
+    const digests = await con.getRepository(FreeformPost).findBy({
+      sourceId: AGENTS_DIGEST_SOURCE,
+    });
+    expect(digests).toHaveLength(digestCountBefore);
+    expect(
+      digests.find((digest) => digest.title === 'Mock sentiment digest'),
+    ).toBeUndefined();
   });
 
   it('should use a weekly done ttl for weekly digests', async () => {

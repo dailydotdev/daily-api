@@ -607,9 +607,7 @@ export const generateNotificationMap: Record<
       .description(
         `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
       )
-      .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      ),
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/jobs/${ctx.opportunityId}`),
   post_analytics: (
     builder: NotificationBuilder,
     ctx: NotificationPostAnalyticsContext,
@@ -673,7 +671,7 @@ export const generateNotificationMap: Record<
       .referenceOpportunity(ctx.opportunityId)
       .avatarUser(ctx.candidate)
       .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
+        `${process.env.COMMENTS_PREFIX}/recruiter/${ctx.opportunityId}/matches`,
       )
       .uniqueKey(ctx.candidate.id);
   },
@@ -684,9 +682,7 @@ export const generateNotificationMap: Record<
     return builder
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx.opportunityId)
-      .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      );
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/jobs/${ctx.opportunityId}`);
   },
   experience_company_enriched: (
     builder: NotificationBuilder,
@@ -708,7 +704,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx.opportunityId)
       .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
+        `${process.env.COMMENTS_PREFIX}/recruiter/${ctx.opportunityId}/prepare`,
       );
   },
   feedback_resolved: (

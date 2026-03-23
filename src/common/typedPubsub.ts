@@ -297,6 +297,10 @@ export type PubSubSchema = {
     digestKey: string;
     scheduledAt: string;
   };
+  'api.v1.generate-channel-highlight': {
+    channel: string;
+    scheduledAt: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

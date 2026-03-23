@@ -40,6 +40,7 @@ module.exports = {
   },
   moduleNameMapper: {
     '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^jose$': '<rootDir>/__mocks__/jose.ts',
     '^isomorphic-dompurify$': '<rootDir>/__mocks__/isomorphic-dompurify.ts',
     '^better-auth$': '<rootDir>/__mocks__/better-auth.ts',
     '^better-auth/api$': '<rootDir>/__mocks__/better-auth-api.ts',

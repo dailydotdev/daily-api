@@ -45,5 +45,21 @@ describe('betterAuth routes', () => {
 
       expect(res.status).toBe(200);
     });
+
+    it('should keep OAuth state in the database with a 10 minute state cookie', async () => {
+      const { getBetterAuthOptions } = await import('../../src/betterAuth');
+      const options = getBetterAuthOptions(
+        (con.driver as unknown as { master: never }).master,
+      );
+
+      expect(options.advanced?.cookies?.state).toMatchObject({
+        attributes: {
+          maxAge: 10 * 60,
+        },
+      });
+      expect(options.account).toMatchObject({
+        modelName: 'ba_account',
+      });
+    });
   });
 });

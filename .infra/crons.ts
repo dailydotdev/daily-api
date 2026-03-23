@@ -175,6 +175,14 @@ export const crons: Cron[] = [
     schedule: '17 4 * * *',
   },
   {
+    name: 'channel-highlights',
+    schedule: '*/10 * * * *',
+  },
+  {
+    name: 'clean-channel-highlights',
+    schedule: '25 4 * * *',
+  },
+  {
     name: 'clean-expired-better-auth-sessions',
     schedule: '0 3 * * *',
   },

@@ -334,12 +334,12 @@ const cookieDomain = process.env.BETTER_AUTH_BASE_URL
   ? extractRootDomain(new URL(process.env.BETTER_AUTH_BASE_URL).hostname)
   : undefined;
 
-const createAuth = (): BetterAuthHandler => {
-  const pool = getPool();
+export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
     : [];
-  const options: BetterAuthOptions = {
+
+  return {
     database: pool,
     baseURL: process.env.BETTER_AUTH_BASE_URL || 'http://localhost:3000',
     basePath: '/auth',
@@ -386,6 +386,14 @@ const createAuth = (): BetterAuthHandler => {
         domain: cookieDomain,
       },
       cookies: {
+        state: {
+          attributes: {
+            // Better Auth's DB-backed OAuth state cookie defaults to 5 minutes,
+            // while the verification record lives for 10 minutes. Keep them in
+            // sync so slower provider flows do not fail the cookie check first.
+            maxAge: 10 * 60,
+          },
+        },
         session_token: {
           name: 'dast',
         },
@@ -631,9 +639,10 @@ const createAuth = (): BetterAuthHandler => {
       }),
     },
   };
-
-  return betterAuth(options) as unknown as BetterAuthHandler;
 };
+
+const createAuth = (): BetterAuthHandler =>
+  betterAuth(getBetterAuthOptions(getPool())) as unknown as BetterAuthHandler;
 
 export const initializeBetterAuth = (): BetterAuthHandler => {
   if (authInstance) {

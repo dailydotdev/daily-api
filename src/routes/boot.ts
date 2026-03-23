@@ -664,9 +664,8 @@ const loggedInBoot = async ({
       visit,
       roles,
       extra,
-      [alerts, settings, marketingCta],
+      [alerts, settings, marketingCta, user],
       [
-        user,
         squads,
         lastBanner,
         exp,
@@ -688,11 +687,11 @@ const loggedInBoot = async ({
           getAlerts(queryRunner, userId),
           getSettings(queryRunner, userId),
           getMarketingCta(queryRunner, log, userId),
+          getUser(queryRunner, userId),
         ]);
       }),
       queryReadReplica(con, async ({ queryRunner }) => {
         return Promise.all([
-          getUser(queryRunner, userId),
           getSquads(queryRunner, userId),
           getAndUpdateLastBannerRedis(queryRunner),
           getExperimentation({ userId, con: queryRunner, ...geo }),
@@ -1270,7 +1269,7 @@ const getFunnelLoggedInData = async (
 ): Promise<FunnelLoggedInUser | null> => {
   const { userId } = req;
   if (userId) {
-    const user = await queryReadReplica(con, ({ queryRunner }) =>
+    const user = await queryDataSource(con, ({ queryRunner }) =>
       getUser(queryRunner, userId),
     );
     if (user) {
