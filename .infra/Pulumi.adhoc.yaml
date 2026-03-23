@@ -131,6 +131,5 @@ config:
       secure: v1:AeanAY9fDkWD2gSg:zleimS/qqmb3SCjeHTQ7Mp8QINMs/DcqFE0=
     signingKey:
       secure: v1:+2csKe943/E3qzYp:aOG0lDimtWcUCbASDNy9RpxsKnb6eV3JJ31xYtbs9NA3yeoDVBsMvLK0sba0r7lRgGg/SIqCHawAa/GyC4v3dW8rVfgbiAyvLEf0rdaXItVYM2HUimTK+bj+DQ6bLY9nol8JqaRaHfg7NicC+QHnCQogxsiUiS/U9GsXiBEWTQYBW50YSMMKBCzQV2OJU23434f6/EVL1m4scyKHL4wPUDVWi19lOhBAlWTutSXLWt113fafaaS44AIb64mspiThAeuQUAof1tSFn9dc+WgCyekQRQ7RGBcgoANubMthpU540cP3B9PU93TOnh6It1XOC3dYjsMTSWZjNFCXIeJs8+Y8NqbL/g1oOhFn3LrTtJ7c
-  api:image: api-image:tilt-0414354c2f7cfdc5
 secretsprovider: gcpkms://projects/daily-ops/locations/global/keyRings/pulumi/cryptoKeys/adhoc-secrets
 encryptedkey: CiQAUBCtsAuGPHI7MeeWrccjf/ydEN57pW/AH+8NWsRvdPXM6e8SSABTzSDRfy71YqxOXL5RHxmOL5aU0fwHtiyHj4R5XRZbwtTUivxPk0qEIMtvbQSBCu7NE6CSd+uvaq5B/yz0DU8FWvGuYUzJXQ==
