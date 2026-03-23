@@ -1,9 +1,29 @@
-import { IsNull, type EntityManager } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import {
   PostHighlight,
   toPostHighlightSignificance,
 } from '../../entity/PostHighlight';
 import type { HighlightItem } from './types';
+
+const normalizeHighlightItems = ({
+  items,
+  retiredPostIds,
+}: {
+  items: HighlightItem[];
+  retiredPostIds: Set<string>;
+}): HighlightItem[] => {
+  const dedupedItems = new Map<string, HighlightItem>();
+
+  for (const item of items) {
+    if (retiredPostIds.has(item.postId) || dedupedItems.has(item.postId)) {
+      continue;
+    }
+
+    dedupedItems.set(item.postId, item);
+  }
+
+  return [...dedupedItems.values()];
+};
 
 export const replaceHighlightsForChannel = async ({
   manager,
@@ -15,16 +35,22 @@ export const replaceHighlightsForChannel = async ({
   items: HighlightItem[];
 }): Promise<void> => {
   const repo = manager.getRepository(PostHighlight);
-  const currentHighlights = await repo.find({
+  const highlights = await repo.find({
     where: {
       channel,
-      retiredAt: IsNull(),
     },
+  });
+  const currentHighlights = highlights.filter((item) => !item.retiredAt);
+  const nextItems = normalizeHighlightItems({
+    items,
+    retiredPostIds: new Set(
+      highlights.filter((item) => item.retiredAt).map((item) => item.postId),
+    ),
   });
   const currentByPostId = new Map(
     currentHighlights.map((item) => [item.postId, item]),
   );
-  const nextPostIds = new Set(items.map((item) => item.postId));
+  const nextPostIds = new Set(nextItems.map((item) => item.postId));
   const retiredPostIds = currentHighlights
     .filter((item) => !nextPostIds.has(item.postId))
     .map((item) => item.postId);
@@ -40,12 +66,12 @@ export const replaceHighlightsForChannel = async ({
       .execute();
   }
 
-  if (!items.length) {
+  if (!nextItems.length) {
     return;
   }
 
   await repo.save(
-    items.map((item) => {
+    nextItems.map((item) => {
       const currentHighlight = currentByPostId.get(item.postId);
 
       return repo.create({
