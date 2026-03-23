@@ -8,10 +8,12 @@ import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
 import {
   fetchCurrentHighlights,
+  fetchEvaluationHistoryHighlights,
   fetchIncrementalPosts,
   fetchPostsByIds,
   fetchRetiredHighlightPostIds,
   fetchRelations,
+  getEvaluationHistoryStart,
   getFetchStart,
   getHorizonStart,
   mergePosts,
@@ -68,20 +70,29 @@ export const generateChannelHighlight = async ({
   );
 
   try {
-    const [currentHighlights, retiredHighlightPostIds, excludedSourceIds] =
-      await Promise.all([
-        fetchCurrentHighlights({
-          con,
-          channel: definition.channel,
-        }),
-        fetchRetiredHighlightPostIds({
-          con,
-          channel: definition.channel,
-        }),
-        getChannelDigestSourceIds({
-          con,
-        }),
-      ]);
+    const [
+      currentHighlights,
+      retiredHighlightPostIds,
+      excludedSourceIds,
+      evaluationHistoryHighlights,
+    ] = await Promise.all([
+      fetchCurrentHighlights({
+        con,
+        channel: definition.channel,
+      }),
+      fetchRetiredHighlightPostIds({
+        con,
+        channel: definition.channel,
+      }),
+      getChannelDigestSourceIds({
+        con,
+      }),
+      fetchEvaluationHistoryHighlights({
+        con,
+        channel: definition.channel,
+        now,
+      }),
+    ]);
     const horizonStart = getHorizonStart({
       now,
       definition,
@@ -97,21 +108,34 @@ export const generateChannelHighlight = async ({
     );
 
     const highlightedPostIds = activeHighlights.map((item) => item.postId);
-    const [incrementalPosts, highlightedPosts] = await Promise.all([
-      fetchIncrementalPosts({
-        con,
-        channel: definition.channel,
-        fetchStart,
-        horizonStart,
-        excludedSourceIds,
-      }),
-      fetchPostsByIds({
-        con,
-        ids: highlightedPostIds,
-        excludedSourceIds,
-      }),
+    const evaluationHistoryPostIds = evaluationHistoryHighlights.map(
+      (item) => item.postId,
+    );
+    const [incrementalPosts, highlightedPosts, evaluationHistoryPosts] =
+      await Promise.all([
+        fetchIncrementalPosts({
+          con,
+          channel: definition.channel,
+          fetchStart,
+          horizonStart,
+          excludedSourceIds,
+        }),
+        fetchPostsByIds({
+          con,
+          ids: highlightedPostIds,
+          excludedSourceIds,
+        }),
+        fetchPostsByIds({
+          con,
+          ids: evaluationHistoryPostIds,
+          excludedSourceIds,
+        }),
+      ]);
+    const basePosts = mergePosts([
+      incrementalPosts,
+      highlightedPosts,
+      evaluationHistoryPosts,
     ]);
-    const basePosts = mergePosts([incrementalPosts, highlightedPosts]);
     const relations = await fetchRelations({
       con,
       postIds: basePosts.map((post) => post.id),
@@ -131,6 +155,11 @@ export const generateChannelHighlight = async ({
     const availablePosts = mergePosts([basePosts, relationPosts]);
     const liveHighlights = canonicalizeCurrentHighlights({
       highlights: activeHighlights,
+      relations,
+      posts: availablePosts,
+    });
+    const evaluationHighlights = canonicalizeCurrentHighlights({
+      highlights: evaluationHistoryHighlights.map(toHighlightItem),
       relations,
       posts: availablePosts,
     });
@@ -159,7 +188,7 @@ export const generateChannelHighlight = async ({
                 definition.targetAudience.trim() ||
                 `daily.dev readers following ${definition.channel}`,
               maxItems: definition.maxItems,
-              currentHighlights: liveHighlights,
+              currentHighlights: evaluationHighlights,
               newCandidates,
             })
           ).items.map<HighlightItem>((item) => ({
@@ -205,8 +234,14 @@ export const generateChannelHighlight = async ({
           inputSummary: {
             fetchStart: fetchStart.toISOString(),
             horizonStart: horizonStart.toISOString(),
+            evaluationHistoryStart: getEvaluationHistoryStart({
+              now,
+            }).toISOString(),
             excludedSourceIds,
             currentHighlightPostIds: liveHighlights.map((item) => item.postId),
+            evaluationHighlightPostIds: evaluationHighlights.map(
+              (item) => item.postId,
+            ),
             retiredHighlightPostIds,
             candidatePostIds: newCandidates.map(
               (candidate) => candidate.postId,
@@ -224,6 +259,7 @@ export const generateChannelHighlight = async ({
             currentHighlights: baselineHighlights.length,
             activeHighlights: activeHighlights.length,
             canonicalizedHighlights: liveHighlights.length,
+            evaluationHighlights: evaluationHighlights.length,
             newCandidates: newCandidates.length,
             admittedHighlights: admittedHighlights.length,
           },
