@@ -456,7 +456,7 @@ describe('generateChannelHighlight worker', () => {
     expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
   });
 
-  it('should send recent retired highlights to the evaluator as collection history', async () => {
+  it('should send recent retired highlights to the evaluator while excluding resurfaced stories', async () => {
     const now = new Date('2026-03-03T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
@@ -478,6 +478,11 @@ describe('generateChannelHighlight worker', () => {
       id: 'fresh-child',
       title: 'Fresh child story',
       createdAt: new Date('2026-03-03T11:55:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-stand-1',
+      title: 'Fresh standalone story',
+      createdAt: new Date('2026-03-03T11:58:00.000Z'),
     });
     await con.getRepository(PostRelation).save([
       {
@@ -521,8 +526,8 @@ describe('generateChannelHighlight worker', () => {
     ]);
     expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
       expect.objectContaining({
-        postId: 'collection-1',
-        title: 'Collection story',
+        postId: 'fresh-stand-1',
+        title: 'Fresh standalone story',
       }),
     ]);
   });

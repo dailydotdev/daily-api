@@ -163,11 +163,21 @@ export const generateChannelHighlight = async ({
       relations,
       posts: availablePosts,
     });
+    const retiredEvaluationHighlights = canonicalizeCurrentHighlights({
+      highlights: evaluationHistoryHighlights
+        .filter((item) => !!item.retiredAt)
+        .map(toHighlightItem),
+      relations,
+      posts: availablePosts,
+    });
 
     const currentHighlightPostIds = new Set(
       liveHighlights.map((item) => item.postId),
     );
     const retiredHighlightPostIdSet = new Set(retiredHighlightPostIds);
+    const retiredEvaluationPostIdSet = new Set(
+      retiredEvaluationHighlights.map((item) => item.postId),
+    );
     const newCandidates = buildCandidates({
       posts: availablePosts,
       relations,
@@ -175,7 +185,8 @@ export const generateChannelHighlight = async ({
     }).filter(
       (candidate) =>
         !currentHighlightPostIds.has(candidate.postId) &&
-        !retiredHighlightPostIdSet.has(candidate.postId),
+        !retiredHighlightPostIdSet.has(candidate.postId) &&
+        !retiredEvaluationPostIdSet.has(candidate.postId),
     );
 
     const admittedHighlights =
@@ -242,6 +253,9 @@ export const generateChannelHighlight = async ({
             evaluationHighlightPostIds: evaluationHighlights.map(
               (item) => item.postId,
             ),
+            retiredEvaluationHighlightPostIds: retiredEvaluationHighlights.map(
+              (item) => item.postId,
+            ),
             retiredHighlightPostIds,
             candidatePostIds: newCandidates.map(
               (candidate) => candidate.postId,
@@ -260,6 +274,7 @@ export const generateChannelHighlight = async ({
             activeHighlights: activeHighlights.length,
             canonicalizedHighlights: liveHighlights.length,
             evaluationHighlights: evaluationHighlights.length,
+            retiredEvaluationHighlights: retiredEvaluationHighlights.length,
             newCandidates: newCandidates.length,
             admittedHighlights: admittedHighlights.length,
           },
