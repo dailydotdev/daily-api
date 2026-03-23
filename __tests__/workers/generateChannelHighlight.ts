@@ -456,6 +456,82 @@ describe('generateChannelHighlight worker', () => {
     expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
   });
 
+  it('should send recent retired highlights to the evaluator while excluding resurfaced stories', async () => {
+    const now = new Date('2026-03-03T12:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveCollection({
+      id: 'collection-1',
+      title: 'Collection story',
+      createdAt: new Date('2026-03-03T11:50:00.000Z'),
+    });
+    await saveArticle({
+      id: 'retired-child',
+      title: 'Retired child story',
+      createdAt: new Date('2026-03-03T11:20:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-child',
+      title: 'Fresh child story',
+      createdAt: new Date('2026-03-03T11:55:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-stand-1',
+      title: 'Fresh standalone story',
+      createdAt: new Date('2026-03-03T11:58:00.000Z'),
+    });
+    await con.getRepository(PostRelation).save([
+      {
+        postId: 'collection-1',
+        relatedPostId: 'retired-child',
+        type: PostRelationType.Collection,
+      },
+      {
+        postId: 'collection-1',
+        relatedPostId: 'fresh-child',
+        type: PostRelationType.Collection,
+      },
+    ]);
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'retired-child',
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Retired child headline',
+      significance: PostHighlightSignificance.Notable,
+      retiredAt: new Date('2026-03-03T11:40:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'collection-1',
+        headline: 'Retired child headline',
+      }),
+    ]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-stand-1',
+        title: 'Fresh standalone story',
+      }),
+    ]);
+  });
+
   it('should ignore posts from channel digest sources for highlights', async () => {
     const now = new Date('2026-03-03T11:50:00.000Z');
     await con
@@ -641,6 +717,58 @@ describe('generateChannelHighlight worker', () => {
         postId: 'fresh-1',
         title: 'Fresh candidate',
         relatedItemsCount: 1,
+      }),
+    ]);
+  });
+
+  it('should exclude posts refreshed only by stats updates from incremental candidates', async () => {
+    const now = new Date('2026-03-03T12:45:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+      lastFetchedAt: new Date('2026-03-03T12:20:00.000Z'),
+    });
+    await saveArticle({
+      id: 'stats-only-1',
+      title: 'Stats only refresh',
+      createdAt: new Date('2026-03-02T12:00:00.000Z'),
+      metadataChangedAt: new Date('2026-03-02T12:00:00.000Z'),
+      statsUpdatedAt: new Date('2026-03-03T12:40:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh candidate',
+      createdAt: new Date('2026-03-03T12:30:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'notable',
+            reason: 'test',
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        title: 'Fresh candidate',
       }),
     ]);
   });
