@@ -1,4 +1,4 @@
-import { IsNull, type EntityManager } from 'typeorm';
+import { type EntityManager } from 'typeorm';
 import {
   PostHighlight,
   toPostHighlightSignificance,
@@ -15,18 +15,21 @@ export const replaceHighlightsForChannel = async ({
   items: HighlightItem[];
 }): Promise<void> => {
   const repo = manager.getRepository(PostHighlight);
-  const currentHighlights = await repo.find({
-    where: {
-      channel,
-      retiredAt: IsNull(),
-    },
+
+  // Fetch ALL existing highlights for this channel (including retired ones)
+  // so we can correctly reuse their IDs and avoid unique constraint violations
+  // when a previously retired post is re-admitted.
+  const allExisting = await repo.find({
+    where: { channel },
   });
-  const currentByPostId = new Map(
-    currentHighlights.map((item) => [item.postId, item]),
+  const existingByPostId = new Map(
+    allExisting.map((item) => [item.postId, item]),
   );
   const nextPostIds = new Set(items.map((item) => item.postId));
-  const retiredPostIds = currentHighlights
-    .filter((item) => !nextPostIds.has(item.postId))
+
+  // Retire active highlights that are not in the next set
+  const retiredPostIds = allExisting
+    .filter((item) => !item.retiredAt && !nextPostIds.has(item.postId))
     .map((item) => item.postId);
 
   if (retiredPostIds.length) {
@@ -46,10 +49,10 @@ export const replaceHighlightsForChannel = async ({
 
   await repo.save(
     items.map((item) => {
-      const currentHighlight = currentByPostId.get(item.postId);
+      const existing = existingByPostId.get(item.postId);
 
       return repo.create({
-        id: currentHighlight?.id,
+        id: existing?.id,
         channel,
         postId: item.postId,
         highlightedAt: item.highlightedAt,
