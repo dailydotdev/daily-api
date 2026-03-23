@@ -1,7 +1,9 @@
 import { IsNull, type DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { ChannelDigest } from '../../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
+import { AGENTS_DIGEST_SOURCE } from '../../src/entity/Source';
 import {
   PostHighlight,
   PostHighlightSignificance,
@@ -123,6 +125,7 @@ describe('generateChannelHighlight worker', () => {
     await deleteKeysByPattern('channel-highlight:*');
     await con.getRepository(ChannelHighlightRun).clear();
     await con.getRepository(ChannelHighlightDefinition).clear();
+    await con.getRepository(ChannelDigest).clear();
     await con.getRepository(PostHighlight).clear();
     await con.getRepository(PostRelation).clear();
     await con
@@ -130,12 +133,12 @@ describe('generateChannelHighlight worker', () => {
       .delete()
       .from('post')
       .where('"sourceId" IN (:...sourceIds)', {
-        sourceIds: ['content-source', 'secondary-source'],
+        sourceIds: ['content-source', 'secondary-source', AGENTS_DIGEST_SOURCE],
       })
       .execute();
     await con
       .getRepository(Source)
-      .delete(['content-source', 'secondary-source']);
+      .delete(['content-source', 'secondary-source', AGENTS_DIGEST_SOURCE]);
   });
 
   it('should be registered', () => {
@@ -377,6 +380,174 @@ describe('generateChannelHighlight worker', () => {
       postId: 'child-upgrade',
     });
     expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
+  });
+
+  it('should exclude retired highlights from candidates and keep them retired', async () => {
+    const now = new Date('2026-03-03T11:45:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveArticle({
+      id: 'retired-1',
+      title: 'Previously highlighted story',
+      createdAt: new Date('2026-03-03T11:15:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh candidate',
+      createdAt: new Date('2026-03-03T11:20:00.000Z'),
+    });
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'retired-1',
+      highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
+      headline: 'Previously highlighted headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'previous run',
+      retiredAt: new Date('2026-03-03T11:10:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'breaking',
+            reason: 'test',
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        title: 'Fresh candidate',
+      }),
+    ]);
+
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        headline: 'Fresh headline',
+      }),
+    ]);
+
+    const retiredHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', postId: 'retired-1' },
+    });
+    expect(retiredHighlights).toHaveLength(1);
+    expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
+  });
+
+  it('should ignore posts from channel digest sources for highlights', async () => {
+    const now = new Date('2026-03-03T11:50:00.000Z');
+    await con
+      .getRepository(Source)
+      .save(
+        createSource(
+          AGENTS_DIGEST_SOURCE,
+          'Agents Digest',
+          'https://daily.dev/agents.png',
+        ),
+      );
+    await con.getRepository(ChannelDigest).save({
+      key: 'agentic',
+      sourceId: AGENTS_DIGEST_SOURCE,
+      channel: 'vibes',
+      targetAudience: 'Digest readers',
+      frequency: 'daily',
+      includeSentiment: false,
+      sentimentGroupIds: [],
+      enabled: true,
+    });
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveArticle({
+      id: 'digest-post',
+      sourceId: AGENTS_DIGEST_SOURCE,
+      title: 'Digest source post',
+      createdAt: new Date('2026-03-03T11:20:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh candidate',
+      createdAt: new Date('2026-03-03T11:25:00.000Z'),
+    });
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'digest-post',
+      highlightedAt: new Date('2026-03-03T11:10:00.000Z'),
+      headline: 'Digest highlight',
+      significance: PostHighlightSignificance.Major,
+      reason: 'existing',
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'major',
+            reason: 'test',
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+      }),
+    ]);
+
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        headline: 'Fresh headline',
+      }),
+    ]);
+
+    const retiredDigestHighlight = await con
+      .getRepository(PostHighlight)
+      .findOneByOrFail({
+        channel: 'vibes',
+        postId: 'digest-post',
+      });
+    expect(retiredDigestHighlight.retiredAt).toBeInstanceOf(Date);
   });
 
   it('should remove highlights that aged past the configured horizon', async () => {
