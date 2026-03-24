@@ -1324,11 +1324,13 @@ const worker: Worker = {
       return;
     }
 
-    const stream = await streamNotificationUsers(
+    // email service (customer.io) handles its own delivery scheduling via send_at
+    const stream = await streamNotificationUsers({
       con,
-      notification.id,
-      NotificationChannel.Email,
-    );
+      id: notification.id,
+      channel: NotificationChannel.Email,
+      disableShowAtFilter: true,
+    });
     try {
       await processStreamInBatches(
         stream,

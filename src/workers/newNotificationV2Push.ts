@@ -31,14 +31,16 @@ const worker: Worker = {
       );
       if (notification) {
         try {
-          const stream = await streamNotificationUsers(
+          // push service (OneSignal) handles scheduling via send_after, showAt is passed per user
+          const stream = await streamNotificationUsers({
             con,
-            notification.id,
-            NotificationChannel.InApp,
-          );
+            id: notification.id,
+            channel: NotificationChannel.InApp,
+            disableShowAtFilter: true,
+          });
           await processStreamInBatches(
             stream,
-            async (batch: { userId: string }[]) => {
+            async (batch: { userId: string; showAt: Date | null }[]) => {
               const disconnectedUsers = await getDisconnectedUsers(
                 batch.map((b) => b.userId),
               );
@@ -50,13 +52,37 @@ const worker: Worker = {
                 },
               });
 
-              if (users.length) {
-                await sendPushNotification(
-                  users.map((item) => item.id),
-                  notification,
-                  avatars?.[0],
-                );
+              if (!users.length) {
+                return;
               }
+
+              // group push notifications per showAt
+              // to minimize calls to push service
+              const showAtByUserId = new Map(
+                batch.map((b) => [b.userId, b.showAt]),
+              );
+              const showAtGroups = new Map<string, string[]>();
+              for (const user of users) {
+                const showAt = showAtByUserId.get(user.id);
+                const key = showAt?.toISOString() ?? '';
+                const group = showAtGroups.get(key);
+                if (group) {
+                  group.push(user.id);
+                } else {
+                  showAtGroups.set(key, [user.id]);
+                }
+              }
+
+              await Promise.all(
+                [...showAtGroups.entries()].map(([showAtKey, userIds]) =>
+                  sendPushNotification(
+                    userIds,
+                    notification,
+                    avatars?.[0],
+                    showAtKey ? new Date(showAtKey) : undefined,
+                  ),
+                ),
+              );
             },
             QUEUE_CONCURRENCY,
             BATCH_SIZE,

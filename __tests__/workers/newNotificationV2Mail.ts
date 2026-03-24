@@ -44,6 +44,7 @@ import {
   WelcomePost,
   Organization,
 } from '../../src/entity';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -2364,6 +2365,51 @@ describe('briefing_ready notification', () => {
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.send_at).toEqual(Math.floor(sendAtMs / 1000));
+  });
+
+  it('should send email even when showAt is in the future', async () => {
+    const sendAtMs = Date.now() + 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['u-bnp-1'],
+      sendAtMs,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+
+    // verify showAt was actually set on the user_notification
+    const userNotif = await con.getRepository(UserNotification).findOneBy({
+      notificationId,
+      userId: 'u-bnp-1',
+    });
+    expect(userNotif?.showAt).toBeTruthy();
+    expect(userNotif!.showAt!.getTime()).toBeGreaterThan(Date.now());
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: 'u-bnp-1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it('should send email instead of schedule sentAtMs is in the past', async () => {

@@ -455,19 +455,29 @@ export const getNotificationV2AndChildren = (
   ]);
 };
 
-export const streamNotificationUsers = (
-  con: DataSource,
-  id: string,
-  channel: NotificationChannel,
-): Promise<ReadStream> => {
+export const streamNotificationUsers = ({
+  con,
+  id,
+  channel,
+  disableShowAtFilter = false,
+}: {
+  con: DataSource;
+  id: string;
+  channel: NotificationChannel;
+  disableShowAtFilter?: boolean;
+}): Promise<ReadStream> => {
   let query = con
     .createQueryBuilder()
     .select('un."userId"')
+    .addSelect('un."showAt"')
     .from(UserNotification, 'un')
     .innerJoin('user', 'u', 'un."userId" = u.id')
     .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
-    .where('un."notificationId" = :id', { id })
-    .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
+    .where('un."notificationId" = :id', { id });
+
+  if (!disableShowAtFilter) {
+    query = query.andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
+  }
 
   if (channel === NotificationChannel.InApp) {
     query = query

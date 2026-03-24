@@ -146,3 +146,26 @@ it('should publish an event to redis', async () => {
   });
   return done;
 });
+
+it('should not publish to redis when showAt is in the future', async () => {
+  const { id } = await con.getRepository(NotificationV2).save({
+    ...notificationV2Fixture,
+    id: undefined,
+  });
+  await con.getRepository(UserNotification).insert([
+    {
+      userId: '1',
+      notificationId: id,
+      showAt: new Date(Date.now() + 60_000),
+    },
+  ]);
+
+  const publishSpy = jest.spyOn(redisPubSub, 'publish');
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id,
+      public: true,
+    },
+  });
+  expect(publishSpy).not.toHaveBeenCalled();
+});

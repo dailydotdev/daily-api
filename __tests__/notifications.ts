@@ -1400,11 +1400,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1418,11 +1418,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1454,11 +1454,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1490,11 +1490,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1518,19 +1518,19 @@ describe('streamNotificationUsers', () => {
 
     const notifId = await setupNotificationAndUsers(users);
 
-    const inAppStream = await streamNotificationUsers(
+    const inAppStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const inAppResults = await streamToArray(inAppStream);
     expect(inAppResults).toHaveLength(0);
 
-    const emailStream = await streamNotificationUsers(
+    const emailStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const emailResults = await streamToArray(emailStream);
     expect(emailResults).toHaveLength(1);
     expect(emailResults[0].userId).toBe('user9');
@@ -1577,11 +1577,11 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(0);
@@ -1616,15 +1616,56 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
     expect(results[0].userId).toBe('user16');
+  });
+
+  it('should return all users including future showAt when disableShowAtFilter is true', async () => {
+    const users = [
+      { id: 'user17', name: 'User 17', email: 'user17@test.com' },
+      { id: 'user18', name: 'User 18', email: 'user18@test.com' },
+    ];
+
+    await con.getRepository(User).save(users);
+
+    const notif = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.ArticleNewComment,
+    });
+
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: 'user17',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+      {
+        userId: 'user18',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+
+    const stream = await streamNotificationUsers({
+      con,
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+      disableShowAtFilter: true,
+    });
+    const results = await streamToArray(stream);
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.userId).sort()).toEqual(['user17', 'user18']);
   });
 });
 
