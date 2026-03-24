@@ -31,6 +31,7 @@ const worker: Worker = {
       );
       if (notification) {
         try {
+          // push service (OneSignal) handles scheduling via send_after, showAt is passed per user
           const stream = await streamNotificationUsers({
             con,
             id: notification.id,

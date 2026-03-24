@@ -1324,6 +1324,7 @@ const worker: Worker = {
       return;
     }
 
+    // email service (customer.io) handles its own delivery scheduling via send_at
     const stream = await streamNotificationUsers({
       con,
       id: notification.id,

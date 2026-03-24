@@ -1626,6 +1626,47 @@ describe('streamNotificationUsers', () => {
     expect(results).toHaveLength(1);
     expect(results[0].userId).toBe('user16');
   });
+
+  it('should return all users including future showAt when disableShowAtFilter is true', async () => {
+    const users = [
+      { id: 'user17', name: 'User 17', email: 'user17@test.com' },
+      { id: 'user18', name: 'User 18', email: 'user18@test.com' },
+    ];
+
+    await con.getRepository(User).save(users);
+
+    const notif = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.ArticleNewComment,
+    });
+
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: 'user17',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+      {
+        userId: 'user18',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+
+    const stream = await streamNotificationUsers({
+      con,
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+      disableShowAtFilter: true,
+    });
+    const results = await streamToArray(stream);
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.userId).sort()).toEqual(['user17', 'user18']);
+  });
 });
 
 describe('poll result notifications', () => {
