@@ -1,5 +1,7 @@
 import z from 'zod';
+import { ValidationError } from 'apollo-server-errors';
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
+import { TypeOrmError, TypeORMQueryFailedError } from '../errors';
 import {
   Connection,
   ConnectionArguments,
@@ -195,22 +197,33 @@ export interface PageGenerator<
 export const getSearchQuery = (param: string): string =>
   `SELECT to_tsquery('english', ${param}) AS query`;
 
+export const handleSearchQueryError = (error: unknown): never => {
+  const err = error as TypeORMQueryFailedError;
+  if (err?.code === TypeOrmError.SYNTAX_ERROR) {
+    throw new ValidationError('Invalid search query');
+  }
+  throw error;
+};
+
 export const processSearchQuery = (query: string): string => {
   const trimmed = query.trim();
+  const stripped = trimmed.replace(/[&|!()<>:*']/g, ' ').trim();
 
-  // Check if query contains special characters that should be preserved
-  // Common programming language patterns: c#, c++, f#, .net, node.js, etc.
+  if (!stripped) {
+    throw new ValidationError('Invalid search query');
+  }
+
+  // Programming language patterns (c#, c++, .net, node.js) use phrase search
   const hasSpecialChars = /[#+.\-]/.test(trimmed);
-
   if (hasSpecialChars) {
-    // For queries with special characters, use phrase search to preserve them
-    // Replace single quotes with double single quotes to escape them
-    const escaped = trimmed.replace(/'/g, "''");
+    const escaped = trimmed
+      .replace(/[&|!()<>:*]/g, ' ')
+      .trim()
+      .replace(/'/g, "''");
     return `'${escaped}':*`;
   }
 
-  // For regular queries, use the original AND logic with prefix matching
-  return trimmed.split(' ').join(' & ') + ':*';
+  return stripped.split(/\s+/).join(' & ') + ':*';
 };
 
 export const mimirOffsetGenerator = <

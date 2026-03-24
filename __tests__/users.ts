@@ -3621,6 +3621,14 @@ describe('query searchReadingHistorySuggestions', () => {
       res.data.searchReadingHistorySuggestions.hits.length,
     ).toBeGreaterThan(0);
   });
+
+  it('should return ValidationError for invalid tsquery syntax', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY('& | !'));
+    expect(res.errors?.length).toBe(1);
+    expect(res.errors[0].extensions?.code).toBe('BAD_USER_INPUT');
+    expect(res.errors[0].message).toBe('Invalid search query');
+  });
 });
 
 describe('query search reading history', () => {
@@ -3677,6 +3685,16 @@ describe('query search reading history', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return ValidationError for invalid tsquery syntax', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { query: '& | !' },
+    });
+    expect(res.errors?.length).toBe(1);
+    expect(res.errors[0].extensions?.code).toBe('BAD_USER_INPUT');
+    expect(res.errors[0].message).toBe('Invalid search query');
   });
 });
 

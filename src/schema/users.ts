@@ -89,7 +89,12 @@ import {
   voteHotTake,
   systemUserIds,
 } from '../common';
-import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
+import {
+  getSearchQuery,
+  GQLEmptyResponse,
+  handleSearchQueryError,
+  processSearchQuery,
+} from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
@@ -2370,8 +2375,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { query }: { query: string },
       ctx: Context,
     ) => {
-      const hits: { title: string }[] = await ctx.con.query(
-        `
+      try {
+        const hits: { title: string }[] = await ctx.con.query(
+          `
           WITH search AS (${getSearchQuery('$2')})
           select distinct(ts_headline(title, search.query,
                                       ('StartSel = <strong>, StopSel = </strong>'))) as title
@@ -2385,19 +2391,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           order by title desc
             limit 5;
         `,
-        [ctx.userId, processSearchQuery(query)],
-      );
-      return {
-        query,
-        hits,
-      };
+          [ctx.userId, processSearchQuery(query)],
+        );
+        return {
+          query,
+          hits,
+        };
+      } catch (error) {
+        return handleSearchQueryError(error);
+      }
     },
     searchReadingHistory: async (
       source,
       args: ConnectionArguments & { query: string },
       ctx: AuthContext,
       info,
-    ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
+    ): Promise<Connection<GQLView>> => {
+      try {
+        return await readHistoryResolver(args, ctx, info);
+      } catch (error) {
+        return handleSearchQueryError(error);
+      }
+    },
     readHistory: async (
       _,
       args: ConnectionArguments & { isPublic?: boolean },
