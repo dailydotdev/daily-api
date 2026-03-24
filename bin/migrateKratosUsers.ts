@@ -5,6 +5,7 @@ import { logger as parentLogger } from '../src/logger';
 
 const logger = parentLogger.child({ command: 'migrate-kratos-users' });
 
+const DEFAULT_LIMIT = 10_000;
 const BATCH_SIZE = 500;
 
 type Cursor = {
@@ -52,6 +53,7 @@ const getKratosPool = (): Pool => {
 const fetchPasswordIdentities = async (
   kratosPool: Pool,
   cursor: Cursor,
+  fetchSize: number,
 ): Promise<KratosPasswordRow[]> => {
   const { rows } = await kratosPool.query<KratosPasswordRow>(
     `SELECT
@@ -68,7 +70,7 @@ const fetchPasswordIdentities = async (
        AND (i.created_at, i.id) > ($1, $2)
      ORDER BY i.created_at, i.id
      LIMIT $3`,
-    [cursor.createdAt, cursor.id, BATCH_SIZE],
+    [cursor.createdAt, cursor.id, fetchSize],
   );
   return rows;
 };
@@ -76,6 +78,7 @@ const fetchPasswordIdentities = async (
 const fetchOidcIdentities = async (
   kratosPool: Pool,
   cursor: Cursor,
+  fetchSize: number,
 ): Promise<KratosOidcRawRow[]> => {
   const { rows } = await kratosPool.query<KratosOidcRawRow>(
     `SELECT
@@ -92,7 +95,7 @@ const fetchOidcIdentities = async (
        AND (i.created_at, i.id) > ($1, $2)
      ORDER BY i.created_at, i.id
      LIMIT $3`,
-    [cursor.createdAt, cursor.id, BATCH_SIZE],
+    [cursor.createdAt, cursor.id, fetchSize],
   );
   return rows;
 };
@@ -114,14 +117,22 @@ const migratePasswordAccounts = async (
   kratosPool: Pool,
   dailyPool: Pool,
   initialCursor: Cursor,
+  limit: number,
 ): Promise<MigrateResult> => {
   let cursor = initialCursor;
   let total = 0;
+  let processed = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const batch = await fetchPasswordIdentities(kratosPool, cursor);
+    const remaining = limit - processed;
+    if (remaining <= 0) break;
+
+    const fetchSize = Math.min(BATCH_SIZE, remaining);
+    const batch = await fetchPasswordIdentities(kratosPool, cursor, fetchSize);
     if (batch.length === 0) break;
+
+    processed += batch.length;
 
     const now = new Date().toISOString();
     const values: unknown[] = [];
@@ -160,7 +171,7 @@ const migratePasswordAccounts = async (
       'Migrated password batch',
     );
 
-    if (batch.length < BATCH_SIZE) break;
+    if (batch.length < fetchSize) break;
   }
 
   return { count: total, cursor };
@@ -170,15 +181,22 @@ const migrateOidcAccounts = async (
   kratosPool: Pool,
   dailyPool: Pool,
   initialCursor: Cursor,
+  limit: number,
 ): Promise<MigrateResult> => {
   let cursor = initialCursor;
   let total = 0;
+  let processed = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const rawBatch = await fetchOidcIdentities(kratosPool, cursor);
+    const remaining = limit - processed;
+    if (remaining <= 0) break;
+
+    const fetchSize = Math.min(BATCH_SIZE, remaining);
+    const rawBatch = await fetchOidcIdentities(kratosPool, cursor, fetchSize);
     if (rawBatch.length === 0) break;
 
+    processed += rawBatch.length;
     cursor = cursorFromRow(rawBatch[rawBatch.length - 1]);
 
     const now = new Date().toISOString();
@@ -226,22 +244,35 @@ const migrateOidcAccounts = async (
       'Migrated OIDC batch',
     );
 
-    if (rawBatch.length < BATCH_SIZE) break;
+    if (rawBatch.length < fetchSize) break;
   }
 
   return { count: total, cursor };
+};
+
+const parseLimit = (): number => {
+  const limitArg = process.argv.find((arg) => arg.startsWith('--limit='));
+  if (!limitArg) return DEFAULT_LIMIT;
+  const parsed = parseInt(limitArg.split('=')[1], 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new Error('--limit must be a positive number');
+  }
+  return parsed;
 };
 
 (async (): Promise<void> => {
   const kratosPool = getKratosPool();
   const con = await createOrGetConnection();
   const dailyPool = (con.driver as unknown as { master: Pool }).master;
-  const cursorArg = process.argv[2];
+  const cursorArg = process.argv.find(
+    (arg) => !arg.startsWith('--') && !arg.includes('/'),
+  );
   const startCursor = cursorArg ? decodeCursor(cursorArg) : INITIAL_CURSOR;
+  const limit = parseLimit();
 
   try {
     logger.info(
-      { resumeFrom: startCursor.createdAt },
+      { resumeFrom: startCursor.createdAt, limit },
       'Starting Kratos to BetterAuth user migration',
     );
 
@@ -249,13 +280,19 @@ const migrateOidcAccounts = async (
       kratosPool,
       dailyPool,
       startCursor,
+      limit,
     );
     logger.info(
       { count: password.count },
       'Password account migration complete',
     );
 
-    const oidc = await migrateOidcAccounts(kratosPool, dailyPool, startCursor);
+    const oidc = await migrateOidcAccounts(
+      kratosPool,
+      dailyPool,
+      startCursor,
+      limit,
+    );
     logger.info({ count: oidc.count }, 'OIDC account migration complete');
 
     const endCursor =
