@@ -11,7 +11,10 @@ type Cursor = {
   id: string;
 };
 
-const INITIAL_CURSOR: Cursor = { createdAt: new Date(0), id: '' };
+const INITIAL_CURSOR: Cursor = {
+  createdAt: new Date(0),
+  id: '00000000-0000-0000-0000-000000000000',
+};
 
 const encodeCursor = (cursor: Cursor): string =>
   Buffer.from(JSON.stringify(cursor)).toString('base64');
