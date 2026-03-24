@@ -7,6 +7,7 @@ import temporal from '../src/temporal/notifications';
 import cron from '../src/cron';
 import personalizedDigest from '../src/commands/personalizedDigest';
 import workerJob from '../src/commands/workerJob';
+import migrateKratosUsers from '../src/commands/migrateKratosUsers';
 import { remoteConfig } from '../src/remoteConfig';
 import { initGeoReader } from '../src/common/geo';
 
@@ -46,6 +47,10 @@ async function run(positionals: string[]) {
       break;
     case 'worker-job':
       await workerJob();
+      break;
+    case 'migrate-kratos':
+      await migrateKratosUsers(positionals[1]);
+      process.exit();
       break;
     default:
       console.log('unknown command');
