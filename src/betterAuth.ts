@@ -3,6 +3,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
+import * as bcryptjs from 'bcryptjs';
 import { z } from 'zod';
 import { decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { AppDataSource } from './data-source';
@@ -87,6 +88,53 @@ const throwBadRequest = (message: string): never => {
   });
 };
 
+const isBcryptHash = (hash: string): boolean =>
+  hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$');
+
+const rehashBcryptToArgon2 = async (
+  pool: Pool,
+  oldBcryptHash: string,
+  newArgon2Hash: string,
+): Promise<void> => {
+  const { rowCount } = await pool.query(
+    `UPDATE ba_account SET password = $1, "updatedAt" = NOW() WHERE password = $2 AND "providerId" = 'credential'`,
+    [newArgon2Hash, oldBcryptHash],
+  );
+  if (rowCount && rowCount > 0) {
+    logger.info('Rehashed BCrypt password to Argon2id on login');
+  }
+};
+
+export const verifyPasswordWithBcryptFallback = async ({
+  hash,
+  password,
+  pool,
+}: {
+  hash: string;
+  password: string;
+  pool?: Pool;
+}): Promise<boolean> => {
+  if (isBcryptHash(hash)) {
+    const valid = bcryptjs.compareSync(password, hash);
+    if (valid && pool) {
+      try {
+        const argon2Hash = await argon2.hash(password, {
+          type: argon2.argon2id,
+        });
+        await rehashBcryptToArgon2(pool, hash, argon2Hash);
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          'Failed to rehash BCrypt password to Argon2id',
+        );
+      }
+    }
+    return valid;
+  }
+
+  return argon2.verify(hash, password);
+};
+
 const hasCredentialAccount = async (
   pool: Pool,
   userId: string,
@@ -119,6 +167,9 @@ const verifyKratosCredentials = async (
   password: string,
 ): Promise<KratosVerifyResult> => {
   if (!kratosOrigin) {
+    logger.warn(
+      'KRATOS_ORIGIN is not set, skipping Kratos credential verification',
+    );
     return { valid: false };
   }
 
@@ -153,8 +204,16 @@ const verifyKratosCredentials = async (
       };
     }
 
+    logger.warn(
+      { email },
+      'Kratos credential verification returned no valid session',
+    );
     return { valid: false };
-  } catch {
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      'Kratos credential verification request failed',
+    );
     return { valid: false };
   }
 };
@@ -321,13 +380,31 @@ const migrateLegacyCredentialIfNeeded = async ({
 
   const kratosResult = await verifyKratosCredentials(email, password);
 
-  if (kratosResult.valid && kratosResult.userId === user.id) {
-    await migrateKratosUserToBetterAuth({
-      pool,
-      userId: user.id,
-      password,
-    });
+  if (!kratosResult.valid) {
+    logger.warn(
+      { userId: user.id },
+      'Kratos credential verification failed for legacy user migration',
+    );
+    return;
   }
+
+  if (kratosResult.userId !== user.id) {
+    logger.warn(
+      { userId: user.id, kratosUserId: kratosResult.userId },
+      'Kratos userId mismatch during legacy user migration',
+    );
+    return;
+  }
+
+  await migrateKratosUserToBetterAuth({
+    pool,
+    userId: user.id,
+    password,
+  });
+  logger.info(
+    { userId: user.id },
+    'Successfully migrated Kratos credentials to BetterAuth',
+  );
 };
 
 const cookieDomain = process.env.BETTER_AUTH_BASE_URL
@@ -545,7 +622,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
         hash: (password: string) =>
           argon2.hash(password, { type: argon2.argon2id }),
         verify: ({ hash, password }: { hash: string; password: string }) =>
-          argon2.verify(hash, password),
+          verifyPasswordWithBcryptFallback({ hash, password, pool }),
       },
     },
     plugins: [
