@@ -30,11 +30,13 @@ const toUtcDayTimestamp = (value: string | Date | null): number | null => {
 const getUniqueCompletedDays = (
   completedDays: Array<string | Date | null>,
 ): number[] =>
-  [...new Set(
-    completedDays
-      .map((value) => toUtcDayTimestamp(value))
-      .filter((value): value is number => value !== null),
-  )].sort((left, right) => right - left);
+  [
+    ...new Set(
+      completedDays
+        .map((value) => toUtcDayTimestamp(value))
+        .filter((value): value is number => value !== null),
+    ),
+  ].sort((left, right) => right - left);
 
 export const calculateCurrentQuestStreak = ({
   completedDays,
