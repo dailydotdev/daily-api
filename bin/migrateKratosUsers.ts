@@ -1,6 +1,7 @@
+import '../src/config';
 import { Pool } from 'pg';
-import createOrGetConnection from '../db';
-import { logger as parentLogger } from '../logger';
+import createOrGetConnection from '../src/db';
+import { logger as parentLogger } from '../src/logger';
 
 const logger = parentLogger.child({ command: 'migrate-kratos-users' });
 
@@ -11,7 +12,10 @@ type Cursor = {
   id: string;
 };
 
-const INITIAL_CURSOR: Cursor = { createdAt: new Date(0), id: '' };
+const INITIAL_CURSOR: Cursor = {
+  createdAt: new Date(0),
+  id: '00000000-0000-0000-0000-000000000000',
+};
 
 const encodeCursor = (cursor: Cursor): string =>
   Buffer.from(JSON.stringify(cursor)).toString('base64');
@@ -228,10 +232,11 @@ const migrateOidcAccounts = async (
   return { count: total, cursor };
 };
 
-export const migrateKratosUsers = async (cursorArg?: string): Promise<void> => {
+(async (): Promise<void> => {
   const kratosPool = getKratosPool();
   const con = await createOrGetConnection();
   const dailyPool = (con.driver as unknown as { master: Pool }).master;
+  const cursorArg = process.argv[2];
   const startCursor = cursorArg ? decodeCursor(cursorArg) : INITIAL_CURSOR;
 
   try {
@@ -271,6 +276,6 @@ export const migrateKratosUsers = async (cursorArg?: string): Promise<void> => {
   } finally {
     await kratosPool.end();
   }
-};
 
-export default migrateKratosUsers;
+  process.exit();
+})();
