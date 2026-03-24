@@ -1400,11 +1400,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1418,11 +1418,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1454,11 +1454,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1490,11 +1490,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1518,19 +1518,19 @@ describe('streamNotificationUsers', () => {
 
     const notifId = await setupNotificationAndUsers(users);
 
-    const inAppStream = await streamNotificationUsers(
+    const inAppStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const inAppResults = await streamToArray(inAppStream);
     expect(inAppResults).toHaveLength(0);
 
-    const emailStream = await streamNotificationUsers(
+    const emailStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const emailResults = await streamToArray(emailStream);
     expect(emailResults).toHaveLength(1);
     expect(emailResults[0].userId).toBe('user9');
@@ -1577,11 +1577,11 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(0);
@@ -1616,11 +1616,11 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);

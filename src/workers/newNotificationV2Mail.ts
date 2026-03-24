@@ -1324,11 +1324,12 @@ const worker: Worker = {
       return;
     }
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notification.id,
-      NotificationChannel.Email,
-    );
+      id: notification.id,
+      channel: NotificationChannel.Email,
+      disableShowAtFilter: true,
+    });
     try {
       await processStreamInBatches(
         stream,

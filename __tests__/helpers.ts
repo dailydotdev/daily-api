@@ -379,8 +379,10 @@ export const saveNotificationV2Fixture = async (
   type: NotificationType,
   ctx: NotificationBaseContext,
 ): Promise<string> => {
+  const bundle = generateNotificationV2(type, ctx);
+  bundle.showAt = ctx.sendAtMs ? new Date(ctx.sendAtMs) : null;
   const res = await con.transaction((entityManager) =>
-    storeNotificationBundleV2(entityManager, generateNotificationV2(type, ctx)),
+    storeNotificationBundleV2(entityManager, bundle),
   );
   return res[0].id;
 };
