@@ -650,6 +650,53 @@ describe('leaderboard', () => {
       }
     `;
 
+    const getQuestIdFromRotationId = (rotationId: string): string =>
+      `10000000-0000-0000-0000-${rotationId.slice(-12)}`;
+
+    const createQuestFixture = (rotationId: string): Partial<Quest> => ({
+      id: getQuestIdFromRotationId(rotationId),
+      name: `Leaderboard quest ${rotationId}`,
+      description: `Quest for rotation ${rotationId}`,
+      type: QuestType.Daily,
+      eventType: QuestEventType.VisitArena,
+      criteria: { targetCount: 1 },
+      active: true,
+    });
+
+    const createQuestRotationFixture = (
+      rotationId: string,
+    ): Partial<QuestRotation> => {
+      const periodOffsetDays = Number(rotationId.slice(-6)) || 0;
+      const periodStart = new Date(
+        Date.UTC(2024, 0, 1 + periodOffsetDays, 0, 0, 0),
+      );
+
+      return {
+        id: rotationId,
+        questId: getQuestIdFromRotationId(rotationId),
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart,
+        periodEnd: new Date(periodStart.getTime() + 24 * 60 * 60 * 1000),
+      };
+    };
+
+    const saveQuestFixturesForRotations = async (
+      rotationIds: string[],
+    ): Promise<void> => {
+      await saveFixtures(
+        con,
+        Quest,
+        rotationIds.map((rotationId) => createQuestFixture(rotationId)),
+      );
+      await saveFixtures(
+        con,
+        QuestRotation,
+        rotationIds.map((rotationId) => createQuestRotationFixture(rotationId)),
+      );
+    };
+
     const createUserQuest = ({
       userId,
       rotationId,
@@ -672,6 +719,16 @@ describe('leaderboard', () => {
     });
 
     it('should rank users by total completed and claimed quests', async () => {
+      await saveQuestFixturesForRotations([
+        '00000000-0000-0000-0000-000000000001',
+        '00000000-0000-0000-0000-000000000002',
+        '00000000-0000-0000-0000-000000000003',
+        '00000000-0000-0000-0000-000000000004',
+        '00000000-0000-0000-0000-000000000005',
+        '00000000-0000-0000-0000-000000000006',
+        '00000000-0000-0000-0000-000000000007',
+      ]);
+
       await con.getRepository(UserQuest).save([
         createUserQuest({
           userId: '1',
@@ -730,6 +787,13 @@ describe('leaderboard', () => {
     });
 
     it('should rank users who reached the same quest total earlier higher', async () => {
+      await saveQuestFixturesForRotations([
+        '00000000-0000-0000-0000-000000000101',
+        '00000000-0000-0000-0000-000000000102',
+        '00000000-0000-0000-0000-000000000103',
+        '00000000-0000-0000-0000-000000000104',
+      ]);
+
       await con.getRepository(UserQuest).save([
         createUserQuest({
           userId: '1',
