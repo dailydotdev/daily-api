@@ -1,8 +1,16 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, type AuthContext } from '../Context';
 import { GQLUser } from './users';
-import { User, UserCompany, UserStats, UserStreak } from '../entity';
-import { UserQuestProfile } from '../entity/user';
+import {
+  Quest,
+  QuestRotation,
+  QuestType,
+  User,
+  UserCompany,
+  UserStats,
+  UserStreak,
+} from '../entity';
+import { UserQuest, UserQuestProfile, UserQuestStatus } from '../entity/user';
 import { UserAchievement } from '../entity/user/UserAchievement';
 import { Achievement } from '../entity/Achievement';
 import { DataSource, In, Not } from 'typeorm';
@@ -10,7 +18,7 @@ import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
 import graphorm from '../graphorm';
 import type { GQLHotTake } from './userHotTake';
-import { getQuestLevelState } from '../common/quest';
+import { getQuestLevelState, getQuestWindow } from '../common/quest';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -29,6 +37,19 @@ export type GQLPopularHotTake = {
   user: Promise<GQLUser>;
 };
 
+export type GQLQuestCompletionLeader = {
+  questId: string;
+  questName: string;
+  questDescription: string;
+  count: number;
+};
+
+export type GQLQuestCompletionStats = {
+  totalCount: number;
+  allTimeLeader: GQLQuestCompletionLeader | null;
+  weeklyLeader: GQLQuestCompletionLeader | null;
+};
+
 export const typeDefs = /* GraphQL */ `
   type Leaderboard {
     score: Int
@@ -45,6 +66,19 @@ export const typeDefs = /* GraphQL */ `
     score: Int!
     hotTake: HotTake!
     user: User!
+  }
+
+  type QuestCompletionLeader {
+    questId: ID!
+    questName: String!
+    questDescription: String!
+    count: Int!
+  }
+
+  type QuestCompletionStats {
+    totalCount: Int!
+    allTimeLeader: QuestCompletionLeader
+    weeklyLeader: QuestCompletionLeader
   }
 
   extend type Query {
@@ -139,6 +173,21 @@ export const typeDefs = /* GraphQL */ `
     ): [Leaderboard] @cacheControl(maxAge: 600)
 
     """
+    Get the users with the most completed quests
+    """
+    mostQuestsCompleted(
+      """
+      Limit the number of users returned
+      """
+      limit: Int
+    ): [Leaderboard] @cacheControl(maxAge: 600)
+
+    """
+    Get community-wide quest completion highlights
+    """
+    questCompletionStats: QuestCompletionStats @cacheControl(maxAge: 600)
+
+    """
     Get the users with the highest quest levels
     """
     highestLevel(
@@ -159,6 +208,13 @@ const excludedUsers = [
   'QgTYreBqt',
   'gfRfL51BYNK3XmCLVtA91',
 ];
+
+const completedQuestStatuses = [
+  UserQuestStatus.Completed,
+  UserQuestStatus.Claimed,
+];
+
+const completedQuestTimestampExpression = `COALESCE(uq."completedAt", uq."claimedAt", uq."updatedAt")`;
 
 const getUserLeaderboardForStat = async ({
   con,
@@ -230,6 +286,131 @@ const getUserLevelLeaderboard = async ({
         level: getQuestLevelState(totalXp),
       };
     });
+};
+
+const getMostQuestsCompletedLeaderboard = async ({
+  con,
+  limit,
+}: {
+  con: DataSource;
+  limit: number;
+}): Promise<GQLUserLeaderboard[]> => {
+  const users = await con
+    .createQueryBuilder()
+    .from(UserQuest, 'uq')
+    .innerJoin(User, 'u', 'u.id = uq."userId"')
+    .select('u.*')
+    .addSelect('COUNT(*)', 'score')
+    .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
+    .where('uq.status IN (:...completedStatuses)', {
+      completedStatuses: completedQuestStatuses,
+    })
+    .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+    .groupBy('u.id')
+    .orderBy('score', 'DESC')
+    .addOrderBy('"lastCompletedAt"', 'ASC')
+    .addOrderBy('u.id', 'ASC')
+    .limit(limit)
+    .getRawMany<
+      User & {
+        score: number | string;
+      }
+    >();
+
+  return users
+    .filter((user) => !!user.id)
+    .map(({ score, ...user }) => ({
+      score: Number(score) || 0,
+      user,
+    }));
+};
+
+const getTopCompletedQuest = async ({
+  con,
+  completedAfter,
+}: {
+  con: DataSource;
+  completedAfter?: Date;
+}): Promise<GQLQuestCompletionLeader | null> => {
+  const query = con
+    .createQueryBuilder()
+    .from(UserQuest, 'uq')
+    .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
+    .innerJoin(Quest, 'q', 'q.id = qr."questId"')
+    .select('q.id', 'questId')
+    .addSelect('q.name', 'questName')
+    .addSelect('q.description', 'questDescription')
+    .addSelect('COUNT(*)', 'count')
+    .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
+    .where('uq.status IN (:...completedStatuses)', {
+      completedStatuses: completedQuestStatuses,
+    })
+    .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+    .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
+    .groupBy('q.id')
+    .addGroupBy('q.name')
+    .addGroupBy('q.description')
+    .orderBy('count', 'DESC')
+    .addOrderBy('"lastCompletedAt"', 'ASC')
+    .addOrderBy('q.name', 'ASC')
+    .limit(1);
+
+  if (completedAfter) {
+    query.andWhere(`${completedQuestTimestampExpression} >= :completedAfter`, {
+      completedAfter,
+    });
+  }
+
+  const leader = await query.getRawOne<{
+    questId: string;
+    questName: string;
+    questDescription: string;
+    count: number | string;
+  }>();
+
+  if (!leader?.questId) {
+    return null;
+  }
+
+  return {
+    questId: leader.questId,
+    questName: leader.questName,
+    questDescription: leader.questDescription,
+    count: Number(leader.count) || 0,
+  };
+};
+
+const getQuestCompletionStats = async ({
+  con,
+  now,
+}: {
+  con: DataSource;
+  now: Date;
+}): Promise<GQLQuestCompletionStats> => {
+  const { periodStart } = getQuestWindow(QuestType.Weekly, now);
+  const [totalRow, allTimeLeader, weeklyLeader] = await Promise.all([
+    con
+      .createQueryBuilder()
+      .from(UserQuest, 'uq')
+      .select('COUNT(*)', 'count')
+      .where('uq.status IN (:...completedStatuses)', {
+        completedStatuses: completedQuestStatuses,
+      })
+      .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+      .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
+      .getRawOne<{ count: number | string }>(),
+    getTopCompletedQuest({ con }),
+    getTopCompletedQuest({
+      con,
+      completedAfter: periodStart,
+    }),
+  ]);
+
+  return {
+    totalCount: Number(totalRow?.count) || 0,
+    allTimeLeader,
+    weeklyLeader,
+  };
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
@@ -369,6 +550,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           }))
       );
     },
+    mostQuestsCompleted: async (_, args, ctx): Promise<GQLUserLeaderboard[]> =>
+      getMostQuestsCompletedLeaderboard({
+        con: ctx.con,
+        limit: getLimit(args),
+      }),
+    questCompletionStats: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLQuestCompletionStats> =>
+      getQuestCompletionStats({
+        con: ctx.con,
+        now: new Date(),
+      }),
     highestLevel: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       return getUserLevelLeaderboard({
         con: ctx.con,

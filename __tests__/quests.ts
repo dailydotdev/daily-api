@@ -63,9 +63,19 @@ mutation ClaimQuestReward($userQuestId: ID!) {
 }
 `;
 
+const CLAIM_QUEST_REWARD_WITH_STREAKS_MUTATION = `
+mutation ClaimQuestReward($userQuestId: ID!) {
+  claimQuestReward(userQuestId: $userQuestId) {
+    currentStreak
+  }
+}
+`;
+
 const QUEST_DASHBOARD_QUERY = `
 query QuestDashboard {
   questDashboard {
+    currentStreak
+    longestStreak
     daily {
       regular {
         rotationId
@@ -92,6 +102,15 @@ query QuestDashboard {
         rotationId
       }
     }
+  }
+}
+`;
+
+const QUEST_STREAK_QUERY = `
+query QuestDashboard {
+  questDashboard {
+    currentStreak
+    longestStreak
   }
 }
 `;
@@ -267,6 +286,68 @@ const seedActiveQuest = async ({
   };
 };
 
+const getUtcDayStart = (date: Date = new Date()): Date =>
+  new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+
+const seedQuestCompletionHistory = async (daysAgo: number[]) => {
+  const today = getUtcDayStart();
+
+  await saveFixtures(con, User, [{ id: questUserId }]);
+  await saveFixtures(con, Quest, [
+    {
+      id: questId,
+      name: 'Quest streak tester',
+      description: 'Complete quests on consecutive days',
+      type: QuestType.Daily,
+      eventType: QuestEventType.PostUpvote,
+      criteria: {
+        targetCount: 1,
+      },
+      active: true,
+    },
+  ]);
+
+  const rotationRows = daysAgo.map((day, index) => {
+    const periodStart = new Date(today.getTime() - day * 24 * 60 * 60 * 1000);
+
+    return {
+      id: randomUUID(),
+      questId,
+      type: QuestType.Daily,
+      plusOnly: false,
+      slot: index + 1,
+      periodStart,
+      periodEnd: new Date(periodStart.getTime() + 24 * 60 * 60 * 1000),
+    };
+  });
+
+  await saveFixtures(con, QuestRotation, rotationRows);
+  await saveFixtures(
+    con,
+    UserQuest,
+    rotationRows.map((rotation, index) => {
+      const completedAt = new Date(
+        rotation.periodStart.getTime() + 12 * 60 * 60 * 1000,
+      );
+      const isClaimed = index % 2 === 1;
+
+      return {
+        id: randomUUID(),
+        rotationId: rotation.id,
+        userId: questUserId,
+        progress: 1,
+        status: isClaimed ? UserQuestStatus.Claimed : UserQuestStatus.Completed,
+        completedAt,
+        claimedAt: isClaimed
+          ? new Date(completedAt.getTime() + 5 * 60 * 1000)
+          : null,
+      };
+    }),
+  );
+};
+
 describe('claimQuestReward mutation', () => {
   it('should bucket plus slot quests separately from the quest definition', async () => {
     const now = new Date();
@@ -403,6 +484,46 @@ describe('claimQuestReward mutation', () => {
 
     expect(res.errors).toHaveLength(1);
     expect(res.errors?.[0]?.message).toBe('Quest is not completed yet');
+  });
+
+  it('should not expose quest streaks on the claim payload', async () => {
+    const res = await client.mutate(CLAIM_QUEST_REWARD_WITH_STREAKS_MUTATION, {
+      variables: {
+        userQuestId,
+      },
+    });
+
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.[0]?.message).toContain(
+      'Cannot query field "currentStreak"',
+    );
+    expect(res.errors?.[0]?.message).toContain('ClaimQuestRewardPayload');
+  });
+});
+
+describe('questDashboard query', () => {
+  it('should return the current quest streak when consecutive quest days end yesterday', async () => {
+    loggedUser = questUserId;
+
+    await seedQuestCompletionHistory([1, 2, 3, 5]);
+
+    const res = await client.query(QUEST_STREAK_QUERY);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.currentStreak).toBe(3);
+    expect(res.data.questDashboard.longestStreak).toBe(3);
+  });
+
+  it('should return zero when the user has no quest completion today or yesterday', async () => {
+    loggedUser = questUserId;
+
+    await seedQuestCompletionHistory([2, 3, 4]);
+
+    const res = await client.query(QUEST_STREAK_QUERY);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.currentStreak).toBe(0);
+    expect(res.data.questDashboard.longestStreak).toBe(3);
   });
 });
 

@@ -9,10 +9,16 @@ import {
 import {
   HotTake,
   Post,
+  Quest,
+  QuestEventType,
+  QuestRotation,
+  QuestType,
   Source,
   User,
   UserCompany,
+  UserQuest,
   UserQuestProfile,
+  UserQuestStatus,
   UserStats,
   UserStreak,
 } from '../src/entity';
@@ -30,7 +36,7 @@ import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { Company } from '../src/entity/Company';
 import { ghostUser, systemUser } from '../src/common';
-import { getQuestLevelState } from '../src/common/quest';
+import { getQuestLevelState, getQuestWindow } from '../src/common/quest';
 import { MODERATORS } from '../src/config';
 
 let con: DataSource;
@@ -628,6 +634,381 @@ describe('leaderboard', () => {
         { score: 20, user: { id: '2' } },
         { score: 20, user: { id: '1' } },
       ]);
+    });
+  });
+
+  describe('mostQuestsCompleted', () => {
+    const QUESTS_COMPLETED_QUERY = `
+      query MostQuestsCompleted($limit: Int) {
+        mostQuestsCompleted(limit: $limit) {
+          score
+          user {
+            id
+            username
+          }
+        }
+      }
+    `;
+
+    const getQuestIdFromRotationId = (rotationId: string): string =>
+      `10000000-0000-0000-0000-${rotationId.slice(-12)}`;
+
+    const createQuestFixture = (rotationId: string): Partial<Quest> => ({
+      id: getQuestIdFromRotationId(rotationId),
+      name: `Leaderboard quest ${rotationId}`,
+      description: `Quest for rotation ${rotationId}`,
+      type: QuestType.Daily,
+      eventType: QuestEventType.VisitArena,
+      criteria: { targetCount: 1 },
+      active: true,
+    });
+
+    const createQuestRotationFixture = (
+      rotationId: string,
+    ): Partial<QuestRotation> => {
+      const periodOffsetDays = Number(rotationId.slice(-6)) || 0;
+      const periodStart = new Date(
+        Date.UTC(2024, 0, 1 + periodOffsetDays, 0, 0, 0),
+      );
+
+      return {
+        id: rotationId,
+        questId: getQuestIdFromRotationId(rotationId),
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart,
+        periodEnd: new Date(periodStart.getTime() + 24 * 60 * 60 * 1000),
+      };
+    };
+
+    const saveQuestFixturesForRotations = async (
+      rotationIds: string[],
+    ): Promise<void> => {
+      await saveFixtures(
+        con,
+        Quest,
+        rotationIds.map((rotationId) => createQuestFixture(rotationId)),
+      );
+      await saveFixtures(
+        con,
+        QuestRotation,
+        rotationIds.map((rotationId) => createQuestRotationFixture(rotationId)),
+      );
+    };
+
+    const createUserQuest = ({
+      userId,
+      rotationId,
+      status,
+      completedAt,
+      claimedAt,
+    }: {
+      userId: string;
+      rotationId: string;
+      status: UserQuestStatus;
+      completedAt?: Date | null;
+      claimedAt?: Date | null;
+    }): Partial<UserQuest> => ({
+      userId,
+      rotationId,
+      status,
+      progress: status === UserQuestStatus.InProgress ? 0 : 1,
+      completedAt: completedAt ?? null,
+      claimedAt: claimedAt ?? null,
+    });
+
+    it('should rank users by total completed and claimed quests', async () => {
+      await saveQuestFixturesForRotations([
+        '00000000-0000-0000-0000-000000000001',
+        '00000000-0000-0000-0000-000000000002',
+        '00000000-0000-0000-0000-000000000003',
+        '00000000-0000-0000-0000-000000000004',
+        '00000000-0000-0000-0000-000000000005',
+        '00000000-0000-0000-0000-000000000006',
+        '00000000-0000-0000-0000-000000000007',
+      ]);
+
+      await con.getRepository(UserQuest).save([
+        createUserQuest({
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000001',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-01-01'),
+        }),
+        createUserQuest({
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000002',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-01-02'),
+        }),
+        createUserQuest({
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000003',
+          status: UserQuestStatus.Claimed,
+          completedAt: new Date('2024-01-03'),
+          claimedAt: new Date('2024-01-04'),
+        }),
+        createUserQuest({
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000004',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-01-01'),
+        }),
+        createUserQuest({
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000005',
+          status: UserQuestStatus.Claimed,
+          completedAt: new Date('2024-01-02'),
+          claimedAt: new Date('2024-01-03'),
+        }),
+        createUserQuest({
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000006',
+          status: UserQuestStatus.InProgress,
+        }),
+        createUserQuest({
+          userId: '3',
+          rotationId: '00000000-0000-0000-0000-000000000007',
+          status: UserQuestStatus.Claimed,
+          completedAt: new Date('2024-01-05'),
+          claimedAt: new Date('2024-01-06'),
+        }),
+      ]);
+
+      const res = await client.query(QUESTS_COMPLETED_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostQuestsCompleted).toMatchObject([
+        { score: 3, user: { id: '1', username: 'idoshamun' } },
+        { score: 2, user: { id: '2', username: 'tsahidaily' } },
+        { score: 1, user: { id: '3', username: 'nimroddaily' } },
+      ]);
+    });
+
+    it('should rank users who reached the same quest total earlier higher', async () => {
+      await saveQuestFixturesForRotations([
+        '00000000-0000-0000-0000-000000000101',
+        '00000000-0000-0000-0000-000000000102',
+        '00000000-0000-0000-0000-000000000103',
+        '00000000-0000-0000-0000-000000000104',
+      ]);
+
+      await con.getRepository(UserQuest).save([
+        createUserQuest({
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000101',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-02-01'),
+        }),
+        createUserQuest({
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000102',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-03-01'),
+        }),
+        createUserQuest({
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000103',
+          status: UserQuestStatus.Completed,
+          completedAt: new Date('2024-01-01'),
+        }),
+        createUserQuest({
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000104',
+          status: UserQuestStatus.Claimed,
+          completedAt: new Date('2024-01-10'),
+          claimedAt: new Date('2024-01-11'),
+        }),
+      ]);
+
+      const res = await client.query(QUESTS_COMPLETED_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostQuestsCompleted).toMatchObject([
+        { score: 2, user: { id: '2' } },
+        { score: 2, user: { id: '1' } },
+      ]);
+    });
+  });
+
+  describe('questCompletionStats', () => {
+    const QUEST_COMPLETION_STATS_QUERY = `
+      query QuestCompletionStats {
+        questCompletionStats {
+          totalCount
+          allTimeLeader {
+            questId
+            questName
+            questDescription
+            count
+          }
+          weeklyLeader {
+            questId
+            questName
+            questDescription
+            count
+          }
+        }
+      }
+    `;
+
+    it('should return the all-time leader, weekly leader, and total completion count', async () => {
+      const now = new Date();
+      const { periodStart: weekStart } = getQuestWindow(QuestType.Weekly, now);
+      const lastWeekStart = new Date(
+        weekStart.getTime() - 7 * 24 * 60 * 60 * 1000,
+      );
+
+      await saveFixtures(con, Quest, [
+        {
+          id: '00000000-0000-0000-0000-000000000201',
+          name: 'Hot Take Mic Check',
+          description: 'Quest 1',
+          type: QuestType.Daily,
+          eventType: QuestEventType.HotTakeVote,
+          criteria: { targetCount: 1 },
+          active: true,
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000202',
+          name: 'Link Drop',
+          description: 'Quest 2',
+          type: QuestType.Daily,
+          eventType: QuestEventType.PostShare,
+          criteria: { targetCount: 1 },
+          active: true,
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000203',
+          name: 'Save Point',
+          description: 'Quest 3',
+          type: QuestType.Daily,
+          eventType: QuestEventType.BookmarkPost,
+          criteria: { targetCount: 1 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: '00000000-0000-0000-0000-000000000211',
+          questId: '00000000-0000-0000-0000-000000000201',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 1,
+          periodStart: lastWeekStart,
+          periodEnd: new Date(lastWeekStart.getTime() + 24 * 60 * 60 * 1000),
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000212',
+          questId: '00000000-0000-0000-0000-000000000201',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 1,
+          periodStart: new Date(weekStart.getTime() + 24 * 60 * 60 * 1000),
+          periodEnd: new Date(weekStart.getTime() + 2 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000213',
+          questId: '00000000-0000-0000-0000-000000000202',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 2,
+          periodStart: weekStart,
+          periodEnd: new Date(weekStart.getTime() + 24 * 60 * 60 * 1000),
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000214',
+          questId: '00000000-0000-0000-0000-000000000202',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 2,
+          periodStart: new Date(weekStart.getTime() + 2 * 24 * 60 * 60 * 1000),
+          periodEnd: new Date(weekStart.getTime() + 3 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000215',
+          questId: '00000000-0000-0000-0000-000000000203',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 3,
+          periodStart: lastWeekStart,
+          periodEnd: new Date(lastWeekStart.getTime() + 24 * 60 * 60 * 1000),
+        },
+      ]);
+
+      await con.getRepository(UserQuest).save([
+        {
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000211',
+          status: UserQuestStatus.Completed,
+          progress: 1,
+          completedAt: new Date(lastWeekStart.getTime() + 6 * 60 * 60 * 1000),
+        },
+        {
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000212',
+          status: UserQuestStatus.Claimed,
+          progress: 1,
+          completedAt: new Date(weekStart.getTime() + 24 * 60 * 60 * 1000),
+          claimedAt: new Date(
+            weekStart.getTime() + 24 * 60 * 60 * 1000 + 5 * 60 * 1000,
+          ),
+        },
+        {
+          userId: '3',
+          rotationId: '00000000-0000-0000-0000-000000000211',
+          status: UserQuestStatus.Completed,
+          progress: 1,
+          completedAt: new Date(
+            lastWeekStart.getTime() + 12 * 60 * 60 * 1000 + 10 * 60 * 1000,
+          ),
+        },
+        {
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000213',
+          status: UserQuestStatus.Completed,
+          progress: 1,
+          completedAt: new Date(weekStart.getTime() + 2 * 60 * 60 * 1000),
+        },
+        {
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000214',
+          status: UserQuestStatus.Claimed,
+          progress: 1,
+          completedAt: new Date(weekStart.getTime() + 2 * 24 * 60 * 60 * 1000),
+          claimedAt: new Date(
+            weekStart.getTime() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 1000,
+          ),
+        },
+        {
+          userId: '3',
+          rotationId: '00000000-0000-0000-0000-000000000215',
+          status: UserQuestStatus.Completed,
+          progress: 1,
+          completedAt: new Date(lastWeekStart.getTime() + 12 * 60 * 60 * 1000),
+        },
+      ]);
+
+      const res = await client.query(QUEST_COMPLETION_STATS_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.questCompletionStats).toMatchObject({
+        totalCount: 6,
+        allTimeLeader: {
+          questId: '00000000-0000-0000-0000-000000000201',
+          questName: 'Hot Take Mic Check',
+          questDescription: 'Quest 1',
+          count: 3,
+        },
+        weeklyLeader: {
+          questId: '00000000-0000-0000-0000-000000000202',
+          questName: 'Link Drop',
+          questDescription: 'Quest 2',
+          count: 2,
+        },
+      });
     });
   });
 

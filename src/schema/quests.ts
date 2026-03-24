@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 import { In, LessThanOrEqual, MoreThan, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext, SubscriptionContext } from '../Context';
 import {
+  calculateCurrentQuestStreak,
+  calculateLongestQuestStreak,
   checkQuestProgress,
   getQuestLevelState,
   publishQuestUpdate,
@@ -53,9 +55,16 @@ type GQLQuestBucket = {
 
 type GQLQuestDashboard = {
   level: GQLQuestLevel;
+  currentStreak: number;
+  longestStreak: number;
   daily: GQLQuestBucket;
   weekly: GQLQuestBucket;
 };
+
+type GQLClaimQuestRewardPayload = Pick<
+  GQLQuestDashboard,
+  'level' | 'daily' | 'weekly'
+>;
 
 type GQLQuestUpdate = {
   updatedAt: Date;
@@ -205,6 +214,41 @@ const getCurrentUserQuestsByType = async ({
     .filter((quest): quest is GQLUserQuest => !!quest);
 };
 
+const getQuestStreaks = async ({
+  con,
+  userId,
+  now,
+}: {
+  con: EntityManager;
+  userId: string;
+  now: Date;
+}): Promise<Pick<GQLQuestDashboard, 'currentStreak' | 'longestStreak'>> => {
+  const completedDayExpression = `DATE(uq."completedAt" AT TIME ZONE 'utc')`;
+  const completionRows = await con
+    .getRepository(UserQuest)
+    .createQueryBuilder('uq')
+    .select(`DISTINCT ${completedDayExpression}`, 'completedDay')
+    .where('uq."userId" = :userId', { userId })
+    .andWhere('uq."completedAt" IS NOT NULL')
+    .andWhere('uq.status IN (:...completedStatuses)', {
+      completedStatuses: [UserQuestStatus.Completed, UserQuestStatus.Claimed],
+    })
+    .orderBy(completedDayExpression, 'DESC')
+    .getRawMany<{ completedDay: string | Date | null }>();
+
+  const completedDays = completionRows.map(({ completedDay }) => completedDay);
+
+  return {
+    currentStreak: calculateCurrentQuestStreak({
+      completedDays,
+      now,
+    }),
+    longestStreak: calculateLongestQuestStreak({
+      completedDays,
+    }),
+  };
+};
+
 const getQuestDashboard = async ({
   con,
   userId,
@@ -216,6 +260,52 @@ const getQuestDashboard = async ({
   isPlus: boolean;
   now: Date;
 }): Promise<GQLQuestDashboard> => {
+  const [profile, dailyQuests, weeklyQuests, streaks] = await Promise.all([
+    con.getRepository(UserQuestProfile).findOne({
+      where: {
+        userId,
+      },
+    }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Daily,
+      isPlus,
+      now,
+    }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Weekly,
+      isPlus,
+      now,
+    }),
+    getQuestStreaks({
+      con,
+      userId,
+      now,
+    }),
+  ]);
+
+  return {
+    level: getQuestLevelState(profile?.totalXp ?? 0),
+    ...streaks,
+    daily: toQuestBucket(dailyQuests),
+    weekly: toQuestBucket(weeklyQuests),
+  };
+};
+
+const getClaimQuestRewardPayload = async ({
+  con,
+  userId,
+  isPlus,
+  now,
+}: {
+  con: EntityManager;
+  userId: string;
+  isPlus: boolean;
+  now: Date;
+}): Promise<GQLClaimQuestRewardPayload> => {
   const [profile, dailyQuests, weeklyQuests] = await Promise.all([
     con.getRepository(UserQuestProfile).findOne({
       where: {
@@ -475,6 +565,14 @@ export const typeDefs = /* GraphQL */ `
 
   type QuestDashboard {
     level: QuestLevel!
+    currentStreak: Int!
+    longestStreak: Int!
+    daily: QuestBucket!
+    weekly: QuestBucket!
+  }
+
+  type ClaimQuestRewardPayload {
+    level: QuestLevel!
     daily: QuestBucket!
     weekly: QuestBucket!
   }
@@ -503,7 +601,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
-    claimQuestReward(userQuestId: ID!): QuestDashboard! @auth
+    claimQuestReward(userQuestId: ID!): ClaimQuestRewardPayload! @auth
     trackQuestEvent(eventType: ClientQuestEventType!): EmptyResponse! @auth
   }
 
@@ -535,7 +633,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       { userQuestId }: { userQuestId: string },
       ctx: AuthContext,
-    ): Promise<GQLQuestDashboard> => {
+    ): Promise<GQLClaimQuestRewardPayload> => {
       const now = new Date();
       const dashboard = await ctx.con.transaction(async (con) => {
         await claimQuestReward({
@@ -545,7 +643,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           now,
         });
 
-        return getQuestDashboard({
+        return getClaimQuestRewardPayload({
           con,
           userId: ctx.userId,
           isPlus: ctx.isPlus,
