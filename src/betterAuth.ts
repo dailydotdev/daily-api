@@ -17,6 +17,8 @@ import { User } from './entity/user/User';
 import { fetchOptions } from './http';
 import { retryFetch } from './integrations/retry';
 import { cookies, extractRootDomain } from './cookies';
+import { getGeo } from './common/geo';
+import { getUserCoresRole } from './common/user';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -72,6 +74,37 @@ const parseTrackingIdFromCookieHeader = (
       }
       return undefined;
     }
+  }
+  return undefined;
+};
+
+const JOIN_REFERRAL_COOKIE_KEY = 'join_referral';
+const TIMEZONE_COOKIE_KEY = 'tz';
+
+const parseCookieValue = (
+  cookieHeader: string,
+  key: string,
+): string | undefined => {
+  for (const part of cookieHeader.split(';')) {
+    const [name, ...valueParts] = part.trim().split('=');
+    if (name === key) {
+      const value = decodeURIComponent(valueParts.join('='));
+      return value || undefined;
+    }
+  }
+  return undefined;
+};
+
+const parseReferralFromCookieHeader = (
+  cookieHeader: string,
+): { referralId: string; referralOrigin: string } | undefined => {
+  const value = parseCookieValue(cookieHeader, JOIN_REFERRAL_COOKIE_KEY);
+  if (!value) {
+    return undefined;
+  }
+  const [referralId, referralOrigin] = value.split(':');
+  if (referralId && referralOrigin) {
+    return { referralId, referralOrigin };
   }
   return undefined;
 };
@@ -583,10 +616,36 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 }
               };
 
-              if (body) {
-                addField('referralId', body.referral);
-                addField('referralOrigin', body.referralOrigin);
-                addField('timezone', body.timezone);
+              const cookieHeader =
+                hookCtx?.request?.headers?.get('cookie') ?? '';
+              const cookieReferral =
+                parseReferralFromCookieHeader(cookieHeader);
+
+              addField(
+                'referralId',
+                body?.referral ?? cookieReferral?.referralId,
+              );
+              addField(
+                'referralOrigin',
+                body?.referralOrigin ?? cookieReferral?.referralOrigin,
+              );
+              addField(
+                'timezone',
+                body?.timezone ??
+                  parseCookieValue(cookieHeader, TIMEZONE_COOKIE_KEY),
+              );
+
+              const ip =
+                hookCtx?.request?.headers
+                  ?.get('x-forwarded-for')
+                  ?.split(',')[0]
+                  ?.trim() ?? '';
+              if (ip) {
+                const region = getGeo({ ip }).country;
+                const coresRole = getUserCoresRole({ region });
+                setClauses.push(`"coresRole" = $${paramIndex}`);
+                values.push(String(coresRole));
+                paramIndex++;
               }
 
               await pool.query(
