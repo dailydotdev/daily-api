@@ -141,12 +141,12 @@ describe('feedbackClassify worker', () => {
     expect(updated?.status).toBe(FeedbackStatus.Spam);
   });
 
-  it('should skip processing if feedback is not pending', async () => {
+  it('should skip processing if feedback is already in engineering review', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 3,
       description: 'Already processed',
-      status: FeedbackStatus.Accepted,
+      status: FeedbackStatus.Processing,
       flags: {},
     });
 
@@ -157,7 +157,7 @@ describe('feedbackClassify worker', () => {
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Accepted);
+    expect(updated?.status).toBe(FeedbackStatus.Processing);
   });
 
   it('should throw error if Linear client is not configured', async () => {
