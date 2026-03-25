@@ -4,6 +4,8 @@ import { checkDisallowHandle } from '../entity/DisallowHandle';
 import { ValidationError } from 'apollo-server-errors';
 
 const minUsernameLength = 3;
+const getHandleTooShortError = (key: string): ValidationError =>
+  new ValidationError(JSON.stringify({ [key]: `${key} is too short` }));
 
 export async function validateAndTransformHandle(
   handle: string | undefined,
@@ -19,9 +21,7 @@ export async function validateAndTransformHandle(
     transformed.length > 0 &&
     transformed.length < minUsernameLength
   ) {
-    throw new ValidationError(
-      JSON.stringify({ username: 'username is too short' }),
-    );
+    throw getHandleTooShortError(key);
   }
 
   validateRegex([[key, transformed, handleRegex, true]]);

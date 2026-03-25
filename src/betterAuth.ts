@@ -88,6 +88,24 @@ const throwBadRequest = (message: string): never => {
   });
 };
 
+const getUsernameValidationMessage = (error: unknown): string | undefined => {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(error.message) as { username?: string };
+
+    if (parsed.username === 'username is too short') {
+      return parsed.username;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+};
+
 const isBcryptHash = (hash: string): boolean =>
   hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$');
 
@@ -301,14 +319,6 @@ const normalizeSignUpUsername = async (
 
   const validUsername = username as string;
 
-  if (validUsername.trim().length < 3) {
-    throwBadRequest('username is too short');
-  }
-
-  if (!handleRegex.test(validUsername)) {
-    throwBadRequest('username is invalid');
-  }
-
   try {
     const normalizedUsername = await validateAndTransformHandle(
       validUsername,
@@ -329,13 +339,9 @@ const normalizeSignUpUsername = async (
       throw error;
     }
 
-    const message = error instanceof Error ? error.message : undefined;
-
-    if (message?.includes('username is too short')) {
-      return throwBadRequest('username is too short');
-    }
-
-    return throwBadRequest('username is invalid');
+    return throwBadRequest(
+      getUsernameValidationMessage(error) ?? 'username is invalid',
+    );
   }
 };
 
