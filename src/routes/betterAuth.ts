@@ -92,54 +92,6 @@ export const callBetterAuth = async ({
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
-  // BetterAuth's setPassword is a server-only API (no HTTP route registered),
-  // so we expose it as a custom route that delegates to auth.api.setPassword().
-  fastify.route({
-    method: 'POST',
-    url: '/auth/set-password',
-    handler: async (request, reply) => {
-      try {
-        const { newPassword } =
-          (request.body as { newPassword?: string }) ?? {};
-        if (!newPassword) {
-          return reply.status(400).send({ error: 'newPassword is required' });
-        }
-
-        const headers = fromNodeHeaders(
-          request.headers as Record<string, string | string[] | undefined>,
-        );
-        const result = await getBetterAuth().api.setPassword({
-          body: { newPassword },
-          headers,
-        });
-
-        return reply.send(result);
-      } catch (error) {
-        request.log.error(
-          { err: formatError(error) },
-          'BetterAuth set-password failed',
-        );
-        if (!reply.sent) {
-          const status =
-            error &&
-            typeof error === 'object' &&
-            'statusCode' in error &&
-            typeof error.statusCode === 'number'
-              ? error.statusCode
-              : 500;
-          const message =
-            error &&
-            typeof error === 'object' &&
-            'message' in error &&
-            typeof error.message === 'string'
-              ? error.message
-              : 'Failed to set password';
-          return reply.status(status).send({ error: message });
-        }
-      }
-    },
-  });
-
   fastify.route({
     method: ['GET', 'POST'],
     url: '/auth/*',
