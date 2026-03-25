@@ -301,6 +301,10 @@ const normalizeSignUpUsername = async (
 
   const validUsername = username as string;
 
+  if (validUsername.trim().length < 3) {
+    throwBadRequest('username is too short');
+  }
+
   if (!handleRegex.test(validUsername)) {
     throwBadRequest('username is invalid');
   }
@@ -323,6 +327,12 @@ const normalizeSignUpUsername = async (
   } catch (error) {
     if (error instanceof APIError) {
       throw error;
+    }
+
+    const message = error instanceof Error ? error.message : undefined;
+
+    if (message?.includes('username is too short')) {
+      return throwBadRequest('username is too short');
     }
 
     return throwBadRequest('username is invalid');
