@@ -353,6 +353,32 @@ describe('POST /webhooks/linear', () => {
       expect(feedback?.status).toEqual(FeedbackStatus.Processing);
     });
 
+    it('should map "Needs Engineering Review" state to Processing', async () => {
+      await createFeedback({ status: FeedbackStatus.Pending });
+      const payload = {
+        action: 'update',
+        type: 'Issue',
+        data: {
+          id: 'linear-issue-123',
+          state: { id: 's1', name: 'Needs Engineering Review' },
+        },
+        updatedFrom: { stateId: 'old-state' },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      const feedback = await con
+        .getRepository(Feedback)
+        .findOneBy({ linearIssueId: 'linear-issue-123' });
+      expect(feedback?.status).toEqual(FeedbackStatus.Processing);
+    });
+
     it('should update status to Cancelled and create notification when state is "Canceled"', async () => {
       const feedback = await createFeedback();
       const payload = {

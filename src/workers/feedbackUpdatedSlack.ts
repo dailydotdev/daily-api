@@ -36,6 +36,7 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
         : feedback.description;
 
     switch (feedback.status) {
+      case FeedbackStatus.Processing:
       case FeedbackStatus.Accepted: {
         if (feedback.flags?.slackNotifiedAt) {
           return;
@@ -96,7 +97,7 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
             type: 'header',
             text: {
               type: 'plain_text',
-              text: ':memo: New User Feedback Processed',
+              text: ':memo: New User Feedback Needs Engineering Review',
               emoji: true,
             },
           },
@@ -169,7 +170,7 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
         try {
           const slackMessage = await slackClient.postMessage({
             channel: slackUserFeedbackChannelId,
-            text: 'New user feedback processed',
+            text: 'New user feedback needs engineering review',
             blocks,
             unfurlLinks: false,
             unfurlMedia: true,

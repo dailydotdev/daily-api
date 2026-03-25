@@ -9,7 +9,7 @@ import { createFeedbackIssue } from '../integrations/linear';
  * 2. Creates Linear issue with classification metadata
  * 3. Updates feedback record with classification and Linear issue info
  *
- * Status is set to Accepted, which triggers a CDC event that the
+ * Status is set to Processing, which triggers a CDC event that the
  * feedbackUpdatedSlack worker listens to for sending Slack notifications.
  */
 const worker: TypedWorker<'api.v1.feedback-created'> = {
@@ -86,11 +86,11 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         throw new Error('Linear client not configured');
       }
 
-      // Update feedback with classification and Linear issue info
-      // Status change to Accepted triggers CDC event for Slack notification
+      // Update feedback with classification and Linear issue info.
+      // Status change to Processing triggers CDC event for Slack notification.
       await con.transaction(async (entityManager) => {
         await entityManager.getRepository(Feedback).update(feedbackId, {
-          status: FeedbackStatus.Accepted,
+          status: FeedbackStatus.Processing,
           classification,
           linearIssueId: issue.id,
           linearIssueUrl: issue.url,

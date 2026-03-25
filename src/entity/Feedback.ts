@@ -14,8 +14,8 @@ import type { feedbackClientInfoSchema } from '../common/schema/feedback';
 
 export enum FeedbackStatus {
   Pending = 0,
-  Processing = 1,
-  Accepted = 2, // Classified by Bragi, Linear issue created → triggers Slack notification via CDC
+  Processing = 1, // Classified by Bragi, Linear issue created, awaiting engineering follow-up
+  Accepted = 2, // Legacy status kept for backwards compatibility with existing feedback records
   Completed = 3, // Linear ticket moved to "Done" → triggers notification to user
   Cancelled = 4, // Linear ticket cancelled
   Failed = 5, // Classification failed

@@ -26,6 +26,7 @@ import {
 } from '../../common/mailing';
 
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
+  'Needs Engineering Review': FeedbackStatus.Processing,
   Done: FeedbackStatus.Completed,
   Canceled: FeedbackStatus.Cancelled,
 };

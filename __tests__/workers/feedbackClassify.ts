@@ -69,7 +69,7 @@ describe('feedbackClassify worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should process feedback and update status to Accepted', async () => {
+  it('should process feedback and update status to Processing', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
@@ -95,7 +95,7 @@ describe('feedbackClassify worker', () => {
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Accepted);
+    expect(updated?.status).toBe(FeedbackStatus.Processing);
     expect(updated?.classification).toEqual({
       sentiment: '1',
       urgency: '3',
@@ -205,7 +205,7 @@ describe('feedbackClassify worker', () => {
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Accepted);
+    expect(updated?.status).toBe(FeedbackStatus.Processing);
 
     expect(mockCreateFeedbackIssue).toHaveBeenCalledWith(
       expect.objectContaining({

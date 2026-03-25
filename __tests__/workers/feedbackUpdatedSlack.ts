@@ -46,13 +46,13 @@ describe('feedbackUpdatedSlack worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should send slack message for accepted feedback', async () => {
+  it('should send slack message for processing feedback', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
       description: 'Test feedback description',
       pageUrl: 'https://example.com/page',
-      status: FeedbackStatus.Accepted,
+      status: FeedbackStatus.Processing,
       classification: {
         sentiment: '1',
         urgency: '2',
@@ -90,7 +90,7 @@ describe('feedbackUpdatedSlack worker', () => {
     expect(updated?.flags?.slackChannelId).toEqual('C_FEEDBACK');
   });
 
-  it('should skip non-accepted feedback', async () => {
+  it('should skip feedback that is not ready for engineering follow-up', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
@@ -121,7 +121,7 @@ describe('feedbackUpdatedSlack worker', () => {
       userId: '1',
       category: 1,
       description: 'Test feedback',
-      status: FeedbackStatus.Accepted,
+      status: FeedbackStatus.Processing,
       classification: {
         sentiment: '1',
         urgency: '2',
@@ -234,7 +234,7 @@ describe('feedbackUpdatedSlack worker', () => {
       userId: '1',
       category: 1,
       description: 'Test feedback description',
-      status: FeedbackStatus.Accepted,
+      status: FeedbackStatus.Processing,
       flags: {},
     });
 
@@ -254,7 +254,7 @@ describe('feedbackUpdatedSlack worker', () => {
       userId: '1',
       category: 7,
       description: 'Content quality feedback',
-      status: FeedbackStatus.Accepted,
+      status: FeedbackStatus.Processing,
       flags: {},
     });
 
@@ -277,5 +277,21 @@ describe('feedbackUpdatedSlack worker', () => {
     });
 
     expect(categoryBlock).toBeDefined();
+  });
+
+  it('should still send slack message for legacy accepted feedback', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Accepted feedback',
+      status: FeedbackStatus.Accepted,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(postMessageMock).toHaveBeenCalledTimes(1);
   });
 });
