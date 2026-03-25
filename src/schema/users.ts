@@ -3871,7 +3871,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const headers = fromNodeHeaders(
-        (ctx.req.raw?.headers as Record<string, string | string[] | undefined>) ?? {},
+        (ctx.req.raw?.headers as Record<
+          string,
+          string | string[] | undefined
+        >) ?? {},
       );
       try {
         await getBetterAuth().api.setPassword({
@@ -3880,9 +3883,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         });
       } catch (error) {
         const message =
-          error instanceof Error
-            ? error.message
-            : 'Failed to set password';
+          error instanceof Error ? error.message : 'Failed to set password';
         throw new ValidationError(message);
       }
       return { _: true };
