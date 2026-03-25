@@ -91,6 +91,7 @@ import {
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
+import { UNKNOWN_SOURCE } from '../entity/Source';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import {
@@ -1784,7 +1785,10 @@ const readHistoryResolver = async (
       )
       .addSelect('timestamp', 'timestampDb')
       .andWhere('p.visible = true')
-      .andWhere('p.deleted = false');
+      .andWhere('p.deleted = false')
+      .andWhere('p.sourceId != :unknownSource', {
+        unknownSource: UNKNOWN_SOURCE,
+      });
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {

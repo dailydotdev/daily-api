@@ -58,6 +58,7 @@ import {
   UserTopReader,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../src/entity';
 import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
 import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
@@ -3417,6 +3418,39 @@ describe('query readHistory', () => {
     expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
   });
 
+  it("should return user's reading history without posts from unknown source", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+
+    await con.getRepository(ArticlePost).save({
+      id: 'p-unk-read',
+      title: 'Unknown source post',
+      shortId: 'p-unk-read',
+      url: 'http://unknown-read-history.com',
+      sourceId: UNKNOWN_SOURCE,
+      visible: true,
+    });
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p-unk-read',
+        timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges).toHaveLength(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
+  });
+
   it("should return user's reading history with the banned posts", async () => {
     loggedUser = '1';
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
@@ -3687,6 +3721,35 @@ describe('query search reading history', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return reading history search feed without unknown source posts', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(ArticlePost).save({
+      id: 'p-unk-search',
+      title: 'Unknown search result',
+      shortId: 'p-unk-search',
+      url: 'http://unknown-search-history.com',
+      sourceId: UNKNOWN_SOURCE,
+      visible: true,
+    });
+
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        timestamp: subDays(now, 1),
+        postId: 'p-unk-search',
+      },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p1' },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Unknown' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges).toEqual([]);
   });
 });
 
