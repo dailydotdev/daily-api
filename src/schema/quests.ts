@@ -10,6 +10,7 @@ import {
   getQuestLevelState,
   publishQuestUpdate,
   QUEST_ROTATION_UPDATE_CHANNEL,
+  syncMilestoneQuestProgress,
 } from '../common/quest';
 import { transferCores } from '../common/njord';
 import { systemUser } from '../common/utils';
@@ -59,11 +60,12 @@ type GQLQuestDashboard = {
   longestStreak: number;
   daily: GQLQuestBucket;
   weekly: GQLQuestBucket;
+  milestone: GQLUserQuest[];
 };
 
 type GQLClaimQuestRewardPayload = Pick<
   GQLQuestDashboard,
-  'level' | 'daily' | 'weekly'
+  'level' | 'daily' | 'weekly' | 'milestone'
 >;
 
 type GQLQuestUpdate = {
@@ -151,6 +153,14 @@ const getCurrentUserQuestsByType = async ({
 
   if (rotations.length === 0) {
     return [];
+  }
+
+  if (type === QuestType.Milestone) {
+    await syncMilestoneQuestProgress({
+      con,
+      userId,
+      now,
+    });
   }
 
   const rotationIds = rotations.map(({ id }) => id);
@@ -260,38 +270,47 @@ const getQuestDashboard = async ({
   isPlus: boolean;
   now: Date;
 }): Promise<GQLQuestDashboard> => {
-  const [profile, dailyQuests, weeklyQuests, streaks] = await Promise.all([
-    con.getRepository(UserQuestProfile).findOne({
-      where: {
+  const [profile, dailyQuests, weeklyQuests, milestoneQuests, streaks] =
+    await Promise.all([
+      con.getRepository(UserQuestProfile).findOne({
+        where: {
+          userId,
+        },
+      }),
+      getCurrentUserQuestsByType({
+        con,
         userId,
-      },
-    }),
-    getCurrentUserQuestsByType({
-      con,
-      userId,
-      type: QuestType.Daily,
-      isPlus,
-      now,
-    }),
-    getCurrentUserQuestsByType({
-      con,
-      userId,
-      type: QuestType.Weekly,
-      isPlus,
-      now,
-    }),
-    getQuestStreaks({
-      con,
-      userId,
-      now,
-    }),
-  ]);
+        type: QuestType.Daily,
+        isPlus,
+        now,
+      }),
+      getCurrentUserQuestsByType({
+        con,
+        userId,
+        type: QuestType.Weekly,
+        isPlus,
+        now,
+      }),
+      getCurrentUserQuestsByType({
+        con,
+        userId,
+        type: QuestType.Milestone,
+        isPlus,
+        now,
+      }),
+      getQuestStreaks({
+        con,
+        userId,
+        now,
+      }),
+    ]);
 
   return {
     level: getQuestLevelState(profile?.totalXp ?? 0),
     ...streaks,
     daily: toQuestBucket(dailyQuests),
     weekly: toQuestBucket(weeklyQuests),
+    milestone: milestoneQuests,
   };
 };
 
@@ -306,32 +325,41 @@ const getClaimQuestRewardPayload = async ({
   isPlus: boolean;
   now: Date;
 }): Promise<GQLClaimQuestRewardPayload> => {
-  const [profile, dailyQuests, weeklyQuests] = await Promise.all([
-    con.getRepository(UserQuestProfile).findOne({
-      where: {
+  const [profile, dailyQuests, weeklyQuests, milestoneQuests] =
+    await Promise.all([
+      con.getRepository(UserQuestProfile).findOne({
+        where: {
+          userId,
+        },
+      }),
+      getCurrentUserQuestsByType({
+        con,
         userId,
-      },
-    }),
-    getCurrentUserQuestsByType({
-      con,
-      userId,
-      type: QuestType.Daily,
-      isPlus,
-      now,
-    }),
-    getCurrentUserQuestsByType({
-      con,
-      userId,
-      type: QuestType.Weekly,
-      isPlus,
-      now,
-    }),
-  ]);
+        type: QuestType.Daily,
+        isPlus,
+        now,
+      }),
+      getCurrentUserQuestsByType({
+        con,
+        userId,
+        type: QuestType.Weekly,
+        isPlus,
+        now,
+      }),
+      getCurrentUserQuestsByType({
+        con,
+        userId,
+        type: QuestType.Milestone,
+        isPlus,
+        now,
+      }),
+    ]);
 
   return {
     level: getQuestLevelState(profile?.totalXp ?? 0),
     daily: toQuestBucket(dailyQuests),
     weekly: toQuestBucket(weeklyQuests),
+    milestone: milestoneQuests,
   };
 };
 
@@ -510,6 +538,7 @@ export const typeDefs = /* GraphQL */ `
   enum QuestType {
     daily
     weekly
+    milestone
   }
 
   enum QuestStatus {
@@ -569,12 +598,14 @@ export const typeDefs = /* GraphQL */ `
     longestStreak: Int!
     daily: QuestBucket!
     weekly: QuestBucket!
+    milestone: [UserQuest!]!
   }
 
   type ClaimQuestRewardPayload {
     level: QuestLevel!
     daily: QuestBucket!
     weekly: QuestBucket!
+    milestone: [UserQuest!]!
   }
 
   type QuestUpdate {
@@ -640,6 +671,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           con,
           ctx,
           userQuestId,
+          now,
+        });
+
+        await syncMilestoneQuestProgress({
+          con,
+          userId: ctx.userId,
+          eventType: QuestEventType.QuestComplete,
           now,
         });
 

@@ -9,6 +9,7 @@ import {
 export enum QuestType {
   Daily = 'daily',
   Weekly = 'weekly',
+  Milestone = 'milestone',
 }
 
 export enum QuestEventType {
@@ -30,6 +31,10 @@ export enum QuestEventType {
   VisitReadItLaterPage = 'visit_read_it_later_page',
   FeedbackSubmit = 'feedback_submit',
   SquadJoin = 'squad_join',
+  FollowerGain = 'follower_gain',
+  ReferralCount = 'referral_count',
+  QuestComplete = 'quest_complete',
+  UpvoteReceived = 'upvote_received',
 }
 
 export interface QuestCriteria {
