@@ -1,5 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api';
 import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
@@ -79,7 +79,6 @@ const parseTrackingIdFromCookieHeader = (
 };
 
 const JOIN_REFERRAL_COOKIE_KEY = 'join_referral';
-const TIMEZONE_COOKIE_KEY = 'tz';
 
 const parseCookieValue = (
   cookieHeader: string,
@@ -620,6 +619,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 hookCtx?.request?.headers?.get('cookie') ?? '';
               const cookieReferral =
                 parseReferralFromCookieHeader(cookieHeader);
+              const oauthState = await getOAuthState();
 
               addField(
                 'referralId',
@@ -629,11 +629,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 'referralOrigin',
                 body?.referralOrigin ?? cookieReferral?.referralOrigin,
               );
-              addField(
-                'timezone',
-                body?.timezone ??
-                  parseCookieValue(cookieHeader, TIMEZONE_COOKIE_KEY),
-              );
+              addField('timezone', body?.timezone ?? oauthState?.timezone);
 
               const ip =
                 hookCtx?.request?.headers
