@@ -215,6 +215,16 @@ jest.mock('../src/cio', () => ({
   syncNotificationFlagsToCio: jest.fn(),
 }));
 
+const mockSetPassword = jest.fn();
+jest.mock('../src/betterAuth', () => ({
+  ...(jest.requireActual('../src/betterAuth') as Record<string, unknown>),
+  getBetterAuth: () => ({
+    api: {
+      setPassword: mockSetPassword,
+    },
+  }),
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
@@ -8148,5 +8158,52 @@ describe('query userPostsAnalyticsHistory', () => {
       impressions: 150,
       impressionsAds: 50,
     });
+  });
+});
+
+describe('mutation setPassword', () => {
+  const MUTATION = `
+    mutation SetPassword($newPassword: String!) {
+      setPassword(newPassword: $newPassword) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { newPassword: 'newPassword123!' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should set password via better auth api', async () => {
+    loggedUser = '1';
+    mockSetPassword.mockResolvedValueOnce({ status: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { newPassword: 'newPassword123!' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(mockSetPassword).toHaveBeenCalledWith({
+      body: { newPassword: 'newPassword123!' },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('should propagate error when better auth api fails', async () => {
+    loggedUser = '1';
+    mockSetPassword.mockRejectedValueOnce(new Error('Password too weak'));
+
+    const res = await client.mutate(MUTATION, {
+      variables: { newPassword: 'weak' },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].message).toBe('Password too weak');
   });
 });
