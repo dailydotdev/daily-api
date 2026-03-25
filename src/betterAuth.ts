@@ -1,5 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api';
 import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
@@ -17,6 +17,8 @@ import { User } from './entity/user/User';
 import { fetchOptions } from './http';
 import { retryFetch } from './integrations/retry';
 import { cookies, extractRootDomain } from './cookies';
+import { getGeo } from './common/geo';
+import { getUserCoresRole } from './common/user';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -60,18 +62,42 @@ const TRACKING_ID_REGEX = /^[0-9A-Za-z]{21}$/;
 const isValidTrackingId = (value: string): boolean =>
   TRACKING_ID_REGEX.test(value);
 
-const parseTrackingIdFromCookieHeader = (
+const parseCookieValue = (
   cookieHeader: string,
+  key: string,
 ): string | undefined => {
   for (const part of cookieHeader.split(';')) {
     const [name, ...valueParts] = part.trim().split('=');
-    if (name === TRACKING_COOKIE_KEY) {
-      const value = valueParts.join('=');
-      if (value && isValidTrackingId(value)) {
-        return value;
-      }
-      return undefined;
+    if (name === key) {
+      const value = decodeURIComponent(valueParts.join('='));
+      return value || undefined;
     }
+  }
+  return undefined;
+};
+
+const JOIN_REFERRAL_COOKIE_KEY = 'join_referral';
+
+const parseTrackingIdFromCookieHeader = (
+  cookieHeader: string,
+): string | undefined => {
+  const value = parseCookieValue(cookieHeader, TRACKING_COOKIE_KEY);
+  if (value && isValidTrackingId(value)) {
+    return value;
+  }
+  return undefined;
+};
+
+const parseReferralFromCookieHeader = (
+  cookieHeader: string,
+): { referralId: string; referralOrigin: string } | undefined => {
+  const value = parseCookieValue(cookieHeader, JOIN_REFERRAL_COOKIE_KEY);
+  if (!value) {
+    return undefined;
+  }
+  const [referralId, referralOrigin] = value.split(':');
+  if (referralId && referralOrigin) {
+    return { referralId, referralOrigin };
   }
   return undefined;
 };
@@ -86,6 +112,24 @@ const throwBadRequest = (message: string): never => {
     code: 'BAD_REQUEST',
     message,
   });
+};
+
+const getUsernameValidationMessage = (error: unknown): string | undefined => {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(error.message) as { username?: string };
+
+    if (parsed.username === 'username is too short') {
+      return parsed.username;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 };
 
 const isBcryptHash = (hash: string): boolean =>
@@ -268,6 +312,10 @@ export type BetterAuthHandler = {
         token: string;
       };
     } | null>;
+    setPassword: (options: {
+      body: { newPassword: string };
+      headers: Headers;
+    }) => Promise<{ status: boolean }>;
   };
 };
 
@@ -297,10 +345,6 @@ const normalizeSignUpUsername = async (
 
   const validUsername = username as string;
 
-  if (!handleRegex.test(validUsername)) {
-    throwBadRequest('username is invalid');
-  }
-
   try {
     const normalizedUsername = await validateAndTransformHandle(
       validUsername,
@@ -321,7 +365,9 @@ const normalizeSignUpUsername = async (
       throw error;
     }
 
-    return throwBadRequest('username is invalid');
+    return throwBadRequest(
+      getUsernameValidationMessage(error) ?? 'username is invalid',
+    );
   }
 };
 
@@ -579,10 +625,33 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 }
               };
 
-              if (body) {
-                addField('referralId', body.referral);
-                addField('referralOrigin', body.referralOrigin);
-                addField('timezone', body.timezone);
+              const cookieHeader =
+                hookCtx?.request?.headers?.get('cookie') ?? '';
+              const cookieReferral =
+                parseReferralFromCookieHeader(cookieHeader);
+              const oauthState = await getOAuthState();
+
+              addField(
+                'referralId',
+                body?.referral ?? cookieReferral?.referralId,
+              );
+              addField(
+                'referralOrigin',
+                body?.referralOrigin ?? cookieReferral?.referralOrigin,
+              );
+              addField('timezone', body?.timezone ?? oauthState?.timezone);
+
+              const ip =
+                hookCtx?.request?.headers
+                  ?.get('x-forwarded-for')
+                  ?.split(',')[0]
+                  ?.trim() ?? '';
+              if (ip) {
+                const region = getGeo({ ip }).country;
+                const coresRole = getUserCoresRole({ region });
+                setClauses.push(`"coresRole" = $${paramIndex}`);
+                values.push(String(coresRole));
+                paramIndex++;
               }
 
               await pool.query(

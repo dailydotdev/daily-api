@@ -29,6 +29,7 @@ import {
   UserStreakActionType,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -107,6 +108,8 @@ import {
   getUserCoresRole,
   hasUserProfileAnalyticsPermissions,
 } from '../common/user';
+import { getBetterAuth } from '../betterAuth';
+import { fromNodeHeaders } from 'better-auth/node';
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
@@ -1689,6 +1692,11 @@ export const typeDefs = /* GraphQL */ `
     Update user's notification preferences
     """
     updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
+
+    """
+    Set a password for the authenticated user (Better Auth)
+    """
+    setPassword(newPassword: String!): EmptyResponse @auth
   }
 `;
 
@@ -1777,7 +1785,10 @@ const readHistoryResolver = async (
       )
       .addSelect('timestamp', 'timestampDb')
       .andWhere('p.visible = true')
-      .andWhere('p.deleted = false');
+      .andWhere('p.deleted = false')
+      .andWhere('p.sourceId != :unknownSource', {
+        unknownSource: UNKNOWN_SOURCE,
+      });
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
@@ -3856,6 +3867,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         notificationFlags,
       });
 
+      return { _: true };
+    },
+    setPassword: async (
+      _,
+      { newPassword }: { newPassword: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const headers = fromNodeHeaders(
+        (ctx.req.raw?.headers as Record<
+          string,
+          string | string[] | undefined
+        >) ?? {},
+      );
+      try {
+        await getBetterAuth().api.setPassword({
+          body: { newPassword },
+          headers,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to set password';
+        throw new ValidationError(message);
+      }
       return { _: true };
     },
   },

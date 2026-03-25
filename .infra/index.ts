@@ -425,7 +425,7 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 150, memory: 150 },
       disableLifecycle: true,
-      spot: { enabled: true },
+      spot: { enabled: false },
       podAnnotations: podAnnotations,
       ...vols,
     },
