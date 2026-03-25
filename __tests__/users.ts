@@ -246,6 +246,18 @@ beforeAll(async () => {
 
 const now = new Date();
 
+const createUnknownSourceArticlePost = (
+  id: string,
+  title: string,
+): Partial<ArticlePost> => ({
+  id,
+  title,
+  shortId: id,
+  url: `http://${id}.com`,
+  sourceId: UNKNOWN_SOURCE,
+  visible: true,
+});
+
 beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
@@ -3423,14 +3435,11 @@ describe('query readHistory', () => {
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
 
-    await con.getRepository(ArticlePost).save({
-      id: 'p-unk-read',
-      title: 'Unknown source post',
-      shortId: 'p-unk-read',
-      url: 'http://unknown-read-history.com',
-      sourceId: UNKNOWN_SOURCE,
-      visible: true,
-    });
+    await con
+      .getRepository(ArticlePost)
+      .save(
+        createUnknownSourceArticlePost('p-unk-read', 'Unknown source post'),
+      );
 
     await saveFixtures(con, View, [
       {
@@ -3726,14 +3735,11 @@ describe('query search reading history', () => {
   it('should return reading history search feed without unknown source posts', async () => {
     loggedUser = '1';
 
-    await con.getRepository(ArticlePost).save({
-      id: 'p-unk-search',
-      title: 'Unknown search result',
-      shortId: 'p-unk-search',
-      url: 'http://unknown-search-history.com',
-      sourceId: UNKNOWN_SOURCE,
-      visible: true,
-    });
+    await con
+      .getRepository(ArticlePost)
+      .save(
+        createUnknownSourceArticlePost('p-unk-search', 'Unknown search result'),
+      );
 
     await con.getRepository(View).save([
       {

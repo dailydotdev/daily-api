@@ -29,6 +29,7 @@ import {
   UserStreakActionType,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -91,7 +92,6 @@ import {
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
-import { UNKNOWN_SOURCE } from '../entity/Source';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import {
