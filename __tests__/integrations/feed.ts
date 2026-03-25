@@ -553,6 +553,44 @@ describe('FeedPreferencesConfigGenerator', () => {
     });
   });
 
+  it('should exclude social posts when the default content type is opt-in', async () => {
+    await con.getRepository(FeedAdvancedSettings).delete({
+      feedId: '1',
+      advancedSettingsId: 4,
+    });
+    await con.getRepository(AdvancedSettings).update(
+      { id: 4 },
+      { defaultEnabledState: false },
+    );
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includePostTypes: true,
+      },
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual).toEqual({
+      config: {
+        allowed_post_types: postTypes.filter(
+          (x) => x !== PostType.VideoYouTube && x !== PostType.SocialTwitter,
+        ),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
+    });
+  });
+
   it('should generate feed config with blocked tags and sources', async () => {
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
       config,
