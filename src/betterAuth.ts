@@ -62,24 +62,6 @@ const TRACKING_ID_REGEX = /^[0-9A-Za-z]{21}$/;
 const isValidTrackingId = (value: string): boolean =>
   TRACKING_ID_REGEX.test(value);
 
-const parseTrackingIdFromCookieHeader = (
-  cookieHeader: string,
-): string | undefined => {
-  for (const part of cookieHeader.split(';')) {
-    const [name, ...valueParts] = part.trim().split('=');
-    if (name === TRACKING_COOKIE_KEY) {
-      const value = valueParts.join('=');
-      if (value && isValidTrackingId(value)) {
-        return value;
-      }
-      return undefined;
-    }
-  }
-  return undefined;
-};
-
-const JOIN_REFERRAL_COOKIE_KEY = 'join_referral';
-
 const parseCookieValue = (
   cookieHeader: string,
   key: string,
@@ -90,6 +72,18 @@ const parseCookieValue = (
       const value = decodeURIComponent(valueParts.join('='));
       return value || undefined;
     }
+  }
+  return undefined;
+};
+
+const JOIN_REFERRAL_COOKIE_KEY = 'join_referral';
+
+const parseTrackingIdFromCookieHeader = (
+  cookieHeader: string,
+): string | undefined => {
+  const value = parseCookieValue(cookieHeader, TRACKING_COOKIE_KEY);
+  if (value && isValidTrackingId(value)) {
+    return value;
   }
   return undefined;
 };
