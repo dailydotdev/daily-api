@@ -268,6 +268,10 @@ export type BetterAuthHandler = {
         token: string;
       };
     } | null>;
+    setPassword: (options: {
+      body: { newPassword: string };
+      headers: Headers;
+    }) => Promise<{ status: boolean }>;
   };
 };
 
