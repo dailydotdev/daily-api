@@ -29,6 +29,7 @@ import {
   UserStreakActionType,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -1784,7 +1785,10 @@ const readHistoryResolver = async (
       )
       .addSelect('timestamp', 'timestampDb')
       .andWhere('p.visible = true')
-      .andWhere('p.deleted = false');
+      .andWhere('p.deleted = false')
+      .andWhere('p.sourceId != :unknownSource', {
+        unknownSource: UNKNOWN_SOURCE,
+      });
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
