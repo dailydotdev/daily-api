@@ -558,10 +558,9 @@ describe('FeedPreferencesConfigGenerator', () => {
       feedId: '1',
       advancedSettingsId: 4,
     });
-    await con.getRepository(AdvancedSettings).update(
-      { id: 4 },
-      { defaultEnabledState: false },
-    );
+    await con
+      .getRepository(AdvancedSettings)
+      .update({ id: 4 }, { defaultEnabledState: false });
 
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
       config,
