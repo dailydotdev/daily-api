@@ -120,7 +120,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
       new FeedPreferencesConfigGenerator(
         {
           ...baseFeedConfig,
-          feed_config_name: FeedConfigName.Popular,
+          feed_config_name: FeedConfigName.CustomFeedNaV1,
           min_day_range: 14,
           allowed_content_curations: [
             'news',
