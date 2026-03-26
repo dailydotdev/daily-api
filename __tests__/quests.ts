@@ -19,6 +19,7 @@ import {
   QuestRewardType,
   QuestRotation,
   QuestType,
+  Source,
   User,
   View,
 } from '../src/entity';
@@ -31,6 +32,7 @@ import { HotTake } from '../src/entity/user/HotTake';
 import appFunc from '../src';
 import type { Context } from '../src/Context';
 import { FastifyInstance } from 'fastify';
+import { createSource } from './fixture/source';
 
 const CLAIM_QUEST_REWARD_MUTATION = `
 mutation ClaimQuestReward($userQuestId: ID!) {
@@ -391,6 +393,113 @@ const seedQuestCompletionHistory = async (daysAgo: number[]) => {
   );
 };
 
+const seedHistoricalBriefReadMilestoneQuest = async () => {
+  const milestoneQuestId = randomUUID();
+  const milestoneRotationId = randomUUID();
+  const briefPostIds = [
+    'brief-milestone-1',
+    'brief-milestone-2',
+    'brief-milestone-3',
+  ];
+  const timestamps = [
+    new Date('2026-03-20T08:00:00.000Z'),
+    new Date('2026-03-21T08:00:00.000Z'),
+    new Date('2026-03-22T08:00:00.000Z'),
+  ];
+
+  await saveFixtures(con, User, [{ id: questUserId, reputation: 10 }]);
+  await saveFixtures(con, Source, [
+    createSource('a', 'A', 'https://example.com/source-a.png'),
+  ]);
+  await saveFixtures(con, Quest, [
+    {
+      id: milestoneQuestId,
+      name: 'Up to date',
+      description: 'Read 3 articles',
+      type: QuestType.Milestone,
+      eventType: QuestEventType.BriefRead,
+      criteria: {
+        targetCount: 3,
+      },
+      active: true,
+    },
+  ]);
+  await saveFixtures(con, QuestReward, [
+    {
+      id: randomUUID(),
+      questId: milestoneQuestId,
+      type: QuestRewardType.XP,
+      amount: 1000,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, QuestRotation, [
+    {
+      id: milestoneRotationId,
+      questId: milestoneQuestId,
+      type: QuestType.Milestone,
+      plusOnly: false,
+      slot: 1,
+      periodStart: new Date('2026-03-25T00:00:00.000Z'),
+      periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+    },
+  ]);
+  await saveFixtures(con, Post, [
+    {
+      id: briefPostIds[0],
+      shortId: 'brief-mile-001',
+      title: 'Brief 1',
+      url: 'https://example.com/brief-1',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+    {
+      id: briefPostIds[1],
+      shortId: 'brief-mile-002',
+      title: 'Brief 2',
+      url: 'https://example.com/brief-2',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+    {
+      id: briefPostIds[2],
+      shortId: 'brief-mile-003',
+      title: 'Brief 3',
+      url: 'https://example.com/brief-3',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+  ]);
+  await saveFixtures(con, View, [
+    {
+      postId: briefPostIds[0],
+      userId: questUserId,
+      timestamp: timestamps[0],
+    },
+    {
+      postId: briefPostIds[1],
+      userId: questUserId,
+      timestamp: timestamps[1],
+    },
+    {
+      postId: briefPostIds[2],
+      userId: questUserId,
+      timestamp: timestamps[2],
+    },
+  ]);
+
+  return {
+    milestoneQuestId,
+    milestoneRotationId,
+  };
+};
+
 describe('claimQuestReward mutation', () => {
   it('should bucket plus slot quests separately from the quest definition', async () => {
     const now = new Date();
@@ -543,112 +652,18 @@ describe('claimQuestReward mutation', () => {
     expect(res.errors?.[0]?.message).toContain('ClaimQuestRewardPayload');
   });
 
-  it('should sync and claim milestone quests from historical progress', async () => {
+  it('should backfill milestone quests from historical brief reads on dashboard fetch', async () => {
     loggedUser = questUserId;
 
-    const milestoneQuestId = randomUUID();
-    const milestoneRotationId = randomUUID();
-    const briefPostIds = [
-      'brief-milestone-1',
-      'brief-milestone-2',
-      'brief-milestone-3',
-    ];
-    const timestamps = [
-      new Date('2026-03-20T08:00:00.000Z'),
-      new Date('2026-03-21T08:00:00.000Z'),
-      new Date('2026-03-22T08:00:00.000Z'),
-    ];
+    const { milestoneQuestId, milestoneRotationId } =
+      await seedHistoricalBriefReadMilestoneQuest();
 
-    await saveFixtures(con, User, [{ id: questUserId, reputation: 10 }]);
-    await saveFixtures(con, Quest, [
-      {
-        id: milestoneQuestId,
-        name: 'Up to date',
-        description: 'Read 3 articles',
-        type: QuestType.Milestone,
-        eventType: QuestEventType.BriefRead,
-        criteria: {
-          targetCount: 3,
-        },
-        active: true,
-      },
-    ]);
-    await saveFixtures(con, QuestReward, [
-      {
-        id: randomUUID(),
-        questId: milestoneQuestId,
-        type: QuestRewardType.XP,
-        amount: 1000,
-        metadata: {},
-      },
-      {
-        id: randomUUID(),
-        questId: milestoneQuestId,
-        type: QuestRewardType.Cores,
-        amount: 500,
-        metadata: {},
-      },
-    ]);
-    await saveFixtures(con, QuestRotation, [
-      {
-        id: milestoneRotationId,
-        questId: milestoneQuestId,
-        type: QuestType.Milestone,
-        plusOnly: false,
-        slot: 1,
-        periodStart: new Date('2026-03-25T00:00:00.000Z'),
-        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
-      },
-    ]);
-    await saveFixtures(con, Post, [
-      {
-        id: briefPostIds[0],
-        shortId: 'brief-mile-001',
-        title: 'Brief 1',
-        url: 'https://example.com/brief-1',
-        sourceId: 'a',
-        authorId: questUserId,
-        type: PostType.Brief,
-        visible: true,
-      },
-      {
-        id: briefPostIds[1],
-        shortId: 'brief-mile-002',
-        title: 'Brief 2',
-        url: 'https://example.com/brief-2',
-        sourceId: 'a',
-        authorId: questUserId,
-        type: PostType.Brief,
-        visible: true,
-      },
-      {
-        id: briefPostIds[2],
-        shortId: 'brief-mile-003',
-        title: 'Brief 3',
-        url: 'https://example.com/brief-3',
-        sourceId: 'a',
-        authorId: questUserId,
-        type: PostType.Brief,
-        visible: true,
-      },
-    ]);
-    await saveFixtures(con, View, [
-      {
-        postId: briefPostIds[0],
+    expect(
+      await con.getRepository(UserQuest).findOneBy({
         userId: questUserId,
-        timestamp: timestamps[0],
-      },
-      {
-        postId: briefPostIds[1],
-        userId: questUserId,
-        timestamp: timestamps[1],
-      },
-      {
-        postId: briefPostIds[2],
-        userId: questUserId,
-        timestamp: timestamps[2],
-      },
-    ]);
+        rotationId: milestoneRotationId,
+      }),
+    ).toBeNull();
 
     const dashboardRes = await client.query(MILESTONE_QUEST_DASHBOARD_QUERY);
 
@@ -669,20 +684,36 @@ describe('claimQuestReward mutation', () => {
       },
     });
     expect(milestoneQuest.userQuestId).toBeTruthy();
-    expect(
-      [...milestoneQuest.rewards].sort((left, right) =>
-        left.type.localeCompare(right.type),
-      ),
-    ).toEqual([
-      {
-        type: QuestRewardType.Cores,
-        amount: 500,
-      },
+    expect(milestoneQuest.rewards).toEqual([
       {
         type: QuestRewardType.XP,
         amount: 1000,
       },
     ]);
+
+    const storedMilestoneQuest = await con.getRepository(UserQuest).findOneBy({
+      userId: questUserId,
+      rotationId: milestoneRotationId,
+    });
+
+    expect(storedMilestoneQuest).toMatchObject({
+      id: milestoneQuest.userQuestId,
+      progress: 3,
+      status: UserQuestStatus.Completed,
+    });
+    expect(storedMilestoneQuest?.completedAt).toBeTruthy();
+  });
+
+  it('should claim a backfilled milestone quest reward', async () => {
+    loggedUser = questUserId;
+
+    await seedHistoricalBriefReadMilestoneQuest();
+
+    const dashboardRes = await client.query(MILESTONE_QUEST_DASHBOARD_QUERY);
+
+    expect(dashboardRes.errors).toBeUndefined();
+
+    const milestoneQuest = dashboardRes.data.questDashboard.milestone[0];
 
     const claimRes = await client.mutate(
       CLAIM_MILESTONE_QUEST_REWARD_MUTATION,
