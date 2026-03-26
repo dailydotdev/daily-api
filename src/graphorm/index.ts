@@ -2464,6 +2464,13 @@ const obj = new GraphORM({
       },
     },
   },
+  FeedbackItem: {
+    fields: {
+      linearIssueUrl: {
+        transform: nullIfNotTeamMember,
+      },
+    },
+  },
   Achievement: {
     fields: {
       criteria: { jsonType: true },

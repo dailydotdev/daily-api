@@ -23,7 +23,8 @@ import {
 import { Roles } from '../roles';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { QuestEventType } from '../entity/Quest';
-import { nullIfNotTeamMember } from '../graphorm';
+import graphorm from '../graphorm';
+import { Context } from '../Context';
 
 type GQLFeedbackInput = {
   category: number;
@@ -217,11 +218,13 @@ const mapRepliesByFeedbackId = ({
 };
 
 const fetchFeedbackConnectionNodes = async ({
+  ctx,
   manager,
   where,
   page,
   includeUsers,
 }: {
+  ctx: BaseContext;
   manager: EntityManager;
   where: FindOptionsWhere<Feedback>;
   page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
@@ -258,12 +261,21 @@ const fetchFeedbackConnectionNodes = async ({
     usersById = new Map(users.map((user) => [user.id, user]));
   }
 
+  const linearIssueUrlTransform =
+    graphorm.mappings?.FeedbackItem?.fields?.linearIssueUrl?.transform;
+
   return {
     nodes: feedbackItems.map((feedback) => ({
       id: feedback.id,
       category: feedback.category,
       description: feedback.description,
-      linearIssueUrl: feedback.linearIssueUrl,
+      linearIssueUrl: linearIssueUrlTransform
+        ? linearIssueUrlTransform(
+            feedback.linearIssueUrl,
+            ctx as Context,
+            feedback,
+          )
+        : feedback.linearIssueUrl,
       status: feedback.status,
       screenshotUrl: feedback.screenshotUrl,
       createdAt: feedback.createdAt,
@@ -276,13 +288,6 @@ const fetchFeedbackConnectionNodes = async ({
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
-  FeedbackItem: {
-    linearIssueUrl: (
-      parent: GQLFeedbackItem,
-      _,
-      ctx: BaseContext,
-    ): string | null => nullIfNotTeamMember(parent.linearIssueUrl, ctx),
-  },
   Query: {
     userFeedback: async (
       _,
@@ -295,6 +300,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ctx.con,
         ({ queryRunner }) =>
           fetchFeedbackConnectionNodes({
+            ctx,
             manager: queryRunner.manager,
             where: { userId: ctx.userId },
             page,
@@ -325,6 +331,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ctx.con,
         ({ queryRunner }) =>
           fetchFeedbackConnectionNodes({
+            ctx,
             manager: queryRunner.manager,
             where: { userId: args.userId },
             page,
@@ -372,6 +379,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ctx.con,
         ({ queryRunner }) =>
           fetchFeedbackConnectionNodes({
+            ctx,
             manager: queryRunner.manager,
             where,
             page,
