@@ -86,6 +86,7 @@ The migration generator compares entities against the local database schema. Ens
 - **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
 - **GraphORM mappings**: Only add entries in `src/graphorm/index.ts` when you need custom mapping/fields/transforms or GraphQL type names differ from TypeORM entity names. For straightforward reads, keep GraphQL type names aligned with entities and use GraphORM without extra config.
 - For GraphQL query resolvers, prefer `graphorm.query`, `graphorm.queryOne`, or `graphorm.queryPaginated` over custom TypeORM fetch/pagination code whenever GraphORM can express the query. Reach for manual TypeORM reads only when GraphORM genuinely cannot support the access pattern.
+- When a GraphQL field must be nulled based on viewer permissions, prefer a shared GraphORM-style transform/helper (for example `nullIfNotLoggedIn`) or a field resolver that reuses that helper, instead of shaping the same permission rule inline inside each query builder.
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
 
 **Data Layer:**

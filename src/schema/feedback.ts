@@ -23,6 +23,7 @@ import {
 import { Roles } from '../roles';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { QuestEventType } from '../entity/Quest';
+import { nullIfNotTeamMember } from '../graphorm';
 
 type GQLFeedbackInput = {
   category: number;
@@ -219,12 +220,12 @@ const fetchFeedbackConnectionNodes = async ({
   manager,
   where,
   page,
-  teamView,
+  includeUsers,
 }: {
   manager: EntityManager;
   where: FindOptionsWhere<Feedback>;
   page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
-  teamView?: boolean;
+  includeUsers?: boolean;
 }): Promise<{ nodes: GQLFeedbackItem[]; total: number }> => {
   const [feedbackItems, feedbackTotal] = await manager
     .getRepository(Feedback)
@@ -246,7 +247,7 @@ const fetchFeedbackConnectionNodes = async ({
   const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
 
   let usersById: Map<string, GQLFeedbackUser> | undefined;
-  if (teamView) {
+  if (includeUsers) {
     const userIds = [...new Set(feedbackItems.map((item) => item.userId))];
     const users = userIds.length
       ? await manager.getRepository(User).find({
@@ -262,7 +263,7 @@ const fetchFeedbackConnectionNodes = async ({
       id: feedback.id,
       category: feedback.category,
       description: feedback.description,
-      linearIssueUrl: teamView ? feedback.linearIssueUrl : null,
+      linearIssueUrl: feedback.linearIssueUrl,
       status: feedback.status,
       screenshotUrl: feedback.screenshotUrl,
       createdAt: feedback.createdAt,
@@ -275,6 +276,13 @@ const fetchFeedbackConnectionNodes = async ({
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
+  FeedbackItem: {
+    linearIssueUrl: (
+      parent: GQLFeedbackItem,
+      _,
+      ctx: BaseContext,
+    ): string | null => nullIfNotTeamMember(parent.linearIssueUrl, ctx),
+  },
   Query: {
     userFeedback: async (
       _,
@@ -320,7 +328,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             manager: queryRunner.manager,
             where: { userId: args.userId },
             page,
-            teamView: true,
+            includeUsers: true,
           }),
       );
 
@@ -367,7 +375,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             manager: queryRunner.manager,
             where,
             page,
-            teamView: true,
+            includeUsers: true,
           }),
       );
 

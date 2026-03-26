@@ -61,6 +61,7 @@ const USER_FEEDBACK_QUERY = `
           id
           category
           description
+          linearIssueUrl
           status
           createdAt
           replies {
@@ -150,6 +151,7 @@ describe('feedback schema', () => {
       userId: '1',
       category: UserFeedbackCategory.BUG,
       description: 'Own feedback',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Pending,
       flags: {},
     });
@@ -180,6 +182,7 @@ describe('feedback schema', () => {
     expect(res.data.userFeedback.edges[0].node).toMatchObject({
       id: ownFeedback.id,
       description: 'Own feedback',
+      linearIssueUrl: null,
       replies: [{ body: 'Thanks for sharing', authorName: 'Chris' }],
     });
   });
