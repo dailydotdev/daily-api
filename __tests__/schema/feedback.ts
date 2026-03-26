@@ -61,6 +61,7 @@ const USER_FEEDBACK_QUERY = `
           id
           category
           description
+          linearIssueUrl
           status
           createdAt
           replies {
@@ -90,6 +91,7 @@ const FEEDBACK_LIST_QUERY = `
       edges {
         node {
           id
+          linearIssueUrl
           status
           category
           user {
@@ -118,6 +120,7 @@ const USER_FEEDBACK_BY_USER_ID_QUERY = `
           id
           category
           description
+          linearIssueUrl
           status
           user {
             id
@@ -148,6 +151,7 @@ describe('feedback schema', () => {
       userId: '1',
       category: UserFeedbackCategory.BUG,
       description: 'Own feedback',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Pending,
       flags: {},
     });
@@ -178,6 +182,7 @@ describe('feedback schema', () => {
     expect(res.data.userFeedback.edges[0].node).toMatchObject({
       id: ownFeedback.id,
       description: 'Own feedback',
+      linearIssueUrl: null,
       replies: [{ body: 'Thanks for sharing', authorName: 'Chris' }],
     });
   });
@@ -197,6 +202,7 @@ describe('feedback schema', () => {
       userId: '1',
       category: UserFeedbackCategory.BUG,
       description: 'Pending feedback',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Pending,
       flags: {},
     });
@@ -227,6 +233,7 @@ describe('feedback schema', () => {
     expect(res.data.feedbackList.edges).toHaveLength(1);
     expect(res.data.feedbackList.edges[0].node).toMatchObject({
       id: pendingFeedback.id,
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       user: {
         id: '1',
       },
@@ -238,6 +245,7 @@ describe('feedback schema', () => {
       userId: '1',
       category: UserFeedbackCategory.CONTENT_QUALITY,
       description: 'Matched feedback',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Completed,
       flags: {},
     });
@@ -271,6 +279,7 @@ describe('feedback schema', () => {
     expect(res.data.feedbackList.edges).toHaveLength(1);
     expect(res.data.feedbackList.edges[0].node).toMatchObject({
       id: matched.id,
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Completed,
       category: UserFeedbackCategory.CONTENT_QUALITY,
       user: {
@@ -309,6 +318,7 @@ describe('feedback schema', () => {
       userId: '2',
       category: UserFeedbackCategory.BUG,
       description: 'User 2 feedback 1',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1158',
       status: FeedbackStatus.Pending,
       flags: {},
     });
@@ -317,6 +327,7 @@ describe('feedback schema', () => {
       userId: '2',
       category: UserFeedbackCategory.FEATURE_REQUEST,
       description: 'User 2 feedback 2',
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       status: FeedbackStatus.Processing,
       flags: {},
     });
@@ -348,12 +359,16 @@ describe('feedback schema', () => {
       res.data.userFeedbackByUserId.edges.map((edge) => edge.node.id),
     ).toEqual([secondFeedback.id, firstFeedback.id]);
     expect(res.data.userFeedbackByUserId.edges[0].node).toMatchObject({
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1159',
       user: {
         id: '2',
       },
       replies: [
         { body: 'Thanks, we are investigating', authorName: 'Support' },
       ],
+    });
+    expect(res.data.userFeedbackByUserId.edges[1].node).toMatchObject({
+      linearIssueUrl: 'https://linear.app/dailydev/issue/ENG-1158',
     });
   });
 

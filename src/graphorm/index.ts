@@ -26,6 +26,7 @@ import {
 import { type Organization } from '../entity/Organization';
 import {
   OrganizationMemberRole,
+  Roles,
   SourceMemberRoles,
   rankToSourceRole,
   sourceRoleRank,
@@ -135,6 +136,15 @@ const existsByUserAndHotTake =
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
+
+export const nullIfNotTeamMember = <
+  T,
+  Ctx extends Pick<Context, 'isTeamMember' | 'roles'>,
+>(
+  value: T,
+  ctx: Ctx,
+): T | null =>
+  ctx.isTeamMember || ctx.roles.includes(Roles.Moderator) ? value : null;
 
 const nullIfNotSameUser = <T>(
   value: T,
@@ -2451,6 +2461,13 @@ const obj = new GraphORM({
       },
       lastUsedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  FeedbackItem: {
+    fields: {
+      linearIssueUrl: {
+        transform: nullIfNotTeamMember,
       },
     },
   },
