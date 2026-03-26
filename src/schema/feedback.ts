@@ -45,6 +45,7 @@ type GQLFeedbackItem = Pick<
   | 'id'
   | 'category'
   | 'description'
+  | 'linearIssueUrl'
   | 'status'
   | 'screenshotUrl'
   | 'createdAt'
@@ -137,6 +138,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     category: ProtoEnumValue!
     description: String!
+    linearIssueUrl: String
     status: Int!
     screenshotUrl: String
     createdAt: DateTime!
@@ -218,11 +220,13 @@ const fetchFeedbackConnectionNodes = async ({
   where,
   page,
   includeUsers,
+  includeLinearIssueUrl,
 }: {
   manager: EntityManager;
   where: FindOptionsWhere<Feedback>;
   page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
   includeUsers?: boolean;
+  includeLinearIssueUrl?: boolean;
 }): Promise<{ nodes: GQLFeedbackItem[]; total: number }> => {
   const [feedbackItems, feedbackTotal] = await manager
     .getRepository(Feedback)
@@ -260,6 +264,7 @@ const fetchFeedbackConnectionNodes = async ({
       id: feedback.id,
       category: feedback.category,
       description: feedback.description,
+      linearIssueUrl: includeLinearIssueUrl ? feedback.linearIssueUrl : null,
       status: feedback.status,
       screenshotUrl: feedback.screenshotUrl,
       createdAt: feedback.createdAt,
@@ -318,6 +323,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             where: { userId: args.userId },
             page,
             includeUsers: true,
+            includeLinearIssueUrl: true,
           }),
       );
 
@@ -365,6 +371,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             where,
             page,
             includeUsers: true,
+            includeLinearIssueUrl: true,
           }),
       );
 
