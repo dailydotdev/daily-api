@@ -26,10 +26,12 @@ export const opportunityMatchDescriptionSchema = z.object({
 
 export const createOpportunityEditContentSchema = ({
   optional = false,
+  maxLength = 2500,
 }: {
   optional?: boolean;
+  maxLength?: number;
 } = {}) => {
-  const contentSchema = z.string().max(2500);
+  const contentSchema = z.string().max(maxLength);
 
   return z.object({
     content: optional ? contentSchema.optional() : contentSchema.nonempty(),
@@ -52,6 +54,20 @@ export const opportunityContentSchema = z.object({
   }).optional(),
   interviewProcess: createOpportunityEditContentSchema({
     optional: true,
+  }).optional(),
+});
+
+const opportunityParseContentSchema = z.object({
+  overview: createOpportunityEditContentSchema({ maxLength: 5000 }),
+  responsibilities: createOpportunityEditContentSchema({ maxLength: 5000 }),
+  requirements: createOpportunityEditContentSchema({ maxLength: 5000 }),
+  whatYoullDo: createOpportunityEditContentSchema({
+    optional: true,
+    maxLength: 5000,
+  }).optional(),
+  interviewProcess: createOpportunityEditContentSchema({
+    optional: true,
+    maxLength: 5000,
   }).optional(),
 });
 
@@ -138,7 +154,7 @@ export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
     .partial()
     .optional()
     .default({}),
-  content: opportunityContentSchema.partial().optional().default({}),
+  content: opportunityParseContentSchema.partial().optional().default({}),
   location: z
     .array(
       z
