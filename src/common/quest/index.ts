@@ -1,4 +1,5 @@
 export * from './level';
+export * from './milestone';
 export * from './progress';
 export * from './rotation';
 export * from './streak';

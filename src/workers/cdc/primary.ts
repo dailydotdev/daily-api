@@ -478,6 +478,12 @@ const onPostVoteChange = async (
               post.authorId,
               AchievementEventType.UpvoteReceived,
             );
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+            });
           }
         }
       }
@@ -530,6 +536,12 @@ const onPostVoteChange = async (
               post.authorId,
               AchievementEventType.UpvoteReceived,
             );
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+            });
           }
         }
       }
@@ -594,6 +606,12 @@ const onCommentVoteChange = async (
             comment.userId,
             AchievementEventType.UpvoteReceived,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+          });
         }
       }
       break;
@@ -644,6 +662,12 @@ const onCommentVoteChange = async (
             comment.userId,
             AchievementEventType.UpvoteReceived,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+          });
         }
       }
       break;
@@ -750,6 +774,12 @@ const onUserChange = async (
         AchievementEventType.ReferralCount,
         referralCount,
       );
+      await checkQuestProgress({
+        con,
+        logger,
+        userId: data.payload.after!.referralId,
+        eventType: QuestEventType.ReferralCount,
+      });
     }
   } else if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'user-updated', {
@@ -882,6 +912,12 @@ const onUserChange = async (
           AchievementEventType.ReferralCount,
           referralCount,
         );
+        await checkQuestProgress({
+          con,
+          logger,
+          userId: referralUserId,
+          eventType: QuestEventType.ReferralCount,
+        });
       }
     }
 
@@ -1861,6 +1897,12 @@ const onContentPreferenceChange = async (
             AchievementEventType.FollowerGain,
             followerCount,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.referenceId,
+            eventType: QuestEventType.FollowerGain,
+          });
         }
         break;
       }

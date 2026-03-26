@@ -11,13 +11,17 @@ import {
 } from './helpers';
 import {
   Feedback,
+  Post,
+  PostType,
   Quest,
   QuestEventType,
   QuestReward,
   QuestRewardType,
   QuestRotation,
   QuestType,
+  Source,
   User,
+  View,
 } from '../src/entity';
 import {
   UserQuest,
@@ -28,6 +32,7 @@ import { HotTake } from '../src/entity/user/HotTake';
 import appFunc from '../src';
 import type { Context } from '../src/Context';
 import { FastifyInstance } from 'fastify';
+import { createSource } from './fixture/source';
 
 const CLAIM_QUEST_REWARD_MUTATION = `
 mutation ClaimQuestReward($userQuestId: ID!) {
@@ -58,6 +63,21 @@ mutation ClaimQuestReward($userQuestId: ID!) {
         status
         claimable
       }
+    }
+  }
+}
+`;
+
+const CLAIM_MILESTONE_QUEST_REWARD_MUTATION = `
+mutation ClaimQuestReward($userQuestId: ID!) {
+  claimQuestReward(userQuestId: $userQuestId) {
+    level {
+      totalXp
+    }
+    milestone {
+      userQuestId
+      status
+      claimable
     }
   }
 }
@@ -111,6 +131,29 @@ query QuestDashboard {
   questDashboard {
     currentStreak
     longestStreak
+  }
+}
+`;
+
+const MILESTONE_QUEST_DASHBOARD_QUERY = `
+query QuestDashboard {
+  questDashboard {
+    milestone {
+      userQuestId
+      progress
+      status
+      claimable
+      quest {
+        id
+        name
+        type
+        targetCount
+      }
+      rewards {
+        type
+        amount
+      }
+    }
   }
 }
 `;
@@ -175,6 +218,8 @@ beforeEach(async () => {
   await con.createQueryBuilder().delete().from(Quest).execute();
   await con.createQueryBuilder().delete().from(Feedback).execute();
   await con.createQueryBuilder().delete().from(HotTake).execute();
+  await con.getRepository(View).delete({ userId: questUserId });
+  await con.getRepository(Post).delete({ authorId: questUserId });
   await con.getRepository(User).delete({ id: questUserId });
 });
 
@@ -348,6 +393,113 @@ const seedQuestCompletionHistory = async (daysAgo: number[]) => {
   );
 };
 
+const seedHistoricalBriefReadMilestoneQuest = async () => {
+  const milestoneQuestId = randomUUID();
+  const milestoneRotationId = randomUUID();
+  const briefPostIds = [
+    'brief-milestone-1',
+    'brief-milestone-2',
+    'brief-milestone-3',
+  ];
+  const timestamps = [
+    new Date('2026-03-20T08:00:00.000Z'),
+    new Date('2026-03-21T08:00:00.000Z'),
+    new Date('2026-03-22T08:00:00.000Z'),
+  ];
+
+  await saveFixtures(con, User, [{ id: questUserId, reputation: 10 }]);
+  await saveFixtures(con, Source, [
+    createSource('a', 'A', 'https://example.com/source-a.png'),
+  ]);
+  await saveFixtures(con, Quest, [
+    {
+      id: milestoneQuestId,
+      name: 'Up to date',
+      description: 'Read 3 articles',
+      type: QuestType.Milestone,
+      eventType: QuestEventType.BriefRead,
+      criteria: {
+        targetCount: 3,
+      },
+      active: true,
+    },
+  ]);
+  await saveFixtures(con, QuestReward, [
+    {
+      id: randomUUID(),
+      questId: milestoneQuestId,
+      type: QuestRewardType.XP,
+      amount: 1000,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, QuestRotation, [
+    {
+      id: milestoneRotationId,
+      questId: milestoneQuestId,
+      type: QuestType.Milestone,
+      plusOnly: false,
+      slot: 1,
+      periodStart: new Date('2026-03-25T00:00:00.000Z'),
+      periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+    },
+  ]);
+  await saveFixtures(con, Post, [
+    {
+      id: briefPostIds[0],
+      shortId: 'brief-mile-001',
+      title: 'Brief 1',
+      url: 'https://example.com/brief-1',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+    {
+      id: briefPostIds[1],
+      shortId: 'brief-mile-002',
+      title: 'Brief 2',
+      url: 'https://example.com/brief-2',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+    {
+      id: briefPostIds[2],
+      shortId: 'brief-mile-003',
+      title: 'Brief 3',
+      url: 'https://example.com/brief-3',
+      sourceId: 'a',
+      authorId: questUserId,
+      type: PostType.Brief,
+      visible: true,
+    },
+  ]);
+  await saveFixtures(con, View, [
+    {
+      postId: briefPostIds[0],
+      userId: questUserId,
+      timestamp: timestamps[0],
+    },
+    {
+      postId: briefPostIds[1],
+      userId: questUserId,
+      timestamp: timestamps[1],
+    },
+    {
+      postId: briefPostIds[2],
+      userId: questUserId,
+      timestamp: timestamps[2],
+    },
+  ]);
+
+  return {
+    milestoneQuestId,
+    milestoneRotationId,
+  };
+};
+
 describe('claimQuestReward mutation', () => {
   it('should bucket plus slot quests separately from the quest definition', async () => {
     const now = new Date();
@@ -498,6 +650,95 @@ describe('claimQuestReward mutation', () => {
       'Cannot query field "currentStreak"',
     );
     expect(res.errors?.[0]?.message).toContain('ClaimQuestRewardPayload');
+  });
+
+  it('should backfill milestone quests from historical brief reads on dashboard fetch', async () => {
+    loggedUser = questUserId;
+
+    const { milestoneQuestId, milestoneRotationId } =
+      await seedHistoricalBriefReadMilestoneQuest();
+
+    expect(
+      await con.getRepository(UserQuest).findOneBy({
+        userId: questUserId,
+        rotationId: milestoneRotationId,
+      }),
+    ).toBeNull();
+
+    const dashboardRes = await client.query(MILESTONE_QUEST_DASHBOARD_QUERY);
+
+    expect(dashboardRes.errors).toBeUndefined();
+    expect(dashboardRes.data.questDashboard.milestone).toHaveLength(1);
+
+    const milestoneQuest = dashboardRes.data.questDashboard.milestone[0];
+
+    expect(milestoneQuest).toMatchObject({
+      progress: 3,
+      status: UserQuestStatus.Completed,
+      claimable: true,
+      quest: {
+        id: milestoneQuestId,
+        name: 'Up to date',
+        type: QuestType.Milestone,
+        targetCount: 3,
+      },
+    });
+    expect(milestoneQuest.userQuestId).toBeTruthy();
+    expect(milestoneQuest.rewards).toEqual([
+      {
+        type: QuestRewardType.XP,
+        amount: 1000,
+      },
+    ]);
+
+    const storedMilestoneQuest = await con.getRepository(UserQuest).findOneBy({
+      userId: questUserId,
+      rotationId: milestoneRotationId,
+    });
+
+    expect(storedMilestoneQuest).toMatchObject({
+      id: milestoneQuest.userQuestId,
+      progress: 3,
+      status: UserQuestStatus.Completed,
+    });
+    expect(storedMilestoneQuest?.completedAt).toBeTruthy();
+  });
+
+  it('should claim a backfilled milestone quest reward', async () => {
+    loggedUser = questUserId;
+
+    await seedHistoricalBriefReadMilestoneQuest();
+
+    const dashboardRes = await client.query(MILESTONE_QUEST_DASHBOARD_QUERY);
+
+    expect(dashboardRes.errors).toBeUndefined();
+
+    const milestoneQuest = dashboardRes.data.questDashboard.milestone[0];
+
+    const claimRes = await client.mutate(
+      CLAIM_MILESTONE_QUEST_REWARD_MUTATION,
+      {
+        variables: {
+          userQuestId: milestoneQuest.userQuestId,
+        },
+      },
+    );
+
+    expect(claimRes.errors).toBeUndefined();
+    expect(claimRes.data.claimQuestReward.level.totalXp).toBe(1000);
+    expect(claimRes.data.claimQuestReward.milestone).toEqual([
+      {
+        userQuestId: milestoneQuest.userQuestId,
+        status: UserQuestStatus.Claimed,
+        claimable: false,
+      },
+    ]);
+
+    const profile = await con.getRepository(UserQuestProfile).findOneByOrFail({
+      userId: questUserId,
+    });
+
+    expect(profile.totalXp).toBe(1000);
   });
 });
 

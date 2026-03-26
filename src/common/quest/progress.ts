@@ -10,10 +10,16 @@ import { redisPubSub } from '../../redis';
 import { Quest, QuestEventType, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
 import { UserQuest, UserQuestStatus } from '../../entity/user/UserQuest';
+import { syncMilestoneQuestProgress } from './milestone';
 
 type QuestTarget = {
   rotationId: string;
   targetCount: number;
+};
+
+type QuestProgressUpdateResult = {
+  didUpdate: boolean;
+  didComplete: boolean;
 };
 
 type QuestUpdatePayload = {
@@ -51,6 +57,7 @@ const getQuestTargetsByEventType = async ({
 }): Promise<QuestTarget[]> => {
   const rotations = await con.getRepository(QuestRotation).find({
     where: {
+      type: In([QuestType.Daily, QuestType.Weekly]),
       periodStart: LessThanOrEqual(now),
       periodEnd: MoreThan(now),
     },
@@ -167,7 +174,7 @@ const updateExistingUserQuestProgress = async ({
   target: QuestTarget;
   safeIncrement: number;
   now: Date;
-}): Promise<boolean> => {
+}): Promise<QuestProgressUpdateResult> => {
   const boundedProgressExpression =
     'least(:targetCount, greatest(0, "progress") + :safeIncrement)';
 
@@ -187,6 +194,7 @@ const updateExistingUserQuestProgress = async ({
       terminalStatuses: TERMINAL_USER_QUEST_STATUSES,
     })
     .andWhere('"progress" < :targetCount')
+    .returning(['status'])
     .setParameters({
       targetCount: target.targetCount,
       safeIncrement,
@@ -196,7 +204,17 @@ const updateExistingUserQuestProgress = async ({
     })
     .execute();
 
-  return (updateResult.affected ?? 0) > 0;
+  const didUpdate = (updateResult.affected ?? 0) > 0;
+
+  return {
+    didUpdate,
+    didComplete:
+      didUpdate &&
+      updateResult.raw.some(
+        ({ status }: { status?: UserQuestStatus }) =>
+          status === UserQuestStatus.Completed,
+      ),
+  };
 };
 
 const insertNewUserQuestProgress = async ({
@@ -211,7 +229,7 @@ const insertNewUserQuestProgress = async ({
   target: QuestTarget;
   safeIncrement: number;
   now: Date;
-}): Promise<boolean> => {
+}): Promise<QuestProgressUpdateResult> => {
   const progress = Math.min(target.targetCount, safeIncrement);
   const status =
     progress >= target.targetCount
@@ -235,7 +253,12 @@ const insertNewUserQuestProgress = async ({
     .orIgnore()
     .execute();
 
-  return Boolean(insertResult.generatedMaps?.[0]?.id);
+  const didUpdate = Boolean(insertResult.generatedMaps?.[0]?.id);
+
+  return {
+    didUpdate,
+    didComplete: didUpdate && status === UserQuestStatus.Completed,
+  };
 };
 
 export const checkQuestProgress = async ({
@@ -265,14 +288,11 @@ export const checkQuestProgress = async ({
       now,
     });
 
-    if (!targets.length) {
-      return false;
-    }
-
     let didUpdate = false;
+    let didCompleteQuest = false;
 
     for (const target of targets) {
-      const didUpdateExisting = await updateExistingUserQuestProgress({
+      const updateExistingResult = await updateExistingUserQuestProgress({
         con,
         userId,
         target,
@@ -280,12 +300,13 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      if (didUpdateExisting) {
+      if (updateExistingResult.didUpdate) {
         didUpdate = true;
+        didCompleteQuest = didCompleteQuest || updateExistingResult.didComplete;
         continue;
       }
 
-      const didInsertNew = await insertNewUserQuestProgress({
+      const insertNewResult = await insertNewUserQuestProgress({
         con,
         userId,
         target,
@@ -293,13 +314,14 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      if (didInsertNew) {
+      if (insertNewResult.didUpdate) {
         didUpdate = true;
+        didCompleteQuest = didCompleteQuest || insertNewResult.didComplete;
         continue;
       }
 
       // A concurrent event can insert between update and insert; retrying update applies this increment.
-      const didUpdateAfterConflict = await updateExistingUserQuestProgress({
+      const updateAfterConflictResult = await updateExistingUserQuestProgress({
         con,
         userId,
         target,
@@ -307,7 +329,30 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      didUpdate = didUpdate || didUpdateAfterConflict;
+      didUpdate = didUpdate || updateAfterConflictResult.didUpdate;
+      didCompleteQuest =
+        didCompleteQuest || updateAfterConflictResult.didComplete;
+    }
+
+    const didUpdateMilestones = await syncMilestoneQuestProgress({
+      con,
+      userId,
+      eventType,
+      now,
+    });
+
+    didUpdate = didUpdate || didUpdateMilestones;
+
+    if (didCompleteQuest && eventType !== QuestEventType.QuestComplete) {
+      const didUpdateQuestCompletionMilestones =
+        await syncMilestoneQuestProgress({
+          con,
+          userId,
+          eventType: QuestEventType.QuestComplete,
+          now,
+        });
+
+      didUpdate = didUpdate || didUpdateQuestCompletionMilestones;
     }
 
     if (didUpdate) {
