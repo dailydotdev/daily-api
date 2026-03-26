@@ -8,7 +8,7 @@ export const cookies: {
 } = {
   tracking: {
     opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+      maxAge: 60 * 60 * 24 * 365 * 10,
       httpOnly: false,
       signed: false,
       secure: false,
@@ -18,7 +18,7 @@ export const cookies: {
   },
   session: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: false,
       signed: false,
       secure: false,
@@ -28,7 +28,7 @@ export const cookies: {
   },
   auth: {
     opts: {
-      maxAge: 1000 * 60 * 15,
+      maxAge: 60 * 15,
       httpOnly: true,
       signed: true,
       secure: env === 'production',
@@ -38,7 +38,7 @@ export const cookies: {
   },
   funnel: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: true,
       signed: false,
       secure: env === 'production',
@@ -48,7 +48,7 @@ export const cookies: {
   },
   onboarding: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: true,
       signed: false,
       secure: env === 'production',
@@ -72,7 +72,7 @@ export const cookies: {
   authSession: {
     key: env === 'production' ? '__Secure-dast' : 'dast',
     opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7,
       signed: false,
       httpOnly: true,
       secure: env === 'production',
@@ -82,7 +82,7 @@ export const cookies: {
   baForce: {
     key: 'da_ba',
     opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+      maxAge: 60 * 60 * 24 * 365 * 10,
       httpOnly: true,
       signed: false,
       secure: env === 'production',
