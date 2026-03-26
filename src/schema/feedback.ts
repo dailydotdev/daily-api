@@ -219,14 +219,12 @@ const fetchFeedbackConnectionNodes = async ({
   manager,
   where,
   page,
-  includeUsers,
-  includeLinearIssueUrl,
+  teamView,
 }: {
   manager: EntityManager;
   where: FindOptionsWhere<Feedback>;
   page: ReturnType<typeof feedbackPageGenerator.connArgsToPage>;
-  includeUsers?: boolean;
-  includeLinearIssueUrl?: boolean;
+  teamView?: boolean;
 }): Promise<{ nodes: GQLFeedbackItem[]; total: number }> => {
   const [feedbackItems, feedbackTotal] = await manager
     .getRepository(Feedback)
@@ -248,7 +246,7 @@ const fetchFeedbackConnectionNodes = async ({
   const repliesByFeedbackId = mapRepliesByFeedbackId({ replies });
 
   let usersById: Map<string, GQLFeedbackUser> | undefined;
-  if (includeUsers) {
+  if (teamView) {
     const userIds = [...new Set(feedbackItems.map((item) => item.userId))];
     const users = userIds.length
       ? await manager.getRepository(User).find({
@@ -264,7 +262,7 @@ const fetchFeedbackConnectionNodes = async ({
       id: feedback.id,
       category: feedback.category,
       description: feedback.description,
-      linearIssueUrl: includeLinearIssueUrl ? feedback.linearIssueUrl : null,
+      linearIssueUrl: teamView ? feedback.linearIssueUrl : null,
       status: feedback.status,
       screenshotUrl: feedback.screenshotUrl,
       createdAt: feedback.createdAt,
@@ -322,8 +320,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             manager: queryRunner.manager,
             where: { userId: args.userId },
             page,
-            includeUsers: true,
-            includeLinearIssueUrl: true,
+            teamView: true,
           }),
       );
 
@@ -370,8 +367,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             manager: queryRunner.manager,
             where,
             page,
-            includeUsers: true,
-            includeLinearIssueUrl: true,
+            teamView: true,
           }),
       );
 
