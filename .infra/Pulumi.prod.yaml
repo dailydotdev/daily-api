@@ -257,8 +257,6 @@ config:
       secure: AAABAEfjThwIBs0n3204XYFwZxshz0PuyY1bW1STItI8wzIb9z8WZcGcVpLHER0=
     facebookClientSecret:
       secure: AAABAPPqGlgKF6TZr2fIXHfVNcQEnRwrFfEScvb5Ogi+BEI9z9nSz47AF0KDM/dnSrV9ijKcRGloq3d3M34QAQ==
-    appleClientSecret:
-      secure: AAABAKJ1kXfmD4g3p/fZg5Gbid2scaPO4VQeK2VAWyZW/J54OvGGFuWg34X+YLyTPJbsyA6TsutCdSQsO9hRWXIzNFjZK9XZo4PmnCD5/MJbReYI6M3ayqc8M2bLBRaaDSj0/nrop+P9J3cMy/944b1F271lXOsCgNrHn4dkYLX0tkIuCnu86VSPaxJ9bRPRy83igX8w7P0gE5vKrnmLj29CSXk7iZGB1yikFPWddHLZUCxkX8gZ15kanvg6bvVdkrlotKdl8kV12iClSDc5gYDG/qsHsuHTixQ3vTmwf2R7svAAA3DeD6gJhXobRkbpNQMYMmwm2lwMzvwv394gMCKJ4/OsruktloyorRKIZP3jSrgs4XHT/buQC87H7n9WxGU/twKvzpbpkqi3ibdNhh9wKYVhTe/HCbZvv8rsCX+wbEeb
     appleClientId:
       secure: AAABABe5GePYDxcK+9QGqmQV7zE3Pv5wWtGkfFOV1MosH+KVFIfK6Is=
     googleIosClientId:
@@ -274,3 +272,10 @@ config:
   gcp:project: devkit-prod
   gcp:region: us-central1
   api:tag: 8a7bc7c1afab1d2bce67a6bc22e1be2662135cc4
+  api:appleAuth:
+    teamId:
+      secure: AAABACONn3aOuJjNxn+VlHZL1YCA7swTqY6JzEGvnhcMtawnjot1qAOb
+    keyId:
+      secure: AAABAH16I8xQAJjTyasPQzLDqd3AAo7q4dMEBGHVbgJJVvSviQelQT09
+    signingKey:
+      secure: AAABAGxRaqkffmtnKxeVFwStkBB2QUM1t5XtIOBJN0T/AcAJOac8oaovU/4H41JxFS5tnOOvWqN6HLvyejByOZ6UtxF6DqC27mvRiOKu863MKg7JrL3wPhHqEEgDJmdoGfqJw4Yady/CLRMqn58TCUwwNHRlcESng2RmwT9+BDXZywRFXfE5NKp41qLtLeOU6piAooQghHjVX6EQd8AG9Ffl2ehijRcwNnpgkQR8oz1V+Ilat6fvn9qQT1bjrBSE6oagdOxeLBdsVOmoa0H6ZbocsGmtvETEypK1uW62QD/Ar2PYtRSsFhvY9YiUf5qMxa6Kp1fJ4IdupoOKaAZY3yHlTFHXkU6pg0GGpfhktfaEgZaEgxcoknpQzPwEknjiAQ==
