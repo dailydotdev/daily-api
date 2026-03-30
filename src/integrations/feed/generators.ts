@@ -179,7 +179,7 @@ export const versionToTimeFeedGenerator = (_version: number): FeedGenerator => {
     new FeedPreferencesConfigGenerator(
       {
         ...baseFeedConfig,
-        feed_config_name: FeedConfigName.CustomFeedNaV1,
+        feed_config_name: FeedConfigName.ForYouByDate,
         order_by: FeedOrderBy.Date,
         disable_engagement_filter: true,
       },
