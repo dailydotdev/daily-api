@@ -3,10 +3,14 @@ import type { FastifyReply } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import { fromNodeHeaders } from 'better-auth/node';
 import { getBetterAuth } from '../betterAuth';
+import { betterAuthCallbackParamsSchema } from '../common/schema/betterAuth';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 const betterAuthStateSuffix = '_ba';
+const internalAuthenticationError = 'Internal authentication error';
+
+type BetterAuthCallbackQuery = Record<string, string | string[] | undefined>;
 
 const toRequestBody = (request: FastifyRequest): string | undefined => {
   if (request.method === 'GET' || request.method === 'HEAD') {
@@ -18,6 +22,23 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   }
 
   return request.body ? JSON.stringify(request.body) : undefined;
+};
+
+const toQueryString = (query: BetterAuthCallbackQuery): string => {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'string') {
+      searchParams.append(key, value);
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => searchParams.append(key, item));
+    }
+  }
+
+  return searchParams.toString();
 };
 
 // When BETTER_AUTH_REDIRECT_URL points to an external proxy (e.g. Heimdall at
@@ -53,6 +74,34 @@ const forwardHeaders = (reply: FastifyReply, response: Response): void => {
   const setCookies = nodeHeaders.getSetCookie?.() ?? [];
   if (setCookies.length > 0) {
     reply.header('set-cookie', setCookies);
+  }
+};
+
+const sendBetterAuthResponse = async (
+  reply: FastifyReply,
+  response: Response,
+): Promise<FastifyReply> => {
+  reply.status(response.status);
+
+  if (!response.body) {
+    return reply.send();
+  }
+
+  return reply.send(await response.text());
+};
+
+const sendBetterAuthError = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  error: unknown,
+  message: string,
+): FastifyReply | void => {
+  request.log.error({ err: formatError(error) }, message);
+
+  if (!reply.sent) {
+    return reply.status(500).send({
+      error: internalAuthenticationError,
+    });
   }
 };
 
@@ -92,6 +141,25 @@ export const callBetterAuth = async ({
   return response;
 };
 
+export const logoutBetterAuth = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  try {
+    await callBetterAuth({
+      req: request,
+      reply,
+      path: '/auth/sign-out',
+      method: 'POST',
+    });
+  } catch (error) {
+    request.log.warn(
+      { err: formatError(error) },
+      'error during BetterAuth sign-out',
+    );
+  }
+};
+
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   fastify.route({
     method: ['GET', 'POST'],
@@ -104,21 +172,14 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           reply,
           body,
         });
-        reply.status(response.status);
-        if (!response.body) {
-          return reply.send();
-        }
-        return reply.send(await response.text());
+        return sendBetterAuthResponse(reply, response);
       } catch (error) {
-        request.log.error(
-          { err: formatError(error) },
+        return sendBetterAuthError(
+          request,
+          reply,
+          error,
           'BetterAuth request failed',
         );
-        if (!reply.sent) {
-          return reply.status(500).send({
-            error: 'Internal authentication error',
-          });
-        }
       }
     },
   });
@@ -130,15 +191,22 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
     method: ['GET', 'POST'],
     url: '/api/callback/:provider',
     handler: async (
-      request: FastifyRequest<{ Params: { provider: string } }>,
+      request: FastifyRequest<{
+        Params: { provider: string };
+        Querystring: BetterAuthCallbackQuery;
+      }>,
       reply,
     ) => {
-      const { provider } = request.params;
-      if (!provider) {
-        return reply.status(400).send({ error: 'Missing provider' });
+      const parsedParams = betterAuthCallbackParamsSchema.safeParse(
+        request.params,
+      );
+
+      if (!parsedParams.success) {
+        return reply.status(400).send({ error: 'Unsupported provider' });
       }
 
-      const qs = request.url.split('?')[1] || '';
+      const { provider } = parsedParams.data;
+      const qs = toQueryString(request.query);
       const internalPath = `/auth/callback/${provider}${qs ? `?${qs}` : ''}`;
 
       try {
@@ -149,21 +217,14 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           path: internalPath,
           body,
         });
-        reply.status(response.status);
-        if (!response.body) {
-          return reply.send();
-        }
-        return reply.send(await response.text());
+        return sendBetterAuthResponse(reply, response);
       } catch (error) {
-        request.log.error(
-          { err: formatError(error) },
+        return sendBetterAuthError(
+          request,
+          reply,
+          error,
           'OAuth callback proxy failed',
         );
-        if (!reply.sent) {
-          return reply.status(500).send({
-            error: 'Internal authentication error',
-          });
-        }
       }
     },
   });

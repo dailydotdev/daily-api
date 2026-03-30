@@ -33,6 +33,12 @@ const getGooglePublicKey = async (kid: string) => {
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
 const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID;
+const betterAuthSocialProviderEnvVars = {
+  google: 'GOOGLE_CLIENT_ID',
+  github: 'GITHUB_CLIENT_ID',
+  apple: 'APPLE_CLIENT_ID',
+  facebook: 'FACEBOOK_CLIENT_ID',
+} as const;
 const userExperienceLevels = [
   'LESS_THAN_1_YEAR',
   'MORE_THAN_1_YEAR',
@@ -44,6 +50,8 @@ const userExperienceLevels = [
 ] as const;
 const userExperienceLevelSchema = z.enum(userExperienceLevels);
 const signUpEmailPath = '/sign-up/email';
+export type BetterAuthSocialProvider =
+  keyof typeof betterAuthSocialProviderEnvVars;
 type BetterAuthHookContext = {
   path?: string;
   body?: Record<string, unknown>;
@@ -201,6 +209,10 @@ let authInstance: BetterAuthHandler | null = null;
 
 const getPool = (): Pool =>
   (AppDataSource.driver as unknown as { master: Pool }).master;
+
+export const betterAuthSocialProviders = Object.keys(
+  betterAuthSocialProviderEnvVars,
+) as BetterAuthSocialProvider[];
 
 const getSocialRedirectUri = (provider: string): string | undefined => {
   const redirectBaseUrl = process.env.BETTER_AUTH_REDIRECT_URL;
@@ -390,7 +402,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     account: {
       modelName: 'ba_account',
       accountLinking: {
-        trustedProviders: ['google', 'github', 'apple', 'facebook'],
+        trustedProviders: betterAuthSocialProviders,
         allowDifferentEmails: true,
       },
     },

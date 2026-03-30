@@ -1,27 +1,13 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { deleteUser } from '../common/user';
 import { LogoutReason } from '../common';
-import createOrGetConnection from '../db';
-import { getBootData, LoggedInBoot } from './boot';
 import { getShortGenericInviteLink } from '../common';
+import { deleteUser } from '../common/user';
 import { clearAuthentication } from '../cookies';
-import { callBetterAuth } from './betterAuth';
-
-const logoutBetterAuth = async (
-  req: FastifyRequest,
-  res: FastifyReply,
-): Promise<void> => {
-  try {
-    await callBetterAuth({
-      req,
-      reply: res,
-      path: '/auth/sign-out',
-      method: 'POST',
-    });
-  } catch (err) {
-    req.log.warn({ err }, 'error during BetterAuth sign-out');
-  }
-};
+import createOrGetConnection from '../db';
+import type { FastifyInstance } from 'fastify';
+import type { FastifyReply } from 'fastify';
+import type { FastifyRequest } from 'fastify';
+import { getBootData } from './boot';
+import { logoutBetterAuth } from './betterAuth';
 
 const logout = async (
   req: FastifyRequest,
@@ -50,11 +36,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   // Support legacy moderation platform
   fastify.get('/me', async (req, res) => {
     const boot = await getBootData(con, req, res);
+    const referralLink = req.userId
+      ? await getShortGenericInviteLink(req.log, req.userId)
+      : undefined;
+
     return res.send({
       ...boot.user,
       ...boot.visit,
-      referralLink: await getShortGenericInviteLink(req.log, req.userId!),
-      accessToken: (boot as LoggedInBoot).accessToken,
+      referralLink,
+      accessToken: 'accessToken' in boot ? boot.accessToken : undefined,
     });
   });
 

@@ -88,5 +88,12 @@ describe('betterAuth routes', () => {
 
       getBetterAuthSpy.mockRestore();
     });
+
+    it('should reject unsupported callback providers', async () => {
+      const res = await request(app.server).get('/api/callback/linkedin');
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'Unsupported provider' });
+    });
   });
 });
