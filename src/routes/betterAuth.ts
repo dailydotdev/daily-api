@@ -20,8 +20,10 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   return request.body ? JSON.stringify(request.body) : undefined;
 };
 
-// Heimdall fronts a shared OAuth callback URL, tagging flows with a `_ba` suffix
-// in `state`. Strip the marker before BetterAuth validates the callback.
+// When BETTER_AUTH_REDIRECT_URL points to an external proxy (e.g. Heimdall at
+// sso.daily.dev), social flows tag `state` with a `_ba` suffix so the proxy
+// knows to route the callback back to this API. Strip the marker before
+// BetterAuth validates the callback.
 const stripBetterAuthStateMarker = (url: URL): URL => {
   if (!url.pathname.includes('/auth/callback/')) {
     return url;
@@ -111,6 +113,51 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
         request.log.error(
           { err: formatError(error) },
           'BetterAuth request failed',
+        );
+        if (!reply.sent) {
+          return reply.status(500).send({
+            error: 'Internal authentication error',
+          });
+        }
+      }
+    },
+  });
+
+  // Temporary callback bridge: if BETTER_AUTH_REDIRECT_URL still points to a
+  // legacy proxy host such as sso.daily.dev or sso.local.fylla.dev, route the
+  // public /api/callback/:provider endpoint back into BetterAuth internally.
+  fastify.route({
+    method: ['GET', 'POST'],
+    url: '/api/callback/:provider',
+    handler: async (
+      request: FastifyRequest<{ Params: { provider: string } }>,
+      reply,
+    ) => {
+      const { provider } = request.params;
+      if (!provider) {
+        return reply.status(400).send({ error: 'Missing provider' });
+      }
+
+      const qs = request.url.split('?')[1] || '';
+      const internalPath = `/auth/callback/${provider}${qs ? `?${qs}` : ''}`;
+
+      try {
+        const body = toRequestBody(request);
+        const response = await callBetterAuth({
+          req: request,
+          reply,
+          path: internalPath,
+          body,
+        });
+        reply.status(response.status);
+        if (!response.body) {
+          return reply.send();
+        }
+        return reply.send(await response.text());
+      } catch (error) {
+        request.log.error(
+          { err: formatError(error) },
+          'OAuth callback proxy failed',
         );
         if (!reply.sent) {
           return reply.status(500).send({

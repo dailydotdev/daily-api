@@ -6,6 +6,7 @@ import { saveFixtures } from '../helpers';
 import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture';
 import { ioRedisPool } from '../../src/redis';
+import * as betterAuthModule from '../../src/betterAuth';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -60,6 +61,32 @@ describe('betterAuth routes', () => {
       expect(options.account).toMatchObject({
         modelName: 'ba_account',
       });
+    });
+
+    it('should proxy external callback routes to BetterAuth callback handler', async () => {
+      const getBetterAuthSpy = jest
+        .spyOn(betterAuthModule, 'getBetterAuth')
+        .mockReturnValue({
+          handler: async (req: Request) => {
+            const url = new URL(req.url);
+            return new Response(`${url.pathname}${url.search}`, {
+              status: 200,
+            });
+          },
+          api: {
+            getSession: async () => null,
+            setPassword: async () => ({ status: true }),
+          },
+        } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+      const res = await request(app.server).get(
+        '/api/callback/google?state=test_ba&code=abc',
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('/auth/callback/google?state=test&code=abc');
+
+      getBetterAuthSpy.mockRestore();
     });
   });
 });
