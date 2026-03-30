@@ -626,7 +626,7 @@ describe('query anonymousFeed by time', () => {
       .post('/feed.json', (body) => {
         // Verify the request includes order_by: 'date' for TIME ranking
         expect(body.order_by).toBe(FeedOrderBy.Date);
-        expect(body.feed_config_name).toBe('custom_feed_na_v1');
+        expect(body.feed_config_name).toBe('for_you_by_date');
         return true;
       })
       .reply(200, {
