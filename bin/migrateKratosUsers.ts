@@ -6,7 +6,7 @@ import { logger as parentLogger } from '../src/logger';
 const logger = parentLogger.child({ command: 'migrate-kratos-users' });
 
 const DEFAULT_LIMIT = 10_000;
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 2_000;
 
 type Cursor = {
   createdAt: Date;
@@ -129,7 +129,9 @@ const migratePasswordAccounts = async (
     if (remaining <= 0) break;
 
     const fetchSize = Math.min(BATCH_SIZE, remaining);
+    const fetchStart = Date.now();
     const batch = await fetchPasswordIdentities(kratosPool, cursor, fetchSize);
+    const fetchMs = Date.now() - fetchStart;
     if (batch.length === 0) break;
 
     processed += batch.length;
@@ -152,12 +154,14 @@ const migratePasswordAccounts = async (
       );
     }
 
+    const insertStart = Date.now();
     const { rowCount } = await dailyPool.query(
       `INSERT INTO ba_account (id, "userId", "providerId", "accountId", password, "createdAt", "updatedAt")
        VALUES ${placeholders.join(', ')}
        ON CONFLICT ("userId", "providerId") DO NOTHING`,
       values,
     );
+    const insertMs = Date.now() - insertStart;
     total += rowCount ?? 0;
 
     cursor = cursorFromRow(batch[batch.length - 1]);
@@ -167,6 +171,8 @@ const migratePasswordAccounts = async (
         batchSize: batch.length,
         inserted: rowCount,
         total,
+        fetchMs,
+        insertMs,
       },
       'Migrated password batch',
     );
@@ -193,7 +199,9 @@ const migrateOidcAccounts = async (
     if (remaining <= 0) break;
 
     const fetchSize = Math.min(BATCH_SIZE, remaining);
+    const fetchStart = Date.now();
     const rawBatch = await fetchOidcIdentities(kratosPool, cursor, fetchSize);
+    const fetchMs = Date.now() - fetchStart;
     if (rawBatch.length === 0) break;
 
     processed += rawBatch.length;
@@ -226,12 +234,14 @@ const migrateOidcAccounts = async (
 
     if (placeholders.length === 0) continue;
 
+    const insertStart = Date.now();
     const { rowCount } = await dailyPool.query(
       `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt")
        VALUES ${placeholders.join(', ')}
        ON CONFLICT ("userId", "providerId") DO NOTHING`,
       values,
     );
+    const insertMs = Date.now() - insertStart;
     total += rowCount ?? 0;
 
     logger.info(
@@ -240,6 +250,8 @@ const migrateOidcAccounts = async (
         batchSize: rawBatch.length,
         inserted: rowCount,
         total,
+        fetchMs,
+        insertMs,
       },
       'Migrated OIDC batch',
     );
@@ -271,27 +283,19 @@ const parseLimit = (): number => {
   const limit = parseLimit();
 
   try {
+    const overallStart = Date.now();
     logger.info(
       { resumeFrom: startCursor.createdAt, limit },
       'Starting Kratos to BetterAuth user migration',
     );
 
-    const password = await migratePasswordAccounts(
-      kratosPool,
-      dailyPool,
-      startCursor,
-      limit,
-    );
+    const [password, oidc] = await Promise.all([
+      migratePasswordAccounts(kratosPool, dailyPool, startCursor, limit),
+      migrateOidcAccounts(kratosPool, dailyPool, startCursor, limit),
+    ]);
     logger.info(
       { count: password.count },
       'Password account migration complete',
-    );
-
-    const oidc = await migrateOidcAccounts(
-      kratosPool,
-      dailyPool,
-      startCursor,
-      limit,
     );
     logger.info({ count: oidc.count }, 'OIDC account migration complete');
 
@@ -306,6 +310,7 @@ const parseLimit = (): number => {
         passwordCount: password.count,
         oidcCount: oidc.count,
         cursor: encoded,
+        totalMs: Date.now() - overallStart,
       },
       'Kratos to BetterAuth migration complete',
     );
