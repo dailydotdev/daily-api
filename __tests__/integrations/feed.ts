@@ -977,7 +977,7 @@ describe('versionToTimeFeedGenerator', () => {
       offset: 0,
     });
 
-    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedNaV1);
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.ForYouByDate);
     expect(capturedBody.order_by).toBe(FeedOrderBy.Date);
     expect(capturedBody.disable_engagement_filter).toBe(true);
   });
