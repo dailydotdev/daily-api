@@ -217,9 +217,11 @@ jest.mock('../src/cio', () => ({
 }));
 
 const mockSetPassword = jest.fn();
+const mockBetterAuthHandler = jest.fn(async () => new Response('{}'));
 jest.mock('../src/betterAuth', () => ({
   ...(jest.requireActual('../src/betterAuth') as Record<string, unknown>),
   getBetterAuth: () => ({
+    handler: mockBetterAuthHandler,
     api: {
       setPassword: mockSetPassword,
     },
@@ -479,12 +481,6 @@ const additionalKeywords: Partial<Keyword>[] = [
   { value: 'devops', occurrences: 760, status: 'allow' },
   { value: 'javascript', occurrences: 980, status: 'allow' },
 ];
-
-const mockLogout = () => {
-  nock(process.env.KRATOS_ORIGIN)
-    .get('/self-service/logout/browser')
-    .reply(200, {});
-};
 
 afterAll(() => disposeGraphQLTesting(state));
 
@@ -4960,16 +4956,22 @@ describe('POST /v1/users/logout', () => {
   const BASE_PATH = '/v1/users/logout';
 
   it('should logout and clear cookies', async () => {
-    mockLogout();
     const res = await authorizeRequest(request(app.server).post(BASE_PATH))
       .set('User-Agent', TEST_UA)
-      .set('Cookie', 'da3=1;da2=1')
+      .set(
+        'Cookie',
+        'da3=1;da2=1;dast=1;ory_kratos_session=legacy;ory_kratos_continuity=legacy',
+      )
       .expect(204);
 
     const cookies = setCookieParser.parse(res, { map: true });
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+    expect(cookies.dast.value).toBeFalsy();
+    expect(cookies.ory_kratos_session.value).toBeFalsy();
+    expect(cookies.ory_kratos_continuity.value).toBeFalsy();
+    expect(mockBetterAuthHandler).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -4985,7 +4987,6 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should delete user from database', async () => {
-    mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
     const users = await con.getRepository(User).find();
@@ -4996,16 +4997,21 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should clear cookies', async () => {
-    mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
-      .set('Cookie', 'da3=1;da2=1')
+      .set(
+        'Cookie',
+        'da3=1;da2=1;dast=1;ory_kratos_session=legacy;ory_kratos_continuity=legacy',
+      )
       .expect(204);
 
     const cookies = setCookieParser.parse(res, { map: true });
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+    expect(cookies.dast.value).toBeFalsy();
+    expect(cookies.ory_kratos_session.value).toBeFalsy();
+    expect(cookies.ory_kratos_continuity.value).toBeFalsy();
   });
 
   it('clears invitedBy from associated features', async () => {
@@ -5016,7 +5022,6 @@ describe('DELETE /v1/users/me', () => {
       invitedById: '1',
     });
 
-    mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
     const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
@@ -5029,7 +5034,6 @@ describe('DELETE /v1/users/me', () => {
       campaign: InviteCampaignType.Search,
     });
 
-    mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
     expect(await con.getRepository(Invite).count()).toEqual(0);

@@ -926,7 +926,6 @@ const onUserChange = async (
   if (data.payload.op === 'd') {
     await triggerTypedEvent(logger, 'user-deleted', {
       id: data.payload.before!.id,
-      kratosUser: true,
       email: data.payload.before!.email,
     });
   }

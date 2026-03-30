@@ -20,9 +20,8 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   return request.body ? JSON.stringify(request.body) : undefined;
 };
 
-// Heimdall fronts a shared OAuth callback URL for both Kratos and Better Auth,
-// so we tag Better Auth social flows in `state` and strip the marker before BA
-// validates the callback.
+// Heimdall fronts a shared OAuth callback URL, tagging flows with a `_ba` suffix
+// in `state`. Strip the marker before BetterAuth validates the callback.
 const stripBetterAuthStateMarker = (url: URL): URL => {
   if (!url.pathname.includes('/auth/callback/')) {
     return url;
