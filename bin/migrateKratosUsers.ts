@@ -155,7 +155,7 @@ const migratePasswordAccounts = async (
     const { rowCount } = await dailyPool.query(
       `INSERT INTO ba_account (id, "userId", "providerId", "accountId", password, "createdAt", "updatedAt")
        VALUES ${placeholders.join(', ')}
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT ("userId", "providerId") DO NOTHING`,
       values,
     );
     total += rowCount ?? 0;
@@ -229,7 +229,7 @@ const migrateOidcAccounts = async (
     const { rowCount } = await dailyPool.query(
       `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt")
        VALUES ${placeholders.join(', ')}
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT ("userId", "providerId") DO NOTHING`,
       values,
     );
     total += rowCount ?? 0;
