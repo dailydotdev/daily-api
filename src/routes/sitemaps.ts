@@ -21,11 +21,17 @@ import {
 } from 'typeorm';
 
 const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-maxage=${2 * ONE_HOUR_IN_SECONDS}`;
-const SITEMAP_LIMIT = 50_000;
+const DEFAULT_SITEMAP_LIMIT = 50_000;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
   '970ab2c9-f845-4822-82f0-02169713b814',
 ];
+
+const getPostsSitemapLimit = (): number => {
+  const limit = Number.parseInt(process.env.SITEMAP_LIMIT || '', 10);
+
+  return Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_SITEMAP_LIMIT;
+};
 
 const escapeXml = (value: string): string =>
   value
@@ -114,13 +120,11 @@ const streamReplicaQuery = async <T extends ObjectLiteral>(
   }
 };
 
-const buildPostsSitemapQuery = (
+const buildPostsSitemapBaseQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Post> =>
   source
     .createQueryBuilder()
-    .select('p.slug', 'slug')
-    .addSelect('p."metadataChangedAt"', 'lastmod')
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
@@ -128,9 +132,25 @@ const buildPostsSitemapQuery = (
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
     .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
-    .andWhere('(u.id is null or u.reputation > 10)')
-    .orderBy('p."createdAt"', 'DESC')
-    .limit(SITEMAP_LIMIT);
+    .andWhere('(u.id is null or u.reputation > 10)');
+
+const buildPostsSitemapQuery = (
+  source: DataSource | EntityManager,
+  page?: number,
+): SelectQueryBuilder<Post> => {
+  const query = buildPostsSitemapBaseQuery(source)
+    .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
+    .orderBy('p."createdAt"', 'DESC');
+
+  if (!page) {
+    return query;
+  }
+
+  const limit = getPostsSitemapLimit();
+
+  return query.limit(limit).offset((page - 1) * limit);
+};
 
 const buildEvergreenSitemapQuery = (
   source: DataSource | EntityManager,
@@ -149,7 +169,7 @@ const buildEvergreenSitemapQuery = (
     .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 50 })
     .andWhere('(u.id is null or u.reputation > 10)')
     .orderBy('p.upvotes', 'DESC')
-    .limit(SITEMAP_LIMIT);
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -161,7 +181,7 @@ const buildTagsSitemapQuery = (
     .from(Keyword, 'k')
     .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
-    .limit(SITEMAP_LIMIT);
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildAgentsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -175,7 +195,7 @@ const buildAgentsSitemapQuery = (
       groupIds: ARENA_SITEMAP_GROUP_IDS,
     })
     .orderBy('se.entity', 'ASC')
-    .limit(SITEMAP_LIMIT);
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildAgentsDigestSitemapQuery = (
   source: DataSource | EntityManager,
@@ -188,7 +208,7 @@ const buildAgentsDigestSitemapQuery = (
     .where('p."sourceId" = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
     .andWhere('NOT p.deleted')
     .orderBy('p."createdAt"', 'DESC')
-    .limit(SITEMAP_LIMIT);
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildSquadsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -203,16 +223,40 @@ const buildSquadsSitemapQuery = (
     .andWhere('s.private = false')
     .andWhere(`(s.flags->>'publicThreshold')::boolean IS TRUE`)
     .orderBy('s."createdAt"', 'DESC')
-    .limit(SITEMAP_LIMIT);
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
-const getSitemapIndexXml = (): string => {
+const getPostsSitemapPath = (page: number): string =>
+  page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
+
+const getPostsSitemapPageCount = (totalPosts: number): number =>
+  Math.max(1, Math.ceil(totalPosts / getPostsSitemapLimit()));
+
+const getPostsSitemapCount = async (con: DataSource): Promise<number> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    return await buildPostsSitemapBaseQuery(queryRunner.manager).getCount();
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+const getSitemapIndexXml = (postsSitemapCount: number): string => {
   const prefix = getSitemapUrlPrefix();
+  const postsSitemaps = Array.from(
+    { length: postsSitemapCount },
+    (_, index) => {
+      const page = index + 1;
+
+      return `  <sitemap>
+    <loc>${escapeXml(`${prefix}${getPostsSitemapPath(page)}`)}</loc>
+  </sitemap>`;
+    },
+  ).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap>
-    <loc>${escapeXml(`${prefix}/api/sitemaps/posts.xml`)}</loc>
-  </sitemap>
+${postsSitemaps}
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/evergreen.xml`)}</loc>
   </sitemap>
@@ -283,7 +327,36 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/posts.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildPostsSitemapQuery);
+    const input = await streamReplicaQuery(con, (source) =>
+      buildPostsSitemapQuery(source, 1),
+    );
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get<{
+    Params: { page: string };
+  }>('/posts-:page.xml', async (req, res) => {
+    const page = Number.parseInt(req.params.page, 10);
+
+    if (!Number.isInteger(page) || page < 1) {
+      return res.code(404).send();
+    }
+
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, (source) =>
+      buildPostsSitemapQuery(source, page),
+    );
 
     return res
       .type('application/xml')
@@ -397,9 +470,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/index.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const postsSitemapCount = getPostsSitemapPageCount(
+      await getPostsSitemapCount(con),
+    );
+
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(getSitemapIndexXml());
+      .send(getSitemapIndexXml(postsSitemapCount));
   });
 }
