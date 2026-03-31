@@ -14,6 +14,7 @@ import {
   SentimentEntity,
   SentimentGroup,
   Source,
+  SourceType,
   User,
 } from '../src/entity';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
@@ -108,6 +109,26 @@ const sentimentEntitiesFixture: DeepPartial<SentimentEntity>[] = [
     logo: 'https://example.com/other.png',
   },
 ];
+
+const createSourcePostFixtures = (
+  sourceId: string,
+  count: number,
+  prefix: string,
+  overrides?: (index: number) => DeepPartial<Post>,
+): DeepPartial<Post>[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: `${prefix}-${index}`,
+    shortId: `${prefix.replace(/[^a-z0-9]/gi, '').slice(0, 10)}${index}`,
+    title: `${prefix} ${index}`,
+    sourceId,
+    createdAt: new Date('2023-01-01T00:00:00.000Z'),
+    type: PostType.Article,
+    visible: true,
+    private: false,
+    deleted: false,
+    banned: false,
+    ...overrides?.(index),
+  }));
 
 beforeAll(async () => {
   process.env.SITEMAP_LIMIT = '2';
@@ -329,6 +350,9 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/sources.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
     );
     expect(res.text).toContain(
@@ -337,6 +361,131 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
+  });
+});
+
+describe('GET /sitemaps/sources.xml', () => {
+  it('should include only qualified public machine sources', async () => {
+    const sourceCreatedAt = new Date('2023-10-01T10:00:00.000Z');
+    const recentActivityDate = new Date();
+
+    await con.getRepository(Source).save([
+      {
+        id: 'qualified-source',
+        name: 'Qualified Source',
+        image: 'https://daily.dev/qualified-source.jpg',
+        handle: 'qualifiedsource',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+        createdAt: sourceCreatedAt,
+      },
+      {
+        id: 'not-enough-posts-source',
+        name: 'Not Enough Posts Source',
+        image: 'https://daily.dev/not-enough-posts-source.jpg',
+        handle: 'notenoughposts',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+      },
+      {
+        id: 'stale-source',
+        name: 'Stale Source',
+        image: 'https://daily.dev/stale-source.jpg',
+        handle: 'stalesource',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+      },
+      {
+        id: 'private-source',
+        name: 'Private Source',
+        image: 'https://daily.dev/private-source.jpg',
+        handle: 'privatesource',
+        type: SourceType.Machine,
+        active: true,
+        private: true,
+      },
+      {
+        id: 'inactive-source',
+        name: 'Inactive Source',
+        image: 'https://daily.dev/inactive-source.jpg',
+        handle: 'inactivesource',
+        type: SourceType.Machine,
+        active: false,
+        private: false,
+      },
+      {
+        id: 'squad-source',
+        name: 'Squad Source',
+        image: 'https://daily.dev/squad-source.jpg',
+        handle: 'squadsource',
+        type: SourceType.Squad,
+        active: true,
+        private: false,
+      },
+    ]);
+
+    await con.getRepository(Post).insert([
+      ...createSourcePostFixtures(
+        'qualified-source',
+        9,
+        'qualified-old',
+        () => ({}),
+      ),
+      ...createSourcePostFixtures(
+        'qualified-source',
+        1,
+        'qualified-recent',
+        () => ({
+          createdAt: recentActivityDate,
+        }),
+      ),
+      ...createSourcePostFixtures(
+        'not-enough-posts-source',
+        9,
+        'notenough',
+        () => ({}),
+      ),
+      ...createSourcePostFixtures(
+        'not-enough-posts-source',
+        1,
+        'notenough-private',
+        () => ({ private: true }),
+      ),
+      ...createSourcePostFixtures('stale-source', 10, 'stale', () => ({})),
+      ...createSourcePostFixtures('private-source', 10, 'private', () => ({
+        createdAt: recentActivityDate,
+      })),
+      ...createSourcePostFixtures('inactive-source', 10, 'inactive', () => ({
+        createdAt: recentActivityDate,
+      })),
+      ...createSourcePostFixtures('squad-source', 10, 'squad', () => ({
+        createdAt: recentActivityDate,
+      })),
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/sources.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/sources/qualifiedsource</loc>',
+    );
+    expect(res.text).toContain('<lastmod>2023-10-01T10:00:00.000Z</lastmod>');
+    expect(res.text).not.toContain('/sources/notenoughposts');
+    expect(res.text).not.toContain('/sources/stalesource');
+    expect(res.text).not.toContain('/sources/privatesource');
+    expect(res.text).not.toContain('/sources/inactivesource');
+    expect(res.text).not.toContain('/sources/squadsource');
   });
 });
 
