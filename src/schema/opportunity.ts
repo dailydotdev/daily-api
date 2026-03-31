@@ -309,6 +309,7 @@ export const typeDefs = /* GraphQL */ `
     plan: String
     showSlack: Boolean
     showFeedback: Boolean
+    parseErrorUserMessage: String
   }
 
   """

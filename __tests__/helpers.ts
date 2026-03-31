@@ -561,6 +561,19 @@ export const createMockBrokkrTransport = ({
     });
   });
 
+export const createMockBrokkrParseGeneralErrorTransport = (
+  errorMessage: string,
+) =>
+  createRouterTransport(({ service }) => {
+    service(BrokkrService, {
+      parseOpportunity: () => {
+        return new ParseOpportunityResponse({
+          errors: [new ParseError({ field: 'general', message: errorMessage })],
+        });
+      },
+    });
+  });
+
 export const createMockNjordTransport = () => {
   return createRouterTransport(({ service }) => {
     const accounts: Record<

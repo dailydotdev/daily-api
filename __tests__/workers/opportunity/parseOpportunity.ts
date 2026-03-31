@@ -2,6 +2,7 @@ import {
   expectSuccessfulTypedBackground,
   saveFixtures,
   createMockBrokkrTransport,
+  createMockBrokkrParseGeneralErrorTransport,
   createGarmrMock,
 } from '../../helpers';
 import { parseOpportunityWorker as worker } from '../../../src/workers/opportunity/parseOpportunity';
@@ -285,6 +286,7 @@ describe('parseOpportunity worker', () => {
 
     expect(opportunity!.state).toBe(OpportunityState.ERROR);
     expect(opportunity!.flags?.parseError).toContain('Brokkr parsing failed');
+    expect(opportunity!.flags?.parseErrorUserMessage).toBeUndefined();
   });
 
   it('should skip if state is not PARSING', async () => {
@@ -607,6 +609,60 @@ describe('parseOpportunity worker', () => {
         where: { opportunityId: testOpportunityId },
       });
     expect(recruiter).toBeNull();
+  });
+
+  it('should set ERROR state with parseError when Brokkr returns general error', async () => {
+    jest.restoreAllMocks();
+
+    const transport = createMockBrokkrParseGeneralErrorTransport(
+      'The document is a list of multiple job opportunities, not a detailed description of a single one',
+    );
+
+    jest.spyOn(brokkrCommon, 'getBrokkrClient').mockImplementation(
+      (): ServiceClient<typeof BrokkrService> => ({
+        instance: createClient(BrokkrService, transport),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    mockStorageDownload.mockResolvedValue([Buffer.from('mock-pdf-content')]);
+    mockStorageExists.mockResolvedValue([true]);
+
+    await con.getRepository(OpportunityJob).save({
+      id: testOpportunityId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.PARSING,
+      title: 'Processing...',
+      tldr: '',
+      content: new OpportunityContent({}),
+      flags: {
+        batchSize: 100,
+        file: {
+          blobName: testBlobName,
+          bucketName: RESUME_BUCKET_NAME,
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          userId: testUserId,
+          trackingId: 'anon1',
+        },
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-parse'>(worker, {
+      opportunityId: testOpportunityId,
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { id: testOpportunityId },
+    });
+
+    expect(opportunity!.state).toBe(OpportunityState.ERROR);
+    expect(opportunity!.flags?.parseError).toBe(
+      'The document is a list of multiple job opportunities, not a detailed description of a single one',
+    );
+    expect(opportunity!.flags?.parseErrorUserMessage).toBe(
+      'The document is a list of multiple job opportunities, not a detailed description of a single one',
+    );
   });
 
   it('should assign Europe as continent when no country specified', async () => {

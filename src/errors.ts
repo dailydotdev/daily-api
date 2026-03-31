@@ -228,6 +228,13 @@ export class PaymentRequiredError extends ApolloError {
   }
 }
 
+export class ParseOpportunityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ParseOpportunityError';
+  }
+}
+
 export class ServiceError extends Error {
   data?: JsonValue;
   statusCode?: number;

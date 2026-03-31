@@ -75,7 +75,10 @@ import { extractHandleFromUrl } from '../common/schema/socials';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
-import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
+import type {
+  OpportunityFlags,
+  OpportunityFlagsPublic,
+} from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
 
 export enum LocationVerificationStatus {
@@ -1903,12 +1906,13 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
-        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+        transform: (value: OpportunityFlags): OpportunityFlagsPublic => {
           return {
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
             plan: value?.plan,
             showSlack: value?.showSlack ?? false,
             showFeedback: value?.showFeedback ?? false,
+            parseErrorUserMessage: value?.parseErrorUserMessage,
           };
         },
       },
