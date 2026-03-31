@@ -134,22 +134,44 @@ const buildPostsSitemapBaseQuery = (
     .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
     .andWhere('(u.id is null or u.reputation > 10)');
 
+const applyPostsSitemapOrder = (
+  query: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  query.orderBy('p."createdAt"', 'DESC').addOrderBy('p.id', 'DESC');
+
 const buildPostsSitemapQuery = (
   source: DataSource | EntityManager,
-  page?: number,
-): SelectQueryBuilder<Post> => {
-  const query = buildPostsSitemapBaseQuery(source)
-    .select('p.slug', 'slug')
-    .addSelect('p."metadataChangedAt"', 'lastmod')
-    .orderBy('p."createdAt"', 'DESC');
+  page: number,
+): SelectQueryBuilder<Post> =>
+  applyPostsSitemapOrder(
+    buildPostsSitemapBaseQuery(source)
+      .select('p.slug', 'slug')
+      .addSelect('p."metadataChangedAt"', 'lastmod')
+      .limit(getPostsSitemapLimit())
+      .offset((page - 1) * getPostsSitemapLimit()),
+  );
 
-  if (!page) {
-    return query;
-  }
+const buildPostsSitemapTextQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  applyPostsSitemapOrder(
+    buildPostsSitemapBaseQuery(source).select('p.slug', 'slug'),
+  );
 
-  const limit = getPostsSitemapLimit();
+const buildPostSitemapStream = async (
+  con: DataSource,
+  page: number,
+): Promise<Readable> => {
+  const prefix = getSitemapUrlPrefix();
+  const input = await streamReplicaQuery(con, (source) =>
+    buildPostsSitemapQuery(source, page),
+  );
 
-  return query.limit(limit).offset((page - 1) * limit);
+  return toSitemapUrlSetStream(
+    input,
+    (row) => getPostSitemapUrl(prefix, row.slug),
+    getSitemapRowLastmod,
+  );
 };
 
 const buildEvergreenSitemapQuery = (
@@ -313,7 +335,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/posts.txt', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildPostsSitemapQuery);
+    const input = await streamReplicaQuery(con, buildPostsSitemapTextQuery);
     const stream = toSitemapTextStream(input, (row) =>
       getPostSitemapUrl(prefix, row.slug),
     );
@@ -326,21 +348,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/posts.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, (source) =>
-      buildPostsSitemapQuery(source, 1),
-    );
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getPostSitemapUrl(prefix, row.slug),
-          getSitemapRowLastmod,
-        ),
-      );
+      .send(await buildPostSitemapStream(con, 1));
   });
 
   fastify.get<{
@@ -353,21 +365,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, (source) =>
-      buildPostsSitemapQuery(source, page),
-    );
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getPostSitemapUrl(prefix, row.slug),
-          getSitemapRowLastmod,
-        ),
-      );
+      .send(await buildPostSitemapStream(con, page));
   });
 
   fastify.get('/evergreen.xml', async (_, res) => {

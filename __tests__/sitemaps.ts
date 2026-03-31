@@ -186,6 +186,40 @@ describe('GET /sitemaps/posts-:page.xml', () => {
       '<loc>http://localhost:5002/posts/p4-p4</loc>',
     );
   });
+
+  it('should paginate deterministically when posts share the same createdAt', async () => {
+    await con.getRepository(Post).insert({
+      id: 'p6',
+      shortId: 'p6',
+      title: 'P6',
+      sourceId: 'a',
+      createdAt: now,
+      type: PostType.Article,
+    });
+
+    const firstPage = await request(app.server)
+      .get('/sitemaps/posts-1.xml')
+      .expect(200);
+    const secondPage = await request(app.server)
+      .get('/sitemaps/posts-2.xml')
+      .expect(200);
+
+    expect(firstPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+    );
+    expect(firstPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
+    expect(secondPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p4-p4</loc>',
+    );
+    expect(secondPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+    );
+    expect(secondPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
+  });
 });
 
 describe('GET /sitemaps/tags.txt', () => {
