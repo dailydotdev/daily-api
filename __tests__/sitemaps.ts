@@ -142,9 +142,9 @@ describe('GET /sitemaps/posts.txt', () => {
       .expect(200);
     expect(res.header['content-type']).toEqual('text/plain');
     expect(res.header['cache-control']).toBeTruthy();
-    expect(res.text).toEqual(`http://localhost:5002/posts/p1-p1
+    expect(res.text).toEqual(`http://localhost:5002/posts/p5-p5
 http://localhost:5002/posts/p4-p4
-http://localhost:5002/posts/p5-p5
+http://localhost:5002/posts/p1-p1
 `);
   });
 });
@@ -160,10 +160,10 @@ describe('GET /sitemaps/posts.xml', () => {
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
-    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
     expect(res.text).toContain('<loc>http://localhost:5002/posts/p4-p4</loc>');
     expect(res.text).not.toContain(
-      '<loc>http://localhost:5002/posts/p5-p5</loc>',
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
     );
     expect(res.text).not.toContain('/posts/p2-p2');
     expect(res.text).not.toContain('/posts/p3-p3');
@@ -178,16 +178,16 @@ describe('GET /sitemaps/posts-:page.xml', () => {
 
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.header['cache-control']).toBeTruthy();
-    expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
     expect(res.text).not.toContain(
-      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+      '<loc>http://localhost:5002/posts/p5-p5</loc>',
     );
     expect(res.text).not.toContain(
       '<loc>http://localhost:5002/posts/p4-p4</loc>',
     );
   });
 
-  it('should paginate deterministically when posts share the same createdAt', async () => {
+  it('should keep earlier pages static and only append equal-timestamp posts to the latest page', async () => {
     await con.getRepository(Post).insert({
       id: 'p6',
       shortId: 'p6',
@@ -205,19 +205,22 @@ describe('GET /sitemaps/posts-:page.xml', () => {
       .expect(200);
 
     expect(firstPage.text).toContain(
-      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+      '<loc>http://localhost:5002/posts/p5-p5</loc>',
     );
     expect(firstPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p4-p4</loc>',
+    );
+    expect(firstPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
+    expect(firstPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+    );
+    expect(secondPage.text).toContain(
       '<loc>http://localhost:5002/posts/p1-p1</loc>',
     );
     expect(secondPage.text).toContain(
-      '<loc>http://localhost:5002/posts/p4-p4</loc>',
-    );
-    expect(secondPage.text).not.toContain(
       '<loc>http://localhost:5002/posts/p6-p6</loc>',
-    );
-    expect(secondPage.text).not.toContain(
-      '<loc>http://localhost:5002/posts/p1-p1</loc>',
     );
   });
 });

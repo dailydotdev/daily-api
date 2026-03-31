@@ -137,7 +137,7 @@ const buildPostsSitemapBaseQuery = (
 const applyPostsSitemapOrder = (
   query: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> =>
-  query.orderBy('p."createdAt"', 'DESC').addOrderBy('p.id', 'DESC');
+  query.orderBy('p."createdAt"', 'ASC').addOrderBy('p.id', 'ASC');
 
 const buildPostsSitemapQuery = (
   source: DataSource | EntityManager,
