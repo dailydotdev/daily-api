@@ -248,7 +248,7 @@ describe('GET /sitemaps/posts-:page.xml', () => {
 });
 
 describe('GET /sitemaps/collections.xml', () => {
-  it('should return only qualified public collections as xml', async () => {
+  it('should return only qualified public collections ordered by time as xml', async () => {
     const updatedAt = new Date('2024-02-01T12:00:00.123Z');
 
     await con.getRepository(CollectionPost).insert([
@@ -262,6 +262,19 @@ describe('GET /sitemaps/collections.xml', () => {
         upvotes: 3,
         collectionSources: ['a', 'b', 'c'],
         metadataChangedAt: updatedAt,
+        createdAt: new Date('2024-02-01T12:00:02.000Z'),
+      },
+      {
+        id: 'qc0',
+        shortId: 'qc0',
+        title: 'Earlier Qualified Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        upvotes: 50,
+        collectionSources: ['a', 'b', 'c'],
+        metadataChangedAt: updatedAt,
+        createdAt: new Date('2024-02-01T12:00:01.000Z'),
       },
       {
         id: 'low-upvote-collection',
@@ -318,12 +331,24 @@ describe('GET /sitemaps/collections.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/posts/qualified-collection-qc1</loc>',
     );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/earlier-qualified-collection-qc0</loc>',
+    );
     expect(res.text).toContain('<lastmod>2024-02-01T12:00:00.123Z</lastmod>');
     expect(res.text).not.toContain('/posts/low-upvote-collection-luc');
     expect(res.text).not.toContain('/posts/small-collection-sc1');
     expect(res.text).not.toContain('/posts/hidden-collection-hc1');
     expect(res.text).not.toContain('/posts/deleted-collection-dc1');
     expect(res.text).not.toContain('/posts/p3-p3');
+    expect(
+      res.text.indexOf(
+        '<loc>http://localhost:5002/posts/earlier-qualified-collection-qc0</loc>',
+      ),
+    ).toBeLessThan(
+      res.text.indexOf(
+        '<loc>http://localhost:5002/posts/qualified-collection-qc1</loc>',
+      ),
+    );
   });
 });
 

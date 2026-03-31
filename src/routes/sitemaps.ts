@@ -265,26 +265,26 @@ const buildEvergreenSitemapQuery = (
 const buildCollectionsSitemapQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Post> =>
-  source
-    .createQueryBuilder()
-    .select('p.slug', 'slug')
-    .addSelect('p."metadataChangedAt"', 'lastmod')
-    .from(Post, 'p')
-    .where('p.type = :type', { type: PostType.Collection })
-    .andWhere('NOT p.private')
-    .andWhere('NOT p.banned')
-    .andWhere('NOT p.deleted')
-    .andWhere('p.visible = true')
-    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 1 })
-    .andWhere(
-      'COALESCE(array_length(p."collectionSources", 1), 0) >= :minSources',
-      {
-        minSources: 3,
-      },
-    )
-    .orderBy('p.upvotes', 'DESC')
-    .addOrderBy('p.id', 'ASC')
-    .limit(DEFAULT_SITEMAP_LIMIT);
+  applyPostsSitemapOrder(
+    source
+      .createQueryBuilder()
+      .select('p.slug', 'slug')
+      .addSelect('p."metadataChangedAt"', 'lastmod')
+      .from(Post, 'p')
+      .where('p.type = :type', { type: PostType.Collection })
+      .andWhere('NOT p.private')
+      .andWhere('NOT p.banned')
+      .andWhere('NOT p.deleted')
+      .andWhere('p.visible = true')
+      .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 1 })
+      .andWhere(
+        'COALESCE(array_length(p."collectionSources", 1), 0) >= :minSources',
+        {
+          minSources: 3,
+        },
+      )
+      .limit(DEFAULT_SITEMAP_LIMIT),
+  );
 
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
