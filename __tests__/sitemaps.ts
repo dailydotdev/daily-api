@@ -332,8 +332,219 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/users.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
+  });
+});
+
+describe('GET /sitemaps/users.xml', () => {
+  it('should include only qualified author profiles', async () => {
+    const updatedAt = new Date('2024-01-01T12:00:00.123Z');
+    const userBase = {
+      createdAt: now,
+      infoConfirmed: true,
+      reputation: 20,
+    };
+    const publicPostBase = {
+      sourceId: 'a',
+      createdAt: now,
+      type: PostType.Article,
+      visible: true,
+      private: false,
+      deleted: false,
+    };
+
+    await con.getRepository(User).save([
+      {
+        ...userBase,
+        id: 'qualified-user',
+        name: 'Qualified User',
+        image: 'https://daily.dev/qualified.jpg',
+        username: 'qualifieduser',
+        email: 'qualified@test.com',
+        updatedAt,
+        reputation: 42,
+        bio: 'Writes public posts',
+      },
+      {
+        ...userBase,
+        id: 'low-rep-user',
+        name: 'Low Rep User',
+        image: 'https://daily.dev/low-rep.jpg',
+        username: 'lowrepuser',
+        email: 'lowrep@test.com',
+        reputation: 10,
+        bio: 'Below threshold',
+      },
+      {
+        ...userBase,
+        id: 'empty-bio-user',
+        name: 'Empty Bio User',
+        image: 'https://daily.dev/empty-bio.jpg',
+        username: 'emptybio',
+        email: 'emptybio@test.com',
+        bio: '',
+      },
+      {
+        ...userBase,
+        id: 'null-bio-user',
+        name: 'Null Bio User',
+        image: 'https://daily.dev/null-bio.jpg',
+        username: 'nullbio',
+        email: 'nullbio@test.com',
+        bio: null,
+      },
+      {
+        ...userBase,
+        id: 'blank-bio-user',
+        name: 'Blank Bio User',
+        image: 'https://daily.dev/blank-bio.jpg',
+        username: 'blankbio',
+        email: 'blankbio@test.com',
+        bio: '   ',
+      },
+      {
+        ...userBase,
+        id: 'missing-username-user',
+        name: 'Missing Username User',
+        image: 'https://daily.dev/no-username.jpg',
+        email: 'nousername@test.com',
+        bio: 'Has no username',
+      },
+      {
+        ...userBase,
+        id: 'private-post-user',
+        name: 'Private Post User',
+        image: 'https://daily.dev/private-post.jpg',
+        username: 'privatepost',
+        email: 'privatepost@test.com',
+        bio: 'Only private posts',
+      },
+      {
+        ...userBase,
+        id: 'deleted-post-user',
+        name: 'Deleted Post User',
+        image: 'https://daily.dev/deleted-post.jpg',
+        username: 'deletedpost',
+        email: 'deletedpost@test.com',
+        bio: 'Only deleted posts',
+      },
+      {
+        ...userBase,
+        id: 'hidden-post-user',
+        name: 'Hidden Post User',
+        image: 'https://daily.dev/hidden-post.jpg',
+        username: 'hiddenpost',
+        email: 'hiddenpost@test.com',
+        bio: 'Only hidden posts',
+      },
+      {
+        ...userBase,
+        id: 'no-posts-user',
+        name: 'No Posts User',
+        image: 'https://daily.dev/no-posts.jpg',
+        username: 'noposts',
+        email: 'noposts@test.com',
+        bio: 'Has no posts',
+      },
+    ]);
+
+    await con.getRepository(Post).insert([
+      {
+        ...publicPostBase,
+        id: 'qualified-user-post',
+        shortId: 'qup',
+        title: 'Qualified User Post',
+        metadataChangedAt: updatedAt,
+        authorId: 'qualified-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'low-rep-post',
+        shortId: 'lrp',
+        title: 'Low Rep Post',
+        authorId: 'low-rep-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'empty-bio-post',
+        shortId: 'ebp',
+        title: 'Empty Bio Post',
+        authorId: 'empty-bio-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'null-bio-post',
+        shortId: 'nbp',
+        title: 'Null Bio Post',
+        authorId: 'null-bio-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'blank-bio-post',
+        shortId: 'bbp',
+        title: 'Blank Bio Post',
+        authorId: 'blank-bio-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'missing-username-post',
+        shortId: 'mup',
+        title: 'Missing Username Post',
+        authorId: 'missing-username-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'private-post-only',
+        shortId: 'ppo',
+        title: 'Private Post Only',
+        authorId: 'private-post-user',
+        private: true,
+      },
+      {
+        ...publicPostBase,
+        id: 'deleted-post-only',
+        shortId: 'dpo',
+        title: 'Deleted Post Only',
+        authorId: 'deleted-post-user',
+        deleted: true,
+      },
+      {
+        ...publicPostBase,
+        id: 'hidden-post-only',
+        shortId: 'hpo',
+        title: 'Hidden Post Only',
+        authorId: 'hidden-post-user',
+        visible: false,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/users.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/qualifieduser</loc>',
+    );
+    expect(res.text).toContain('<lastmod>2024-01-01T12:00:00.123Z</lastmod>');
+    expect(res.text).not.toContain('/lowrepuser');
+    expect(res.text).not.toContain('/emptybio');
+    expect(res.text).not.toContain('/nullbio');
+    expect(res.text).not.toContain('/blankbio');
+    expect(res.text).not.toContain('/privatepost');
+    expect(res.text).not.toContain('/deletedpost');
+    expect(res.text).not.toContain('/hiddenpost');
+    expect(res.text).not.toContain('/noposts');
   });
 });
 

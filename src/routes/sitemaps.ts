@@ -10,6 +10,7 @@ import {
   User,
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
+import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import { ONE_HOUR_IN_SECONDS } from '../common/constants';
@@ -301,6 +302,35 @@ const buildSquadsSitemapQuery = (
     .orderBy('s."createdAt"', 'DESC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
+const buildUsersSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<User> =>
+  source
+    .createQueryBuilder()
+    .select('u.username', 'username')
+    .addSelect('u."updatedAt"', 'lastmod')
+    .from(User, 'u')
+    .where('u.reputation > :minRep', { minRep: 10 })
+    .andWhere('u.bio IS NOT NULL')
+    .andWhere(`btrim(u.bio) != ''`)
+    .andWhere('u.username IS NOT NULL')
+    .andWhere((qb) => {
+      const subQuery = qb
+        .subQuery()
+        .select('1')
+        .from(Post, 'p')
+        .where('p."authorId" = u.id')
+        .andWhere('p.deleted = false')
+        .andWhere('p.visible = true')
+        .andWhere('p.private = false')
+        .getQuery();
+
+      return `EXISTS ${subQuery}`;
+    })
+    .orderBy('u.reputation', 'DESC')
+    .addOrderBy('u.username', 'ASC')
+    .limit(DEFAULT_SITEMAP_LIMIT);
+
 const getPostsSitemapPath = (page: number): string =>
   page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
 
@@ -346,6 +376,9 @@ ${evergreenSitemaps}
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/squads.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/users.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
 };
@@ -528,6 +561,22 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         toSitemapUrlSetStream(
           input,
           (row) => getSquadSitemapUrl(prefix, row.handle),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get('/users.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const input = await streamReplicaQuery(con, buildUsersSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getUserProfileUrl(row.username),
           getSitemapRowLastmod,
         ),
       );
