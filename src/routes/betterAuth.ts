@@ -120,6 +120,17 @@ export const logoutBetterAuth = async (
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
+  // Apple sends OAuth callbacks as application/x-www-form-urlencoded POSTs.
+  // Fastify does not parse this content type by default, so collect the raw
+  // body and let BetterAuth handle it.
+  fastify.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
+
   fastify.route({
     method: ['GET', 'POST'],
     url: '/auth/*',
