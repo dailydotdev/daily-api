@@ -64,12 +64,8 @@ export const crons: Cron[] = [
     schedule: '15 4 * * *',
   },
   {
-    name: 'update-source-tag-view',
-    schedule: '20 3 * * 0',
-  },
-  {
-    name: 'update-tag-recommendations',
-    schedule: '5 3 * * 0',
+    name: 'update-tag-materialized-views',
+    schedule: '20 3 * * *',
   },
   {
     name: 'daily-digest',

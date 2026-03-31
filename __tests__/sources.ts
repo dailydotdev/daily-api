@@ -5,6 +5,7 @@ import { isNullOrUndefined } from '../src/common/object';
 import createOrGetConnection from '../src/db';
 import {
   defaultPublicSourceFlags,
+  Comment,
   Feed,
   NotificationPreferenceSource,
   Post,
@@ -19,12 +20,14 @@ import {
   SquadPublicRequestStatus,
   SquadSource,
   User,
+  UserPost,
   WelcomePost,
 } from '../src/entity';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { SourceStack } from '../src/entity/sources/SourceStack';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { SourceTagView } from '../src/entity/SourceTagView';
+import { SourceSimilarityView } from '../src/entity/SourceSimilarityView';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { NotificationType } from '../src/notifications/common';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
@@ -57,6 +60,9 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
+import { UserTagView } from '../src/entity/user/UserTagView';
+import { UserSimilarityView } from '../src/entity/user/UserSimilarityView';
+import { UserVote } from '../src/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -861,8 +867,8 @@ describe('query sourceRecommendationByTags', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceRecommendationByTags).toEqual([
-      { id: 'b', name: 'B', image: 'http://image.com/b' },
       { id: 'a', name: 'A', image: 'http://image.com/a' },
+      { id: 'b', name: 'B', image: 'http://image.com/b' },
     ]);
   });
 
@@ -2103,6 +2109,45 @@ describe('query sourcesByTag', () => {
       ]),
     );
   });
+
+  it('should rank sources by summed upvotes for the tag', async () => {
+    await con.getRepository(Post).save([
+      {
+        ...postsFixture[0],
+        upvotes: 1,
+      },
+      {
+        ...postsFixture[3],
+        upvotes: 1,
+      },
+      {
+        ...postsFixture[4],
+        upvotes: 10,
+      },
+    ]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[1],
+        postKeywordsFixture[3],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+
+    const res = await client.query(QUERY, {
+      variables: { tag: 'javascript' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourcesByTag.edges).toEqual([
+      { node: { name: 'B' } },
+      { node: { name: 'A' } },
+    ]);
+  });
 });
 
 describe('query similarSources', () => {
@@ -2137,13 +2182,209 @@ query SimilarSources($sourceId: ID!) {
       ]);
     await con.manager.query(`UPDATE post_keyword
                              SET status = 'allow'`);
-    const materializedViewName =
-      con.getRepository(SourceTagView).metadata.tableName;
-    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceSimilarityView).metadata.tableName}`,
+    );
     const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.similarSources.edges).toEqual([{ node: { name: 'B' } }]);
   });
+});
+
+describe('query topMembersBySquad', () => {
+  const QUERY = /* GraphQL */ `
+    query TopMembersBySquad($sourceId: ID!, $since: DateTime!, $limit: Int) {
+      topMembersBySquad(sourceId: $sourceId, since: $since, limit: $limit) {
+        id
+        name
+      }
+    }
+  `;
+
+  it('should rank non-staff members by squad engagement since the given time', async () => {
+    const since = new Date('2024-01-01T00:00:00.000Z');
+    const [memberAward, adminAward, modAward] = await con
+      .getRepository(UserTransaction)
+      .save([
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '3',
+          senderId: '2',
+          status: UserTransactionStatus.Success,
+          productId: null,
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '3',
+          senderId: '1',
+          status: UserTransactionStatus.Success,
+          productId: null,
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '3',
+          senderId: '4',
+          status: UserTransactionStatus.Success,
+          productId: null,
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+      ]);
+
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '3',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '4',
+        sourceId: 'a',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+      },
+    ]);
+
+    await con.getRepository(Post).save([
+      {
+        id: 'squad-rank-1',
+        shortId: 'sqrk1',
+        title: 'Squad rank 1',
+        url: 'https://example.com/squad-rank-1',
+        sourceId: 'a',
+        authorId: '2',
+        createdAt: new Date('2024-01-10T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-rank-2',
+        shortId: 'sqrk2',
+        title: 'Squad rank 2',
+        url: 'https://example.com/squad-rank-2',
+        sourceId: 'a',
+        authorId: '2',
+        createdAt: new Date('2024-01-11T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-rank-3',
+        shortId: 'sqrk3',
+        title: 'Squad rank 3',
+        url: 'https://example.com/squad-rank-3',
+        sourceId: 'a',
+        authorId: '3',
+        createdAt: new Date('2024-01-12T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-rank-old',
+        shortId: 'sqold',
+        title: 'Squad rank old',
+        url: 'https://example.com/squad-rank-old',
+        sourceId: 'a',
+        authorId: '3',
+        createdAt: new Date('2023-12-20T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-rank-admin',
+        shortId: 'sqadm',
+        title: 'Squad rank admin',
+        url: 'https://example.com/squad-rank-admin',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date('2024-01-12T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-rank-mod',
+        shortId: 'sqmod',
+        title: 'Squad rank mod',
+        url: 'https://example.com/squad-rank-mod',
+        sourceId: 'a',
+        authorId: '4',
+        createdAt: new Date('2024-01-12T00:00:00.000Z'),
+      },
+    ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        userId: '2',
+        postId: 'squad-rank-3',
+        vote: UserVote.Up,
+        votedAt: new Date('2024-01-13T00:00:00.000Z'),
+        awardTransactionId: memberAward.id,
+      },
+      {
+        userId: '3',
+        postId: 'squad-rank-1',
+        vote: UserVote.Up,
+        votedAt: new Date('2024-01-13T00:00:00.000Z'),
+      },
+      {
+        userId: '1',
+        postId: 'squad-rank-3',
+        vote: UserVote.Up,
+        votedAt: new Date('2024-01-13T00:00:00.000Z'),
+        awardTransactionId: adminAward.id,
+      },
+      {
+        userId: '4',
+        postId: 'squad-rank-3',
+        vote: UserVote.Up,
+        votedAt: new Date('2024-01-13T00:00:00.000Z'),
+        awardTransactionId: modAward.id,
+      },
+    ]);
+
+    await con.getRepository(Comment).save([
+      {
+        id: 'sqc1',
+        postId: 'squad-rank-1',
+        userId: '3',
+        content: 'First',
+        contentHtml: '<p>First</p>',
+        createdAt: new Date('2024-01-13T00:00:00.000Z'),
+      },
+      {
+        id: 'sqc2',
+        postId: 'squad-rank-2',
+        userId: '3',
+        content: 'Second',
+        contentHtml: '<p>Second</p>',
+        createdAt: new Date('2024-01-13T00:00:00.000Z'),
+      },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { sourceId: 'a', since: since.toISOString() },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topMembersBySquad).toEqual([
+      { id: '2', name: 'Tsahi' },
+      { id: '3', name: 'Nimrod' },
+    ]);
+  });
+
+  it('should reject limits above 10', async () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          sourceId: 'a',
+          since: new Date('2024-01-01T00:00:00.000Z').toISOString(),
+          limit: 11,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    ));
 });
 
 describe('query relatedTags', () => {
@@ -2185,6 +2426,253 @@ query RelatedTags($sourceId: ID!) {
       { name: 'javascript' },
       { name: 'webdev' },
     ]);
+  });
+});
+
+describe('materialized tag views', () => {
+  it('should expose source and user tag totals using the legacy count column', async () => {
+    await con.getRepository(Post).save([
+      {
+        ...postsFixture[0],
+        authorId: '1',
+        upvotes: 2,
+      },
+      {
+        ...postsFixture[3],
+        authorId: '1',
+        upvotes: 3,
+      },
+      {
+        ...postsFixture[4],
+        authorId: '2',
+        upvotes: 10,
+      },
+    ]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[1],
+        postKeywordsFixture[3],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceSimilarityView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserSimilarityView).metadata.tableName}`,
+    );
+
+    expect(
+      await con.query(
+        `SELECT count FROM source_tag_view WHERE "sourceId" = 'a' AND tag = 'javascript'`,
+      ),
+    ).toEqual([{ count: '5' }]);
+    expect(
+      await con.query(
+        `SELECT count FROM user_tag_view WHERE "userId" = '1' AND tag = 'javascript'`,
+      ),
+    ).toEqual([{ count: '5' }]);
+    expect(
+      await con.query(
+        `SELECT "similarSourceId", count FROM source_similarity_view WHERE "sourceId" = 'a'`,
+      ),
+    ).toEqual([{ similarSourceId: 'b', count: '1' }]);
+    expect(
+      await con.query(
+        `SELECT "similarUserId", count FROM user_similarity_view WHERE "userId" = '1'`,
+      ),
+    ).toEqual([{ similarUserId: '2', count: '1' }]);
+  });
+});
+
+describe('query topCreatorsByTag', () => {
+  const QUERY = /* GraphQL */ `
+    query TopCreatorsByTag($tag: String!, $limit: Int) {
+      topCreatorsByTag(tag: $tag, limit: $limit) {
+        id
+        name
+      }
+    }
+  `;
+
+  it('should return top creators for a tag and ignore private source posts', async () => {
+    await con.getRepository(Post).save([
+      {
+        id: 'creator-public-1',
+        shortId: 'crpub1',
+        title: 'Creator public 1',
+        url: 'https://example.com/creator-public-1',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date(),
+        upvotes: 5,
+      },
+      {
+        id: 'creator-public-2',
+        shortId: 'crpub2',
+        title: 'Creator public 2',
+        url: 'https://example.com/creator-public-2',
+        sourceId: 'b',
+        authorId: '2',
+        createdAt: new Date(),
+        upvotes: 8,
+      },
+      {
+        id: 'creator-private-1',
+        shortId: 'crpri1',
+        title: 'Creator private 1',
+        url: 'https://example.com/creator-private-1',
+        sourceId: 'squad',
+        authorId: '3',
+        createdAt: new Date(),
+        upvotes: 100,
+        private: true,
+      },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { postId: 'creator-public-1', keyword: 'creator-tag', status: 'allow' },
+      { postId: 'creator-public-2', keyword: 'creator-tag', status: 'allow' },
+      { postId: 'creator-private-1', keyword: 'creator-tag', status: 'allow' },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+
+    expect(
+      await con.query(
+        `SELECT "userId", count FROM user_tag_view WHERE tag = 'creator-tag' ORDER BY count DESC, "userId" ASC`,
+      ),
+    ).toEqual([
+      { userId: '2', count: '8' },
+      { userId: '1', count: '5' },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { tag: 'creator-tag' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topCreatorsByTag).toEqual([
+      { id: '2', name: 'Tsahi' },
+      { id: '1', name: 'Ido' },
+    ]);
+  });
+
+  it('should reject limits above 10', async () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { tag: 'creator-tag', limit: 11 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    ));
+});
+
+describe('query similarCreators', () => {
+  const QUERY = /* GraphQL */ `
+    query SimilarCreators($userId: ID!, $limit: Int) {
+      similarCreators(userId: $userId, limit: $limit) {
+        id
+        name
+      }
+    }
+  `;
+
+  it('should return similar creators for a user', async () => {
+    await con.getRepository(Post).save([
+      {
+        id: 'sim-creator-1a',
+        shortId: 'sim1a',
+        title: 'Similar creator 1A',
+        url: 'https://example.com/sim-creator-1a',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date(),
+        upvotes: 5,
+      },
+      {
+        id: 'sim-creator-1b',
+        shortId: 'sim1b',
+        title: 'Similar creator 1B',
+        url: 'https://example.com/sim-creator-1b',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date(),
+        upvotes: 4,
+      },
+      {
+        id: 'sim-creator-2a',
+        shortId: 'sim2a',
+        title: 'Similar creator 2A',
+        url: 'https://example.com/sim-creator-2a',
+        sourceId: 'b',
+        authorId: '2',
+        createdAt: new Date(),
+        upvotes: 7,
+      },
+      {
+        id: 'sim-creator-2b',
+        shortId: 'sim2b',
+        title: 'Similar creator 2B',
+        url: 'https://example.com/sim-creator-2b',
+        sourceId: 'b',
+        authorId: '2',
+        createdAt: new Date(),
+        upvotes: 3,
+      },
+      {
+        id: 'sim-creator-3a',
+        shortId: 'sim3a',
+        title: 'Similar creator 3A',
+        url: 'https://example.com/sim-creator-3a',
+        sourceId: 'a',
+        authorId: '3',
+        createdAt: new Date(),
+        upvotes: 9,
+      },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { postId: 'sim-creator-1a', keyword: 'creator-js', status: 'allow' },
+      { postId: 'sim-creator-1b', keyword: 'creator-backend', status: 'allow' },
+      { postId: 'sim-creator-2a', keyword: 'creator-js', status: 'allow' },
+      { postId: 'sim-creator-2b', keyword: 'creator-html', status: 'allow' },
+      { postId: 'sim-creator-3a', keyword: 'creator-rust', status: 'allow' },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserSimilarityView).metadata.tableName}`,
+    );
+
+    expect(
+      await con.query(
+        `SELECT "similarUserId", count FROM user_similarity_view WHERE "userId" = '1' ORDER BY count DESC, "similarUserId" ASC`,
+      ),
+    ).toEqual([{ similarUserId: '2', count: '1' }]);
+
+    const res = await client.query(QUERY, {
+      variables: { userId: '1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.similarCreators).toEqual([{ id: '2', name: 'Tsahi' }]);
   });
 });
 

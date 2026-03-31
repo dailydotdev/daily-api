@@ -16,6 +16,7 @@ export * from './Settings';
 export * from './SentimentEntity';
 export * from './SentimentGroup';
 export * from './Source';
+export * from './SourceSimilarityView';
 export * from './SquadPostsAnalytics';
 export * from './SourceDisplay';
 export * from './SourceFeed';
