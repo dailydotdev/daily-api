@@ -59,11 +59,9 @@ config:
     skadiApiOriginV2: http://skadi-boost-api-server.local.svc.cluster.local
     freyjaOrigin: http://freyja
     gcloudProject: local
-    heimdallOrigin: http://heimdall-api
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
-    kratosOrigin: http://heimdall-kratos-public
     logLevel: info
     meiliIndex: dailydev
     meiliOrigin: 'http://localhost:7700/' # your local inet address, you can update it in .env file, can be sorted by adding meilisearch to local pulumi stack

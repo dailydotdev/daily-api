@@ -12,10 +12,9 @@ import { triggerTypedEvent } from './common/typedPubsub';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 import { handleRegex } from './common/object';
 import { validateAndTransformHandle } from './common/handles';
+import { ONE_DAY_IN_SECONDS } from './common/constants';
 import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
-import { fetchOptions } from './http';
-import { retryFetch } from './integrations/retry';
 import { cookies, extractRootDomain } from './cookies';
 import { getGeo } from './common/geo';
 import { getUserCoresRole } from './common/user';
@@ -35,7 +34,12 @@ const getGooglePublicKey = async (kid: string) => {
 const BETTER_AUTH_SECRET_MIN_LENGTH = 32;
 const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY;
 const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID;
-const kratosOrigin = process.env.KRATOS_ORIGIN;
+const betterAuthSocialProviderEnvVars = {
+  google: 'GOOGLE_CLIENT_ID',
+  github: 'GITHUB_CLIENT_ID',
+  apple: 'APPLE_CLIENT_ID',
+  facebook: 'FACEBOOK_CLIENT_ID',
+} as const;
 const userExperienceLevels = [
   'LESS_THAN_1_YEAR',
   'MORE_THAN_1_YEAR',
@@ -47,14 +51,12 @@ const userExperienceLevels = [
 ] as const;
 const userExperienceLevelSchema = z.enum(userExperienceLevels);
 const signUpEmailPath = '/sign-up/email';
-const signInEmailPath = '/sign-in/email';
-
+export type BetterAuthSocialProvider =
+  keyof typeof betterAuthSocialProviderEnvVars;
 type BetterAuthHookContext = {
   path?: string;
   body?: Record<string, unknown>;
 };
-
-type KratosVerifyResult = { valid: true; userId: string } | { valid: false };
 
 const TRACKING_COOKIE_KEY = cookies.tracking.key;
 const TRACKING_ID_REGEX = /^[0-9A-Za-z]{21}$/;
@@ -179,121 +181,6 @@ export const verifyPasswordWithBcryptFallback = async ({
   return argon2.verify(hash, password);
 };
 
-const hasCredentialAccount = async (
-  pool: Pool,
-  userId: string,
-): Promise<boolean> => {
-  const { rows } = await pool.query(
-    `SELECT 1 FROM ba_account WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
-    [userId],
-  );
-
-  return rows.length > 0;
-};
-
-const insertCredentialAccount = async (
-  pool: Pool,
-  userId: string,
-  hashedPassword: string,
-): Promise<void> => {
-  const now = new Date().toISOString();
-  const accountId = `${userId}-credential`;
-
-  await pool.query(
-    `INSERT INTO ba_account (id, "userId", "providerId", "accountId", "createdAt", "updatedAt", password)
-     VALUES ($1, $2, 'credential', $3, $4, $4, $5)`,
-    [accountId, userId, userId, now, hashedPassword],
-  );
-};
-
-const verifyKratosCredentials = async (
-  email: string,
-  password: string,
-): Promise<KratosVerifyResult> => {
-  if (!kratosOrigin) {
-    logger.warn(
-      'KRATOS_ORIGIN is not set, skipping Kratos credential verification',
-    );
-    return { valid: false };
-  }
-
-  try {
-    const flowRes = await retryFetch(
-      `${kratosOrigin}/self-service/login/api`,
-      fetchOptions,
-    );
-    const flow = await flowRes.json();
-    const flowId = flow.id;
-
-    const submitRes = await retryFetch(
-      `${kratosOrigin}/self-service/login?flow=${flowId}`,
-      {
-        ...fetchOptions,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'password',
-          identifier: email,
-          password,
-        }),
-      },
-    );
-    const result = await submitRes.json();
-    const traits = result?.session?.identity?.traits;
-
-    if (traits?.userId) {
-      return {
-        valid: true,
-        userId: traits.userId,
-      };
-    }
-
-    logger.warn(
-      { email },
-      'Kratos credential verification returned no valid session',
-    );
-    return { valid: false };
-  } catch (err) {
-    logger.error(
-      { err: err instanceof Error ? err.message : String(err) },
-      'Kratos credential verification request failed',
-    );
-    return { valid: false };
-  }
-};
-
-const migrateKratosUserToBetterAuth = async ({
-  pool,
-  userId,
-  password,
-}: {
-  pool: Pool;
-  userId: string;
-  password: string;
-}): Promise<boolean> => {
-  try {
-    if (await hasCredentialAccount(pool, userId)) {
-      return true;
-    }
-
-    const hashedPassword = await argon2.hash(password, {
-      type: argon2.argon2id,
-    });
-
-    await insertCredentialAccount(pool, userId, hashedPassword);
-    return true;
-  } catch (err) {
-    logger.error(
-      {
-        err: err instanceof Error ? err.message : String(err),
-        userId,
-      },
-      'Failed to migrate Kratos user to BetterAuth',
-    );
-    return false;
-  }
-};
-
 export type BetterAuthHandler = {
   handler: (request: Request) => Promise<Response>;
   api: {
@@ -324,15 +211,9 @@ let authInstance: BetterAuthHandler | null = null;
 const getPool = (): Pool =>
   (AppDataSource.driver as unknown as { master: Pool }).master;
 
-const getSocialRedirectUri = (provider: string): string | undefined => {
-  const redirectBaseUrl = process.env.BETTER_AUTH_REDIRECT_URL;
-
-  if (!redirectBaseUrl) {
-    return undefined;
-  }
-
-  return `${redirectBaseUrl.replace(/\/$/, '')}/callback/${provider}`;
-};
+export const betterAuthSocialProviders = Object.keys(
+  betterAuthSocialProviderEnvVars,
+) as BetterAuthSocialProvider[];
 
 const normalizeSignUpUsername = async (
   body?: Record<string, unknown>,
@@ -396,63 +277,6 @@ const prepareSignUpContext = async ({
   };
 };
 
-const migrateLegacyCredentialIfNeeded = async ({
-  pool,
-  body,
-}: {
-  pool: Pool;
-  body?: Record<string, unknown>;
-}): Promise<void> => {
-  const email = body?.email;
-  const password = body?.password;
-
-  if (
-    typeof email !== 'string' ||
-    typeof password !== 'string' ||
-    !z.email().safeParse(email).success
-  ) {
-    return;
-  }
-
-  const user = await AppDataSource.getRepository(User)
-    .createQueryBuilder('user')
-    .select(['user.id'])
-    .where('lower(user.email) = lower(:email)', { email })
-    .getOne();
-
-  if (!user || (await hasCredentialAccount(pool, user.id))) {
-    return;
-  }
-
-  const kratosResult = await verifyKratosCredentials(email, password);
-
-  if (!kratosResult.valid) {
-    logger.warn(
-      { userId: user.id },
-      'Kratos credential verification failed for legacy user migration',
-    );
-    return;
-  }
-
-  if (kratosResult.userId !== user.id) {
-    logger.warn(
-      { userId: user.id, kratosUserId: kratosResult.userId },
-      'Kratos userId mismatch during legacy user migration',
-    );
-    return;
-  }
-
-  await migrateKratosUserToBetterAuth({
-    pool,
-    userId: user.id,
-    password,
-  });
-  logger.info(
-    { userId: user.id },
-    'Successfully migrated Kratos credentials to BetterAuth',
-  );
-};
-
 const cookieDomain = process.env.BETTER_AUTH_BASE_URL
   ? extractRootDomain(new URL(process.env.BETTER_AUTH_BASE_URL).hostname)
   : undefined;
@@ -492,12 +316,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
               body,
             },
           };
-        }
-        if (hookContext.path === signInEmailPath) {
-          await migrateLegacyCredentialIfNeeded({
-            pool,
-            body: hookContext.body,
-          });
         }
       }),
     },
@@ -571,11 +389,13 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     session: {
       modelName: 'ba_session',
       storeSessionInDatabase: true,
+      expiresIn: 7 * ONE_DAY_IN_SECONDS,
+      updateAge: ONE_DAY_IN_SECONDS,
     },
     account: {
       modelName: 'ba_account',
       accountLinking: {
-        trustedProviders: ['google', 'github', 'apple', 'facebook'],
+        trustedProviders: betterAuthSocialProviders,
         allowDifferentEmails: true,
       },
     },
@@ -727,7 +547,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('google'),
           ...(googleIosClientId && {
             verifyIdToken: async (token: string, nonce?: string) => {
               try {
@@ -765,7 +584,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
         github: {
           clientId: process.env.GITHUB_CLIENT_ID,
           clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('github'),
         },
       }),
       ...(process.env.APPLE_CLIENT_ID && {
@@ -773,14 +591,12 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           clientId: process.env.APPLE_CLIENT_ID,
           clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
           appBundleIdentifier: process.env.APPLE_APP_BUNDLE_ID || undefined,
-          redirectURI: getSocialRedirectUri('apple'),
         },
       }),
       ...(process.env.FACEBOOK_CLIENT_ID && {
         facebook: {
           clientId: process.env.FACEBOOK_CLIENT_ID,
           clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('facebook'),
         },
       }),
     },

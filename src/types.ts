@@ -16,7 +16,6 @@ declare global {
       TYPEORM_USERNAME: string;
       TYPEORM_PASSWORD: string;
       TYPEORM_DATABASE: string;
-      HEIMDALL_ORIGIN: string;
       ENABLE_PRIVATE_ROUTES: string;
       ACCESS_SECRET: string;
       ALLOCATION_QUEUE_CONCURRENCY: string;
@@ -34,8 +33,6 @@ declare global {
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
       COOKIES_KEY: string;
-      KRATOS_ORIGIN: string;
-      BETTER_AUTH_REDIRECT_URL?: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
       REDIS_HOST: string;

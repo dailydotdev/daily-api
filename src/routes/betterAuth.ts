@@ -6,7 +6,7 @@ import { getBetterAuth } from '../betterAuth';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
-const betterAuthStateSuffix = '_ba';
+const internalAuthenticationError = 'Internal authentication error';
 
 const toRequestBody = (request: FastifyRequest): string | undefined => {
   if (request.method === 'GET' || request.method === 'HEAD') {
@@ -18,25 +18,6 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   }
 
   return request.body ? JSON.stringify(request.body) : undefined;
-};
-
-// Heimdall fronts a shared OAuth callback URL for both Kratos and Better Auth,
-// so we tag Better Auth social flows in `state` and strip the marker before BA
-// validates the callback.
-const stripBetterAuthStateMarker = (url: URL): URL => {
-  if (!url.pathname.includes('/auth/callback/')) {
-    return url;
-  }
-
-  const state = url.searchParams.get('state');
-
-  if (!state?.endsWith(betterAuthStateSuffix)) {
-    return url;
-  }
-
-  url.searchParams.set('state', state.slice(0, -betterAuthStateSuffix.length));
-
-  return url;
 };
 
 const forwardHeaders = (reply: FastifyReply, response: Response): void => {
@@ -52,6 +33,34 @@ const forwardHeaders = (reply: FastifyReply, response: Response): void => {
   const setCookies = nodeHeaders.getSetCookie?.() ?? [];
   if (setCookies.length > 0) {
     reply.header('set-cookie', setCookies);
+  }
+};
+
+const sendBetterAuthResponse = async (
+  reply: FastifyReply,
+  response: Response,
+): Promise<FastifyReply> => {
+  reply.status(response.status);
+
+  if (!response.body) {
+    return reply.send();
+  }
+
+  return reply.send(await response.text());
+};
+
+const sendBetterAuthError = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  error: unknown,
+  message: string,
+): FastifyReply | void => {
+  request.log.error({ err: formatError(error) }, message);
+
+  if (!reply.sent) {
+    return reply.status(500).send({
+      error: internalAuthenticationError,
+    });
   }
 };
 
@@ -76,7 +85,7 @@ export const callBetterAuth = async ({
     req.headers as Record<string, string | string[] | undefined>,
   );
 
-  const authRequest = new Request(stripBetterAuthStateMarker(url), {
+  const authRequest = new Request(url, {
     method: method ?? req.method,
     headers,
     ...(body ? { body } : {}),
@@ -91,7 +100,37 @@ export const callBetterAuth = async ({
   return response;
 };
 
+export const logoutBetterAuth = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  try {
+    await callBetterAuth({
+      req: request,
+      reply,
+      path: '/auth/sign-out',
+      method: 'POST',
+    });
+  } catch (error) {
+    request.log.warn(
+      { err: formatError(error) },
+      'error during BetterAuth sign-out',
+    );
+  }
+};
+
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
+  // Apple sends OAuth callbacks as application/x-www-form-urlencoded POSTs.
+  // Fastify does not parse this content type by default, so collect the raw
+  // body and let BetterAuth handle it.
+  fastify.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      done(null, body);
+    },
+  );
+
   fastify.route({
     method: ['GET', 'POST'],
     url: '/auth/*',
@@ -103,21 +142,14 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           reply,
           body,
         });
-        reply.status(response.status);
-        if (!response.body) {
-          return reply.send();
-        }
-        return reply.send(await response.text());
+        return sendBetterAuthResponse(reply, response);
       } catch (error) {
-        request.log.error(
-          { err: formatError(error) },
+        return sendBetterAuthError(
+          request,
+          reply,
+          error,
           'BetterAuth request failed',
         );
-        if (!reply.sent) {
-          return reply.status(500).send({
-            error: 'Internal authentication error',
-          });
-        }
       }
     },
   });

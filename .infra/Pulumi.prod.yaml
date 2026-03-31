@@ -72,7 +72,6 @@ config:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
     growthbookClientKey:
       secure: AAABAIVkkeJGes/CVRjekXu8GfXXhC9FihKkcb2C4peMA7yS7HbO52uViOrP5uIFmgAQ2A==
-    heimdallOrigin: http://heimdall-api.heimdall
     internalFeed: http://feed.feed.svc.cluster.local/api/feed?
     jwtAudience:
       secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
@@ -80,7 +79,6 @@ config:
       secure: AAABAG0AuSVweFAmuLEMRDzVrVKMoXasHIRf0Md6aIyBlqTbvvCWDzU=
     jwtSecret:
       secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
-    kratosOrigin: http://heimdall-kratos-public.heimdall
     lofnOrigin: http://lofn-config-api.lofn
     magniOrigin: http://magni-search-api
     meiliIndex:
