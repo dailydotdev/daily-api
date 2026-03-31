@@ -33,7 +33,6 @@ declare global {
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
       COOKIES_KEY: string;
-      BETTER_AUTH_REDIRECT_URL?: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
       REDIS_HOST: string;

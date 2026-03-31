@@ -63,7 +63,7 @@ describe('betterAuth routes', () => {
       });
     });
 
-    it('should proxy external callback routes to BetterAuth callback handler', async () => {
+    it('should forward native callback routes to BetterAuth handler', async () => {
       const getBetterAuthSpy = jest
         .spyOn(betterAuthModule, 'getBetterAuth')
         .mockReturnValue({
@@ -80,20 +80,13 @@ describe('betterAuth routes', () => {
         } as ReturnType<typeof betterAuthModule.getBetterAuth>);
 
       const res = await request(app.server).get(
-        '/api/callback/google?state=test_ba&code=abc',
+        '/auth/callback/google?state=test&code=abc',
       );
 
       expect(res.status).toBe(200);
       expect(res.text).toBe('/auth/callback/google?state=test&code=abc');
 
       getBetterAuthSpy.mockRestore();
-    });
-
-    it('should reject unsupported callback providers', async () => {
-      const res = await request(app.server).get('/api/callback/linkedin');
-
-      expect(res.status).toBe(400);
-      expect(res.body).toEqual({ error: 'Unsupported provider' });
     });
   });
 });

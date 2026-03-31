@@ -3,14 +3,10 @@ import type { FastifyReply } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import { fromNodeHeaders } from 'better-auth/node';
 import { getBetterAuth } from '../betterAuth';
-import { betterAuthCallbackParamsSchema } from '../common/schema/betterAuth';
 
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
-const betterAuthStateSuffix = '_ba';
 const internalAuthenticationError = 'Internal authentication error';
-
-type BetterAuthCallbackQuery = Record<string, string | string[] | undefined>;
 
 const toRequestBody = (request: FastifyRequest): string | undefined => {
   if (request.method === 'GET' || request.method === 'HEAD') {
@@ -22,43 +18,6 @@ const toRequestBody = (request: FastifyRequest): string | undefined => {
   }
 
   return request.body ? JSON.stringify(request.body) : undefined;
-};
-
-const toQueryString = (query: BetterAuthCallbackQuery): string => {
-  const searchParams = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(query)) {
-    if (typeof value === 'string') {
-      searchParams.append(key, value);
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach((item) => searchParams.append(key, item));
-    }
-  }
-
-  return searchParams.toString();
-};
-
-// When BETTER_AUTH_REDIRECT_URL points to an external proxy (e.g. Heimdall at
-// sso.daily.dev), social flows tag `state` with a `_ba` suffix so the proxy
-// knows to route the callback back to this API. Strip the marker before
-// BetterAuth validates the callback.
-const stripBetterAuthStateMarker = (url: URL): URL => {
-  if (!url.pathname.includes('/auth/callback/')) {
-    return url;
-  }
-
-  const state = url.searchParams.get('state');
-
-  if (!state?.endsWith(betterAuthStateSuffix)) {
-    return url;
-  }
-
-  url.searchParams.set('state', state.slice(0, -betterAuthStateSuffix.length));
-
-  return url;
 };
 
 const forwardHeaders = (reply: FastifyReply, response: Response): void => {
@@ -126,7 +85,7 @@ export const callBetterAuth = async ({
     req.headers as Record<string, string | string[] | undefined>,
   );
 
-  const authRequest = new Request(stripBetterAuthStateMarker(url), {
+  const authRequest = new Request(url, {
     method: method ?? req.method,
     headers,
     ...(body ? { body } : {}),
@@ -179,51 +138,6 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           reply,
           error,
           'BetterAuth request failed',
-        );
-      }
-    },
-  });
-
-  // Temporary callback bridge: if BETTER_AUTH_REDIRECT_URL still points to a
-  // legacy proxy host such as sso.daily.dev or sso.local.fylla.dev, route the
-  // public /api/callback/:provider endpoint back into BetterAuth internally.
-  fastify.route({
-    method: ['GET', 'POST'],
-    url: '/api/callback/:provider',
-    handler: async (
-      request: FastifyRequest<{
-        Params: { provider: string };
-        Querystring: BetterAuthCallbackQuery;
-      }>,
-      reply,
-    ) => {
-      const parsedParams = betterAuthCallbackParamsSchema.safeParse(
-        request.params,
-      );
-
-      if (!parsedParams.success) {
-        return reply.status(400).send({ error: 'Unsupported provider' });
-      }
-
-      const { provider } = parsedParams.data;
-      const qs = toQueryString(request.query);
-      const internalPath = `/auth/callback/${provider}${qs ? `?${qs}` : ''}`;
-
-      try {
-        const body = toRequestBody(request);
-        const response = await callBetterAuth({
-          req: request,
-          reply,
-          path: internalPath,
-          body,
-        });
-        return sendBetterAuthResponse(reply, response);
-      } catch (error) {
-        return sendBetterAuthError(
-          request,
-          reply,
-          error,
-          'OAuth callback proxy failed',
         );
       }
     },

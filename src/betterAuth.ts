@@ -215,16 +215,6 @@ export const betterAuthSocialProviders = Object.keys(
   betterAuthSocialProviderEnvVars,
 ) as BetterAuthSocialProvider[];
 
-const getSocialRedirectUri = (provider: string): string | undefined => {
-  const redirectBaseUrl = process.env.BETTER_AUTH_REDIRECT_URL;
-
-  if (!redirectBaseUrl) {
-    return undefined;
-  }
-
-  return `${redirectBaseUrl.replace(/\/$/, '')}/callback/${provider}`;
-};
-
 const normalizeSignUpUsername = async (
   body?: Record<string, unknown>,
 ): Promise<string> => {
@@ -557,7 +547,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('google'),
           ...(googleIosClientId && {
             verifyIdToken: async (token: string, nonce?: string) => {
               try {
@@ -595,7 +584,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
         github: {
           clientId: process.env.GITHUB_CLIENT_ID,
           clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('github'),
         },
       }),
       ...(process.env.APPLE_CLIENT_ID && {
@@ -603,14 +591,12 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           clientId: process.env.APPLE_CLIENT_ID,
           clientSecret: process.env.APPLE_CLIENT_SECRET ?? '',
           appBundleIdentifier: process.env.APPLE_APP_BUNDLE_ID || undefined,
-          redirectURI: getSocialRedirectUri('apple'),
         },
       }),
       ...(process.env.FACEBOOK_CLIENT_ID && {
         facebook: {
           clientId: process.env.FACEBOOK_CLIENT_ID,
           clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? '',
-          redirectURI: getSocialRedirectUri('facebook'),
         },
       }),
     },
