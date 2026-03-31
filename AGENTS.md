@@ -88,6 +88,7 @@ The migration generator compares entities against the local database schema. Ens
 - For GraphQL query resolvers, prefer `graphorm.query`, `graphorm.queryOne`, or `graphorm.queryPaginated` over custom TypeORM fetch/pagination code whenever GraphORM can express the query. Reach for manual TypeORM reads only when GraphORM genuinely cannot support the access pattern.
 - When a GraphQL field must be nulled based on viewer permissions, define the rule in `src/graphorm/index.ts` as a shared transform/helper (for example `nullIfNotLoggedIn`). If a resolver cannot use GraphORM for the full query, reuse that GraphORM field mapping from the manual path instead of re-implementing the permission rule in a schema field resolver.
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
+- For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.
 
 **Data Layer:**
 
