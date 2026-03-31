@@ -7,6 +7,7 @@ import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   AGENTS_DIGEST_SOURCE,
+  CollectionPost,
   Keyword,
   KeywordStatus,
   Post,
@@ -246,6 +247,111 @@ describe('GET /sitemaps/posts-:page.xml', () => {
   });
 });
 
+describe('GET /sitemaps/collections.xml', () => {
+  it('should return only qualified public collections ordered by time as xml', async () => {
+    const updatedAt = new Date('2024-02-01T12:00:00.123Z');
+
+    await con.getRepository(CollectionPost).insert([
+      {
+        id: 'qc1',
+        shortId: 'qc1',
+        title: 'Qualified Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        upvotes: 3,
+        collectionSources: ['a', 'b', 'c'],
+        metadataChangedAt: updatedAt,
+        createdAt: new Date('2024-02-01T12:00:02.000Z'),
+      },
+      {
+        id: 'qc0',
+        shortId: 'qc0',
+        title: 'Earlier Qualified Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        upvotes: 50,
+        collectionSources: ['a', 'b', 'c'],
+        metadataChangedAt: updatedAt,
+        createdAt: new Date('2024-02-01T12:00:01.000Z'),
+      },
+      {
+        id: 'low-upvote-collection',
+        shortId: 'luc',
+        title: 'Low Upvote Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        upvotes: 0,
+        collectionSources: ['a', 'b', 'c'],
+      },
+      {
+        id: 'small-collection',
+        shortId: 'sc1',
+        title: 'Small Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        upvotes: 4,
+        collectionSources: ['a', 'b'],
+      },
+      {
+        id: 'hidden-collection',
+        shortId: 'hc1',
+        title: 'Hidden Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: false,
+        upvotes: 4,
+        collectionSources: ['a', 'b', 'c'],
+      },
+      {
+        id: 'deleted-collection',
+        shortId: 'dc1',
+        title: 'Deleted Collection',
+        sourceId: 'a',
+        type: PostType.Collection,
+        visible: true,
+        deleted: true,
+        upvotes: 4,
+        collectionSources: ['a', 'b', 'c'],
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/collections.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/qualified-collection-qc1</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/earlier-qualified-collection-qc0</loc>',
+    );
+    expect(res.text).toContain('<lastmod>2024-02-01T12:00:00.123Z</lastmod>');
+    expect(res.text).not.toContain('/posts/low-upvote-collection-luc');
+    expect(res.text).not.toContain('/posts/small-collection-sc1');
+    expect(res.text).not.toContain('/posts/hidden-collection-hc1');
+    expect(res.text).not.toContain('/posts/deleted-collection-dc1');
+    expect(res.text).not.toContain('/posts/p3-p3');
+    expect(
+      res.text.indexOf(
+        '<loc>http://localhost:5002/posts/earlier-qualified-collection-qc0</loc>',
+      ),
+    ).toBeLessThan(
+      res.text.indexOf(
+        '<loc>http://localhost:5002/posts/qualified-collection-qc1</loc>',
+      ),
+    );
+  });
+});
+
 describe('GET /sitemaps/tags.txt', () => {
   it('should return tags ordered alphabetically', async () => {
     const res = await request(app.server).get('/sitemaps/tags.txt').expect(200);
@@ -342,6 +448,9 @@ describe('GET /sitemaps/index.xml', () => {
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/evergreen-2.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/collections.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',

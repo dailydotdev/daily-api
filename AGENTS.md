@@ -89,6 +89,7 @@ The migration generator compares entities against the local database schema. Ens
 - When a GraphQL field must be nulled based on viewer permissions, define the rule in `src/graphorm/index.ts` as a shared transform/helper (for example `nullIfNotLoggedIn`). If a resolver cannot use GraphORM for the full query, reuse that GraphORM field mapping from the manual path instead of re-implementing the permission rule in a schema field resolver.
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
 - For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.
+- For post-based sitemaps, keep ordering consistent across sitemap types: use oldest-first ordering with a deterministic tie-breaker (`createdAt`, then `id`) unless there is a documented reason not to.
 
 **Data Layer:**
 

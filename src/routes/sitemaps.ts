@@ -182,6 +182,16 @@ const buildPaginatedPostSitemapStream = async (
   );
 };
 
+const buildSitemapXmlStream = async <T extends ObjectLiteral>(
+  con: DataSource,
+  buildQuery: (source: EntityManager) => SelectQueryBuilder<T>,
+  getUrl: (row: Record<string, string>) => string,
+): Promise<Readable> => {
+  const input = await streamReplicaQuery(con, buildQuery);
+
+  return toSitemapUrlSetStream(input, getUrl, getSitemapRowLastmod);
+};
+
 const getSitemapPageCount = (totalPosts: number): number =>
   Math.max(1, Math.ceil(totalPosts / getPaginatedSitemapLimit()));
 
@@ -250,6 +260,30 @@ const buildEvergreenSitemapQuery = (
       .orderBy('p."createdAt"', 'ASC')
       .addOrderBy('p.id', 'ASC'),
     page,
+  );
+
+const buildCollectionsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  applyPostsSitemapOrder(
+    source
+      .createQueryBuilder()
+      .select('p.slug', 'slug')
+      .addSelect('p."metadataChangedAt"', 'lastmod')
+      .from(Post, 'p')
+      .where('p.type = :type', { type: PostType.Collection })
+      .andWhere('NOT p.private')
+      .andWhere('NOT p.banned')
+      .andWhere('NOT p.deleted')
+      .andWhere('p.visible = true')
+      .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 1 })
+      .andWhere(
+        'COALESCE(array_length(p."collectionSources", 1), 0) >= :minSources',
+        {
+          minSources: 3,
+        },
+      )
+      .limit(DEFAULT_SITEMAP_LIMIT),
   );
 
 const buildTagsSitemapQuery = (
@@ -400,6 +434,9 @@ const getSitemapIndexXml = (
 ${postsSitemaps}
 ${evergreenSitemaps}
   <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/collections.xml`)}</loc>
+  </sitemap>
+  <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
   </sitemap>
   <sitemap>
@@ -521,6 +558,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(await buildEvergreenSitemapStream(con, page));
   });
 
+  fastify.get('/collections.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        await buildSitemapXmlStream(con, buildCollectionsSitemapQuery, (row) =>
+          getPostSitemapUrl(prefix, row.slug),
+        ),
+      );
+  });
+
   fastify.get('/tags.txt', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
@@ -538,16 +589,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/tags.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildTagsSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getTagSitemapUrl(prefix, row.value),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildTagsSitemapQuery, (row) =>
+          getTagSitemapUrl(prefix, row.value),
         ),
       );
   });
@@ -555,16 +603,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/agents.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildAgentsSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getAgentSitemapUrl(prefix, row.entity),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildAgentsSitemapQuery, (row) =>
+          getAgentSitemapUrl(prefix, row.entity),
         ),
       );
   });
@@ -572,16 +617,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/agents-digest.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildAgentsDigestSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getPostSitemapUrl(prefix, row.slug),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildAgentsDigestSitemapQuery, (row) =>
+          getPostSitemapUrl(prefix, row.slug),
         ),
       );
   });
@@ -589,16 +631,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/sources.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildSourcesSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getSourceSitemapUrl(prefix, row.handle),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildSourcesSitemapQuery, (row) =>
+          getSourceSitemapUrl(prefix, row.handle),
         ),
       );
   });
@@ -606,32 +645,26 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/squads.xml', async (_, res) => {
     const con = await createOrGetConnection();
     const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildSquadsSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getSquadSitemapUrl(prefix, row.handle),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildSquadsSitemapQuery, (row) =>
+          getSquadSitemapUrl(prefix, row.handle),
         ),
       );
   });
 
   fastify.get('/users.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const input = await streamReplicaQuery(con, buildUsersSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getUserProfileUrl(row.username),
-          getSitemapRowLastmod,
+        await buildSitemapXmlStream(con, buildUsersSitemapQuery, (row) =>
+          getUserProfileUrl(row.username),
         ),
       );
   });
