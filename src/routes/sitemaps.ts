@@ -27,7 +27,7 @@ const ARENA_SITEMAP_GROUP_IDS = [
   '970ab2c9-f845-4822-82f0-02169713b814',
 ];
 
-const getPostsSitemapLimit = (): number => {
+const getPaginatedSitemapLimit = (): number => {
   const limit = Number.parseInt(process.env.SITEMAP_LIMIT || '', 10);
 
   return Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_SITEMAP_LIMIT;
@@ -139,17 +139,72 @@ const applyPostsSitemapOrder = (
 ): SelectQueryBuilder<Post> =>
   query.orderBy('p."createdAt"', 'ASC').addOrderBy('p.id', 'ASC');
 
+const applyPaginatedSitemapWindow = (
+  query: SelectQueryBuilder<Post>,
+  page: number,
+): SelectQueryBuilder<Post> =>
+  query
+    .limit(getPaginatedSitemapLimit())
+    .offset((page - 1) * getPaginatedSitemapLimit());
+
 const buildPostsSitemapQuery = (
   source: DataSource | EntityManager,
   page: number,
 ): SelectQueryBuilder<Post> =>
-  applyPostsSitemapOrder(
-    buildPostsSitemapBaseQuery(source)
-      .select('p.slug', 'slug')
-      .addSelect('p."metadataChangedAt"', 'lastmod')
-      .limit(getPostsSitemapLimit())
-      .offset((page - 1) * getPostsSitemapLimit()),
+  applyPaginatedSitemapWindow(
+    applyPostsSitemapOrder(
+      buildPostsSitemapBaseQuery(source)
+        .select('p.slug', 'slug')
+        .addSelect('p."metadataChangedAt"', 'lastmod'),
+    ),
+    page,
   );
+
+const buildPaginatedPostSitemapStream = async (
+  con: DataSource,
+  page: number,
+  buildQuery: (source: EntityManager, page: number) => SelectQueryBuilder<Post>,
+): Promise<Readable> => {
+  const prefix = getSitemapUrlPrefix();
+  const input = await streamReplicaQuery(con, (source) =>
+    buildQuery(source, page),
+  );
+
+  return toSitemapUrlSetStream(
+    input,
+    (row) => getPostSitemapUrl(prefix, row.slug),
+    getSitemapRowLastmod,
+  );
+};
+
+const getSitemapPageCount = (totalPosts: number): number =>
+  Math.max(1, Math.ceil(totalPosts / getPaginatedSitemapLimit()));
+
+const getReplicaQueryCount = async (
+  con: DataSource,
+  buildQuery: (source: EntityManager) => SelectQueryBuilder<Post>,
+): Promise<number> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    return await buildQuery(queryRunner.manager).getCount();
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+const buildSitemapIndexEntries = (
+  prefix: string,
+  sitemapCount: number,
+  getPath: (page: number) => string,
+): string =>
+  Array.from({ length: sitemapCount }, (_, index) => {
+    const page = index + 1;
+
+    return `  <sitemap>
+    <loc>${escapeXml(`${prefix}${getPath(page)}`)}</loc>
+  </sitemap>`;
+  }).join('\n');
 
 const buildPostsSitemapTextQuery = (
   source: DataSource | EntityManager,
@@ -161,18 +216,8 @@ const buildPostsSitemapTextQuery = (
 const buildPostSitemapStream = async (
   con: DataSource,
   page: number,
-): Promise<Readable> => {
-  const prefix = getSitemapUrlPrefix();
-  const input = await streamReplicaQuery(con, (source) =>
-    buildPostsSitemapQuery(source, page),
-  );
-
-  return toSitemapUrlSetStream(
-    input,
-    (row) => getPostSitemapUrl(prefix, row.slug),
-    getSitemapRowLastmod,
-  );
-};
+): Promise<Readable> =>
+  buildPaginatedPostSitemapStream(con, page, buildPostsSitemapQuery);
 
 const buildEvergreenSitemapBaseQuery = (
   source: DataSource | EntityManager,
@@ -193,13 +238,14 @@ const buildEvergreenSitemapQuery = (
   source: DataSource | EntityManager,
   page: number,
 ): SelectQueryBuilder<Post> =>
-  buildEvergreenSitemapBaseQuery(source)
-    .select('p.slug', 'slug')
-    .addSelect('p."metadataChangedAt"', 'lastmod')
-    .orderBy('p."createdAt"', 'ASC')
-    .addOrderBy('p.id', 'ASC')
-    .limit(getPostsSitemapLimit())
-    .offset((page - 1) * getPostsSitemapLimit());
+  applyPaginatedSitemapWindow(
+    buildEvergreenSitemapBaseQuery(source)
+      .select('p.slug', 'slug')
+      .addSelect('p."metadataChangedAt"', 'lastmod')
+      .orderBy('p."createdAt"', 'ASC')
+      .addOrderBy('p.id', 'ASC'),
+    page,
+  );
 
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -258,78 +304,32 @@ const buildSquadsSitemapQuery = (
 const getPostsSitemapPath = (page: number): string =>
   page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
 
-const getPostsSitemapPageCount = (totalPosts: number): number =>
-  Math.max(1, Math.ceil(totalPosts / getPostsSitemapLimit()));
-
 const getEvergreenSitemapPath = (page: number): string =>
   page === 1
     ? '/api/sitemaps/evergreen.xml'
     : `/api/sitemaps/evergreen-${page}.xml`;
 
-const getEvergreenSitemapPageCount = (totalPosts: number): number =>
-  Math.max(1, Math.ceil(totalPosts / getPostsSitemapLimit()));
-
-const getPostsSitemapCount = async (con: DataSource): Promise<number> => {
-  const queryRunner = con.createQueryRunner('slave');
-
-  try {
-    return await buildPostsSitemapBaseQuery(queryRunner.manager).getCount();
-  } finally {
-    await queryRunner.release();
-  }
-};
-
-const getEvergreenSitemapCount = async (con: DataSource): Promise<number> => {
-  const queryRunner = con.createQueryRunner('slave');
-
-  try {
-    return await buildEvergreenSitemapBaseQuery(queryRunner.manager).getCount();
-  } finally {
-    await queryRunner.release();
-  }
-};
-
 const buildEvergreenSitemapStream = async (
   con: DataSource,
   page: number,
-): Promise<Readable> => {
-  const prefix = getSitemapUrlPrefix();
-  const input = await streamReplicaQuery(con, (source) =>
-    buildEvergreenSitemapQuery(source, page),
-  );
-
-  return toSitemapUrlSetStream(
-    input,
-    (row) => getPostSitemapUrl(prefix, row.slug),
-    getSitemapRowLastmod,
-  );
-};
+): Promise<Readable> =>
+  buildPaginatedPostSitemapStream(con, page, buildEvergreenSitemapQuery);
 
 const getSitemapIndexXml = (
   postsSitemapCount: number,
   evergreenSitemapCount: number,
 ): string => {
   const prefix = getSitemapUrlPrefix();
-  const postsSitemaps = Array.from(
-    { length: postsSitemapCount },
-    (_, index) => {
-      const page = index + 1;
-
-      return `  <sitemap>
-    <loc>${escapeXml(`${prefix}${getPostsSitemapPath(page)}`)}</loc>
-  </sitemap>`;
-    },
-  ).join('\n');
-  const evergreenSitemaps = Array.from(
-    { length: evergreenSitemapCount },
-    (_, index) => {
-      const page = index + 1;
-
-      return `  <sitemap>
-    <loc>${escapeXml(`${prefix}${getEvergreenSitemapPath(page)}`)}</loc>
-  </sitemap>`;
-    },
-  ).join('\n');
+  const postsSitemaps = buildSitemapIndexEntries(
+    prefix,
+    postsSitemapCount,
+    getPostsSitemapPath,
+  );
+  const evergreenSitemaps = buildSitemapIndexEntries(
+    prefix,
+    evergreenSitemapCount,
+    getEvergreenSitemapPath,
+  );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -535,11 +535,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/index.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const postsSitemapCount = getPostsSitemapPageCount(
-      await getPostsSitemapCount(con),
+    const postsSitemapCount = getSitemapPageCount(
+      await getReplicaQueryCount(con, buildPostsSitemapBaseQuery),
     );
-    const evergreenSitemapCount = getEvergreenSitemapPageCount(
-      await getEvergreenSitemapCount(con),
+    const evergreenSitemapCount = getSitemapPageCount(
+      await getReplicaQueryCount(con, buildEvergreenSitemapBaseQuery),
     );
 
     return res
