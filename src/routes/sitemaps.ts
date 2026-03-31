@@ -252,6 +252,30 @@ const buildEvergreenSitemapQuery = (
     page,
   );
 
+const buildCollectionsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Post> =>
+  source
+    .createQueryBuilder()
+    .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
+    .from(Post, 'p')
+    .where('p.type = :type', { type: PostType.Collection })
+    .andWhere('NOT p.private')
+    .andWhere('NOT p.banned')
+    .andWhere('NOT p.deleted')
+    .andWhere('p.visible = true')
+    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 1 })
+    .andWhere(
+      'COALESCE(array_length(p."collectionSources", 1), 0) >= :minSources',
+      {
+        minSources: 3,
+      },
+    )
+    .orderBy('p.upvotes', 'DESC')
+    .addOrderBy('p.id', 'ASC')
+    .limit(DEFAULT_SITEMAP_LIMIT);
+
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Keyword> =>
@@ -400,6 +424,9 @@ const getSitemapIndexXml = (
 ${postsSitemaps}
 ${evergreenSitemaps}
   <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/collections.xml`)}</loc>
+  </sitemap>
+  <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
   </sitemap>
   <sitemap>
@@ -519,6 +546,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(await buildEvergreenSitemapStream(con, page));
+  });
+
+  fastify.get('/collections.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildCollectionsSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
+        ),
+      );
   });
 
   fastify.get('/tags.txt', async (_, res) => {
