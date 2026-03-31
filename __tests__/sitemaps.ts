@@ -110,6 +110,26 @@ const sentimentEntitiesFixture: DeepPartial<SentimentEntity>[] = [
   },
 ];
 
+const createSourcePostFixtures = (
+  sourceId: string,
+  count: number,
+  prefix: string,
+  overrides?: (index: number) => DeepPartial<Post>,
+): DeepPartial<Post>[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: `${prefix}-${index}`,
+    shortId: `${prefix.replace(/[^a-z0-9]/gi, '').slice(0, 10)}${index}`,
+    title: `${prefix} ${index}`,
+    sourceId,
+    createdAt: new Date('2023-01-01T00:00:00.000Z'),
+    type: PostType.Article,
+    visible: true,
+    private: false,
+    deleted: false,
+    banned: false,
+    ...overrides?.(index),
+  }));
+
 beforeAll(async () => {
   process.env.SITEMAP_LIMIT = '2';
   con = await createOrGetConnection();
@@ -348,15 +368,6 @@ describe('GET /sitemaps/sources.xml', () => {
   it('should include only qualified public machine sources', async () => {
     const sourceCreatedAt = new Date('2023-10-01T10:00:00.000Z');
     const recentActivityDate = new Date();
-    const staleActivityDate = new Date('2023-01-01T00:00:00.000Z');
-    const publicPostBase = {
-      createdAt: staleActivityDate,
-      type: PostType.Article,
-      visible: true,
-      private: false,
-      deleted: false,
-      banned: false,
-    };
 
     await con.getRepository(Source).save([
       {
@@ -417,65 +428,40 @@ describe('GET /sitemaps/sources.xml', () => {
     ]);
 
     await con.getRepository(Post).insert([
-      ...Array.from({ length: 9 }, (_, index) => ({
-        ...publicPostBase,
-        id: `qualified-old-${index}`,
-        shortId: `qso${index}`,
-        title: `Qualified Old ${index}`,
-        sourceId: 'qualified-source',
-      })),
-      {
-        ...publicPostBase,
-        id: 'qualified-recent',
-        shortId: 'qsr',
-        title: 'Qualified Recent',
-        sourceId: 'qualified-source',
-        createdAt: recentActivityDate,
-      },
-      ...Array.from({ length: 9 }, (_, index) => ({
-        ...publicPostBase,
-        id: `notenough-${index}`,
-        shortId: `nes${index}`,
-        title: `Not Enough ${index}`,
-        sourceId: 'not-enough-posts-source',
-      })),
-      {
-        ...publicPostBase,
-        id: 'notenough-private',
-        shortId: 'nsp',
-        title: 'Not Enough Private',
-        sourceId: 'not-enough-posts-source',
-        private: true,
-      },
-      ...Array.from({ length: 10 }, (_, index) => ({
-        ...publicPostBase,
-        id: `stale-${index}`,
-        shortId: `sts${index}`,
-        title: `Stale ${index}`,
-        sourceId: 'stale-source',
-      })),
-      ...Array.from({ length: 10 }, (_, index) => ({
-        ...publicPostBase,
-        id: `private-${index}`,
-        shortId: `prs${index}`,
-        title: `Private ${index}`,
-        sourceId: 'private-source',
+      ...createSourcePostFixtures(
+        'qualified-source',
+        9,
+        'qualified-old',
+        () => ({}),
+      ),
+      ...createSourcePostFixtures(
+        'qualified-source',
+        1,
+        'qualified-recent',
+        () => ({
+          createdAt: recentActivityDate,
+        }),
+      ),
+      ...createSourcePostFixtures(
+        'not-enough-posts-source',
+        9,
+        'notenough',
+        () => ({}),
+      ),
+      ...createSourcePostFixtures(
+        'not-enough-posts-source',
+        1,
+        'notenough-private',
+        () => ({ private: true }),
+      ),
+      ...createSourcePostFixtures('stale-source', 10, 'stale', () => ({})),
+      ...createSourcePostFixtures('private-source', 10, 'private', () => ({
         createdAt: recentActivityDate,
       })),
-      ...Array.from({ length: 10 }, (_, index) => ({
-        ...publicPostBase,
-        id: `inactive-${index}`,
-        shortId: `ins${index}`,
-        title: `Inactive ${index}`,
-        sourceId: 'inactive-source',
+      ...createSourcePostFixtures('inactive-source', 10, 'inactive', () => ({
         createdAt: recentActivityDate,
       })),
-      ...Array.from({ length: 10 }, (_, index) => ({
-        ...publicPostBase,
-        id: `squad-${index}`,
-        shortId: `sqs${index}`,
-        title: `Squad ${index}`,
-        sourceId: 'squad-source',
+      ...createSourcePostFixtures('squad-source', 10, 'squad', () => ({
         createdAt: recentActivityDate,
       })),
     ]);

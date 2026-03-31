@@ -299,38 +299,23 @@ const buildSourcesSitemapQuery = (
     .select('s.handle', 'handle')
     .addSelect('s."createdAt"', 'lastmod')
     .from(Source, 's')
+    .innerJoin(
+      Post,
+      'p',
+      `p."sourceId" = s.id
+      AND p.deleted = false
+      AND p.visible = true
+      AND p.private = false
+      AND p.banned = false`,
+    )
     .where('s.type = :type', { type: SourceType.Machine })
     .andWhere('s.active = true')
     .andWhere('s.private = false')
-    .andWhere((qb) => {
-      const publicPostsCountSubQuery = qb
-        .subQuery()
-        .select('COUNT(*)')
-        .from(Post, 'p')
-        .where('p."sourceId" = s.id')
-        .andWhere('p.deleted = false')
-        .andWhere('p.visible = true')
-        .andWhere('p.private = false')
-        .andWhere('p.banned = false')
-        .getQuery();
-
-      return `${publicPostsCountSubQuery} >= :minPublicPosts`;
-    })
-    .andWhere((qb) => {
-      const recentPublicPostSubQuery = qb
-        .subQuery()
-        .select('1')
-        .from(Post, 'p')
-        .where('p."sourceId" = s.id')
-        .andWhere('p.deleted = false')
-        .andWhere('p.visible = true')
-        .andWhere('p.private = false')
-        .andWhere('p.banned = false')
-        .andWhere('p."createdAt" >= current_timestamp - interval \'12 months\'')
-        .getQuery();
-
-      return `EXISTS ${recentPublicPostSubQuery}`;
-    })
+    .groupBy('s.id')
+    .addGroupBy('s.handle')
+    .addGroupBy('s."createdAt"')
+    .having('COUNT(*) >= :minPublicPosts')
+    .andHaving(`MAX(p."createdAt") >= current_timestamp - interval '12 months'`)
     .orderBy('s."createdAt"', 'DESC')
     .addOrderBy('s.handle', 'ASC')
     .limit(DEFAULT_SITEMAP_LIMIT)
