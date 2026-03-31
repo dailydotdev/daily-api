@@ -174,13 +174,11 @@ const buildPostSitemapStream = async (
   );
 };
 
-const buildEvergreenSitemapQuery = (
+const buildEvergreenSitemapBaseQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Post> =>
   source
     .createQueryBuilder()
-    .select('p.slug', 'slug')
-    .addSelect('p."metadataChangedAt"', 'lastmod')
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
@@ -188,10 +186,20 @@ const buildEvergreenSitemapQuery = (
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
     .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
-    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 50 })
-    .andWhere('(u.id is null or u.reputation > 10)')
-    .orderBy('p.upvotes', 'DESC')
-    .limit(DEFAULT_SITEMAP_LIMIT);
+    .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 10 })
+    .andWhere('(u.id is null or u.reputation > 10)');
+
+const buildEvergreenSitemapQuery = (
+  source: DataSource | EntityManager,
+  page: number,
+): SelectQueryBuilder<Post> =>
+  buildEvergreenSitemapBaseQuery(source)
+    .select('p.slug', 'slug')
+    .addSelect('p."metadataChangedAt"', 'lastmod')
+    .orderBy('p."createdAt"', 'ASC')
+    .addOrderBy('p.id', 'ASC')
+    .limit(getPostsSitemapLimit())
+    .offset((page - 1) * getPostsSitemapLimit());
 
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -253,6 +261,14 @@ const getPostsSitemapPath = (page: number): string =>
 const getPostsSitemapPageCount = (totalPosts: number): number =>
   Math.max(1, Math.ceil(totalPosts / getPostsSitemapLimit()));
 
+const getEvergreenSitemapPath = (page: number): string =>
+  page === 1
+    ? '/api/sitemaps/evergreen.xml'
+    : `/api/sitemaps/evergreen-${page}.xml`;
+
+const getEvergreenSitemapPageCount = (totalPosts: number): number =>
+  Math.max(1, Math.ceil(totalPosts / getPostsSitemapLimit()));
+
 const getPostsSitemapCount = async (con: DataSource): Promise<number> => {
   const queryRunner = con.createQueryRunner('slave');
 
@@ -263,7 +279,36 @@ const getPostsSitemapCount = async (con: DataSource): Promise<number> => {
   }
 };
 
-const getSitemapIndexXml = (postsSitemapCount: number): string => {
+const getEvergreenSitemapCount = async (con: DataSource): Promise<number> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    return await buildEvergreenSitemapBaseQuery(queryRunner.manager).getCount();
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+const buildEvergreenSitemapStream = async (
+  con: DataSource,
+  page: number,
+): Promise<Readable> => {
+  const prefix = getSitemapUrlPrefix();
+  const input = await streamReplicaQuery(con, (source) =>
+    buildEvergreenSitemapQuery(source, page),
+  );
+
+  return toSitemapUrlSetStream(
+    input,
+    (row) => getPostSitemapUrl(prefix, row.slug),
+    getSitemapRowLastmod,
+  );
+};
+
+const getSitemapIndexXml = (
+  postsSitemapCount: number,
+  evergreenSitemapCount: number,
+): string => {
   const prefix = getSitemapUrlPrefix();
   const postsSitemaps = Array.from(
     { length: postsSitemapCount },
@@ -275,13 +320,21 @@ const getSitemapIndexXml = (postsSitemapCount: number): string => {
   </sitemap>`;
     },
   ).join('\n');
+  const evergreenSitemaps = Array.from(
+    { length: evergreenSitemapCount },
+    (_, index) => {
+      const page = index + 1;
+
+      return `  <sitemap>
+    <loc>${escapeXml(`${prefix}${getEvergreenSitemapPath(page)}`)}</loc>
+  </sitemap>`;
+    },
+  ).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${postsSitemaps}
-  <sitemap>
-    <loc>${escapeXml(`${prefix}/api/sitemaps/evergreen.xml`)}</loc>
-  </sitemap>
+${evergreenSitemaps}
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
   </sitemap>
@@ -374,19 +427,28 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/evergreen.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-    const input = await streamReplicaQuery(con, buildEvergreenSitemapQuery);
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(
-        toSitemapUrlSetStream(
-          input,
-          (row) => getPostSitemapUrl(prefix, row.slug),
-          getSitemapRowLastmod,
-        ),
-      );
+      .send(await buildEvergreenSitemapStream(con, 1));
+  });
+
+  fastify.get<{
+    Params: { page: string };
+  }>('/evergreen-:page.xml', async (req, res) => {
+    const page = Number.parseInt(req.params.page, 10);
+
+    if (!Number.isInteger(page) || page < 1) {
+      return res.code(404).send();
+    }
+
+    const con = await createOrGetConnection();
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(await buildEvergreenSitemapStream(con, page));
   });
 
   fastify.get('/tags.txt', async (_, res) => {
@@ -476,10 +538,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const postsSitemapCount = getPostsSitemapPageCount(
       await getPostsSitemapCount(con),
     );
+    const evergreenSitemapCount = getEvergreenSitemapPageCount(
+      await getEvergreenSitemapCount(con),
+    );
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(getSitemapIndexXml(postsSitemapCount));
+      .send(getSitemapIndexXml(postsSitemapCount, evergreenSitemapCount));
   });
 }
