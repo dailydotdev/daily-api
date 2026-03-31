@@ -10,6 +10,7 @@ import {
   User,
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
+import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import { ONE_HOUR_IN_SECONDS } from '../common/constants';
@@ -89,9 +90,6 @@ const getAgentSitemapUrl = (prefix: string, entity: string): string =>
 
 const getSquadSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/squads/${encodeURIComponent(handle)}`;
-
-const getUserSitemapUrl = (prefix: string, username: string): string =>
-  `${prefix}/${encodeURIComponent(username)}`;
 
 const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
@@ -314,7 +312,7 @@ const buildUsersSitemapQuery = (
     .from(User, 'u')
     .where('u.reputation > :minRep', { minRep: 10 })
     .andWhere('u.bio IS NOT NULL')
-    .andWhere(`u.bio != ''`)
+    .andWhere(`btrim(u.bio) != ''`)
     .andWhere('u.username IS NOT NULL')
     .andWhere((qb) => {
       const subQuery = qb
@@ -331,7 +329,7 @@ const buildUsersSitemapQuery = (
     })
     .orderBy('u.reputation', 'DESC')
     .addOrderBy('u.username', 'ASC')
-    .limit(getPaginatedSitemapLimit());
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const getPostsSitemapPath = (page: number): string =>
   page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
@@ -570,7 +568,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/users.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
     const input = await streamReplicaQuery(con, buildUsersSitemapQuery);
 
     return res
@@ -579,7 +576,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(
         toSitemapUrlSetStream(
           input,
-          (row) => getUserSitemapUrl(prefix, row.username),
+          (row) => getUserProfileUrl(row.username),
           getSitemapRowLastmod,
         ),
       );
