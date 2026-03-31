@@ -253,7 +253,7 @@ describe('GET /sitemaps/collections.xml', () => {
 
     await con.getRepository(CollectionPost).insert([
       {
-        id: 'qualified-collection',
+        id: 'qc1',
         shortId: 'qc1',
         title: 'Qualified Collection',
         sourceId: 'a',
@@ -316,7 +316,7 @@ describe('GET /sitemaps/collections.xml', () => {
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/qualified-collection-qualified-collection</loc>',
+      '<loc>http://localhost:5002/posts/qualified-collection-qc1</loc>',
     );
     expect(res.text).toContain('<lastmod>2024-02-01T12:00:00.123Z</lastmod>');
     expect(res.text).not.toContain('/posts/low-upvote-collection-luc');
