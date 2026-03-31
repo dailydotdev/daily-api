@@ -332,8 +332,242 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/users.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
+  });
+});
+
+describe('GET /sitemaps/users.xml', () => {
+  it('should include only qualified author profiles', async () => {
+    const updatedAt = new Date('2024-01-01T12:00:00.123Z');
+
+    await con.getRepository(User).save([
+      {
+        id: 'qualified-user',
+        name: 'Qualified User',
+        image: 'https://daily.dev/qualified.jpg',
+        username: 'qualifieduser',
+        email: 'qualified@test.com',
+        createdAt: now,
+        updatedAt,
+        infoConfirmed: true,
+        reputation: 42,
+        bio: 'Writes public posts',
+      },
+      {
+        id: 'low-rep-user',
+        name: 'Low Rep User',
+        image: 'https://daily.dev/low-rep.jpg',
+        username: 'lowrepuser',
+        email: 'lowrep@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 10,
+        bio: 'Below threshold',
+      },
+      {
+        id: 'empty-bio-user',
+        name: 'Empty Bio User',
+        image: 'https://daily.dev/empty-bio.jpg',
+        username: 'emptybio',
+        email: 'emptybio@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: '',
+      },
+      {
+        id: 'null-bio-user',
+        name: 'Null Bio User',
+        image: 'https://daily.dev/null-bio.jpg',
+        username: 'nullbio',
+        email: 'nullbio@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: null,
+      },
+      {
+        id: 'missing-username-user',
+        name: 'Missing Username User',
+        image: 'https://daily.dev/no-username.jpg',
+        email: 'nousername@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: 'Has no username',
+      },
+      {
+        id: 'private-post-user',
+        name: 'Private Post User',
+        image: 'https://daily.dev/private-post.jpg',
+        username: 'privatepost',
+        email: 'privatepost@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: 'Only private posts',
+      },
+      {
+        id: 'deleted-post-user',
+        name: 'Deleted Post User',
+        image: 'https://daily.dev/deleted-post.jpg',
+        username: 'deletedpost',
+        email: 'deletedpost@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: 'Only deleted posts',
+      },
+      {
+        id: 'hidden-post-user',
+        name: 'Hidden Post User',
+        image: 'https://daily.dev/hidden-post.jpg',
+        username: 'hiddenpost',
+        email: 'hiddenpost@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: 'Only hidden posts',
+      },
+      {
+        id: 'no-posts-user',
+        name: 'No Posts User',
+        image: 'https://daily.dev/no-posts.jpg',
+        username: 'noposts',
+        email: 'noposts@test.com',
+        createdAt: now,
+        infoConfirmed: true,
+        reputation: 20,
+        bio: 'Has no posts',
+      },
+    ]);
+
+    await con.getRepository(Post).insert([
+      {
+        id: 'qualified-user-post',
+        shortId: 'qup',
+        title: 'Qualified User Post',
+        sourceId: 'a',
+        createdAt: now,
+        metadataChangedAt: updatedAt,
+        type: PostType.Article,
+        authorId: 'qualified-user',
+        visible: true,
+        private: false,
+        deleted: false,
+      },
+      {
+        id: 'low-rep-post',
+        shortId: 'lrp',
+        title: 'Low Rep Post',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'low-rep-user',
+        visible: true,
+        private: false,
+        deleted: false,
+      },
+      {
+        id: 'empty-bio-post',
+        shortId: 'ebp',
+        title: 'Empty Bio Post',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'empty-bio-user',
+        visible: true,
+        private: false,
+        deleted: false,
+      },
+      {
+        id: 'null-bio-post',
+        shortId: 'nbp',
+        title: 'Null Bio Post',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'null-bio-user',
+        visible: true,
+        private: false,
+        deleted: false,
+      },
+      {
+        id: 'missing-username-post',
+        shortId: 'mup',
+        title: 'Missing Username Post',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'missing-username-user',
+        visible: true,
+        private: false,
+        deleted: false,
+      },
+      {
+        id: 'private-post-only',
+        shortId: 'ppo',
+        title: 'Private Post Only',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'private-post-user',
+        visible: true,
+        private: true,
+        deleted: false,
+      },
+      {
+        id: 'deleted-post-only',
+        shortId: 'dpo',
+        title: 'Deleted Post Only',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'deleted-post-user',
+        visible: true,
+        private: false,
+        deleted: true,
+      },
+      {
+        id: 'hidden-post-only',
+        shortId: 'hpo',
+        title: 'Hidden Post Only',
+        sourceId: 'a',
+        createdAt: now,
+        type: PostType.Article,
+        authorId: 'hidden-post-user',
+        visible: false,
+        private: false,
+        deleted: false,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/users.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/qualifieduser</loc>',
+    );
+    expect(res.text).toContain('<lastmod>2024-01-01T12:00:00.123Z</lastmod>');
+    expect(res.text).not.toContain('/lowrepuser');
+    expect(res.text).not.toContain('/emptybio');
+    expect(res.text).not.toContain('/nullbio');
+    expect(res.text).not.toContain('/privatepost');
+    expect(res.text).not.toContain('/deletedpost');
+    expect(res.text).not.toContain('/hiddenpost');
+    expect(res.text).not.toContain('/noposts');
   });
 });
 

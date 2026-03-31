@@ -90,6 +90,9 @@ const getAgentSitemapUrl = (prefix: string, entity: string): string =>
 const getSquadSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/squads/${encodeURIComponent(handle)}`;
 
+const getUserSitemapUrl = (prefix: string, username: string): string =>
+  `${prefix}/${encodeURIComponent(username)}`;
+
 const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
   buildQuery: (source: EntityManager) => SelectQueryBuilder<T>,
@@ -301,6 +304,35 @@ const buildSquadsSitemapQuery = (
     .orderBy('s."createdAt"', 'DESC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
+const buildUsersSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<User> =>
+  source
+    .createQueryBuilder()
+    .select('u.username', 'username')
+    .addSelect('u."updatedAt"', 'lastmod')
+    .from(User, 'u')
+    .where('u.reputation > :minRep', { minRep: 10 })
+    .andWhere('u.bio IS NOT NULL')
+    .andWhere(`u.bio != ''`)
+    .andWhere('u.username IS NOT NULL')
+    .andWhere((qb) => {
+      const subQuery = qb
+        .subQuery()
+        .select('1')
+        .from(Post, 'p')
+        .where('p."authorId" = u.id')
+        .andWhere('p.deleted = false')
+        .andWhere('p.visible = true')
+        .andWhere('p.private = false')
+        .getQuery();
+
+      return `EXISTS ${subQuery}`;
+    })
+    .orderBy('u.reputation', 'DESC')
+    .addOrderBy('u.username', 'ASC')
+    .limit(getPaginatedSitemapLimit());
+
 const getPostsSitemapPath = (page: number): string =>
   page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
 
@@ -346,6 +378,9 @@ ${evergreenSitemaps}
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/squads.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/users.xml`)}</loc>
   </sitemap>
 </sitemapindex>`;
 };
@@ -528,6 +563,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         toSitemapUrlSetStream(
           input,
           (row) => getSquadSitemapUrl(prefix, row.handle),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get('/users.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildUsersSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getUserSitemapUrl(prefix, row.username),
           getSitemapRowLastmod,
         ),
       );
