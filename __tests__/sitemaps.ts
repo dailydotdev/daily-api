@@ -23,6 +23,7 @@ import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
 let app: FastifyInstance;
 let con: DataSource;
+const previousSitemapLimit = process.env.SITEMAP_LIMIT;
 
 const now = new Date();
 const postsFixture: DeepPartial<Post>[] = [
@@ -109,6 +110,7 @@ const sentimentEntitiesFixture: DeepPartial<SentimentEntity>[] = [
 ];
 
 beforeAll(async () => {
+  process.env.SITEMAP_LIMIT = '2';
   con = await createOrGetConnection();
   app = await appFunc();
   return app.ready();
@@ -123,7 +125,15 @@ beforeEach(async () => {
   await con.getRepository(Post).insert(postsFixture);
 });
 
-afterAll(() => app.close());
+afterAll(async () => {
+  if (previousSitemapLimit) {
+    process.env.SITEMAP_LIMIT = previousSitemapLimit;
+  } else {
+    delete process.env.SITEMAP_LIMIT;
+  }
+
+  await app.close();
+});
 
 describe('GET /sitemaps/posts.txt', () => {
   it('should return posts ordered by time', async () => {
@@ -132,15 +142,15 @@ describe('GET /sitemaps/posts.txt', () => {
       .expect(200);
     expect(res.header['content-type']).toEqual('text/plain');
     expect(res.header['cache-control']).toBeTruthy();
-    expect(res.text).toEqual(`http://localhost:5002/posts/p1-p1
+    expect(res.text).toEqual(`http://localhost:5002/posts/p5-p5
 http://localhost:5002/posts/p4-p4
-http://localhost:5002/posts/p5-p5
+http://localhost:5002/posts/p1-p1
 `);
   });
 });
 
 describe('GET /sitemaps/posts.xml', () => {
-  it('should return posts sitemap as xml', async () => {
+  it('should return the first posts sitemap page as xml', async () => {
     const res = await request(app.server)
       .get('/sitemaps/posts.xml')
       .expect(200);
@@ -150,11 +160,68 @@ describe('GET /sitemaps/posts.xml', () => {
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
-    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
-    expect(res.text).toContain('<loc>http://localhost:5002/posts/p4-p4</loc>');
     expect(res.text).toContain('<loc>http://localhost:5002/posts/p5-p5</loc>');
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p4-p4</loc>');
+    expect(res.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
     expect(res.text).not.toContain('/posts/p2-p2');
     expect(res.text).not.toContain('/posts/p3-p3');
+  });
+});
+
+describe('GET /sitemaps/posts-:page.xml', () => {
+  it('should return subsequent paginated post sitemap pages', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/posts-2.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain('<loc>http://localhost:5002/posts/p1-p1</loc>');
+    expect(res.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p5-p5</loc>',
+    );
+    expect(res.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p4-p4</loc>',
+    );
+  });
+
+  it('should keep earlier pages static and only append equal-timestamp posts to the latest page', async () => {
+    await con.getRepository(Post).insert({
+      id: 'p6',
+      shortId: 'p6',
+      title: 'P6',
+      sourceId: 'a',
+      createdAt: now,
+      type: PostType.Article,
+    });
+
+    const firstPage = await request(app.server)
+      .get('/sitemaps/posts-1.xml')
+      .expect(200);
+    const secondPage = await request(app.server)
+      .get('/sitemaps/posts-2.xml')
+      .expect(200);
+
+    expect(firstPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p5-p5</loc>',
+    );
+    expect(firstPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p4-p4</loc>',
+    );
+    expect(firstPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
+    expect(firstPage.text).not.toContain(
+      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+    );
+    expect(secondPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p1-p1</loc>',
+    );
+    expect(secondPage.text).toContain(
+      '<loc>http://localhost:5002/posts/p6-p6</loc>',
+    );
   });
 });
 
@@ -201,7 +268,7 @@ describe('GET /sitemaps/tags.xml', () => {
 });
 
 describe('GET /sitemaps/index.xml', () => {
-  it('should return sitemap index xml', async () => {
+  it('should return sitemap index xml with all paginated post sitemaps', async () => {
     const res = await request(app.server)
       .get('/sitemaps/index.xml')
       .expect(200);
@@ -212,7 +279,10 @@ describe('GET /sitemaps/index.xml', () => {
       '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/api/sitemaps/posts.xml</loc>',
+      '<loc>http://localhost:5002/api/sitemaps/posts-1.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/posts-2.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
