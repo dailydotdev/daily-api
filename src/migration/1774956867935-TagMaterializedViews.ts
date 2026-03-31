@@ -31,11 +31,19 @@ export class TagMaterializedViews1774956867935 implements MigrationInterface {
         "pk"."keyword" AS "tag",
         COALESCE(SUM("p"."upvotes"), 0) AS "count"
       FROM "public"."post" "p"
+      INNER JOIN "public"."source" "s"
+        ON "s"."id" = "p"."sourceId"
+       AND "s"."active" = true
+       AND "s"."private" = false
       INNER JOIN "public"."post_keyword" "pk"
         ON "pk"."postId" = "p"."id"
        AND "pk"."status" = 'allow'
       WHERE "p"."authorId" IS NOT NULL
         AND "p"."createdAt" > ${createdAtThreshold}
+        AND "p"."visible" = true
+        AND "p"."deleted" = false
+        AND "p"."private" = false
+        AND "p"."banned" = false
       GROUP BY "p"."authorId", "pk"."keyword"
     `;
     const sourceSimilarityViewExpression = `
@@ -122,7 +130,7 @@ export class TagMaterializedViews1774956867935 implements MigrationInterface {
         "similarUserId",
         "count"
       FROM ranked_similar_users
-      WHERE "rn" <= 6
+      WHERE "rn" <= 10
     `;
 
     await queryRunner.query(

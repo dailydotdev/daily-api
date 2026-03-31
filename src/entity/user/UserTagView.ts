@@ -2,6 +2,7 @@ import { subDays } from 'date-fns';
 import { DataSource, Index, ViewColumn, ViewEntity } from 'typeorm';
 import { PostKeyword } from '../PostKeyword';
 import { Post } from '../posts';
+import { Source } from '../Source';
 
 @ViewEntity({
   name: 'user_tag_view',
@@ -14,6 +15,11 @@ import { Post } from '../posts';
       .addSelect('coalesce(sum(p.upvotes), 0)', 'count')
       .from(Post, 'p')
       .innerJoin(
+        Source,
+        's',
+        `s.id = p."sourceId" AND s.active = true AND s.private = false`,
+      )
+      .innerJoin(
         PostKeyword,
         'pk',
         'pk."postId" = p.id AND pk.status = :status',
@@ -23,6 +29,10 @@ import { Post } from '../posts';
       .andWhere(`p."createdAt" > :time`, {
         time: subDays(new Date(), 90),
       })
+      .andWhere('p.visible = true')
+      .andWhere('p.deleted = false')
+      .andWhere('p.private = false')
+      .andWhere('p.banned = false')
       .groupBy(`p."authorId", pk.keyword`),
 })
 @Index('UQ_userTag_userId_tag', ['userId', 'tag'], { unique: true })

@@ -179,6 +179,12 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
+import {
+  similarCreatorsSchema,
+  topCreatorsByTagSchema,
+} from '../common/schema/entityRelations';
+import { UserSimilarityView } from '../entity/user/UserSimilarityView';
+import { UserTagView } from '../entity/user/UserTagView';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1276,6 +1282,16 @@ export const typeDefs = /* GraphQL */ `
     """
     streakRecover: StreakRecoverQuery @auth
     """
+    Get top creators for a tag
+    """
+    topCreatorsByTag(tag: String!, limit: Int): [User!]!
+      @cacheControl(maxAge: 600)
+    """
+    Get creators similar to the given user
+    """
+    similarCreators(userId: ID!, limit: Int): [User!]!
+      @cacheControl(maxAge: 600)
+    """
     Get the most read tags of the user
     """
     userMostReadTags(
@@ -2205,6 +2221,90 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       );
 
       return isSameUser ? rank : { currentRank: rank.currentRank };
+    },
+    topCreatorsByTag: async (
+      _,
+      args: { tag: string; limit?: number },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser[]> => {
+      const parsedArgs = topCreatorsByTagSchema.safeParse(args);
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
+      const { tag, limit } = parsedArgs.data;
+      const topCreators = await ctx.con.getRepository(UserTagView).find({
+        where: { tag },
+        select: ['userId'],
+        order: {
+          count: 'DESC',
+          userId: 'ASC',
+        },
+        take: limit,
+      });
+      const userIds = topCreators.map(({ userId }) => userId);
+      if (!userIds.length) {
+        return [];
+      }
+
+      const idsStr = userIds.map((id) => `'${id}'`).join(',');
+      return graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...ids)', { ids: userIds })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(limit);
+
+          return builder;
+        },
+        true,
+      );
+    },
+    similarCreators: async (
+      _,
+      args: { userId: string; limit?: number },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser[]> => {
+      const parsedArgs = similarCreatorsSchema.safeParse(args);
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
+      const { userId, limit } = parsedArgs.data;
+      const similarCreators = await ctx.con
+        .getRepository(UserSimilarityView)
+        .find({
+          where: { userId },
+          select: ['similarUserId'],
+          order: {
+            count: 'DESC',
+            similarUserId: 'ASC',
+          },
+          take: limit,
+        });
+      const userIds = similarCreators.map(({ similarUserId }) => similarUserId);
+      if (!userIds.length) {
+        return [];
+      }
+
+      const idsStr = userIds.map((id) => `'${id}'`).join(',');
+      return graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...ids)', { ids: userIds })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(limit);
+
+          return builder;
+        },
+        true,
+      );
     },
     userMostReadTags: async (
       _,

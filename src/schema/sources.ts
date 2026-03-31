@@ -91,6 +91,11 @@ import { remoteConfig } from '../remoteConfig';
 import { GQLCommentAwardArgs } from './comments';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { UserVote } from '../types';
+import { topMembersBySquadSchema } from '../common/schema/entityRelations';
+import { Comment } from '../entity/Comment';
+import { Post } from '../entity/posts/Post';
+import { UserComment } from '../entity/user/UserComment';
+import { UserPost } from '../entity/user/UserPost';
 
 export interface GQLSourceCategory {
   id: string;
@@ -617,6 +622,12 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceConnection!
+
+    """
+    Get the most engaged non-staff members in a squad since a given date
+    """
+    topMembersBySquad(sourceId: ID!, since: DateTime!, limit: Int): [User!]!
+      @cacheControl(maxAge: 600)
 
     """
     Get source by ID
@@ -1945,6 +1956,173 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           return builder;
         },
         undefined,
+        true,
+      );
+    },
+    topMembersBySquad: async (
+      _,
+      args: { sourceId: string; since: Date; limit?: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLUser[]> => {
+      const parsedArgs = topMembersBySquadSchema.safeParse(args);
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
+      const { sourceId, since, limit } = parsedArgs.data;
+      const squad = await ctx.con.getRepository(Source).findOne({
+        where: {
+          id: sourceId,
+          type: SourceType.Squad,
+          active: true,
+          private: false,
+        },
+        select: ['id'],
+      });
+      if (!squad) {
+        return [];
+      }
+
+      const rankedMembers = await ctx.con
+        .getRepository(SourceMember)
+        .createQueryBuilder('sm')
+        .select('sm."userId"', 'userId')
+        .addSelect('coalesce(posts."authoredPosts", 0)', 'authoredPosts')
+        .addSelect(
+          `(
+              coalesce(posts."authoredPosts", 0) * 5 +
+              coalesce(upvotes."givenUpvotes", 0) +
+              coalesce(comments."comments", 0) * 3 +
+              (
+                coalesce(postawards.awards, 0) +
+                coalesce(commentawards.awards, 0)
+              ) * 10
+            )`,
+          'score',
+        )
+        .leftJoin(
+          (builder) =>
+            builder
+              .select('p."authorId"', 'userId')
+              .addSelect('count(*)', 'authoredPosts')
+              .from(Post, 'p')
+              .where('p."sourceId" = :sourceId', { sourceId })
+              .andWhere('p."authorId" IS NOT NULL')
+              .andWhere('p."createdAt" >= :since', { since })
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.private = false')
+              .andWhere('p.banned = false')
+              .groupBy('p."authorId"'),
+          'posts',
+          'posts."userId" = sm."userId"',
+        )
+        .leftJoin(
+          (builder) =>
+            builder
+              .select('up."userId"', 'userId')
+              .addSelect('count(*)', 'givenUpvotes')
+              .from(UserPost, 'up')
+              .innerJoin(Post, 'p', 'p.id = up."postId"')
+              .where('p."sourceId" = :sourceId', { sourceId })
+              .andWhere('up.vote = :vote', { vote: UserVote.Up })
+              .andWhere('up."votedAt" >= :since', { since })
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.private = false')
+              .andWhere('p.banned = false')
+              .groupBy('up."userId"'),
+          'upvotes',
+          'upvotes."userId" = sm."userId"',
+        )
+        .leftJoin(
+          (builder) =>
+            builder
+              .select('c."userId"', 'userId')
+              .addSelect('count(*)', 'comments')
+              .from(Comment, 'c')
+              .innerJoin(Post, 'p', 'p.id = c."postId"')
+              .where('p."sourceId" = :sourceId', { sourceId })
+              .andWhere('c."createdAt" >= :since', { since })
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.private = false')
+              .andWhere('p.banned = false')
+              .groupBy('c."userId"'),
+          'comments',
+          'comments."userId" = sm."userId"',
+        )
+        .leftJoin(
+          (builder) =>
+            builder
+              .select('up."userId"', 'userId')
+              .addSelect('count(*)', 'awards')
+              .from(UserPost, 'up')
+              .innerJoin(Post, 'p', 'p.id = up."postId"')
+              .where('p."sourceId" = :sourceId', { sourceId })
+              .andWhere('up."awardTransactionId" IS NOT NULL')
+              .andWhere('up."updatedAt" >= :since', { since })
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.private = false')
+              .andWhere('p.banned = false')
+              .groupBy('up."userId"'),
+          'postawards',
+          'postawards."userId" = sm."userId"',
+        )
+        .leftJoin(
+          (builder) =>
+            builder
+              .select('uc."userId"', 'userId')
+              .addSelect('count(*)', 'awards')
+              .from(UserComment, 'uc')
+              .innerJoin(Comment, 'c', 'c.id = uc."commentId"')
+              .innerJoin(Post, 'p', 'p.id = c."postId"')
+              .where('p."sourceId" = :sourceId', { sourceId })
+              .andWhere('uc."awardTransactionId" IS NOT NULL')
+              .andWhere('uc."updatedAt" >= :since', { since })
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.private = false')
+              .andWhere('p.banned = false')
+              .groupBy('uc."userId"'),
+          'commentawards',
+          'commentawards."userId" = sm."userId"',
+        )
+        .where('sm."sourceId" = :sourceId', { sourceId })
+        .andWhere('sm.role = :role', { role: SourceMemberRoles.Member })
+        .andWhere(
+          `(
+              coalesce(posts."authoredPosts", 0) +
+              coalesce(upvotes."givenUpvotes", 0) +
+              coalesce(comments."comments", 0) +
+              coalesce(postawards.awards, 0) +
+              coalesce(commentawards.awards, 0)
+            ) > 0`,
+        )
+        .orderBy('score', 'DESC')
+        .addOrderBy('coalesce(posts."authoredPosts", 0)', 'DESC')
+        .addOrderBy('sm."userId"', 'ASC')
+        .limit(limit)
+        .getRawMany<{ userId: string }>();
+      const userIds = rankedMembers.map(({ userId }) => userId);
+      if (!userIds.length) {
+        return [];
+      }
+
+      const idsStr = userIds.map((id) => `'${id}'`).join(',');
+      return graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...ids)', { ids: userIds })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(limit);
+
+          return builder;
+        },
         true,
       );
     },

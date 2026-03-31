@@ -44,7 +44,7 @@ import { Index, ViewColumn, ViewEntity } from 'typeorm';
       "similarUserId",
       count
     FROM ranked_similar_users
-    WHERE rn <= 6
+    WHERE rn <= 10
   `,
 })
 @Index('UQ_userSimilarity_userId_similarUserId', ['userId', 'similarUserId'], {
