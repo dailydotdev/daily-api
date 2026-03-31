@@ -25,6 +25,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { SourceStack } from '../src/entity/sources/SourceStack';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { SourceTagView } from '../src/entity/SourceTagView';
+import { SourceSimilarityView } from '../src/entity/SourceSimilarityView';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { NotificationType } from '../src/notifications/common';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
@@ -57,6 +58,8 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
+import { UserTagView } from '../src/entity/user/UserTagView';
+import { UserSimilarityView } from '../src/entity/user/UserSimilarityView';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -861,8 +864,8 @@ describe('query sourceRecommendationByTags', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceRecommendationByTags).toEqual([
-      { id: 'b', name: 'B', image: 'http://image.com/b' },
       { id: 'a', name: 'A', image: 'http://image.com/a' },
+      { id: 'b', name: 'B', image: 'http://image.com/b' },
     ]);
   });
 
@@ -2103,6 +2106,45 @@ describe('query sourcesByTag', () => {
       ]),
     );
   });
+
+  it('should rank sources by summed upvotes for the tag', async () => {
+    await con.getRepository(Post).save([
+      {
+        ...postsFixture[0],
+        upvotes: 1,
+      },
+      {
+        ...postsFixture[3],
+        upvotes: 1,
+      },
+      {
+        ...postsFixture[4],
+        upvotes: 10,
+      },
+    ]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[1],
+        postKeywordsFixture[3],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+
+    const res = await client.query(QUERY, {
+      variables: { tag: 'javascript' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourcesByTag.edges).toEqual([
+      { node: { name: 'B' } },
+      { node: { name: 'A' } },
+    ]);
+  });
 });
 
 describe('query similarSources', () => {
@@ -2137,9 +2179,12 @@ query SimilarSources($sourceId: ID!) {
       ]);
     await con.manager.query(`UPDATE post_keyword
                              SET status = 'allow'`);
-    const materializedViewName =
-      con.getRepository(SourceTagView).metadata.tableName;
-    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceSimilarityView).metadata.tableName}`,
+    );
     const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.similarSources.edges).toEqual([{ node: { name: 'B' } }]);
@@ -2185,6 +2230,71 @@ query RelatedTags($sourceId: ID!) {
       { name: 'javascript' },
       { name: 'webdev' },
     ]);
+  });
+});
+
+describe('materialized tag views', () => {
+  it('should expose source and user tag totals using the legacy count column', async () => {
+    await con.getRepository(Post).save([
+      {
+        ...postsFixture[0],
+        authorId: '1',
+        upvotes: 2,
+      },
+      {
+        ...postsFixture[3],
+        authorId: '1',
+        upvotes: 3,
+      },
+      {
+        ...postsFixture[4],
+        authorId: '2',
+        upvotes: 10,
+      },
+    ]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[1],
+        postKeywordsFixture[3],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(SourceSimilarityView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserSimilarityView).metadata.tableName}`,
+    );
+
+    expect(
+      await con.query(
+        `SELECT count FROM source_tag_view WHERE "sourceId" = 'a' AND tag = 'javascript'`,
+      ),
+    ).toEqual([{ count: '5' }]);
+    expect(
+      await con.query(
+        `SELECT count FROM user_tag_view WHERE "userId" = '1' AND tag = 'javascript'`,
+      ),
+    ).toEqual([{ count: '5' }]);
+    expect(
+      await con.query(
+        `SELECT "similarSourceId", count FROM source_similarity_view WHERE "sourceId" = 'a'`,
+      ),
+    ).toEqual([{ similarSourceId: 'b', count: '1' }]);
+    expect(
+      await con.query(
+        `SELECT "similarUserId", count FROM user_similarity_view WHERE "userId" = '1'`,
+      ),
+    ).toEqual([{ similarUserId: '2', count: '1' }]);
   });
 });
 

@@ -11,7 +11,7 @@ import { Source } from './Source';
       .createQueryBuilder()
       .select(`s.id as sourceId`)
       .addSelect('pk.keyword AS tag')
-      .addSelect('count(pk.keyword) AS count')
+      .addSelect('coalesce(sum(p.upvotes), 0) AS count')
       .from(Source, 's')
       .innerJoin(Post, 'p', `p.sourceId = s.id AND p.createdAt > :time`, {
         time: subDays(new Date(), 90),
@@ -25,6 +25,7 @@ import { Source } from './Source';
       .andWhere({ active: true, private: false })
       .groupBy(`sourceId, tag`),
 })
+@Index('UQ_sourceTag_sourceId_tag', ['sourceId', 'tag'], { unique: true })
 export class SourceTagView {
   @ViewColumn()
   @Index('IDX_sourceTag_sourceId')

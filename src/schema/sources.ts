@@ -68,6 +68,7 @@ import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
 import { MIN_SEARCH_QUERY_LENGTH } from './tags';
+import { SourceSimilarityView } from '../entity/SourceSimilarityView';
 import { SourceTagView } from '../entity/SourceTagView';
 import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
@@ -1905,21 +1906,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         private: false,
         id: Not(In(excludedSources)),
       };
-
-      const subQuery = await ctx.con.query(
-        `with s as (
-            SELECT *, row_number() over (partition by "sourceId" order by count desc) rn
-            FROM source_tag_view
-        )
-        SELECT s2."sourceId"
-        FROM s s1
-        JOIN s s2 on s1.tag = s2.tag and s1."sourceId" != s2."sourceId"
-        WHERE s1."sourceId" = $1 and s1.rn <= 10 and s2.rn <= 10
-        GROUP BY 1
-        ORDER BY count(*) desc
-        LIMIT 6`,
-        [args?.sourceId],
+      const similarSources = await ctx.con
+        .getRepository(SourceSimilarityView)
+        .find({
+          where: {
+            sourceId: args.sourceId,
+            similarSourceId: Not(In(excludedSources)),
+          },
+          select: ['similarSourceId'],
+          order: {
+            count: 'DESC',
+            similarSourceId: 'ASC',
+          },
+        });
+      const similarSourceIds = similarSources.map(
+        ({ similarSourceId }) => similarSourceId,
       );
+      const idsStr = similarSourceIds.length
+        ? similarSourceIds.map((id) => `'${id}'`).join(',')
+        : `'nosuchid'`;
 
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
@@ -1931,13 +1936,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           sourcePageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
-            .andWhere('id IN (:...subQuery)', {
-              subQuery:
-                subQuery.length > 0
-                  ? subQuery.map((s: { sourceId: string }) => s.sourceId)
-                  : ['NULL'],
+            .andWhere('id IN (:...ids)', {
+              ids: similarSourceIds.length > 0 ? similarSourceIds : ['NULL'],
             })
             .andWhere(filter)
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
             .limit(page.limit);
           return builder;
         },
