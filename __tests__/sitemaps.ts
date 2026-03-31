@@ -269,6 +269,38 @@ describe('GET /sitemaps/tags.xml', () => {
 
 describe('GET /sitemaps/index.xml', () => {
   it('should return sitemap index xml with all paginated post sitemaps', async () => {
+    const oldDate = new Date(now.getTime() - 91 * ONE_DAY_IN_SECONDS * 1000);
+
+    await con.getRepository(Post).insert([
+      {
+        id: 'evergreen-index-1',
+        shortId: 'ei1',
+        title: 'Evergreen Index 1',
+        sourceId: 'a',
+        createdAt: oldDate,
+        type: PostType.Article,
+        upvotes: 10,
+      },
+      {
+        id: 'evergreen-index-2',
+        shortId: 'ei2',
+        title: 'Evergreen Index 2',
+        sourceId: 'a',
+        createdAt: new Date(oldDate.getTime() - 1000),
+        type: PostType.Article,
+        upvotes: 11,
+      },
+      {
+        id: 'evergreen-index-3',
+        shortId: 'ei3',
+        title: 'Evergreen Index 3',
+        sourceId: 'a',
+        createdAt: new Date(oldDate.getTime() - 2000),
+        type: PostType.Article,
+        upvotes: 12,
+      },
+    ]);
+
     const res = await request(app.server)
       .get('/sitemaps/index.xml')
       .expect(200);
@@ -285,7 +317,10 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/posts-2.xml</loc>',
     );
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
+      '<loc>http://localhost:5002/api/sitemaps/evergreen.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/evergreen-2.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
@@ -295,6 +330,9 @@ describe('GET /sitemaps/index.xml', () => {
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
   });
 });
@@ -431,6 +469,77 @@ describe('GET /sitemaps/squads.xml', () => {
 });
 
 describe('GET /sitemaps/evergreen.xml', () => {
+  it('should include posts with at least 10 upvotes and paginate older posts', async () => {
+    const oldDate = new Date(now.getTime() - 91 * ONE_DAY_IN_SECONDS * 1000);
+
+    await con.getRepository(Post).insert([
+      {
+        id: 'evergreen-min-threshold',
+        shortId: 'emt',
+        title: 'Evergreen Min Threshold',
+        sourceId: 'a',
+        createdAt: oldDate,
+        type: PostType.Article,
+        upvotes: 10,
+      },
+      {
+        id: 'evergreen-next-page',
+        shortId: 'enp',
+        title: 'Evergreen Next Page',
+        sourceId: 'a',
+        createdAt: new Date(oldDate.getTime() - 1000),
+        type: PostType.Article,
+        upvotes: 11,
+      },
+      {
+        id: 'evergreen-third-page',
+        shortId: 'etp',
+        title: 'Evergreen Third Page',
+        sourceId: 'a',
+        createdAt: new Date(oldDate.getTime() - 2000),
+        type: PostType.Article,
+        upvotes: 12,
+      },
+      {
+        id: 'evergreen-below-threshold',
+        shortId: 'ebt',
+        title: 'Evergreen Below Threshold',
+        sourceId: 'a',
+        createdAt: new Date(oldDate.getTime() - 3000),
+        type: PostType.Article,
+        upvotes: 9,
+      },
+    ]);
+
+    const firstPage = await request(app.server)
+      .get('/sitemaps/evergreen.xml')
+      .expect(200);
+    const secondPage = await request(app.server)
+      .get('/sitemaps/evergreen-2.xml')
+      .expect(200);
+
+    expect(firstPage.header['content-type']).toContain('application/xml');
+    expect(firstPage.text).toContain(
+      '/posts/evergreen-third-page-evergreen-third-page',
+    );
+    expect(firstPage.text).toContain(
+      '/posts/evergreen-next-page-evergreen-next-page',
+    );
+    expect(firstPage.text).not.toContain(
+      '/posts/evergreen-min-threshold-evergreen-min-threshold',
+    );
+    expect(firstPage.text).not.toContain(
+      '/posts/evergreen-below-threshold-ebt',
+    );
+
+    expect(secondPage.text).toContain(
+      '/posts/evergreen-min-threshold-evergreen-min-threshold',
+    );
+    expect(secondPage.text).not.toContain(
+      '/posts/evergreen-below-threshold-ebt',
+    );
+  });
+
   it('should exclude posts by low-reputation authors', async () => {
     await con.getRepository(User).save({
       id: 'low-rep-sitemap',
