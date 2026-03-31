@@ -23,6 +23,7 @@ import {
 
 const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-maxage=${2 * ONE_HOUR_IN_SECONDS}`;
 const DEFAULT_SITEMAP_LIMIT = 50_000;
+const QUALIFIED_SOURCE_MIN_PUBLIC_POSTS = 10;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
   '970ab2c9-f845-4822-82f0-02169713b814',
@@ -87,6 +88,9 @@ const getTagSitemapUrl = (prefix: string, value: string): string =>
 
 const getAgentSitemapUrl = (prefix: string, entity: string): string =>
   `${prefix}/agents/${encodeURIComponent(entity)}`;
+
+const getSourceSitemapUrl = (prefix: string, handle: string): string =>
+  `${prefix}/sources/${encodeURIComponent(handle)}`;
 
 const getSquadSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/squads/${encodeURIComponent(handle)}`;
@@ -287,6 +291,51 @@ const buildAgentsDigestSitemapQuery = (
     .orderBy('p."createdAt"', 'DESC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
+const buildSourcesSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Source> =>
+  source
+    .createQueryBuilder()
+    .select('s.handle', 'handle')
+    .addSelect('s."createdAt"', 'lastmod')
+    .from(Source, 's')
+    .where('s.type = :type', { type: SourceType.Machine })
+    .andWhere('s.active = true')
+    .andWhere('s.private = false')
+    .andWhere((qb) => {
+      const publicPostsCountSubQuery = qb
+        .subQuery()
+        .select('COUNT(*)')
+        .from(Post, 'p')
+        .where('p."sourceId" = s.id')
+        .andWhere('p.deleted = false')
+        .andWhere('p.visible = true')
+        .andWhere('p.private = false')
+        .andWhere('p.banned = false')
+        .getQuery();
+
+      return `${publicPostsCountSubQuery} >= :minPublicPosts`;
+    })
+    .andWhere((qb) => {
+      const recentPublicPostSubQuery = qb
+        .subQuery()
+        .select('1')
+        .from(Post, 'p')
+        .where('p."sourceId" = s.id')
+        .andWhere('p.deleted = false')
+        .andWhere('p.visible = true')
+        .andWhere('p.private = false')
+        .andWhere('p.banned = false')
+        .andWhere('p."createdAt" >= current_timestamp - interval \'12 months\'')
+        .getQuery();
+
+      return `EXISTS ${recentPublicPostSubQuery}`;
+    })
+    .orderBy('s."createdAt"', 'DESC')
+    .addOrderBy('s.handle', 'ASC')
+    .limit(DEFAULT_SITEMAP_LIMIT)
+    .setParameter('minPublicPosts', QUALIFIED_SOURCE_MIN_PUBLIC_POSTS);
+
 const buildSquadsSitemapQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Source> =>
@@ -373,6 +422,9 @@ ${evergreenSitemaps}
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/sources.xml`)}</loc>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/squads.xml`)}</loc>
@@ -544,6 +596,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         toSitemapUrlSetStream(
           input,
           (row) => getPostSitemapUrl(prefix, row.slug),
+          getSitemapRowLastmod,
+        ),
+      );
+  });
+
+  fastify.get('/sources.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+    const input = await streamReplicaQuery(con, buildSourcesSitemapQuery);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        toSitemapUrlSetStream(
+          input,
+          (row) => getSourceSitemapUrl(prefix, row.handle),
           getSitemapRowLastmod,
         ),
       );

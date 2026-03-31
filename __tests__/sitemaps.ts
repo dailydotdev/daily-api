@@ -14,6 +14,7 @@ import {
   SentimentEntity,
   SentimentGroup,
   Source,
+  SourceType,
   User,
 } from '../src/entity';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
@@ -329,6 +330,9 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/sources.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/squads.xml</loc>',
     );
     expect(res.text).toContain(
@@ -337,6 +341,165 @@ describe('GET /sitemaps/index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
     );
+  });
+});
+
+describe('GET /sitemaps/sources.xml', () => {
+  it('should include only qualified public machine sources', async () => {
+    const sourceCreatedAt = new Date('2023-10-01T10:00:00.000Z');
+    const recentActivityDate = new Date();
+    const staleActivityDate = new Date('2023-01-01T00:00:00.000Z');
+    const publicPostBase = {
+      createdAt: staleActivityDate,
+      type: PostType.Article,
+      visible: true,
+      private: false,
+      deleted: false,
+      banned: false,
+    };
+
+    await con.getRepository(Source).save([
+      {
+        id: 'qualified-source',
+        name: 'Qualified Source',
+        image: 'https://daily.dev/qualified-source.jpg',
+        handle: 'qualifiedsource',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+        createdAt: sourceCreatedAt,
+      },
+      {
+        id: 'not-enough-posts-source',
+        name: 'Not Enough Posts Source',
+        image: 'https://daily.dev/not-enough-posts-source.jpg',
+        handle: 'notenoughposts',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+      },
+      {
+        id: 'stale-source',
+        name: 'Stale Source',
+        image: 'https://daily.dev/stale-source.jpg',
+        handle: 'stalesource',
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+      },
+      {
+        id: 'private-source',
+        name: 'Private Source',
+        image: 'https://daily.dev/private-source.jpg',
+        handle: 'privatesource',
+        type: SourceType.Machine,
+        active: true,
+        private: true,
+      },
+      {
+        id: 'inactive-source',
+        name: 'Inactive Source',
+        image: 'https://daily.dev/inactive-source.jpg',
+        handle: 'inactivesource',
+        type: SourceType.Machine,
+        active: false,
+        private: false,
+      },
+      {
+        id: 'squad-source',
+        name: 'Squad Source',
+        image: 'https://daily.dev/squad-source.jpg',
+        handle: 'squadsource',
+        type: SourceType.Squad,
+        active: true,
+        private: false,
+      },
+    ]);
+
+    await con.getRepository(Post).insert([
+      ...Array.from({ length: 9 }, (_, index) => ({
+        ...publicPostBase,
+        id: `qualified-old-${index}`,
+        shortId: `qso${index}`,
+        title: `Qualified Old ${index}`,
+        sourceId: 'qualified-source',
+      })),
+      {
+        ...publicPostBase,
+        id: 'qualified-recent',
+        shortId: 'qsr',
+        title: 'Qualified Recent',
+        sourceId: 'qualified-source',
+        createdAt: recentActivityDate,
+      },
+      ...Array.from({ length: 9 }, (_, index) => ({
+        ...publicPostBase,
+        id: `notenough-${index}`,
+        shortId: `nes${index}`,
+        title: `Not Enough ${index}`,
+        sourceId: 'not-enough-posts-source',
+      })),
+      {
+        ...publicPostBase,
+        id: 'notenough-private',
+        shortId: 'nsp',
+        title: 'Not Enough Private',
+        sourceId: 'not-enough-posts-source',
+        private: true,
+      },
+      ...Array.from({ length: 10 }, (_, index) => ({
+        ...publicPostBase,
+        id: `stale-${index}`,
+        shortId: `sts${index}`,
+        title: `Stale ${index}`,
+        sourceId: 'stale-source',
+      })),
+      ...Array.from({ length: 10 }, (_, index) => ({
+        ...publicPostBase,
+        id: `private-${index}`,
+        shortId: `prs${index}`,
+        title: `Private ${index}`,
+        sourceId: 'private-source',
+        createdAt: recentActivityDate,
+      })),
+      ...Array.from({ length: 10 }, (_, index) => ({
+        ...publicPostBase,
+        id: `inactive-${index}`,
+        shortId: `ins${index}`,
+        title: `Inactive ${index}`,
+        sourceId: 'inactive-source',
+        createdAt: recentActivityDate,
+      })),
+      ...Array.from({ length: 10 }, (_, index) => ({
+        ...publicPostBase,
+        id: `squad-${index}`,
+        shortId: `sqs${index}`,
+        title: `Squad ${index}`,
+        sourceId: 'squad-source',
+        createdAt: recentActivityDate,
+      })),
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/sources.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/sources/qualifiedsource</loc>',
+    );
+    expect(res.text).toContain('<lastmod>2023-10-01T10:00:00.000Z</lastmod>');
+    expect(res.text).not.toContain('/sources/notenoughposts');
+    expect(res.text).not.toContain('/sources/stalesource');
+    expect(res.text).not.toContain('/sources/privatesource');
+    expect(res.text).not.toContain('/sources/inactivesource');
+    expect(res.text).not.toContain('/sources/squadsource');
   });
 });
 
