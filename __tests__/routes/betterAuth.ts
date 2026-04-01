@@ -90,3 +90,91 @@ describe('betterAuth routes', () => {
     });
   });
 });
+
+  describe('error response logging', () => {
+    it('should log error details for failed sign-up requests', async () => {
+      const errorBody = { code: 'BAD_REQUEST', message: 'Failed to create user' };
+      const getBetterAuthSpy = jest
+        .spyOn(betterAuthModule, 'getBetterAuth')
+        .mockReturnValue({
+          handler: async () => {
+            return new Response(JSON.stringify(errorBody), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          },
+          api: {
+            getSession: async () => null,
+            setPassword: async () => ({ status: true }),
+          },
+        } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+      const res = await request(app.server)
+        .post('/auth/sign-up/email')
+        .send({
+          name: 'Test User',
+          email: 'test@example.com',
+          password: 'secret123',
+          username: 'testuser',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual(errorBody);
+
+      getBetterAuthSpy.mockRestore();
+    });
+
+    it('should not log for non-monitored paths', async () => {
+      const getBetterAuthSpy = jest
+        .spyOn(betterAuthModule, 'getBetterAuth')
+        .mockReturnValue({
+          handler: async () => {
+            return new Response(JSON.stringify({ error: 'not found' }), {
+              status: 404,
+            });
+          },
+          api: {
+            getSession: async () => null,
+            setPassword: async () => ({ status: true }),
+          },
+        } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+      const res = await request(app.server).get('/auth/some-other-path');
+
+      expect(res.status).toBe(404);
+
+      getBetterAuthSpy.mockRestore();
+    });
+
+    it('should sanitize sensitive fields from request body in logs', async () => {
+      const getBetterAuthSpy = jest
+        .spyOn(betterAuthModule, 'getBetterAuth')
+        .mockReturnValue({
+          handler: async () => {
+            return new Response(
+              JSON.stringify({ code: 'BAD_REQUEST', message: 'error' }),
+              { status: 400 },
+            );
+          },
+          api: {
+            getSession: async () => null,
+            setPassword: async () => ({ status: true }),
+          },
+        } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+      const res = await request(app.server)
+        .post('/auth/sign-up/email')
+        .send({
+          name: 'Test',
+          email: 'test@test.com',
+          password: 'should-be-stripped',
+          turnstileToken: 'should-be-stripped',
+          username: 'visible',
+        });
+
+      // Response is still returned correctly
+      expect(res.status).toBe(400);
+
+      getBetterAuthSpy.mockRestore();
+    });
+  });

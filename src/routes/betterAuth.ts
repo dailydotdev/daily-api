@@ -8,6 +8,88 @@ const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 const internalAuthenticationError = 'Internal authentication error';
 
+/** Auth paths where failed responses should be logged with full detail. */
+const MONITORED_AUTH_PATHS = [
+  '/auth/sign-up/email',
+  '/auth/sign-in/email',
+  '/auth/sign-in/social',
+];
+
+const isMonitoredPath = (url: string): boolean =>
+  MONITORED_AUTH_PATHS.some((p) => url.includes(p));
+
+/**
+ * Safely extract a JSON body from a request string without exposing secrets.
+ * Strips password and token fields.
+ */
+const sanitizeBody = (raw: string | undefined): Record<string, unknown> | undefined => {
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const sanitized = { ...parsed };
+    delete sanitized.password;
+    delete sanitized.turnstileToken;
+    delete sanitized['x-captcha-response'];
+    delete sanitized.idToken;
+    delete sanitized.token;
+    return sanitized;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Parse a Better Auth error response body. Returns the parsed object or
+ * undefined when the body cannot be read (e.g. stream already consumed).
+ */
+const parseBetterAuthErrorBody = async (
+  response: Response,
+): Promise<Record<string, unknown> | undefined> => {
+  try {
+    const text = await response.clone().text();
+    if (!text) {
+      return undefined;
+    }
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Log detailed context when Better Auth returns an error response for a
+ * monitored endpoint (sign-up, sign-in). This is critical for diagnosing
+ * opaque errors like "Failed to create user" where the underlying cause
+ * is swallowed by the auth library.
+ */
+const logBetterAuthErrorResponse = async (
+  request: FastifyRequest,
+  response: Response,
+  requestBody: string | undefined,
+): Promise<void> => {
+  const errorBody = await parseBetterAuthErrorBody(response);
+
+  request.log.warn(
+    {
+      betterAuth: {
+        status: response.status,
+        errorBody,
+        requestPath: request.url,
+        requestMethod: request.method,
+        requestBodySanitized: sanitizeBody(requestBody),
+        ip:
+          request.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ??
+          request.ip,
+        userAgent: request.headers['user-agent'],
+      },
+    },
+    `BetterAuth error response ${response.status} on ${request.url}`,
+  );
+};
+
 const toRequestBody = (request: FastifyRequest): string | undefined => {
   if (request.method === 'GET' || request.method === 'HEAD') {
     return undefined;
@@ -142,6 +224,12 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           reply,
           body,
         });
+
+        // Log detailed context for error responses on monitored auth paths
+        if (response.status >= 400 && isMonitoredPath(request.url)) {
+          await logBetterAuthErrorResponse(request, response, body);
+        }
+
         return sendBetterAuthResponse(reply, response);
       } catch (error) {
         return sendBetterAuthError(

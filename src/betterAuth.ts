@@ -318,6 +318,55 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           };
         }
       }),
+      after: createAuthMiddleware(async (ctx) => {
+        const hookContext = ctx as BetterAuthHookContext & {
+          responseHeader?: Headers;
+          response?: unknown;
+          returned?: unknown;
+        };
+        const signUpPaths = [signUpEmailPath, '/sign-in/social'];
+        if (
+          hookContext.path &&
+          signUpPaths.some((p) => hookContext.path?.startsWith(p))
+        ) {
+          // Better Auth resolves errors internally and returns them as JSON
+          // responses. Inspect the returned value to log the underlying cause
+          // which is otherwise lost by the time it reaches the client.
+          const returned = hookContext.returned as
+            | { status?: number; body?: Record<string, unknown> }
+            | undefined;
+          if (returned?.body) {
+            const body = returned.body as Record<string, unknown>;
+            const hasError =
+              body.code === 'INTERNAL_SERVER_ERROR' ||
+              body.code === 'BAD_REQUEST' ||
+              (typeof body.message === 'string' &&
+                body.message.toLowerCase().includes('failed'));
+            if (hasError) {
+              logger.warn(
+                {
+                  betterAuthHook: {
+                    path: hookContext.path,
+                    responseStatus: returned.status,
+                    errorCode: body.code,
+                    errorMessage: body.message,
+                    errorBody: body,
+                    requestEmail:
+                      typeof hookContext.body?.email === 'string'
+                        ? hookContext.body.email
+                        : undefined,
+                    requestUsername:
+                      typeof hookContext.body?.username === 'string'
+                        ? hookContext.body.username
+                        : undefined,
+                  },
+                },
+                `BetterAuth hook: error on ${hookContext.path} — ${body.code}: ${body.message}`,
+              );
+            }
+          }
+        }
+      }),
     },
     advanced: {
       cookiePrefix: 'daily',
@@ -412,12 +461,34 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
               const cookieHeader =
                 hookCtx?.request?.headers?.get('cookie') ?? '';
               const trackingId = parseTrackingIdFromCookieHeader(cookieHeader);
+
+              logger.info(
+                {
+                  betterAuthUserCreate: {
+                    hasTrackingId: !!trackingId,
+                    email: user.email,
+                    username: (user as Record<string, unknown>).username,
+                    name: user.name,
+                    ip:
+                      hookCtx?.request?.headers
+                        ?.get('x-forwarded-for')
+                        ?.split(',')[0]
+                        ?.trim() ?? undefined,
+                  },
+                },
+                'BetterAuth: user create hook — before insert',
+              );
+
               if (trackingId) {
                 return { data: { id: trackingId } };
               }
             } catch (err) {
               logger.error(
-                { err: err instanceof Error ? err.message : String(err) },
+                {
+                  err: err instanceof Error ? err.message : String(err),
+                  userId: (user as Record<string, unknown>).id,
+                  email: user.email,
+                },
                 'Failed to extract tracking ID for new user',
               );
             }
