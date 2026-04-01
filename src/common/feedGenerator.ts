@@ -675,9 +675,6 @@ export interface AnonymousFeedFilters {
   flags?: FeedFlagsFilters;
 }
 
-const escapeRegexToken = (token: string): string =>
-  token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 export const anonymousFeedBuilder = (
   ctx: Context,
   filters: AnonymousFeedFilters | undefined,
@@ -706,17 +703,6 @@ export const anonymousFeedBuilder = (
   if (filters?.blockedTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
       whereNotTags(filters.blockedTags!, builder, alias),
-    );
-  }
-
-  if (filters?.blockedWords?.length) {
-    newBuilder = newBuilder.andWhere(
-      `COALESCE(${alias}.title, '') !~* :blockedWordsPattern`,
-      {
-        blockedWordsPattern: filters.blockedWords
-          .map(escapeRegexToken)
-          .join('|'),
-      },
     );
   }
 

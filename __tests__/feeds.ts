@@ -689,45 +689,35 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should exclude posts with blocked tags and title words when noAi is enabled', async () => {
+  it('should include no-ai blocked tags and title words in the v2 feed config', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    await saveFixtures(con, ArticlePost, [
-      {
-        id: 'p9',
-        shortId: 'sp9',
-        title: 'A regular backend post',
-        url: 'http://p9.com',
-        image: 'https://daily.dev/image.jpg',
-        score: 2,
-        sourceId: 'a',
-        createdAt: new Date(),
-        tagsStr: 'html',
-        type: PostType.Article,
-        contentCuration: ['c1', 'c2'],
-      },
-    ]);
-    await saveFixtures(con, Keyword, [{ value: 'ai', status: 'allow' }]);
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { title: 'Claude Code workflow tips' });
-    await con.getRepository(PostKeyword).save([
-      { keyword: 'html', postId: 'p9' },
-      { keyword: 'ai', postId: 'p4' },
-    ]);
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.blocked_tags).toEqual(
+          expect.arrayContaining(['golang', 'ai', 'openai']),
+        );
+        expect(body.blocked_title_words).toEqual(
+          expect.arrayContaining(['Claude', 'Elon Musk']),
+        );
+
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
 
     const res = await client.query(QUERY, {
       variables: {
         ...variables,
         noAi: true,
-        version: 1,
+        version: 20,
       },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(
-      res.data.feed.edges.map((edge: { node: { id: string } }) => edge.node.id),
-    ).toEqual(['p9']);
+    expect(res.data.feed.edges.length).toEqual(2);
   });
 
   describe('youtube content', () => {

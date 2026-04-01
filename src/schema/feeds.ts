@@ -1376,14 +1376,6 @@ const mergeUniqueStrings = (
   additions: readonly string[],
 ): string[] => Array.from(new Set([...(current ?? []), ...additions]));
 
-const withNoAiFilters = (
-  filters: AnonymousFeedFilters = {},
-): AnonymousFeedFilters => ({
-  ...filters,
-  blockedTags: mergeUniqueStrings(filters.blockedTags, NO_AI_BLOCKED_TAGS),
-  blockedWords: mergeUniqueStrings(filters.blockedWords, NO_AI_BLOCKED_WORDS),
-});
-
 const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
   generator.withConfigTransform((result) => ({
     ...result,
@@ -1423,16 +1415,8 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx, args) => {
-        const feedId = args.feedId || ctx.userId;
-        const filters = await feedToFilters(ctx.con, feedId, ctx.userId);
-
-        if (!args.noAi) {
-          return filters;
-        }
-
-        return withNoAiFilters(filters);
-      },
+      fetchQueryParams: async (ctx, args) =>
+        feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
       allowPrivatePosts: false,
     },
   );
