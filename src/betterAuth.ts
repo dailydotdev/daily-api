@@ -413,6 +413,21 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 hookCtx?.request?.headers?.get('cookie') ?? '';
               const trackingId = parseTrackingIdFromCookieHeader(cookieHeader);
               if (trackingId) {
+                const existing = await pool.query<{ email: string }>(
+                  'SELECT email FROM public."user" WHERE id = $1',
+                  [trackingId],
+                );
+                if (existing.rowCount && existing.rowCount > 0) {
+                  const existingEmail = existing.rows[0].email;
+
+                  logger.warn(
+                    {
+                      trackingId,
+                      sameEmail: existingEmail === user.email,
+                    },
+                    'Tracking cookie ID collision: cookie holds an existing user ID during signup',
+                  );
+                }
                 return { data: { id: trackingId } };
               }
             } catch (err) {
