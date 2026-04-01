@@ -705,6 +705,20 @@ export const anonymousFeedBuilder = (
       whereNotTags(filters.blockedTags!, builder, alias),
     );
   }
+
+  if (filters?.blockedWords?.length) {
+    filters.blockedWords.forEach((word, index) => {
+      const wordKey = `blockedWord${index}`;
+
+      newBuilder = newBuilder.andWhere(
+        `COALESCE(${alias}.title, '') NOT ILIKE :${wordKey}`,
+        {
+          [wordKey]: `%${word}%`,
+        },
+      );
+    });
+  }
+
   return newBuilder;
 };
 

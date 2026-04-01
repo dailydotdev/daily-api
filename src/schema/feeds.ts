@@ -87,6 +87,7 @@ import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
+import { NO_AI_BLOCKED_TAGS, NO_AI_BLOCKED_WORDS } from '../common/noAiFilter';
 
 interface GQLTagsCategory {
   id: string;
@@ -394,6 +395,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Exclude AI-related content from the feed
+      """
+      noAi: Boolean = false
     ): PostConnection! @auth
 
     """
@@ -1120,6 +1126,7 @@ interface AnonymousFeedArgs extends FeedArgs {
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
   version: number;
+  noAi?: boolean;
 }
 
 interface SourceFeedArgs extends FeedArgs {
@@ -1389,11 +1396,46 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     {
       fetchQueryParams: async (ctx, args) => {
         const feedId = args.feedId || ctx.userId;
-        return feedToFilters(ctx.con, feedId, ctx.userId);
+        const filters = await feedToFilters(ctx.con, feedId, ctx.userId);
+
+        if (!args.noAi) {
+          return filters;
+        }
+
+        return withNoAiFilters(filters);
       },
       allowPrivatePosts: false,
     },
   );
+
+const mergeUniqueStrings = (
+  current: string[] | undefined,
+  additions: readonly string[],
+): string[] => Array.from(new Set([...(current ?? []), ...additions]));
+
+const withNoAiFilters = (
+  filters: AnonymousFeedFilters = {},
+): AnonymousFeedFilters => ({
+  ...filters,
+  blockedTags: mergeUniqueStrings(filters.blockedTags, NO_AI_BLOCKED_TAGS),
+  blockedWords: mergeUniqueStrings(filters.blockedWords, NO_AI_BLOCKED_WORDS),
+});
+
+const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
+  generator.withConfigTransform((result) => ({
+    ...result,
+    config: {
+      ...result.config,
+      blocked_tags: mergeUniqueStrings(
+        result.config.blocked_tags,
+        NO_AI_BLOCKED_TAGS,
+      ),
+      blocked_title_words: mergeUniqueStrings(
+        result.config.blocked_title_words,
+        NO_AI_BLOCKED_WORDS,
+      ),
+    },
+  }));
 
 const feedResolverCursor = feedResolver<
   unknown,
@@ -1567,22 +1609,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+        const generator = versionToFeedGenerator(args.version);
+
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: versionToFeedGenerator(args.version),
+            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
           },
           ctx,
           info,
         );
       }
       if (args.version >= 2 && args.ranking === Ranking.TIME) {
+        const generator = versionToTimeFeedGenerator(args.version);
+
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: versionToTimeFeedGenerator(args.version),
+            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
           },
           ctx,
           info,
