@@ -18,6 +18,7 @@ import { User } from './entity/user/User';
 import { cookies, extractRootDomain } from './cookies';
 import { getGeo } from './common/geo';
 import { getUserCoresRole } from './common/user';
+import { generateLongId } from './ids';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -427,6 +428,16 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                     },
                     'Tracking cookie ID collision: cookie holds an existing user ID during signup',
                   );
+
+                  if (existingEmail !== user.email) {
+                    // user has stale tracking cookie generate new user
+                    // is to safely insert since its a new email
+                    // in latter stage better auth logic will correlate
+                    // with existing credential if it exists for email
+                    const newId = await generateLongId();
+
+                    return { data: { id: newId } };
+                  }
                 }
                 return { data: { id: trackingId } };
               }
