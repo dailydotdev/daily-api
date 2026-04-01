@@ -2805,8 +2805,16 @@ describe('query similarCreators', () => {
       },
     ]);
     await con.getRepository(PostKeyword).save([
-      { postId: 'sim-vordr-creator-1', keyword: 'creator-vordr-js', status: 'allow' },
-      { postId: 'sim-vordr-creator-2', keyword: 'creator-vordr-js', status: 'allow' },
+      {
+        postId: 'sim-vordr-creator-1',
+        keyword: 'creator-vordr-js',
+        status: 'allow',
+      },
+      {
+        postId: 'sim-vordr-creator-2',
+        keyword: 'creator-vordr-js',
+        status: 'allow',
+      },
     ]);
     await con.manager.query(`UPDATE post_keyword
                              SET status = 'allow'`);
