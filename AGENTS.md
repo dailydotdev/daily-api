@@ -115,6 +115,7 @@ The migration generator compares entities against the local database schema. Ens
   - `z.literal([...])` in Zod 4.x supports arrays and validates that the value matches one of the array elements
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
+- For TypeScript string enums used in Zod schemas, derive the tuple from the shared helper in `src/common/schema/utils.ts` instead of duplicating arrays or hand-written type guards. Keep the enum as the single source of truth.
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
 - **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
 - **Never create wrapper types around `@dailydotdev/schema` classes** (e.g., `UserBriefingRequest & { extraField }`) — if a field exists in the proto, use it directly. If it doesn't exist yet, update the schema package first.
@@ -576,6 +577,7 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 - **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
+- For materialization/backfill jobs, make the cron rerunnable and idempotent. Prefer a deterministic unique key plus an atomic per-scope write step so retries can safely continue after partial progress without leaving half-written rows.
 
 **Using queryReadReplica Helper:**
 
@@ -597,6 +599,11 @@ The migration generator compares entities against the local database schema. Ens
 
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
 - In tests, refresh the materialized view before assertions; do not recreate the materialized view definition inside test files.
+
+**Immutable Materialized Tables:**
+
+- For immutable or period-closed materialized data, prefer the smallest persisted schema that supports lookup and joins. Avoid `updatedAt`, `generatedAt`, counters, or snapshot columns unless there is a concrete read-path need for them.
+- For archive/materialization tables keyed by business dimensions, keep a surrogate `id` for relations but also enforce the real unique business key in the database.
 
 **State Checking Patterns:**
 

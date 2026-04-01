@@ -80,7 +80,6 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
-
 export enum LocationVerificationStatus {
   GeoIP = 'geoip',
   UserProvided = 'user_provided',
@@ -2465,6 +2464,60 @@ const obj = new GraphORM({
       },
       lastUsedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  Archive: {
+    requiredColumns: ['id', 'scopeType', 'scopeId'],
+    fields: {
+      periodStart: {
+        transform: transformDate,
+      },
+      items: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."archiveId" = "${parentAlias}".id`)
+              .orderBy(`${childAlias}.rank`, 'ASC'),
+        },
+      },
+      keyword: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.value = "${parentAlias}"."scopeId"`)
+              .andWhere(`"${parentAlias}"."scopeType" = :tagScopeType`, {
+                tagScopeType: 'tag',
+              })
+              .andWhere(`${childAlias}.status = :keywordStatus`, {
+                keywordStatus: 'allow',
+              }),
+        },
+      },
+      source: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.id = "${parentAlias}"."scopeId"`)
+              .andWhere(`"${parentAlias}"."scopeType" = :sourceScopeType`, {
+                sourceScopeType: 'source',
+              }),
+        },
+      },
+    },
+  },
+  ArchiveItem: {
+    requiredColumns: ['subjectId'],
+    fields: {
+      post: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb.where(`${childAlias}.id = "${parentAlias}"."subjectId"`),
+        },
       },
     },
   },
