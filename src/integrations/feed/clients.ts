@@ -8,8 +8,14 @@ import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { ServiceError } from '../../errors';
 
+type RawFeedDataItem = {
+  post_id: string;
+  type?: string;
+  metadata: Record<string, string>;
+};
+
 type RawFeedServiceResponse = {
-  data: { post_id: string; metadata: Record<string, string> }[];
+  data: RawFeedDataItem[];
   cursor?: string;
   stale_cursor?: boolean;
 };
@@ -61,19 +67,21 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       return { data: [] };
     }
     return {
-      data: res.data.map(({ post_id, metadata }) => {
-        const hasMetadata = !!(metadata || extraMetadata);
+      data: res.data
+        .filter(({ type }) => type !== 'highlight')
+        .map(({ post_id, metadata }) => {
+          const hasMetadata = !!(metadata || extraMetadata);
 
-        return [
-          post_id,
-          (hasMetadata &&
-            JSON.stringify({
-              ...metadata,
-              ...extraMetadata,
-            })) ||
-            null,
-        ];
-      }),
+          return [
+            post_id,
+            (hasMetadata &&
+              JSON.stringify({
+                ...metadata,
+                ...extraMetadata,
+              })) ||
+              null,
+          ];
+        }),
       cursor: res.cursor,
       staleCursor: res.stale_cursor,
     };
