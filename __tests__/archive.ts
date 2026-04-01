@@ -31,6 +31,15 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 
 const marchPeriodStart = new Date('2026-03-01T00:00:00.000Z');
+const scopedCapPostIds = Array.from(
+  { length: 11 },
+  (_, index) => `post-scoped-cap-${index + 1}`,
+);
+const globalCapPostIds = Array.from(
+  { length: 30 },
+  (_, index) => `post-global-cap-${index + 1}`,
+);
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
@@ -54,6 +63,8 @@ beforeEach(async () => {
       'post-9',
       'post-10',
       'post-11',
+      ...scopedCapPostIds,
+      ...globalCapPostIds,
     ]),
   });
   await con.getRepository(Post).delete({
@@ -68,13 +79,15 @@ beforeEach(async () => {
       'post-9',
       'post-10',
       'post-11',
+      ...scopedCapPostIds,
+      ...globalCapPostIds,
     ]),
   });
   await con.getRepository(Keyword).delete({
     value: In(['webdev', 'backend']),
   });
   await con.getRepository(Source).delete({
-    id: In(['source-a', 'source-b', 'source-c']),
+    id: In(['source-a', 'source-b', 'source-c', 'source-d', 'source-e']),
   });
   await con.getRepository(User).delete({
     id: In(['author-good', 'author-low']),
@@ -104,6 +117,22 @@ beforeEach(async () => {
       handle: 'source-c',
       private: false,
       active: false,
+    },
+    {
+      id: 'source-d',
+      name: 'Source D',
+      image: 'https://daily.dev/source-d.jpg',
+      handle: 'source-d',
+      private: false,
+      active: true,
+    },
+    {
+      id: 'source-e',
+      name: 'Source E',
+      image: 'https://daily.dev/source-e.jpg',
+      handle: 'source-e',
+      private: false,
+      active: true,
     },
   ]);
 
@@ -362,12 +391,117 @@ describe('materializePeriodArchives', () => {
       order: { rank: 'ASC' },
     });
 
-    expect(sourceItems).toEqual([
-      { rank: 1, subjectId: 'post-6' },
-      { rank: 2, subjectId: 'post-4' },
-      { rank: 3, subjectId: 'post-1' },
-      { rank: 4, subjectId: 'post-2' },
+    expect(sourceItems).toEqual([{ rank: 1, subjectId: 'post-6' }]);
+  });
+
+  it('should limit scoped archives by 20% of the full in-period pool', async () => {
+    await saveFixtures(
+      con,
+      ArticlePost,
+      scopedCapPostIds.map((id, index) => ({
+        id,
+        shortId: `scopedcap${index + 1}`,
+        title: `Scoped Cap ${index + 1}`,
+        url: `https://daily.dev/${id}`,
+        image: `https://daily.dev/${id}.jpg`,
+        sourceId: 'source-d',
+        authorId: 'author-good',
+        upvotes: index < 6 ? 20 - index : 1,
+        createdAt: new Date(
+          `2026-03-${String(index + 1).padStart(2, '0')}T10:00:00.000Z`,
+        ),
+        visible: true,
+        private: false,
+        deleted: false,
+        banned: false,
+      })),
+    );
+
+    await materializePeriodArchives({
+      con,
+      now: new Date('2026-04-15T00:00:00.000Z'),
+      periodType: ArchivePeriodType.Month,
+    });
+
+    const archive = await con.getRepository(Archive).findOneBy({
+      subjectType: ArchiveSubjectType.Post,
+      rankingType: ArchiveRankingType.Best,
+      scopeType: ArchiveScopeType.Source,
+      scopeId: 'source-d',
+      periodType: ArchivePeriodType.Month,
+      periodStart: marchPeriodStart,
+    });
+
+    expect(archive).toBeDefined();
+    if (!archive) {
+      throw new Error('Expected source-d archive to exist');
+    }
+
+    const items = await con.getRepository(ArchiveItem).find({
+      select: ['rank', 'subjectId'],
+      where: { archiveId: archive.id },
+      order: { rank: 'ASC' },
+    });
+
+    expect(items).toEqual([
+      { rank: 1, subjectId: 'post-scoped-cap-1' },
+      { rank: 2, subjectId: 'post-scoped-cap-2' },
+      { rank: 3, subjectId: 'post-scoped-cap-3' },
     ]);
+  });
+
+  it('should cap global archives at 25 posts', async () => {
+    await saveFixtures(
+      con,
+      ArticlePost,
+      globalCapPostIds.map((id, index) => ({
+        id,
+        shortId: `globalcap${index + 1}`,
+        title: `Global Cap ${index + 1}`,
+        url: `https://daily.dev/${id}`,
+        image: `https://daily.dev/${id}.jpg`,
+        sourceId: 'source-e',
+        authorId: 'author-good',
+        upvotes: 200 - index,
+        createdAt: new Date(
+          `2026-03-${String((index % 28) + 1).padStart(2, '0')}T09:00:00.000Z`,
+        ),
+        visible: true,
+        private: false,
+        deleted: false,
+        banned: false,
+      })),
+    );
+
+    await materializePeriodArchives({
+      con,
+      now: new Date('2026-04-15T00:00:00.000Z'),
+      periodType: ArchivePeriodType.Month,
+    });
+
+    const archive = await con.getRepository(Archive).findOneBy({
+      subjectType: ArchiveSubjectType.Post,
+      rankingType: ArchiveRankingType.Best,
+      scopeType: ArchiveScopeType.Global,
+      scopeId: null,
+      periodType: ArchivePeriodType.Month,
+      periodStart: marchPeriodStart,
+    });
+
+    expect(archive).toBeDefined();
+    if (!archive) {
+      throw new Error('Expected global archive to exist');
+    }
+
+    const items = await con.getRepository(ArchiveItem).find({
+      select: ['rank', 'subjectId'],
+      where: { archiveId: archive.id },
+      order: { rank: 'ASC' },
+    });
+
+    expect(items).toHaveLength(25);
+    expect(items[0]).toEqual({ rank: 1, subjectId: 'post-global-cap-1' });
+    expect(items[24]).toEqual({ rank: 25, subjectId: 'post-global-cap-25' });
   });
 
   it('should keep an existing archive immutable on rerun', async () => {
@@ -439,12 +573,7 @@ describe('materializePeriodArchives', () => {
       order: { rank: 'ASC' },
     });
 
-    expect(rerunItems).toEqual([
-      { rank: 1, subjectId: 'post-6' },
-      { rank: 2, subjectId: 'post-1' },
-      { rank: 3, subjectId: 'post-2' },
-      { rank: 4, subjectId: 'post-3' },
-    ]);
+    expect(rerunItems).toEqual([{ rank: 1, subjectId: 'post-6' }]);
   });
 });
 
@@ -546,18 +675,6 @@ describe('archive queries', () => {
         {
           rank: 1,
           post: { id: 'post-6', title: 'Low Reputation Author' },
-        },
-        {
-          rank: 2,
-          post: { id: 'post-1', title: 'Webdev 1' },
-        },
-        {
-          rank: 3,
-          post: { id: 'post-2', title: 'Webdev 2' },
-        },
-        {
-          rank: 4,
-          post: { id: 'post-3', title: 'Webdev 3' },
         },
       ],
     });

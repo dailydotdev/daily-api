@@ -63,7 +63,8 @@ const eligiblePostTypes = [
   PostType.Share,
 ];
 
-const publishedArchiveItemsLimit = 100;
+const publishedArchiveItemsLimit = 25;
+const publishedScopedArchiveItemsPercentage = 0.2;
 
 const archiveThresholds: Record<
   Exclude<ArchiveScopeType, ArchiveScopeType.Global>,
@@ -109,24 +110,34 @@ const applyEligiblePostFilters = ({
   postAlias,
   periodStart,
   periodEnd,
+  requireMinimumUpvotes = true,
 }: {
   queryBuilder: SelectQueryBuilder<ObjectLiteral>;
   postAlias: string;
   periodStart: Date;
   periodEnd: Date;
-}): SelectQueryBuilder<ObjectLiteral> =>
+  requireMinimumUpvotes?: boolean;
+}): SelectQueryBuilder<ObjectLiteral> => {
   queryBuilder
     .andWhere(`${postAlias}."createdAt" >= :periodStart`, { periodStart })
     .andWhere(`${postAlias}."createdAt" < :periodEnd`, { periodEnd })
     .andWhere(`${postAlias}.type = ANY(:eligiblePostTypes)`, {
       eligiblePostTypes,
     })
-    .andWhere(`${postAlias}.upvotes >= :minimumUpvotes`, { minimumUpvotes: 10 })
     .andWhere(`${postAlias}.banned = false`)
     .andWhere(`${postAlias}.deleted = false`)
     .andWhere(`${postAlias}.visible = true`)
     .andWhere(`${postAlias}.private = false`)
     .andWhere(`${postAlias}."showOnFeed" = true`);
+
+  if (requireMinimumUpvotes) {
+    queryBuilder.andWhere(`${postAlias}.upvotes >= :minimumUpvotes`, {
+      minimumUpvotes: 10,
+    });
+  }
+
+  return queryBuilder;
+};
 
 const createEligiblePostsQuery = ({
   con,
@@ -134,10 +145,13 @@ const createEligiblePostsQuery = ({
   scopeId,
   periodType,
   periodStart,
+  requireMinimumUpvotes = true,
 }: Pick<
   MaterializeArchiveArgs,
   'con' | 'scopeType' | 'scopeId' | 'periodType' | 'periodStart'
->): SelectQueryBuilder<Post> => {
+> & {
+  requireMinimumUpvotes?: boolean;
+}): SelectQueryBuilder<Post> => {
   const queryBuilder = getRepositoryContext(con)
     .getRepository(Post)
     .createQueryBuilder('post')
@@ -148,6 +162,7 @@ const createEligiblePostsQuery = ({
     postAlias: 'post',
     periodStart,
     periodEnd: getArchivePeriodEnd({ periodType, periodStart }),
+    requireMinimumUpvotes,
   });
 
   queryBuilder
@@ -178,6 +193,27 @@ const createEligiblePostsQuery = ({
   }
 
   return queryBuilder;
+};
+
+const getPublishedArchiveItemsLimit = ({
+  scopeType,
+  poolCount,
+}: {
+  scopeType: ArchiveScopeType;
+  poolCount?: number;
+}) => {
+  if (scopeType === ArchiveScopeType.Global) {
+    return publishedArchiveItemsLimit;
+  }
+
+  if (!poolCount) {
+    return 0;
+  }
+
+  return Math.min(
+    publishedArchiveItemsLimit,
+    Math.ceil(poolCount * publishedScopedArchiveItemsPercentage),
+  );
 };
 
 const getEligibleSourceScopes = async ({
@@ -288,6 +324,26 @@ export const materializeArchive = async ({
       return null;
     }
 
+    const poolCount =
+      scopeType === ArchiveScopeType.Global
+        ? undefined
+        : await createEligiblePostsQuery({
+            con: manager,
+            scopeType,
+            scopeId,
+            periodType,
+            periodStart,
+            requireMinimumUpvotes: false,
+          })
+            .select('COUNT(DISTINCT post.id)', 'count')
+            .getRawOne<{ count: string }>()
+            .then((row) => Number(row?.count ?? 0));
+
+    const archiveItemsLimit = getPublishedArchiveItemsLimit({
+      scopeType,
+      poolCount,
+    });
+
     const eligiblePostsQuery = createEligiblePostsQuery({
       con: manager,
       scopeType,
@@ -302,7 +358,7 @@ export const materializeArchive = async ({
       .orderBy('post.upvotes', 'DESC')
       .addOrderBy('post."createdAt"', 'DESC')
       .addOrderBy('post.id', 'ASC')
-      .limit(publishedArchiveItemsLimit);
+      .limit(archiveItemsLimit);
 
     const rankedArchiveItemsQuery = manager
       .createQueryBuilder()
