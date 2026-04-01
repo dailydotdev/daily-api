@@ -182,6 +182,8 @@ handler: async (con, logger, pubsub) => {
 - Let errors propagate to mark the cron job as failed in Kubernetes
 - Use transactions for data consistency
 - Consider idempotency for retry safety
+- For materialization or backfill crons, prefer deterministic unique keys and rerunnable write steps. A cron should be safe to re-run after failing midway without duplicating or partially overwriting data.
+- When a job processes many independent scopes or periods, prefer atomic per-scope writes over one giant transaction. This keeps retries cheap while still preventing half-written rows within a scope.
 
 ### 4. Resource Management
 
@@ -374,4 +376,3 @@ pnpm run cli cron your-cron-name
 - **Workers**: See `src/workers/AGENTS.md` for background workers (Pub/Sub message handlers)
 - **CLI**: See `bin/cli.ts` for CLI command structure
 - **Infrastructure**: See `.infra/index.ts` for deployment configuration
-

@@ -6,6 +6,7 @@
     "build": "tsc",
     "postbuild": "cp -R ormconfig.js package.json pnpm-lock.yaml seeds ./build",
     "cli": "node bin/cli",
+    "archive:backfill": "ts-node bin/backfillArchives.ts",
     "db:migrate:create": "pnpm run typeorm migration:create",
     "db:migrate:latest": "pnpm run typeorm migration:run -d src/data-source.ts",
     "db:migrate:make": "pnpm run typeorm migration:generate -d src/data-source.ts",

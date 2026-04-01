@@ -51,3 +51,5 @@ export * from './QuestRotation';
 export * from './PostHighlight';
 export * from './ChannelHighlightDefinition';
 export * from './ChannelHighlightRun';
+export * from './Archive';
+export * from './ArchiveItem';

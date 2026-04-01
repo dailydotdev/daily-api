@@ -182,4 +182,12 @@ export const crons: Cron[] = [
     name: 'clean-expired-better-auth-sessions',
     schedule: '0 3 * * *',
   },
+  {
+    name: 'materialize-monthly-best-post-archives',
+    schedule: '10 0 1 * *',
+  },
+  {
+    name: 'materialize-yearly-best-post-archives',
+    schedule: '15 0 1 1 *',
+  },
 ];
