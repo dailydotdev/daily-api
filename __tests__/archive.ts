@@ -7,12 +7,12 @@ import {
   saveFixtures,
   testQueryErrorCode,
 } from './helpers';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Archive } from '../src/entity/Archive';
 import { ArchiveItem } from '../src/entity/ArchiveItem';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
-import { SharePost } from '../src/entity/posts/SharePost';
+import { Post } from '../src/entity/posts/Post';
 import { Keyword } from '../src/entity/Keyword';
 import { PostKeyword } from '../src/entity/PostKeyword';
 import { Source } from '../src/entity/Source';
@@ -22,6 +22,7 @@ import {
   ArchiveRankingType,
   ArchiveScopeType,
   ArchiveSubjectType,
+  materializeArchivesForPeriodStart,
   materializePeriodArchives,
 } from '../src/common/archive';
 
@@ -39,6 +40,46 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
 
+  await con.createQueryBuilder().delete().from(ArchiveItem).execute();
+  await con.createQueryBuilder().delete().from(Archive).execute();
+  await con.getRepository(PostKeyword).delete({
+    postId: In([
+      'post-1',
+      'post-2',
+      'post-3',
+      'post-4',
+      'post-5',
+      'post-6',
+      'post-7',
+      'post-9',
+      'post-10',
+      'post-11',
+    ]),
+  });
+  await con.getRepository(Post).delete({
+    id: In([
+      'post-1',
+      'post-2',
+      'post-3',
+      'post-4',
+      'post-5',
+      'post-6',
+      'post-7',
+      'post-9',
+      'post-10',
+      'post-11',
+    ]),
+  });
+  await con.getRepository(Keyword).delete({
+    value: In(['webdev', 'backend']),
+  });
+  await con.getRepository(Source).delete({
+    id: In(['source-a', 'source-b', 'source-c']),
+  });
+  await con.getRepository(User).delete({
+    id: In(['author-good', 'author-low']),
+  });
+
   await saveFixtures(con, Source, [
     {
       id: 'source-a',
@@ -55,6 +96,14 @@ beforeEach(async () => {
       handle: 'source-b',
       private: false,
       active: true,
+    },
+    {
+      id: 'source-c',
+      name: 'Source C',
+      image: 'https://daily.dev/source-c.jpg',
+      handle: 'source-c',
+      private: false,
+      active: false,
     },
   ]);
 
@@ -190,19 +239,32 @@ beforeEach(async () => {
       deleted: false,
       banned: false,
     },
-  ]);
-
-  await saveFixtures(con, SharePost, [
     {
-      id: 'post-8',
-      shortId: 'post8',
-      title: 'Wrong Type',
-      url: 'https://daily.dev/post-8',
-      image: 'https://daily.dev/post-8.jpg',
-      sourceId: 'source-b',
+      id: 'post-9',
+      shortId: 'post9',
+      title: 'Hidden From Feed',
+      url: 'https://daily.dev/post-9',
+      image: 'https://daily.dev/post-9.jpg',
+      sourceId: 'source-a',
       authorId: 'author-good',
-      upvotes: 100,
-      createdAt: new Date('2026-03-05T10:00:00.000Z'),
+      upvotes: 200,
+      createdAt: new Date('2026-03-12T10:00:00.000Z'),
+      visible: true,
+      private: false,
+      deleted: false,
+      banned: false,
+      showOnFeed: false,
+    },
+    {
+      id: 'post-10',
+      shortId: 'post10',
+      title: 'Inactive Source Winner',
+      url: 'https://daily.dev/post-10',
+      image: 'https://daily.dev/post-10.jpg',
+      sourceId: 'source-c',
+      authorId: 'author-good',
+      upvotes: 150,
+      createdAt: new Date('2026-03-13T10:00:00.000Z'),
       visible: true,
       private: false,
       deleted: false,
@@ -218,13 +280,33 @@ beforeEach(async () => {
     { postId: 'post-5', keyword: 'webdev', status: 'allow' },
     { postId: 'post-6', keyword: 'webdev', status: 'allow' },
     { postId: 'post-7', keyword: 'webdev', status: 'allow' },
-    { postId: 'post-8', keyword: 'webdev', status: 'allow' },
+    { postId: 'post-9', keyword: 'webdev', status: 'allow' },
+    { postId: 'post-10', keyword: 'webdev', status: 'allow' },
   ]);
 });
 
 afterAll(async () => disposeGraphQLTesting(state));
 
 describe('materializePeriodArchives', () => {
+  it('should materialize an explicitly requested closed period', async () => {
+    await materializeArchivesForPeriodStart({
+      con,
+      periodType: ArchivePeriodType.Month,
+      periodStart: marchPeriodStart,
+    });
+
+    const archive = await con.getRepository(Archive).findOneBy({
+      subjectType: ArchiveSubjectType.Post,
+      rankingType: ArchiveRankingType.Best,
+      scopeType: ArchiveScopeType.Tag,
+      scopeId: 'webdev',
+      periodType: ArchivePeriodType.Month,
+      periodStart: marchPeriodStart,
+    });
+
+    expect(archive).toBeDefined();
+  });
+
   it('should materialize monthly global, tag, and source archives for the last closed month', async () => {
     await materializePeriodArchives({
       con,
@@ -311,11 +393,11 @@ describe('materializePeriodArchives', () => {
 
     await saveFixtures(con, ArticlePost, [
       {
-        id: 'post-9',
-        shortId: 'post9',
+        id: 'post-11',
+        shortId: 'post11',
         title: 'New Webdev Winner',
-        url: 'https://daily.dev/post-9',
-        image: 'https://daily.dev/post-9.jpg',
+        url: 'https://daily.dev/post-11',
+        image: 'https://daily.dev/post-11.jpg',
         sourceId: 'source-a',
         authorId: 'author-good',
         upvotes: 200,
@@ -328,7 +410,7 @@ describe('materializePeriodArchives', () => {
     ]);
 
     await saveFixtures(con, PostKeyword, [
-      { postId: 'post-9', keyword: 'webdev', status: 'allow' },
+      { postId: 'post-11', keyword: 'webdev', status: 'allow' },
     ]);
 
     await materializePeriodArchives({

@@ -60,6 +60,7 @@ const eligiblePostTypes = [
   PostType.VideoYouTube,
   PostType.Freeform,
   PostType.Collection,
+  PostType.Share,
 ];
 
 const publishedArchiveItemsLimit = 100;
@@ -117,14 +118,15 @@ const applyEligiblePostFilters = ({
   queryBuilder
     .andWhere(`${postAlias}."createdAt" >= :periodStart`, { periodStart })
     .andWhere(`${postAlias}."createdAt" < :periodEnd`, { periodEnd })
-    .andWhere(`${postAlias}.type IN (:...eligiblePostTypes)`, {
+    .andWhere(`${postAlias}.type = ANY(:eligiblePostTypes)`, {
       eligiblePostTypes,
     })
     .andWhere(`${postAlias}.upvotes >= :minimumUpvotes`, { minimumUpvotes: 10 })
     .andWhere(`${postAlias}.banned = false`)
     .andWhere(`${postAlias}.deleted = false`)
     .andWhere(`${postAlias}.visible = true`)
-    .andWhere(`${postAlias}.private = false`);
+    .andWhere(`${postAlias}.private = false`)
+    .andWhere(`${postAlias}."showOnFeed" = true`);
 
 const createEligiblePostsQuery = ({
   con,
@@ -138,7 +140,8 @@ const createEligiblePostsQuery = ({
 >): SelectQueryBuilder<Post> => {
   const queryBuilder = getRepositoryContext(con)
     .getRepository(Post)
-    .createQueryBuilder('post');
+    .createQueryBuilder('post')
+    .innerJoin(Source, 'source', 'source.id = post."sourceId"');
 
   applyEligiblePostFilters({
     queryBuilder,
@@ -146,6 +149,10 @@ const createEligiblePostsQuery = ({
     periodStart,
     periodEnd: getArchivePeriodEnd({ periodType, periodStart }),
   });
+
+  queryBuilder
+    .andWhere('source.private = false')
+    .andWhere('source.active = true');
 
   switch (scopeType) {
     case ArchiveScopeType.Tag:
@@ -215,6 +222,7 @@ const getEligibleTagScopes = async ({
     .getRepository(PostKeyword)
     .createQueryBuilder('postkeyword')
     .innerJoin(Post, 'post', 'post.id = postkeyword."postId"')
+    .innerJoin(Source, 'source', 'source.id = post."sourceId"')
     .select('postkeyword.keyword', 'scopeId')
     .addSelect('COUNT(DISTINCT post.id)', 'eligibleCount')
     .where('postkeyword.status = :keywordStatus', { keywordStatus: 'allow' })
@@ -227,6 +235,10 @@ const getEligibleTagScopes = async ({
     periodStart,
     periodEnd: getArchivePeriodEnd({ periodType, periodStart }),
   });
+
+  queryBuilder
+    .andWhere('source.private = false')
+    .andWhere('source.active = true');
 
   queryBuilder.having('COUNT(DISTINCT post.id) >= :minimumEligiblePosts', {
     minimumEligiblePosts: archiveThresholds.tag,
@@ -339,6 +351,31 @@ export const materializePeriodArchives = async ({
     periodType === ArchivePeriodType.Month
       ? startOfMonth(subMonths(now, 1))
       : startOfYear(subYears(now, 1));
+
+  await materializeArchivesForPeriodStart({
+    con,
+    periodType,
+    periodStart,
+  });
+};
+
+export const materializeArchivesForPeriodStart = async ({
+  con,
+  periodType,
+  periodStart,
+}: {
+  con: DataSourceOrManager;
+  periodType: ArchivePeriodType;
+  periodStart: Date;
+}): Promise<void> => {
+  if (
+    (periodType === ArchivePeriodType.Month &&
+      startOfMonth(periodStart).getTime() !== periodStart.getTime()) ||
+    (periodType === ArchivePeriodType.Year &&
+      startOfYear(periodStart).getTime() !== periodStart.getTime())
+  ) {
+    throw new ValidationError('periodStart must align with the period type');
+  }
 
   await materializeArchive({
     con,
