@@ -692,6 +692,14 @@ describe('query feed', () => {
   it('should include no-ai blocked tags and title words in the v2 feed config', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => {
         expect(body.blocked_tags).toEqual(
