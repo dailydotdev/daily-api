@@ -292,6 +292,24 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     basePath: '/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
+    logger: {
+      level: 'error',
+      log: (level, message, ...args) => {
+        const extra =
+          args.length === 1 && args[0] instanceof Error
+            ? { err: args[0].message, stack: args[0].stack }
+            : args.length > 0
+              ? { betterAuthArgs: args }
+              : undefined;
+        const logFn =
+          level === 'error'
+            ? logger.error.bind(logger)
+            : level === 'warn'
+              ? logger.warn.bind(logger)
+              : logger.info.bind(logger);
+        logFn({ betterAuth: true, ...extra }, `[BetterAuth] ${message}`);
+      },
+    },
     secondaryStorage: {
       get: (key) => singleRedisClient.get(`ba:${key}`),
       set: (key, value, ttl) =>
