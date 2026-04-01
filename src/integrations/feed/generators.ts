@@ -2,6 +2,7 @@ import {
   baseFeedConfig,
   DynamicConfig,
   FeedConfigGenerator,
+  FeedConfigGeneratorResult,
   FeedConfigName,
   FeedResponse,
   FeedVersion,
@@ -45,6 +46,23 @@ export class FeedGenerator {
       this.feedId ?? userId!,
       config,
       extraMetadata,
+    );
+  }
+
+  withConfigTransform(
+    transform: (
+      result: FeedConfigGeneratorResult,
+    ) => FeedConfigGeneratorResult | Promise<FeedConfigGeneratorResult>,
+  ): FeedGenerator {
+    const baseConfig = this.config;
+
+    return new FeedGenerator(
+      this.client,
+      {
+        generate: async (ctx, opts) =>
+          transform(await baseConfig.generate(ctx, opts)),
+      },
+      this.feedId,
     );
   }
 }

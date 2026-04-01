@@ -671,8 +671,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!], $noAi: Boolean) {
+    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes, noAi: $noAi) {
       ${feedFields()}
     }
   }
@@ -687,6 +687,45 @@ describe('query feed', () => {
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should include no-ai blocked tags and title words in the v2 feed config', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.blocked_tags).toEqual(
+          expect.arrayContaining(['golang', 'ai', 'openai']),
+        );
+        expect(body.blocked_title_words).toEqual(
+          expect.arrayContaining(['Claude', 'Elon Musk']),
+        );
+
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        noAi: true,
+        version: 20,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
   });
 
   describe('youtube content', () => {
