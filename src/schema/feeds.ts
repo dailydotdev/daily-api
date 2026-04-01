@@ -1371,6 +1371,35 @@ const anonymousFeedResolverV1: IFieldResolver<
   { allowPrivatePosts: false },
 );
 
+const mergeUniqueStrings = (
+  current: string[] | undefined,
+  additions: readonly string[],
+): string[] => Array.from(new Set([...(current ?? []), ...additions]));
+
+const withNoAiFilters = (
+  filters: AnonymousFeedFilters = {},
+): AnonymousFeedFilters => ({
+  ...filters,
+  blockedTags: mergeUniqueStrings(filters.blockedTags, NO_AI_BLOCKED_TAGS),
+  blockedWords: mergeUniqueStrings(filters.blockedWords, NO_AI_BLOCKED_WORDS),
+});
+
+const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
+  generator.withConfigTransform((result) => ({
+    ...result,
+    config: {
+      ...result.config,
+      blocked_tags: mergeUniqueStrings(
+        result.config.blocked_tags,
+        NO_AI_BLOCKED_TAGS,
+      ),
+      blocked_title_words: mergeUniqueStrings(
+        result.config.blocked_title_words,
+        NO_AI_BLOCKED_WORDS,
+      ),
+    },
+  }));
+
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1407,35 +1436,6 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
       allowPrivatePosts: false,
     },
   );
-
-const mergeUniqueStrings = (
-  current: string[] | undefined,
-  additions: readonly string[],
-): string[] => Array.from(new Set([...(current ?? []), ...additions]));
-
-const withNoAiFilters = (
-  filters: AnonymousFeedFilters = {},
-): AnonymousFeedFilters => ({
-  ...filters,
-  blockedTags: mergeUniqueStrings(filters.blockedTags, NO_AI_BLOCKED_TAGS),
-  blockedWords: mergeUniqueStrings(filters.blockedWords, NO_AI_BLOCKED_WORDS),
-});
-
-const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
-  generator.withConfigTransform((result) => ({
-    ...result,
-    config: {
-      ...result.config,
-      blocked_tags: mergeUniqueStrings(
-        result.config.blocked_tags,
-        NO_AI_BLOCKED_TAGS,
-      ),
-      blocked_title_words: mergeUniqueStrings(
-        result.config.blocked_title_words,
-        NO_AI_BLOCKED_WORDS,
-      ),
-    },
-  }));
 
 const feedResolverCursor = feedResolver<
   unknown,

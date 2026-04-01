@@ -671,8 +671,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!], $noAi: Boolean) {
+    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes, noAi: $noAi) {
       ${feedFields()}
     }
   }
@@ -687,6 +687,47 @@ describe('query feed', () => {
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should exclude posts with blocked tags and title words when noAi is enabled', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p9',
+        shortId: 'sp9',
+        title: 'A regular backend post',
+        url: 'http://p9.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 2,
+        sourceId: 'a',
+        createdAt: new Date(),
+        tagsStr: 'html',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+    await saveFixtures(con, Keyword, [{ value: 'ai', status: 'allow' }]);
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { title: 'Claude Code workflow tips' });
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'html', postId: 'p9' },
+      { keyword: 'ai', postId: 'p4' },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        noAi: true,
+        version: 1,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.feed.edges.map((edge: { node: { id: string } }) => edge.node.id),
+    ).toEqual(['p9']);
   });
 
   describe('youtube content', () => {
