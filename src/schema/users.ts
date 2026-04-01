@@ -185,6 +185,7 @@ import {
 } from '../common/schema/entityRelations';
 import { UserSimilarityView } from '../entity/user/UserSimilarityView';
 import { UserTagView } from '../entity/user/UserTagView';
+import { whereVordrFilter } from '../common/vordr';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2255,6 +2256,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (builder) => {
           builder.queryBuilder
             .andWhere('id IN (:...ids)', { ids: userIds })
+            .andWhere(whereVordrFilter(builder.alias))
             .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
             .limit(limit);
 
@@ -2298,6 +2300,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (builder) => {
           builder.queryBuilder
             .andWhere('id IN (:...ids)', { ids: userIds })
+            .andWhere(whereVordrFilter(builder.alias))
             .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
             .limit(limit);
 

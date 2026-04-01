@@ -96,6 +96,7 @@ import { Comment } from '../entity/Comment';
 import { Post } from '../entity/posts/Post';
 import { UserComment } from '../entity/user/UserComment';
 import { UserPost } from '../entity/user/UserPost';
+import { whereVordrFilter } from '../common/vordr';
 
 export interface GQLSourceCategory {
   id: string;
@@ -1987,6 +1988,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const rankedMembers = await ctx.con
         .getRepository(SourceMember)
         .createQueryBuilder('sm')
+        .innerJoin(User, 'u', 'u.id = sm."userId"')
         .select('sm."userId"', 'userId')
         .addSelect('coalesce(posts."authoredPosts", 0)', 'authoredPosts')
         .addSelect(
@@ -2091,6 +2093,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           'commentawards."userId" = sm."userId"',
         )
         .where('sm."sourceId" = :sourceId', { sourceId })
+        .andWhere(whereVordrFilter('u'))
         .andWhere('sm.role = :role', { role: SourceMemberRoles.Member })
         .andWhere(
           `(
@@ -2118,6 +2121,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (builder) => {
           builder.queryBuilder
             .andWhere('id IN (:...ids)', { ids: userIds })
+            .andWhere(whereVordrFilter(builder.alias))
             .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
             .limit(limit);
 

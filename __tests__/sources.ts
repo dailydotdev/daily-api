@@ -2372,6 +2372,57 @@ describe('query topMembersBySquad', () => {
     ]);
   });
 
+  it('should exclude vordr members from the ranking', async () => {
+    const since = new Date('2024-01-01T00:00:00.000Z');
+
+    await con.getRepository(User).update('2', {
+      flags: updateFlagsStatement<User>({ vordr: true }),
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    });
+
+    await con.getRepository(Post).save([
+      {
+        id: 'squad-vordr-1',
+        shortId: 'sqvr1',
+        title: 'Squad vordr 1',
+        url: 'https://example.com/squad-vordr-1',
+        sourceId: 'a',
+        authorId: '2',
+        createdAt: new Date('2024-01-10T00:00:00.000Z'),
+      },
+      {
+        id: 'squad-vordr-2',
+        shortId: 'sqvr2',
+        title: 'Squad vordr 2',
+        url: 'https://example.com/squad-vordr-2',
+        sourceId: 'a',
+        authorId: '3',
+        createdAt: new Date('2024-01-12T00:00:00.000Z'),
+      },
+    ]);
+
+    await con.getRepository(Comment).save({
+      id: 'sqvc1',
+      postId: 'squad-vordr-2',
+      userId: '3',
+      content: 'Still here',
+      contentHtml: '<p>Still here</p>',
+      createdAt: new Date('2024-01-13T00:00:00.000Z'),
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { sourceId: 'a', since: since.toISOString() },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topMembersBySquad).toEqual([{ id: '3', name: 'Nimrod' }]);
+  });
+
   it('should reject limits above 10', async () =>
     testQueryErrorCode(
       client,
@@ -2570,6 +2621,58 @@ describe('query topCreatorsByTag', () => {
     ]);
   });
 
+  it('should exclude vordr creators', async () => {
+    await con.getRepository(User).update('2', {
+      flags: updateFlagsStatement<User>({ vordr: true }),
+    });
+    await con.getRepository(Post).save([
+      {
+        id: 'creator-vordr-public-1',
+        shortId: 'cvpub1',
+        title: 'Creator vordr public 1',
+        url: 'https://example.com/creator-vordr-public-1',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date(),
+        upvotes: 5,
+      },
+      {
+        id: 'creator-vordr-public-2',
+        shortId: 'cvpub2',
+        title: 'Creator vordr public 2',
+        url: 'https://example.com/creator-vordr-public-2',
+        sourceId: 'b',
+        authorId: '2',
+        createdAt: new Date(),
+        upvotes: 8,
+      },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      {
+        postId: 'creator-vordr-public-1',
+        keyword: 'creator-vordr-tag',
+        status: 'allow',
+      },
+      {
+        postId: 'creator-vordr-public-2',
+        keyword: 'creator-vordr-tag',
+        status: 'allow',
+      },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+
+    const res = await client.query(QUERY, {
+      variables: { tag: 'creator-vordr-tag' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topCreatorsByTag).toEqual([{ id: '1', name: 'Ido' }]);
+  });
+
   it('should reject limits above 10', async () =>
     testQueryErrorCode(
       client,
@@ -2673,6 +2776,62 @@ describe('query similarCreators', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.similarCreators).toEqual([{ id: '2', name: 'Tsahi' }]);
+  });
+
+  it('should exclude vordr creators from similarity results', async () => {
+    await con.getRepository(User).update('2', {
+      flags: updateFlagsStatement<User>({ vordr: true }),
+    });
+    await con.getRepository(Post).save([
+      {
+        id: 'sim-vordr-creator-1',
+        shortId: 'sv1',
+        title: 'Similar vordr creator 1',
+        url: 'https://example.com/sim-vordr-creator-1',
+        sourceId: 'a',
+        authorId: '1',
+        createdAt: new Date(),
+        upvotes: 5,
+      },
+      {
+        id: 'sim-vordr-creator-2',
+        shortId: 'sv2',
+        title: 'Similar vordr creator 2',
+        url: 'https://example.com/sim-vordr-creator-2',
+        sourceId: 'b',
+        authorId: '2',
+        createdAt: new Date(),
+        upvotes: 7,
+      },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      {
+        postId: 'sim-vordr-creator-1',
+        keyword: 'creator-vordr-js',
+        status: 'allow',
+      },
+      {
+        postId: 'sim-vordr-creator-2',
+        keyword: 'creator-vordr-js',
+        status: 'allow',
+      },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserTagView).metadata.tableName}`,
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserSimilarityView).metadata.tableName}`,
+    );
+
+    const res = await client.query(QUERY, {
+      variables: { userId: '1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.similarCreators).toEqual([]);
   });
 });
 
