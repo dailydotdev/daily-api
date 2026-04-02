@@ -9,6 +9,7 @@ import {
   FeedType,
   Post,
   PostType,
+  Settings,
   Source,
   UserPost,
 } from '../entity';
@@ -1392,6 +1393,14 @@ const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
     },
   }));
 
+const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
+  const settings = await ctx.con.getRepository(Settings).findOneBy({
+    userId: ctx.userId,
+  });
+
+  return settings?.flags?.noAiFeedEnabled ?? false;
+};
+
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1591,15 +1600,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
-    feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
+    feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         const generator = versionToFeedGenerator(args.version);
+        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
 
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
+            generator: shouldApplyNoAi
+              ? wrapGeneratorWithNoAi(generator)
+              : generator,
           },
           ctx,
           info,
@@ -1607,12 +1619,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       if (args.version >= 2 && args.ranking === Ranking.TIME) {
         const generator = versionToTimeFeedGenerator(args.version);
+        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
 
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
+            generator: shouldApplyNoAi
+              ? wrapGeneratorWithNoAi(generator)
+              : generator,
           },
           ctx,
           info,
