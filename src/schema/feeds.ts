@@ -1606,7 +1606,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
       if (args.version >= 2) {
         const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
-        const getGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
+        const getGeneratorWithNoAi = (
+          generator: FeedGenerator,
+        ): FeedGenerator =>
           shouldApplyNoAi ? wrapGeneratorWithNoAi(generator) : generator;
 
         if (args.ranking === Ranking.POPULARITY) {
