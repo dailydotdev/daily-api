@@ -23,7 +23,11 @@ import {
 
 import { BaseContext, Context } from '../Context';
 import type { MeiliPagination } from '../integrations/meilisearch';
-import { FeedResponse } from '../integrations/feed/types';
+import {
+  FeedResponse,
+  findFeedResponsePostItem,
+  getFeedResponsePostItems,
+} from '../integrations/feed/types';
 
 export interface GQLEmptyResponse {
   _: boolean;
@@ -275,16 +279,18 @@ export const fixedIdsPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     offsetToCursor(
       page.offset +
-        queryParams!.data.findIndex(([postId]) => postId === node.id),
+        getFeedResponsePostItems(queryParams!).findIndex(
+          (item) => item.id === node.id,
+        ),
     ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    queryParams!.data.length >= page.limit,
+    getFeedResponsePostItems(queryParams!).length >= page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.slice(0, page.limit - 1).map((node) => ({
       ...node,
-      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: findFeedResponsePostItem(queryParams!, node.id)?.feedMeta,
     }));
   },
 });
@@ -305,13 +311,13 @@ export const feedCursorPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     queryParams!.cursor as string,
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    queryParams!.data.length >= page.limit,
+    getFeedResponsePostItems(queryParams!).length >= page.limit,
   hasPreviousPage: (page): boolean => !!page.cursor,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.map((node) => ({
       ...node,
-      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: findFeedResponsePostItem(queryParams!, node.id)?.feedMeta,
     }));
   },
 });

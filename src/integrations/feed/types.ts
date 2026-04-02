@@ -2,11 +2,48 @@ import { Context } from '../../Context';
 import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
+export type FeedResponsePostItem = {
+  type: 'post';
+  id: string;
+  feedMeta: string | null;
+};
+
+export type FeedResponseHighlightItem = {
+  type: 'highlight';
+  postId: string | null;
+  highlightIds: string[];
+  feedMeta: string | null;
+};
+
+export type FeedResponseItem = FeedResponsePostItem | FeedResponseHighlightItem;
+
 export type FeedResponse = {
-  data: [postId: string, metadata: string | null][];
+  data: FeedResponseItem[];
   cursor?: string;
   staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
+
+export const isFeedResponsePostItem = (
+  item: FeedResponseItem,
+): item is FeedResponsePostItem => item.type === 'post';
+
+export const isFeedResponseHighlightItem = (
+  item: FeedResponseItem,
+): item is FeedResponseHighlightItem => item.type === 'highlight';
+
+export const getFeedResponsePostItems = (
+  response: Pick<FeedResponse, 'data'>,
+): FeedResponsePostItem[] => response.data.filter(isFeedResponsePostItem);
+
+export const getFeedResponsePostIds = (
+  response: Pick<FeedResponse, 'data'>,
+): string[] => getFeedResponsePostItems(response).map(({ id }) => id);
+
+export const findFeedResponsePostItem = (
+  response: Pick<FeedResponse, 'data'>,
+  id: string,
+): FeedResponsePostItem | undefined =>
+  getFeedResponsePostItems(response).find((item) => item.id === id);
 
 export enum FeedConfigName {
   Personalise = 'personalise',
@@ -58,6 +95,7 @@ export type FeedConfig = {
   allowed_sources?: string[];
   blocked_sources?: string[];
   allowed_post_types?: string[];
+  highlights_limit?: number;
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
   allowed_author_ids?: string[];

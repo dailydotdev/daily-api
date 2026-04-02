@@ -16,6 +16,7 @@ import {
   Keyword,
   MachineSource,
   Post,
+  PostHighlight,
   PostKeyword,
   PostTag,
   PostType,
@@ -1249,6 +1250,247 @@ describe('query feed', () => {
       variables: { supportedTypes: ['article', 'share'] },
     });
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query feedV2', () => {
+  const variables = {
+    ranking: Ranking.POPULARITY,
+    first: 10,
+    version: 20,
+  };
+
+  const QUERY = `
+  query FeedV2($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!], $highlightsLimit: Int, $noAi: Boolean) {
+    feedV2(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes, highlightsLimit: $highlightsLimit, noAi: $noAi) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        cursor
+        node {
+          __typename
+          ... on FeedPostItem {
+            feedMeta
+            post {
+              id
+              title
+              type
+            }
+          }
+          ... on FeedHighlightsItem {
+            feedMeta
+            highlights {
+              id
+              headline
+              post {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
+
+  it('should pass highlights_limit only when highlights are supported', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.allowed_post_types).toEqual(['article', 'highlight']);
+        expect(body.highlights_limit).toEqual(4);
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article', 'highlight'],
+        highlightsLimit: 4,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.edges).toHaveLength(1);
+  });
+
+  it('should return mixed post and highlight items', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(PostHighlight).save([
+      {
+        id: '3c75fab6-e28b-431d-ab54-a927708de085',
+        postId: 'p1',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:10:00.000Z'),
+        headline: 'First highlight',
+      },
+      {
+        id: 'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+        postId: 'p4',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
+        headline: 'Second highlight',
+      },
+    ]);
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json')
+      .reply(200, {
+        data: [
+          { post_id: 'p1', metadata: { p: 'post' } },
+          {
+            type: 'highlight',
+            post_id: '',
+            highlight_ids: [
+              '3c75fab6-e28b-431d-ab54-a927708de085',
+              'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+            ],
+            metadata: { p: 'highlight' },
+          },
+          { post_id: 'p4' },
+        ],
+        cursor: 'next-cursor',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article', 'highlight'],
+        highlightsLimit: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2).toEqual({
+      pageInfo: {
+        endCursor: 'next-cursor',
+        hasNextPage: false,
+      },
+      edges: [
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedPostItem',
+            feedMeta: base64('{"p":"post"}'),
+            post: {
+              id: 'p1',
+              title: 'P1',
+              type: 'article',
+            },
+          },
+        },
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedHighlightsItem',
+            feedMeta: base64('{"p":"highlight"}'),
+            highlights: [
+              {
+                id: '3c75fab6-e28b-431d-ab54-a927708de085',
+                headline: 'First highlight',
+                post: {
+                  id: 'p1',
+                  title: 'P1',
+                },
+              },
+              {
+                id: 'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+                headline: 'Second highlight',
+                post: {
+                  id: 'p4',
+                  title: 'P4',
+                },
+              },
+            ],
+          },
+        },
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedPostItem',
+            feedMeta: null,
+            post: {
+              id: 'p4',
+              title: 'P4',
+              type: 'article',
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it('should apply the same post filtering as feed for returned post items', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'next-cursor',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article'],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.edges).toEqual([
+      {
+        cursor: 'next-cursor',
+        node: {
+          __typename: 'FeedPostItem',
+          feedMeta: null,
+          post: {
+            id: 'p1',
+            title: 'P1',
+            type: 'article',
+          },
+        },
+      },
+    ]);
   });
 });
 
