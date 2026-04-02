@@ -52,6 +52,7 @@ const userExperienceLevels = [
 ] as const;
 const userExperienceLevelSchema = z.enum(userExperienceLevels);
 const signUpEmailPath = '/sign-up/email';
+const signInEmailPath = '/sign-in/email';
 export type BetterAuthSocialProvider =
   keyof typeof betterAuthSocialProviderEnvVars;
 type BetterAuthHookContext = {
@@ -109,6 +110,8 @@ type BetterAuthDbHookContext = {
   request?: Request;
   body?: Record<string, unknown>;
 };
+
+export const SOCIAL_ACCOUNT_ONLY_ERROR_CODE = 'SOCIAL_ACCOUNT_ONLY';
 
 const throwBadRequest = (message: string): never => {
   throw APIError.from('BAD_REQUEST', {
@@ -317,6 +320,44 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
               body,
             },
           };
+        }
+
+        if (hookContext.path === signInEmailPath) {
+          const email = hookContext.body?.email;
+          if (typeof email === 'string') {
+            try {
+              const { rows } = await pool.query<{
+                providerId: string;
+              }>(
+                `SELECT a."providerId" FROM ba_account a JOIN public."user" u ON a."userId" = u.id WHERE u.email = $1`,
+                [email],
+              );
+              if (
+                rows.length > 0 &&
+                !rows.some((r) => r.providerId === 'credential')
+              ) {
+                logger.info(
+                  { email },
+                  'Social-only user attempted email sign-in',
+                );
+                throw APIError.from('UNAUTHORIZED', {
+                  code: SOCIAL_ACCOUNT_ONLY_ERROR_CODE,
+                  message: 'Invalid email or password',
+                });
+              }
+            } catch (err) {
+              if (
+                err instanceof APIError ||
+                (err && typeof err === 'object' && 'statusCode' in err)
+              ) {
+                throw err;
+              }
+              logger.error(
+                { err: err instanceof Error ? err.message : String(err) },
+                'Failed to check social-only account during sign-in',
+              );
+            }
+          }
         }
       }),
     },
