@@ -86,6 +86,8 @@ export const NO_AI_BLOCKED_TAGS = [
 ] as const;
 
 export const NO_AI_BLOCKED_WORDS = [
+  'AI',
+  'A.I.',
   'ChatGPT',
   'GPT',
   'GPT-4',

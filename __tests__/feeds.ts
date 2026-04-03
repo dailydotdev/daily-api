@@ -707,7 +707,7 @@ describe('query feed', () => {
           expect.arrayContaining(['golang', 'ai', 'openai']),
         );
         expect(body.blocked_title_words).toEqual(
-          expect.arrayContaining(['Claude', 'Elon Musk']),
+          expect.arrayContaining(['AI', 'Claude', 'Elon Musk']),
         );
 
         return true;
@@ -754,7 +754,7 @@ describe('query feed', () => {
           expect.arrayContaining(['golang', 'ai', 'openai']),
         );
         expect(body.blocked_title_words).toEqual(
-          expect.arrayContaining(['Claude', 'Elon Musk']),
+          expect.arrayContaining(['AI', 'Claude', 'Elon Musk']),
         );
 
         return true;
@@ -800,7 +800,7 @@ describe('query feed', () => {
           expect.arrayContaining(['golang', 'ai', 'openai']),
         );
         expect(body.blocked_title_words).toEqual(
-          expect.arrayContaining(['Claude', 'Elon Musk']),
+          expect.arrayContaining(['AI', 'Claude', 'Elon Musk']),
         );
         expect(body.feed_config_name).toBe('for_you_by_date');
 
