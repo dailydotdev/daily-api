@@ -247,8 +247,8 @@ const personalizedDigestFeedClient = new FeedClient(
         minimumRps: 1,
       },
       limits: {
-        maxRequests: 150,
-        queuedRequests: 100,
+        maxRequests: 300,
+        queuedRequests: 1000,
       },
       retryOpts: {
         maxAttempts: 0,
