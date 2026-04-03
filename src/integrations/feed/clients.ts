@@ -11,6 +11,7 @@ import { ServiceError } from '../../errors';
 type RawFeedDataItem = {
   post_id: string;
   type?: string;
+  highlight_ids?: string[];
   metadata: Record<string, string>;
 };
 
@@ -67,21 +68,30 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       return { data: [] };
     }
     return {
-      data: res.data
-        .filter(({ type }) => type !== 'highlight')
-        .map(({ post_id, metadata }) => {
-          const hasMetadata = !!(metadata || extraMetadata);
+      data: res.data.map(({ post_id, type, highlight_ids, metadata }) => {
+        const mergedMetadata = Object.fromEntries(
+          Object.entries({
+            ...metadata,
+            ...extraMetadata,
+          }).filter(([, value]) => value !== undefined),
+        );
+        const hasMetadata = Object.keys(mergedMetadata).length > 0;
+        const feedMeta = hasMetadata ? JSON.stringify(mergedMetadata) : null;
 
-          return [
-            post_id,
-            (hasMetadata &&
-              JSON.stringify({
-                ...metadata,
-                ...extraMetadata,
-              })) ||
-              null,
-          ];
-        }),
+        if (type === 'highlight') {
+          return {
+            type: 'highlight',
+            highlightIds: highlight_ids || [],
+            feedMeta,
+          };
+        }
+
+        return {
+          type: 'post',
+          id: post_id,
+          feedMeta,
+        };
+      }),
       cursor: res.cursor,
       staleCursor: res.stale_cursor,
     };

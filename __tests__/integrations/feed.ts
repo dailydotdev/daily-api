@@ -66,12 +66,12 @@ const rawFeedResponse = {
 };
 const feedResponse: FeedResponse = {
   data: [
-    ['1', '{"p":"a"}'],
-    ['2', '{"p":"b"}'],
-    ['3', '{"p":"c"}'],
-    ['4', null],
-    ['5', null],
-    ['6', null],
+    { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+    { type: 'post', id: '2', feedMeta: '{"p":"b"}' },
+    { type: 'post', id: '3', feedMeta: '{"p":"c"}' },
+    { type: 'post', id: '4', feedMeta: null },
+    { type: 'post', id: '5', feedMeta: null },
+    { type: 'post', id: '6', feedMeta: null },
   ],
 };
 
@@ -126,12 +126,67 @@ describe('FeedClient', () => {
     });
     expect(feed).toEqual({
       data: [
-        ['1', '{"p":"a","mab":{"test":"da"}}'],
-        ['2', '{"p":"b","mab":{"test":"da"}}'],
-        ['3', '{"p":"c","mab":{"test":"da"}}'],
-        ['4', '{"mab":{"test":"da"}}'],
-        ['5', '{"mab":{"test":"da"}}'],
-        ['6', '{"mab":{"test":"da"}}'],
+        {
+          type: 'post',
+          id: '1',
+          feedMeta: '{"p":"a","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '2',
+          feedMeta: '{"p":"b","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '3',
+          feedMeta: '{"p":"c","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '4',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '5',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '6',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+      ],
+    });
+  });
+
+  it('should preserve highlight items from the feed service response', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, {
+        data: [
+          { post_id: '1', metadata: { p: 'a' } },
+          {
+            type: 'highlight',
+            post_id: '',
+            highlight_ids: ['h1', 'h2'],
+            metadata: { p: 'highlight' },
+          },
+        ],
+      });
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+
+    expect(feed).toEqual({
+      data: [
+        { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+        {
+          type: 'highlight',
+          highlightIds: ['h1', 'h2'],
+          feedMeta: '{"p":"highlight"}',
+        },
       ],
     });
   });
@@ -176,8 +231,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
       staleCursor: true,
@@ -201,8 +256,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
     };

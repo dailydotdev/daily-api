@@ -2,11 +2,36 @@ import { Context } from '../../Context';
 import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
+export type FeedResponsePostItem = {
+  type?: 'post';
+  id: string;
+  feedMeta: string | null;
+};
+
+export type FeedResponseHighlightItem = {
+  type: 'highlight';
+  highlightIds: string[];
+  feedMeta: string | null;
+};
+
+export type FeedResponseItem = FeedResponsePostItem | FeedResponseHighlightItem;
+
 export type FeedResponse = {
-  data: [postId: string, metadata: string | null][];
+  data: FeedResponseItem[];
   cursor?: string;
   staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
+
+export const isFeedResponseHighlightItem = (
+  item: FeedResponseItem,
+): item is FeedResponseHighlightItem => item.type === 'highlight';
+
+export const getFeedResponsePostIds = (
+  response: Pick<FeedResponse, 'data'>,
+): string[] =>
+  response.data.flatMap((item) =>
+    isFeedResponseHighlightItem(item) ? [] : [item.id],
+  );
 
 export enum FeedConfigName {
   Personalise = 'personalise',
@@ -58,6 +83,7 @@ export type FeedConfig = {
   allowed_sources?: string[];
   blocked_sources?: string[];
   allowed_post_types?: string[];
+  highlights_limit?: number;
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
   allowed_author_ids?: string[];

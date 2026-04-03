@@ -24,8 +24,12 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
-import { baseFeedConfig, BriefingType } from '../integrations/feed';
-import { FeedConfigName } from '../integrations/feed';
+import {
+  baseFeedConfig,
+  BriefingType,
+  FeedConfigName,
+  getFeedResponsePostIds,
+} from '../integrations/feed';
 import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
@@ -343,7 +347,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     async ({ queryRunner }) => {
       return fixedIdsFeedBuilder(
         {},
-        feedResponse.data.map(([postId]) => postId),
+        getFeedResponsePostIds(feedResponse),
         queryRunner.manager
           .createQueryBuilder(Post, 'p')
           .select(
@@ -410,7 +414,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     adProps,
   });
 
-  const postIds = feedResponse.data.map(([postId]) => postId);
+  const postIds = getFeedResponsePostIds(feedResponse);
   const sourceIds = [...new Set(posts.map((p) => p.sourceId))];
 
   return {

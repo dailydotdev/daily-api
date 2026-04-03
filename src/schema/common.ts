@@ -275,7 +275,9 @@ export const fixedIdsPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     offsetToCursor(
       page.offset +
-        queryParams!.data.findIndex(([postId]) => postId === node.id),
+        queryParams!.data.findIndex(
+          (item) => item.type !== 'highlight' && item.id === node.id,
+        ),
     ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
     queryParams!.data.length >= page.limit,
@@ -284,7 +286,9 @@ export const fixedIdsPageGenerator = <
     // Add the metadata object
     return nodes.slice(0, page.limit - 1).map((node) => ({
       ...node,
-      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: queryParams!.data.find(
+        (item) => item.type !== 'highlight' && item.id === node.id,
+      )?.feedMeta,
     }));
   },
 });
@@ -311,7 +315,9 @@ export const feedCursorPageGenerator = <
     // Add the metadata object
     return nodes.map((node) => ({
       ...node,
-      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: queryParams!.data.find(
+        (item) => item.type !== 'highlight' && item.id === node.id,
+      )?.feedMeta,
     }));
   },
 });

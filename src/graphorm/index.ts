@@ -1238,6 +1238,15 @@ const obj = new GraphORM({
               .orderBy(`"${childAlias}".name`),
         },
       },
+      advancedSettings: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."feedId" = "${parentAlias}".id`)
+              .orderBy(`"${childAlias}"."advancedSettingsId"`, 'ASC'),
+        },
+      },
     },
   },
   FeedAdvancedSettings: {

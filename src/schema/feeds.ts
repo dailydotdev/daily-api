@@ -9,7 +9,6 @@ import {
   FeedType,
   Post,
   PostType,
-  Settings,
   Source,
   UserPost,
 } from '../entity';
@@ -59,11 +58,10 @@ import {
   FeedGenerator,
   feedGenerators,
   FeedPreferencesConfigGenerator,
-  FeedResponse,
+  getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
-  versionToFeedGenerator,
-  versionToTimeFeedGenerator,
 } from '../integrations/feed';
+import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -88,8 +86,14 @@ import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
-import { NO_AI_BLOCKED_TAGS, NO_AI_BLOCKED_WORDS } from '../common/noAiFilter';
-import { queryReadReplica } from '../common/queryReadReplica';
+import {
+  feedV2QueryResolver,
+  feedV2Resolvers,
+  feedV2TypeDefs,
+  type FeedV2Args,
+  getForYouFeedGenerator,
+  isSavedNoAiEnabled,
+} from './feedV2';
 
 interface GQLTagsCategory {
   id: string;
@@ -311,6 +315,8 @@ export const typeDefs = /* GraphQL */ `
     """
     cursor: String!
   }
+
+  ${feedV2TypeDefs}
 
   extend type Query {
     """
@@ -1373,37 +1379,6 @@ const anonymousFeedResolverV1: IFieldResolver<
   { allowPrivatePosts: false },
 );
 
-const mergeUniqueStrings = (
-  current: string[] | undefined,
-  additions: readonly string[],
-): string[] => Array.from(new Set([...(current ?? []), ...additions]));
-
-const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
-  generator.withConfigTransform((result) => ({
-    ...result,
-    config: {
-      ...result.config,
-      blocked_tags: mergeUniqueStrings(
-        result.config.blocked_tags,
-        NO_AI_BLOCKED_TAGS,
-      ),
-      blocked_title_words: mergeUniqueStrings(
-        result.config.blocked_title_words,
-        NO_AI_BLOCKED_WORDS,
-      ),
-    },
-  }));
-
-const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
-  const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Settings).findOneBy({
-      userId: ctx.userId,
-    }),
-  );
-
-  return settings?.flags?.noAiFeedEnabled ?? false;
-};
-
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1442,7 +1417,7 @@ const feedResolverCursor = feedResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams!.data.map(([postId]) => postId as string),
+      getFeedResponsePostIds(queryParams!),
       builder,
       alias,
     ),
@@ -1491,7 +1466,7 @@ const channelFeedResolver = feedResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams!.data.map(([postId]) => postId as string),
+      getFeedResponsePostIds(queryParams!),
       builder,
       alias,
     ),
@@ -1604,42 +1579,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
-      if (args.version >= 2) {
-        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
-        const getGeneratorWithNoAi = (
-          generator: FeedGenerator,
-        ): FeedGenerator =>
-          shouldApplyNoAi ? wrapGeneratorWithNoAi(generator) : generator;
-
-        if (args.ranking === Ranking.POPULARITY) {
-          return feedResolverCursor(
-            source,
-            {
-              ...(args as FeedArgs),
-              generator: getGeneratorWithNoAi(
-                versionToFeedGenerator(args.version),
-              ),
-            },
-            ctx,
-            info,
-          );
-        }
-        if (args.ranking === Ranking.TIME) {
-          return feedResolverCursor(
-            source,
-            {
-              ...(args as FeedArgs),
-              generator: getGeneratorWithNoAi(
-                versionToTimeFeedGenerator(args.version),
-              ),
-            },
-            ctx,
-            info,
-          );
-        }
+      const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: getForYouFeedGenerator({
+              ...args,
+              noAi: shouldApplyNoAi,
+            }),
+          },
+          ctx,
+          info,
+        );
+      }
+      if (args.version >= 2 && args.ranking === Ranking.TIME) {
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: getForYouFeedGenerator({
+              ...args,
+              noAi: shouldApplyNoAi,
+            }),
+          },
+          ctx,
+          info,
+        );
       }
       return feedResolverV1(source, args, ctx, info);
     },
+    feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
+      feedV2QueryResolver(source, args, ctx, info),
     followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
       return feedResolverCursor(
         source,
@@ -2092,7 +2064,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                 ctx,
                 fixedIdsFeedBuilder(
                   ctx,
-                  res.data.map(([postId]) => postId as string),
+                  getFeedResponsePostIds(res),
                   builder.queryBuilder,
                   builder.alias,
                 ),
@@ -2562,4 +2534,5 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return { _: true };
     },
   },
+  ...feedV2Resolvers,
 };
