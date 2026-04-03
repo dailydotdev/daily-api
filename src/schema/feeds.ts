@@ -1380,7 +1380,6 @@ const anonymousFeedResolverV1: IFieldResolver<
   { allowPrivatePosts: false },
 );
 
-<<<<<<< HEAD
 const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
   const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
     queryRunner.manager.getRepository(Settings).findOneBy({
@@ -1390,9 +1389,6 @@ const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
 
   return settings?.flags?.noAiFeedEnabled ?? false;
 };
-
-=======
->>>>>>> b0c90237 (Address feedV2 review comments)
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1592,12 +1588,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
-    feed: async (
-      source,
-      args: ConfiguredFeedArgs,
-      ctx: AuthContext,
-      info,
-    ) => {
+    feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
       const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverCursor(
