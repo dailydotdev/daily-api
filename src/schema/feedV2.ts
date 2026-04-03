@@ -2,7 +2,7 @@ import type { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import type { GraphQLResolveInfo } from 'graphql';
 import { parseResolveInfo, type ResolveTree } from 'graphql-parse-resolve-info';
 import graphorm from '../graphorm';
-import type { BaseContext, Context } from '../Context';
+import type { AuthContext, BaseContext } from '../Context';
 import type { GQLPost } from './posts';
 import type { FeedGenerator, FeedResponse } from '../integrations/feed';
 import {
@@ -18,7 +18,8 @@ import {
   Ranking,
 } from '../common';
 import { NO_AI_BLOCKED_TAGS, NO_AI_BLOCKED_WORDS } from '../common/noAiFilter';
-import type { PostHighlight } from '../entity';
+import { Settings, type PostHighlight } from '../entity';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export type FeedV2Args = FeedArgs & {
   unreadOnly: boolean;
@@ -149,6 +150,18 @@ export const getForYouFeedGenerator = ({
   return noAi ? withNoAi(generator) : generator;
 };
 
+export const isSavedNoAiEnabled = async (
+  ctx: AuthContext,
+): Promise<boolean> => {
+  const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Settings).findOneBy({
+      userId: ctx.userId,
+    }),
+  );
+
+  return settings?.flags?.noAiFeedEnabled ?? false;
+};
+
 const encodeFeedMeta = (feedMeta: string | null | undefined): string | null =>
   feedMeta ? base64(feedMeta) : null;
 
@@ -237,7 +250,7 @@ const toFeedV2Items = ({
 
 export const feedV2QueryResolver: IFieldResolver<
   unknown,
-  Context,
+  AuthContext,
   FeedV2Args
 > = async (source, args, ctx, info) => {
   const page = {
@@ -245,7 +258,11 @@ export const feedV2QueryResolver: IFieldResolver<
     cursor: args.after || undefined,
   };
   const allowedPostTypes = getAllowedPostTypes(args.supportedTypes);
-  const response = await getForYouFeedGenerator(args).generate(ctx, {
+  const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
+  const response = await getForYouFeedGenerator({
+    ...args,
+    noAi: shouldApplyNoAi,
+  }).generate(ctx, {
     user_id: ctx.userId || ctx.trackingId,
     page_size: page.limit,
     offset: 0,

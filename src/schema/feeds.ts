@@ -9,7 +9,6 @@ import {
   FeedType,
   Post,
   PostType,
-  Settings,
   Source,
   UserPost,
 } from '../entity';
@@ -87,13 +86,13 @@ import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
-import { queryReadReplica } from '../common/queryReadReplica';
 import {
   feedV2QueryResolver,
   feedV2Resolvers,
   feedV2TypeDefs,
   type FeedV2Args,
   getForYouFeedGenerator,
+  isSavedNoAiEnabled,
 } from './feedV2';
 
 interface GQLTagsCategory {
@@ -1380,15 +1379,6 @@ const anonymousFeedResolverV1: IFieldResolver<
   { allowPrivatePosts: false },
 );
 
-const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
-  const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Settings).findOneBy({
-      userId: ctx.userId,
-    }),
-  );
-
-  return settings?.flags?.noAiFeedEnabled ?? false;
-};
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1620,7 +1610,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return feedResolverV1(source, args, ctx, info);
     },
-    feedV2: (source, args: FeedV2Args, ctx: Context, info) =>
+    feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
       feedV2QueryResolver(source, args, ctx, info),
     followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
       return feedResolverCursor(
