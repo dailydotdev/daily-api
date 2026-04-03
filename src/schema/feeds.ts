@@ -9,6 +9,7 @@ import {
   FeedType,
   Post,
   PostType,
+  Settings,
   Source,
   UserPost,
 } from '../entity';
@@ -88,6 +89,7 @@ import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
 import { NO_AI_BLOCKED_TAGS, NO_AI_BLOCKED_WORDS } from '../common/noAiFilter';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 interface GQLTagsCategory {
   id: string;
@@ -1392,6 +1394,16 @@ const wrapGeneratorWithNoAi = (generator: FeedGenerator): FeedGenerator =>
     },
   }));
 
+const isSavedNoAiEnabled = async (ctx: AuthContext): Promise<boolean> => {
+  const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Settings).findOneBy({
+      userId: ctx.userId,
+    }),
+  );
+
+  return settings?.flags?.noAiFeedEnabled ?? false;
+};
+
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
     (
@@ -1591,32 +1603,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
-    feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        const generator = versionToFeedGenerator(args.version);
+    feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
+      if (args.version >= 2) {
+        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
+        const getGeneratorWithNoAi = (
+          generator: FeedGenerator,
+        ): FeedGenerator =>
+          shouldApplyNoAi ? wrapGeneratorWithNoAi(generator) : generator;
 
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
-          },
-          ctx,
-          info,
-        );
-      }
-      if (args.version >= 2 && args.ranking === Ranking.TIME) {
-        const generator = versionToTimeFeedGenerator(args.version);
-
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: args.noAi ? wrapGeneratorWithNoAi(generator) : generator,
-          },
-          ctx,
-          info,
-        );
+        if (args.ranking === Ranking.POPULARITY) {
+          return feedResolverCursor(
+            source,
+            {
+              ...(args as FeedArgs),
+              generator: getGeneratorWithNoAi(
+                versionToFeedGenerator(args.version),
+              ),
+            },
+            ctx,
+            info,
+          );
+        }
+        if (args.ranking === Ranking.TIME) {
+          return feedResolverCursor(
+            source,
+            {
+              ...(args as FeedArgs),
+              generator: getGeneratorWithNoAi(
+                versionToTimeFeedGenerator(args.version),
+              ),
+            },
+            ctx,
+            info,
+          );
+        }
       }
       return feedResolverV1(source, args, ctx, info);
     },

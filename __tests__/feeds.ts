@@ -20,6 +20,7 @@ import {
   PostTag,
   PostType,
   SharePost,
+  Settings,
   Source,
   SourceMember,
   SourceType,
@@ -720,6 +721,100 @@ describe('query feed', () => {
       variables: {
         ...variables,
         noAi: true,
+        version: 20,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+  });
+
+  it('should include no-ai blocked tags and title words when the saved setting is enabled', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Settings, [
+      {
+        userId: '1',
+        flags: {
+          noAiFeedEnabled: true,
+        },
+      },
+    ]);
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.blocked_tags).toEqual(
+          expect.arrayContaining(['golang', 'ai', 'openai']),
+        );
+        expect(body.blocked_title_words).toEqual(
+          expect.arrayContaining(['Claude', 'Elon Musk']),
+        );
+
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        version: 20,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+  });
+
+  it('should include no-ai blocked tags and title words for TIME ranking when the saved setting is enabled', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Settings, [
+      {
+        userId: '1',
+        flags: {
+          noAiFeedEnabled: true,
+        },
+      },
+    ]);
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.blocked_tags).toEqual(
+          expect.arrayContaining(['golang', 'ai', 'openai']),
+        );
+        expect(body.blocked_title_words).toEqual(
+          expect.arrayContaining(['Claude', 'Elon Musk']),
+        );
+        expect(body.feed_config_name).toBe('for_you_by_date');
+
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        ranking: Ranking.TIME,
         version: 20,
       },
     });

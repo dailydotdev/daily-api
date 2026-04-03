@@ -121,6 +121,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded
       sidebarBookmarksExpanded
       clickbaitShieldEnabled
+      noAiFeedEnabled
       defaultWriteTab
     }
   }
@@ -157,6 +158,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      noAiFeedEnabled: null,
       defaultWriteTab: null,
     });
   });
@@ -176,6 +178,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      noAiFeedEnabled: null,
       defaultWriteTab: null,
     });
 
@@ -312,6 +315,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      noAiFeedEnabled: null,
       defaultWriteTab: null,
     });
   });
@@ -347,7 +351,48 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      noAiFeedEnabled: null,
       defaultWriteTab: null,
+    });
+  });
+
+  it('should update the no ai feed flag', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        flags: {
+          noAiFeedEnabled: false,
+        },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          flags: {
+            noAiFeedEnabled: true,
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: null,
+      sidebarOtherExpanded: null,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+      sidebarBookmarksExpanded: null,
+      clickbaitShieldEnabled: null,
+      noAiFeedEnabled: true,
+      defaultWriteTab: null,
+    });
+
+    const updated = await repo.findOneByOrFail({ userId: '1' });
+    expect(updated.flags).toEqual({
+      noAiFeedEnabled: true,
     });
   });
 

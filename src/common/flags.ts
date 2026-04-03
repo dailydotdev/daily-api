@@ -8,6 +8,7 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     sidebarResourcesExpanded: flags?.sidebarResourcesExpanded ?? true,
     sidebarBookmarksExpanded: flags?.sidebarBookmarksExpanded ?? true,
     clickbaitShieldEnabled: flags?.clickbaitShieldEnabled ?? true,
+    noAiFeedEnabled: flags?.noAiFeedEnabled ?? false,
     ...flags,
   };
 };
