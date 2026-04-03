@@ -81,7 +81,6 @@ export class FeedClient implements IFeedClient, IGarmrClient {
         if (type === 'highlight') {
           return {
             type: 'highlight',
-            postId: post_id || null,
             highlightIds: highlight_ids || [],
             feedMeta,
           };

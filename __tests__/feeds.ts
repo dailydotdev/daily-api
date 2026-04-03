@@ -1313,7 +1313,7 @@ describe('query feedV2', () => {
       });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => {
-        expect(body.allowed_post_types).toEqual(['article', 'highlight']);
+        expect(body.allowed_post_types).toEqual(['article']);
         expect(body.highlights_limit).toEqual(4);
         return true;
       })
@@ -1369,7 +1369,6 @@ describe('query feedV2', () => {
           { post_id: 'p1', metadata: { p: 'post' } },
           {
             type: 'highlight',
-            post_id: '',
             highlight_ids: [
               '3c75fab6-e28b-431d-ab54-a927708de085',
               'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',

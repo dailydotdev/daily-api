@@ -3,14 +3,13 @@ import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
 export type FeedResponsePostItem = {
-  type: 'post';
+  type?: 'post';
   id: string;
   feedMeta: string | null;
 };
 
 export type FeedResponseHighlightItem = {
   type: 'highlight';
-  postId: string | null;
   highlightIds: string[];
   feedMeta: string | null;
 };
@@ -23,27 +22,16 @@ export type FeedResponse = {
   staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
 
-export const isFeedResponsePostItem = (
-  item: FeedResponseItem,
-): item is FeedResponsePostItem => item.type === 'post';
-
 export const isFeedResponseHighlightItem = (
   item: FeedResponseItem,
 ): item is FeedResponseHighlightItem => item.type === 'highlight';
 
-export const getFeedResponsePostItems = (
-  response: Pick<FeedResponse, 'data'>,
-): FeedResponsePostItem[] => response.data.filter(isFeedResponsePostItem);
-
 export const getFeedResponsePostIds = (
   response: Pick<FeedResponse, 'data'>,
-): string[] => getFeedResponsePostItems(response).map(({ id }) => id);
-
-export const findFeedResponsePostItem = (
-  response: Pick<FeedResponse, 'data'>,
-  id: string,
-): FeedResponsePostItem | undefined =>
-  getFeedResponsePostItems(response).find((item) => item.id === id);
+): string[] =>
+  response.data.flatMap((item) =>
+    isFeedResponseHighlightItem(item) ? [] : [item.id],
+  );
 
 export enum FeedConfigName {
   Personalise = 'personalise',

@@ -184,7 +184,6 @@ describe('FeedClient', () => {
         { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
         {
           type: 'highlight',
-          postId: null,
           highlightIds: ['h1', 'h2'],
           feedMeta: '{"p":"highlight"}',
         },

@@ -23,11 +23,7 @@ import {
 
 import { BaseContext, Context } from '../Context';
 import type { MeiliPagination } from '../integrations/meilisearch';
-import {
-  FeedResponse,
-  findFeedResponsePostItem,
-  getFeedResponsePostItems,
-} from '../integrations/feed/types';
+import { FeedResponse } from '../integrations/feed/types';
 
 export interface GQLEmptyResponse {
   _: boolean;
@@ -279,18 +275,20 @@ export const fixedIdsPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     offsetToCursor(
       page.offset +
-        getFeedResponsePostItems(queryParams!).findIndex(
-          (item) => item.id === node.id,
+        queryParams!.data.findIndex(
+          (item) => item.type !== 'highlight' && item.id === node.id,
         ),
     ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    getFeedResponsePostItems(queryParams!).length >= page.limit,
+    queryParams!.data.length >= page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.slice(0, page.limit - 1).map((node) => ({
       ...node,
-      feedMeta: findFeedResponsePostItem(queryParams!, node.id)?.feedMeta,
+      feedMeta: queryParams!.data.find(
+        (item) => item.type !== 'highlight' && item.id === node.id,
+      )?.feedMeta,
     }));
   },
 });
@@ -311,13 +309,15 @@ export const feedCursorPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     queryParams!.cursor as string,
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    getFeedResponsePostItems(queryParams!).length >= page.limit,
+    queryParams!.data.length >= page.limit,
   hasPreviousPage: (page): boolean => !!page.cursor,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.map((node) => ({
       ...node,
-      feedMeta: findFeedResponsePostItem(queryParams!, node.id)?.feedMeta,
+      feedMeta: queryParams!.data.find(
+        (item) => item.type !== 'highlight' && item.id === node.id,
+      )?.feedMeta,
     }));
   },
 });
