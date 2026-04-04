@@ -8542,4 +8542,43 @@ describe('onboardingProfileTags mutation', () => {
       'unknown-tag-xyz',
     );
   });
+
+  it('should propagate bragi NotFound error', async () => {
+    loggedUser = '1';
+
+    jest.restoreAllMocks();
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'I love coding' },
+      },
+      'NOT_FOUND',
+      'Onboarding profile tags not found',
+    );
+  });
+
+  it('should return error for prompt exceeding max length', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'a'.repeat(2001) },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
 });

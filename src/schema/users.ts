@@ -1723,14 +1723,23 @@ export const typeDefs = /* GraphQL */ `
 
     """
     Extract profile tags from the authenticated user's GitHub profile.
-    Requires the user to have signed up with GitHub.
+    Reads the GitHub OAuth token from the user's linked account (ba_account).
+    On first call, sends the token to bragi for AI-powered tag extraction,
+    saves matched tags as ContentPreferenceKeyword entries, and returns them.
+    On subsequent calls, returns the previously saved tags without calling bragi.
+    Requires the user to have signed up with GitHub (throws NOT_FOUND otherwise).
     """
     githubProfileTags: OnboardingTagsResult!
       @auth
       @rateLimit(limit: 3, duration: 3600)
 
     """
-    Generate profile tags from a free-text onboarding prompt.
+    Generate profile tags from a free-text onboarding prompt describing user interests.
+    On first call, sends the prompt to bragi for AI-powered tag inference,
+    cross-matches results against allowed keywords, saves matched tags as
+    ContentPreferenceKeyword entries, and returns them.
+    On subsequent calls, returns the previously saved tags without calling bragi.
+    Prompt must be 1-2000 characters.
     """
     onboardingProfileTags(prompt: String!): OnboardingTagsResult!
       @auth
@@ -4047,13 +4056,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new NotFoundError('No GitHub account linked');
       }
 
-      const keywords = await ctx
-        .getRepository(Keyword)
-        .createQueryBuilder()
-        .select('value')
-        .where('status = :status', { status: KeywordStatus.Allow })
-        .orderBy('value', 'ASC')
-        .getRawMany();
+      const keywords = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(Keyword)
+          .createQueryBuilder()
+          .select('value')
+          .where('status = :status', { status: KeywordStatus.Allow })
+          .getRawMany(),
+      );
 
       const tagVocabulary = keywords.map((k: { value: string }) => k.value);
       const client = getBragiClient();
@@ -4109,6 +4119,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       args: { prompt: string },
       ctx: AuthContext,
     ) => {
+      const parsed = onboardingProfileTagsInputSchema.parse(args);
+
       const feedId = ctx.userId;
       const existing = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
@@ -4118,14 +4130,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             status: ContentPreferenceStatus.Follow,
           },
           select: ['keywordId'],
+          take: 500,
         }),
       );
 
       if (existing.length) {
         return { includeTags: existing.map((pref) => pref.keywordId) };
       }
-
-      const parsed = onboardingProfileTagsInputSchema.parse(args);
 
       const client = getBragiClient();
       let response;
@@ -4142,12 +4153,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw err;
       }
 
-      const allowedKeywords = await ctx
-        .getRepository(Keyword)
-        .createQueryBuilder()
-        .select('value')
-        .where('status = :status', { status: KeywordStatus.Allow })
-        .getRawMany();
+      const allowedKeywords = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          queryRunner.manager
+            .getRepository(Keyword)
+            .createQueryBuilder()
+            .select('value')
+            .where('status = :status', { status: KeywordStatus.Allow })
+            .getRawMany(),
+      );
       const allowedSet = new Set(
         allowedKeywords.map((k: { value: string }) => k.value),
       );
