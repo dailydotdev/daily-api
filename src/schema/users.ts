@@ -1,4 +1,10 @@
 import { emailRegex, isNullOrUndefined } from './../common/object';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { getBragiClient } from '../integrations/bragi';
+import { Keyword, KeywordStatus } from '../entity/Keyword';
+import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { FeedTag } from '../entity/FeedTag';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -1714,6 +1720,25 @@ export const typeDefs = /* GraphQL */ `
     Set a password for the authenticated user (Better Auth)
     """
     setPassword(newPassword: String!): EmptyResponse @auth
+
+    """
+    Extract profile tags from the authenticated user's GitHub profile.
+    Requires the user to have signed up with GitHub.
+    """
+    githubProfileTags: OnboardingTagsResult!
+      @auth
+      @rateLimit(limit: 3, duration: 3600)
+
+    """
+    Generate profile tags from a free-text onboarding prompt.
+    """
+    onboardingProfileTags(prompt: String!): OnboardingTagsResult!
+      @auth
+      @rateLimit(limit: 3, duration: 3600)
+  }
+
+  type OnboardingTagsResult {
+    includeTags: [String!]!
   }
 `;
 
@@ -3994,6 +4019,171 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new ValidationError(message);
       }
       return { _: true };
+    },
+    githubProfileTags: async (_, __, ctx: AuthContext) => {
+      const feedId = ctx.userId;
+      const existing = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
+          where: {
+            feedId,
+            userId: ctx.userId,
+            status: ContentPreferenceStatus.Follow,
+          },
+          select: ['keywordId'],
+          take: 500, // arbitrary limit for protection
+        }),
+      );
+
+      if (existing.length) {
+        return { includeTags: existing.map((pref) => pref.keywordId) };
+      }
+
+      const result = await ctx.con.query(
+        `SELECT "accessToken" FROM ba_account WHERE "userId" = $1 AND "providerId" = 'github' LIMIT 1`,
+        [ctx.userId],
+      );
+
+      if (!result?.length || !result[0].accessToken) {
+        throw new NotFoundError('No GitHub account linked');
+      }
+
+      const keywords = await ctx
+        .getRepository(Keyword)
+        .createQueryBuilder()
+        .select('value')
+        .where('status = :status', { status: KeywordStatus.Allow })
+        .orderBy('value', 'ASC')
+        .getRawMany();
+
+      const tagVocabulary = keywords.map((k: { value: string }) => k.value);
+      const client = getBragiClient();
+      let response;
+      try {
+        response = await client.garmr.execute(async () =>
+          client.instance.gitHubProfileTags({
+            githubPersonalToken: result[0].accessToken,
+            tagVocabulary,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          throw new NotFoundError('GitHub profile tags not found');
+        }
+        throw err;
+      }
+
+      const tags = response.extractedTags;
+
+      if (tags.length) {
+        await ctx.con.transaction(async (manager) => {
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceKeyword)
+            .values(
+              tags.map((tag) => ({
+                userId: ctx.userId,
+                referenceId: tag.name,
+                keywordId: tag.name,
+                feedId,
+                status: ContentPreferenceStatus.Follow,
+              })) as ContentPreferenceKeyword[],
+            )
+            .orIgnore()
+            .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(tags.map((tag) => ({ feedId, tag: tag.name })))
+            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .execute();
+        });
+      }
+
+      return { includeTags: tags.map((tag) => tag.name) };
+    },
+    onboardingProfileTags: async (
+      _,
+      args: { prompt: string },
+      ctx: AuthContext,
+    ) => {
+      const feedId = ctx.userId;
+      const existing = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
+          where: {
+            feedId,
+            userId: ctx.userId,
+            status: ContentPreferenceStatus.Follow,
+          },
+          select: ['keywordId'],
+        }),
+      );
+
+      if (existing.length) {
+        return { includeTags: existing.map((pref) => pref.keywordId) };
+      }
+
+      const parsed = onboardingProfileTagsInputSchema.parse(args);
+
+      const client = getBragiClient();
+      let response;
+      try {
+        response = await client.garmr.execute(async () =>
+          client.instance.onboardingProfileTags({
+            onboardingPrompt: parsed.prompt,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          throw new NotFoundError('Onboarding profile tags not found');
+        }
+        throw err;
+      }
+
+      const allowedKeywords = await ctx
+        .getRepository(Keyword)
+        .createQueryBuilder()
+        .select('value')
+        .where('status = :status', { status: KeywordStatus.Allow })
+        .getRawMany();
+      const allowedSet = new Set(
+        allowedKeywords.map((k: { value: string }) => k.value),
+      );
+      const tags = response.extractedTags.filter((tag) =>
+        allowedSet.has(tag.name),
+      );
+
+      if (tags.length) {
+        await ctx.con.transaction(async (manager) => {
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceKeyword)
+            .values(
+              tags.map((tag) => ({
+                userId: ctx.userId,
+                referenceId: tag.name,
+                keywordId: tag.name,
+                feedId,
+                status: ContentPreferenceStatus.Follow,
+              })) as ContentPreferenceKeyword[],
+            )
+            .orIgnore()
+            .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(tags.map((tag) => ({ feedId, tag: tag.name })))
+            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .execute();
+        });
+      }
+
+      return { includeTags: tags.map((tag) => tag.name) };
     },
   },
   User: {
