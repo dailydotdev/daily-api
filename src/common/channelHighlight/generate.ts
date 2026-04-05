@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
 import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
+import { UNKNOWN_SOURCE } from '../../entity/Source';
 import { getChannelDigestSourceIds } from '../channelDigest/definitions';
 import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
@@ -11,6 +12,7 @@ import {
   fetchEvaluationHistoryHighlights,
   fetchIncrementalPosts,
   fetchPostsByIds,
+  fetchPublicShareFallbackPostIds,
   fetchRetiredHighlightPostIds,
   fetchRelations,
   getEvaluationHistoryStart,
@@ -19,6 +21,8 @@ import {
   mergePosts,
 } from './queries';
 import {
+  applyPublicShareFallbackToCandidates,
+  applyPublicShareFallbackToHighlights,
   buildCandidates,
   canonicalizeCurrentHighlights,
   toHighlightItem,
@@ -153,35 +157,70 @@ export const generateChannelHighlight = async ({
       excludedSourceIds,
     });
     const availablePosts = mergePosts([basePosts, relationPosts]);
-    const liveHighlights = canonicalizeCurrentHighlights({
-      highlights: activeHighlights,
-      relations,
-      posts: availablePosts,
+    const inaccessiblePostIds = new Set(
+      availablePosts
+        .filter((post) => post.sourceId === UNKNOWN_SOURCE)
+        .map((post) => post.id),
+    );
+    const fallbackPostIds = await fetchPublicShareFallbackPostIds({
+      con,
+      sharedPostIds: [
+        ...new Set([
+          ...availablePosts.map((post) => post.id),
+          ...retiredHighlightPostIds,
+        ]),
+      ],
+      excludedSourceIds,
     });
-    const evaluationHighlights = canonicalizeCurrentHighlights({
-      highlights: evaluationHistoryHighlights.map(toHighlightItem),
-      relations,
-      posts: availablePosts,
+    const liveHighlights = applyPublicShareFallbackToHighlights({
+      highlights: canonicalizeCurrentHighlights({
+        highlights: activeHighlights,
+        relations,
+        posts: availablePosts,
+      }),
+      inaccessiblePostIds,
+      fallbackPostIds,
     });
-    const retiredEvaluationHighlights = canonicalizeCurrentHighlights({
-      highlights: evaluationHistoryHighlights
-        .filter((item) => !!item.retiredAt)
-        .map(toHighlightItem),
-      relations,
-      posts: availablePosts,
+    const evaluationHighlights = applyPublicShareFallbackToHighlights({
+      highlights: canonicalizeCurrentHighlights({
+        highlights: evaluationHistoryHighlights.map(toHighlightItem),
+        relations,
+        posts: availablePosts,
+      }),
+      inaccessiblePostIds,
+      fallbackPostIds,
+    });
+    const retiredEvaluationHighlights = applyPublicShareFallbackToHighlights({
+      highlights: canonicalizeCurrentHighlights({
+        highlights: evaluationHistoryHighlights
+          .filter((item) => !!item.retiredAt)
+          .map(toHighlightItem),
+        relations,
+        posts: availablePosts,
+      }),
+      inaccessiblePostIds,
+      fallbackPostIds,
     });
 
     const currentHighlightPostIds = new Set(
       liveHighlights.map((item) => item.postId),
     );
-    const retiredHighlightPostIdSet = new Set(retiredHighlightPostIds);
+    const retiredHighlightPostIdSet = new Set(
+      retiredHighlightPostIds.map(
+        (postId) => fallbackPostIds.get(postId) || postId,
+      ),
+    );
     const retiredEvaluationPostIdSet = new Set(
       retiredEvaluationHighlights.map((item) => item.postId),
     );
-    const newCandidates = buildCandidates({
-      posts: availablePosts,
-      relations,
-      horizonStart,
+    const newCandidates = applyPublicShareFallbackToCandidates({
+      candidates: buildCandidates({
+        posts: availablePosts,
+        relations,
+        horizonStart,
+      }),
+      inaccessiblePostIds,
+      fallbackPostIds,
     }).filter(
       (candidate) =>
         !currentHighlightPostIds.has(candidate.postId) &&
