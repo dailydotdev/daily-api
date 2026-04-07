@@ -13,6 +13,7 @@ import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
+import { SharePost } from '../../entity/posts/SharePost';
 import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import type { HighlightPost } from './types';
 
@@ -222,6 +223,53 @@ export const fetchRelations = async ({
       }),
     )
     .getMany();
+};
+
+export const fetchPublicShareFallbackPostIds = async ({
+  con,
+  sharedPostIds,
+  excludedSourceIds = [],
+}: {
+  con: DataSource;
+  sharedPostIds: string[];
+  excludedSourceIds?: string[];
+}): Promise<Map<string, string>> => {
+  if (!sharedPostIds.length) {
+    return new Map();
+  }
+
+  const shares = await con
+    .getRepository(SharePost)
+    .createQueryBuilder('post')
+    .where('post."sharedPostId" IN (:...sharedPostIds)', {
+      sharedPostIds,
+    })
+    .andWhere('post.visible = true')
+    .andWhere('post.deleted = false')
+    .andWhere('post.banned = false')
+    .andWhere('post.private = false')
+    .andWhere('post.showOnFeed = true')
+    .andWhere(
+      excludedSourceIds.length
+        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
+        : '1=1',
+      { excludedSourceIds },
+    )
+    .orderBy('post.upvotes', 'DESC')
+    .addOrderBy('post."createdAt"', 'DESC')
+    .addOrderBy('post.id', 'DESC')
+    .getMany();
+  const fallbackPostIds = new Map<string, string>();
+
+  for (const share of shares) {
+    if (fallbackPostIds.has(share.sharedPostId)) {
+      continue;
+    }
+
+    fallbackPostIds.set(share.sharedPostId, share.id);
+  }
+
+  return fallbackPostIds;
 };
 
 export const mergePosts = (groups: HighlightPost[][]): HighlightPost[] => {
