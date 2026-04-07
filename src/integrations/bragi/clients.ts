@@ -19,6 +19,9 @@ import {
   FindJobVacanciesResponse,
   GearCategory as ProtoGearCategory,
   GenerateRecruiterEmailResponse,
+  ExtractedProfileTag,
+  GitHubProfileTagsResponse,
+  OnboardingProfileTagsResponse,
   ParseFeedbackResponse,
   Pipelines,
   SentimentDigestResponse,
@@ -147,6 +150,30 @@ export const getBragiClient = (
             id: 'mock-id',
             category: ProtoGearCategory.OTHER,
             normalizedName: name,
+          }),
+        gitHubProfileTags: async () =>
+          new GitHubProfileTagsResponse({
+            id: 'mock-id',
+            extractedTags: [
+              new ExtractedProfileTag({ name: 'javascript', confidence: 0.95 }),
+              new ExtractedProfileTag({ name: 'php', confidence: 0.88 }),
+              new ExtractedProfileTag({ name: 'typescript', confidence: 0.85 }),
+              new ExtractedProfileTag({ name: 'webdev', confidence: 0.82 }),
+              new ExtractedProfileTag({ name: 'go', confidence: 0.75 }),
+              new ExtractedProfileTag({ name: 'git', confidence: 0.7 }),
+            ],
+          }),
+        onboardingProfileTags: async () =>
+          new OnboardingProfileTagsResponse({
+            id: 'mock-id',
+            extractedTags: [
+              new ExtractedProfileTag({ name: 'javascript', confidence: 0.92 }),
+              new ExtractedProfileTag({ name: 'php', confidence: 0.87 }),
+              new ExtractedProfileTag({ name: 'typescript', confidence: 0.84 }),
+              new ExtractedProfileTag({ name: 'webdev', confidence: 0.8 }),
+              new ExtractedProfileTag({ name: 'go', confidence: 0.73 }),
+              new ExtractedProfileTag({ name: 'ai', confidence: 0.7 }),
+            ],
           }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),
