@@ -4138,12 +4138,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         return { includeTags: existing.map((pref) => pref.keywordId) };
       }
 
+      const keywords = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(Keyword)
+          .createQueryBuilder()
+          .select('value')
+          .where('status = :status', { status: KeywordStatus.Allow })
+          .getRawMany(),
+      );
+      const tagVocabulary = keywords.map((k: { value: string }) => k.value);
+
       const client = getBragiClient();
       let response;
       try {
         response = await client.garmr.execute(async () =>
           client.instance.onboardingProfileTags({
             onboardingPrompt: parsed.prompt,
+            tagVocabulary,
           }),
         );
       } catch (err) {
@@ -4153,22 +4164,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw err;
       }
 
-      const allowedKeywords = await queryReadReplica(
-        ctx.con,
-        ({ queryRunner }) =>
-          queryRunner.manager
-            .getRepository(Keyword)
-            .createQueryBuilder()
-            .select('value')
-            .where('status = :status', { status: KeywordStatus.Allow })
-            .getRawMany(),
-      );
-      const allowedSet = new Set(
-        allowedKeywords.map((k: { value: string }) => k.value),
-      );
-      const tags = response.extractedTags.filter((tag) =>
-        allowedSet.has(tag.name),
-      );
+      const tags = response.extractedTags;
 
       if (tags.length) {
         await ctx.con.transaction(async (manager) => {

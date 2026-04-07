@@ -151,7 +151,7 @@ import { addClaimableItemsToUser } from '../src/entity/user/utils';
 import { getGeo } from '../src/common/geo';
 import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
-import { createClient, createRouterTransport } from '@connectrpc/connect';
+import { createClient } from '@connectrpc/connect';
 import {
   Credits,
   EntityType,
@@ -8500,32 +8500,27 @@ describe('onboardingProfileTags mutation', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('should only return tags that exist as allowed keywords', async () => {
+  it('should pass tag vocabulary to bragi', async () => {
     loggedUser = '1';
 
     jest.restoreAllMocks();
     await deleteKeysByPattern(`${rateLimiterName}:*`);
 
-    const transport = createRouterTransport(({ service }) => {
-      service(Pipelines, {
-        onboardingProfileTags: () =>
-          new OnboardingProfileTagsResponse({
-            id: 'mock-id',
-            extractedTags: [
-              new ExtractedProfileTag({ name: 'webdev', confidence: 0.9 }),
-              new ExtractedProfileTag({
-                name: 'unknown-tag-xyz',
-                confidence: 0.8,
-              }),
-              new ExtractedProfileTag({ name: 'rust', confidence: 0.7 }),
-            ],
-          }),
-      });
-    });
+    const bragiSpy = jest.fn().mockResolvedValue(
+      new OnboardingProfileTagsResponse({
+        id: 'mock-id',
+        extractedTags: [
+          new ExtractedProfileTag({ name: 'webdev', confidence: 0.9 }),
+          new ExtractedProfileTag({ name: 'rust', confidence: 0.7 }),
+        ],
+      }),
+    );
 
     jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
       (): ServiceClient<typeof Pipelines> => ({
-        instance: createClient(Pipelines, transport),
+        instance: {
+          onboardingProfileTags: bragiSpy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
         garmr: createGarmrMock(),
       }),
     );
@@ -8538,8 +8533,11 @@ describe('onboardingProfileTags mutation', () => {
     expect(res.data.onboardingProfileTags.includeTags).toEqual(
       expect.arrayContaining(['webdev', 'rust']),
     );
-    expect(res.data.onboardingProfileTags.includeTags).not.toContain(
-      'unknown-tag-xyz',
+    expect(bragiSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onboardingPrompt: 'I like web development and rust',
+        tagVocabulary: expect.arrayContaining(['webdev', 'rust', 'golang']),
+      }),
     );
   });
 
