@@ -4,6 +4,7 @@ import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { Feed } from '../entity/Feed';
 import { FeedTag } from '../entity/FeedTag';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
@@ -4087,6 +4088,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       if (tags.length) {
         await ctx.con.transaction(async (manager) => {
           await manager
+            .getRepository(Feed)
+            .save({ id: feedId, userId: ctx.userId });
+
+          await manager
             .createQueryBuilder()
             .insert()
             .into(ContentPreferenceKeyword)
@@ -4168,6 +4173,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       if (tags.length) {
         await ctx.con.transaction(async (manager) => {
+          await manager
+            .getRepository(Feed)
+            .save({ id: feedId, userId: ctx.userId });
+
           await manager
             .createQueryBuilder()
             .insert()
