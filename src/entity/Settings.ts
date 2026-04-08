@@ -34,6 +34,7 @@ export type SettingsFlags = Partial<{
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
   noAiFeedEnabled: boolean;
+  browsingContextEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
   lastPrompt: string;
@@ -49,6 +50,7 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
   | 'noAiFeedEnabled'
+  | 'browsingContextEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'

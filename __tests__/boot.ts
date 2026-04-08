@@ -1365,6 +1365,7 @@ describe('boot misc', () => {
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
         noAiFeedEnabled: false,
+        browsingContextEnabled: false,
       },
     });
   });

@@ -73,6 +73,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     noAiFeedEnabled: Boolean
+    browsingContextEnabled: Boolean
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
@@ -86,6 +87,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     noAiFeedEnabled: Boolean
+    browsingContextEnabled: Boolean
     prompt: JSONObject
     timezoneMismatchIgnore: String
     lastPrompt: String
