@@ -617,12 +617,63 @@ describe('checkQuestProgress', () => {
     },
   );
 
+  it('should return false when user does not exist', async () => {
+    const now = new Date();
+    const logger = createMockLogger();
+    const nonExistentUserId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const periodStart = new Date(now.getTime() - 60 * 60 * 1000);
+    const periodEnd = new Date(now.getTime() + 60 * 60 * 1000);
+
+    await saveFixtures(con, Quest, [
+      {
+        id: questIds[0],
+        name: 'Daily upvotes',
+        description: 'Upvote 2 posts',
+        type: QuestType.Daily,
+        eventType: QuestEventType.PostUpvote,
+        criteria: { targetCount: 2 },
+        active: true,
+      },
+    ]);
+
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: rotationIds[0],
+        questId: questIds[0],
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart,
+        periodEnd,
+      },
+    ]);
+
+    const didUpdate = await checkQuestProgress({
+      con,
+      logger,
+      userId: nonExistentUserId,
+      eventType: QuestEventType.PostUpvote,
+      incrementBy: 1,
+      now,
+    });
+
+    expect(didUpdate).toBe(false);
+
+    const userQuests = await con.getRepository(UserQuest).find({
+      where: { userId: nonExistentUserId },
+    });
+    expect(userQuests).toHaveLength(0);
+  });
+
   it('should rethrow quest progress errors for caller retries', async () => {
     const logger = createMockLogger();
     const expectedError = new Error('query failed');
     const failingConnection = {
-      getRepository: jest.fn().mockReturnValue({
-        find: jest.fn().mockRejectedValue(expectedError),
+      getRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === User) {
+          return { exists: jest.fn().mockResolvedValue(true) };
+        }
+        return { find: jest.fn().mockRejectedValue(expectedError) };
       }),
     } as unknown as DataSource;
 

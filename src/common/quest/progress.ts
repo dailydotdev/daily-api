@@ -9,6 +9,7 @@ import {
 import { redisPubSub } from '../../redis';
 import { Quest, QuestEventType, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
+import { User } from '../../entity/user/User';
 import { UserQuest, UserQuestStatus } from '../../entity/user/UserQuest';
 import { syncMilestoneQuestProgress } from './milestone';
 
@@ -278,6 +279,18 @@ export const checkQuestProgress = async ({
 }): Promise<boolean> => {
   const safeIncrement = toSafeIncrement(incrementBy);
   if (!safeIncrement) {
+    return false;
+  }
+
+  if (!userId) {
+    return false;
+  }
+
+  const userExists = await con.getRepository(User).exists({
+    where: { id: userId },
+  });
+
+  if (!userExists) {
     return false;
   }
 
