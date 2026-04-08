@@ -1744,6 +1744,10 @@ export const typeDefs = /* GraphQL */ `
       Moderator message for the post
       """
       moderatorMessage: String
+      """
+      Whether this moderation decision was made by AI
+      """
+      aiModerated: Boolean
     ): [SourcePostModeration]! @auth
 
     """
@@ -3120,12 +3124,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         status,
         rejectionReason = null,
         moderatorMessage = null,
+        aiModerated = false,
       }: {
         postIds: string[];
       } & Pick<
         SourcePostModeration,
         'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
-      >,
+      > & { aiModerated?: boolean },
       ctx: AuthContext,
       info,
     ) => {
@@ -3175,6 +3180,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         update.rejectionReason = rejectionReason;
         update.moderatorMessage = moderatorMessage;
+      }
+
+      if (aiModerated) {
+        update.flags = updateFlagsStatement<SourcePostModeration>({
+          aiModerated: true,
+        });
       }
 
       await ctx.con
