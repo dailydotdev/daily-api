@@ -612,10 +612,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
           disableDefaultScope: true,
           scope: ['user:email'],
-          mapProfileToUser: (profile) => {
-            logger.info({ githubProfile: profile }, 'GitHub OAuth profile');
-            return {};
-          },
         },
       }),
       ...(process.env.APPLE_CLIENT_ID && {
