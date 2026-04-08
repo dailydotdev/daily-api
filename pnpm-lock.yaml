@@ -35,8 +35,8 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3(graphql-subscriptions@3.0.0(graphql@16.12.0))
       '@dailydotdev/schema':
-        specifier: 0.3.3
-        version: 0.3.3(@bufbuild/protobuf@1.10.0)
+        specifier: 0.3.6
+        version: 0.3.6(@bufbuild/protobuf@1.10.0)
       '@dailydotdev/ts-ioredis-pool':
         specifier: ^1.0.2
         version: 1.0.2
@@ -879,8 +879,8 @@ packages:
     peerDependencies:
       graphql-subscriptions: ^1.0.0 || ^2.0.0
 
-  '@dailydotdev/schema@0.3.3':
-    resolution: {integrity: sha512-iq2SSJBHedIJlOutHnsMZLbsrBOP4lTErUhpWsrDFWOsj35ZnLOi7rOjaG3UNegU7hiy75wiDG69DeibWH36PQ==}
+  '@dailydotdev/schema@0.3.6':
+    resolution: {integrity: sha512-EnWU44LBerccr8LkJmSV0pO6FO0oUuUd/ORpXZPo4fr8qBW/F2mrMI1oKqx3b95AGPOOkVPYzpc259civOHcqw==}
     peerDependencies:
       '@bufbuild/protobuf': 1.x
 
@@ -2550,8 +2550,8 @@ packages:
   citty@0.1.6:
     resolution: {integrity: sha512-tskPPKEs8D2KPafUypv2gxwJP8h/OaJmC82QQGGDQcHvXX43xF2VDACcJVmZ0EuSxkpO9Kc4MlrA3q0+FG58AQ==}
 
-  citty@0.2.1:
-    resolution: {integrity: sha512-kEV95lFBhQgtogAPlQfJJ0WGVSokvLr/UEoFPiKKOXF7pl98HfUVUD0ejsuTCld/9xH9vogSywZ5KqHzXrZpqg==}
+  citty@0.2.2:
+    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
 
   cjs-module-lexer@1.2.3:
     resolution: {integrity: sha512-0TNiGstbQmCFwt4akjjBg5pLRTSyj/PkWQ1ZoO2zntmg9yLqSRxwEa4iCfQLGjqhiqBfOJa7W/E8wfGrTDmlZQ==}
@@ -2764,6 +2764,9 @@ packages:
 
   defu@6.1.4:
     resolution: {integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==}
+
+  defu@6.1.7:
+    resolution: {integrity: sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==}
 
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
@@ -4184,6 +4187,9 @@ packages:
   long@5.2.3:
     resolution: {integrity: sha512-lcHwpNoggQTObv5apGNCTdJrO69eHOZMi4BNC+rTLER8iHAqGrUVeLh/irVIM7zTw2bOXA8T6uNPeujwOLg/2Q==}
 
+  long@5.3.2:
+    resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
+
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
@@ -5336,8 +5342,8 @@ packages:
     resolution: {integrity: sha512-hkcz3FjNJfKXjV4mjQ1OrXSLAehg8Hw+cEZclOVT+5c/cWQWImQ9wolzTjth+dmmDe++p3bme3fTxz6Q4Etsqw==}
     engines: {node: '>=12'}
 
-  tinyexec@1.0.2:
-    resolution: {integrity: sha512-W/KYk+NFhkmsYpuHq5JykngiOCnxeVL8v8dFnqxSD8qEEdRfXk1SDM6JzNqcERbcGYj9tMrDQBYV9cjgnunFIg==}
+  tinyexec@1.1.1:
+    resolution: {integrity: sha512-VKS/ZaQhhkKFMANmAOhhXVoIfBXblQxGX1myCQ2faQrfmobMftXeJPcZGp0gS07ocvGJWDLZGyOZDadDBqYIJg==}
     engines: {node: '>=18'}
 
   tldts-core@7.0.19:
@@ -6225,7 +6231,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@dailydotdev/schema@0.3.3(@bufbuild/protobuf@1.10.0)':
+  '@dailydotdev/schema@0.3.6(@bufbuild/protobuf@1.10.0)':
     dependencies:
       '@bufbuild/protobuf': 1.10.0
 
@@ -8223,7 +8229,7 @@ snapshots:
     dependencies:
       chokidar: 4.0.3
       confbox: 0.2.4
-      defu: 6.1.4
+      defu: 6.1.7
       dotenv: 16.6.1
       exsolve: 1.0.8
       giget: 2.0.0
@@ -8321,7 +8327,7 @@ snapshots:
     dependencies:
       consola: 3.4.2
 
-  citty@0.2.1: {}
+  citty@0.2.2: {}
 
   cjs-module-lexer@1.2.3: {}
 
@@ -8502,6 +8508,8 @@ snapshots:
       gopd: 1.2.0
 
   defu@6.1.4: {}
+
+  defu@6.1.7: {}
 
   delayed-stream@1.0.0: {}
 
@@ -9112,7 +9120,7 @@ snapshots:
     dependencies:
       citty: 0.1.6
       consola: 3.4.2
-      defu: 6.1.4
+      defu: 6.1.7
       node-fetch-native: 1.6.7
       nypm: 0.6.5
       pathe: 2.0.3
@@ -10134,6 +10142,8 @@ snapshots:
 
   long@5.2.3: {}
 
+  long@5.3.2: {}
+
   lru-cache@10.4.3: {}
 
   lru-cache@11.2.4: {}
@@ -10320,7 +10330,7 @@ snapshots:
       denque: 2.1.0
       generate-function: 2.3.1
       iconv-lite: 0.7.2
-      long: 5.2.3
+      long: 5.3.2
       lru.min: 1.1.4
       named-placeholders: 1.1.6
       seq-queue: 0.0.5
@@ -10411,9 +10421,9 @@ snapshots:
 
   nypm@0.6.5:
     dependencies:
-      citty: 0.2.1
+      citty: 0.2.2
       pathe: 2.0.3
-      tinyexec: 1.0.2
+      tinyexec: 1.1.1
 
   object-hash@3.0.0: {}
 
@@ -10806,7 +10816,7 @@ snapshots:
 
   rc9@2.1.2:
     dependencies:
-      defu: 6.1.4
+      defu: 6.1.7
       destr: 2.0.5
 
   react-dom@19.2.4(react@19.2.4):
@@ -11242,7 +11252,7 @@ snapshots:
 
   tiny-lru@11.4.5: {}
 
-  tinyexec@1.0.2: {}
+  tinyexec@1.1.1: {}
 
   tldts-core@7.0.19: {}
 

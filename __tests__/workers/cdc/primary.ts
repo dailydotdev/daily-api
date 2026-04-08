@@ -3,6 +3,7 @@ import {
   CandidateStatus,
   OpportunityState,
   OpportunityType,
+  PostHighlightedMessage,
 } from '@dailydotdev/schema';
 import {
   Achievement,
@@ -36,6 +37,8 @@ import {
   Post,
   PostKeyword,
   PostMention,
+  PostHighlight,
+  PostHighlightSignificance,
   PostRelation,
   PostRelationType,
   PostReport,
@@ -3206,6 +3209,72 @@ describe('marketing cta', () => {
         ),
       ).toHaveLength(4);
     });
+  });
+});
+
+describe('post highlight', () => {
+  type ObjectType = PostHighlight;
+
+  const base: ChangeObject<ObjectType> = {
+    id: 'ph_1',
+    channel: 'javascript',
+    postId: 'p1',
+    highlightedAt: 1_770_000_000_000_000,
+    headline: 'JavaScript in 2026',
+    significance: PostHighlightSignificance.Major,
+    reason: 'Fast ecosystem update',
+    retiredAt: null,
+    createdAt: 1_770_000_000_000_000,
+    updatedAt: 1_770_000_000_000_000,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should publish highlighted event on create', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'post_highlight',
+      }),
+    );
+
+    expectTypedEvent(
+      'api.v1.post-highlighted',
+      new PostHighlightedMessage({
+        highlightId: base.id,
+        channel: base.channel,
+        postId: base.postId,
+        headline: base.headline,
+        significance: base.significance,
+        reason: base.reason ?? undefined,
+        highlightedAt: base.highlightedAt,
+      }),
+    );
+  });
+
+  it('should not publish highlighted event on update', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      headline: 'Updated headline',
+      updatedAt: 1_770_000_100_000_000,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post_highlight',
+      }),
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 

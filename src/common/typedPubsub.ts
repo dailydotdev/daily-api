@@ -36,6 +36,7 @@ import {
   MatchedCandidate,
   type OpportunityMessage,
   type OpportunityPreviewResult,
+  PostHighlightedMessage,
   RecruiterAcceptedCandidateMatchMessage,
   type TransferResponse,
   type UserBriefingRequest,
@@ -189,6 +190,7 @@ export type PubSubSchema = {
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
+  'api.v1.post-highlighted': PostHighlightedMessage;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
