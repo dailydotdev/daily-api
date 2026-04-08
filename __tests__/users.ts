@@ -16,6 +16,9 @@ import {
 } from 'date-fns';
 import {
   authorizeRequest,
+  createGarmrMock,
+  createMockBragiPipelinesTransport,
+  createMockBragiPipelinesNotFoundTransport,
   createMockNjordTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -152,9 +155,14 @@ import { createClient } from '@connectrpc/connect';
 import {
   Credits,
   EntityType,
+  ExtractedProfileTag,
+  OnboardingProfileTagsResponse,
   OpportunityState,
   OpportunityType,
+  Pipelines,
 } from '@dailydotdev/schema';
+import * as bragiClients from '../src/integrations/bragi/clients';
+import type { ServiceClient } from '../src/types';
 import { Organization } from '../src/entity';
 import { Opportunity } from '../src/entity/opportunities/Opportunity';
 import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
@@ -8278,5 +8286,297 @@ describe('mutation setPassword', () => {
 
     expect(res.errors).toBeTruthy();
     expect(res.errors[0].message).toBe('Password too weak');
+  });
+});
+
+describe('githubProfileTags mutation', () => {
+  const GITHUB_PROFILE_TAGS_MUTATION = `
+    mutation {
+      githubProfileTags {
+        includeTags
+      }
+    }
+  `;
+
+  const seedGitHubAccount = async (userId: string) => {
+    await con.query(
+      `INSERT INTO ba_account (id, "accountId", "providerId", "userId", "accessToken", scope, "createdAt", "updatedAt")
+       VALUES ($1, $2, 'github', $3, $4, 'user:email', NOW(), NOW())`,
+      [`ba-${userId}`, `gh-${userId}`, userId, 'gho_test_token_123'],
+    );
+  };
+
+  beforeEach(async () => {
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    await saveFixtures(con, Keyword, keywordsFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesTransport()),
+        garmr: createGarmrMock(),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return extracted tags for user with GitHub account', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    const res = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.githubProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'rust', 'golang']),
+    );
+  });
+
+  it('should return error when no GitHub account linked', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'NOT_FOUND',
+      'No GitHub account linked',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should propagate bragi NotFound error', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'NOT_FOUND',
+      'GitHub profile tags not found',
+    );
+  });
+
+  it('should return saved tags on repeated call without calling bragi', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    const first = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+    expect(first.errors).toBeFalsy();
+
+    const spy = jest.fn();
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          gitHubProfileTags: spy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const second = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+    expect(second.errors).toBeFalsy();
+    expect(second.data.githubProfileTags.includeTags).toEqual(
+      first.data.githubProfileTags.includeTags,
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('onboardingProfileTags mutation', () => {
+  const ONBOARDING_PROFILE_TAGS_MUTATION = `
+    mutation OnboardingProfileTags($prompt: String!) {
+      onboardingProfileTags(prompt: $prompt) {
+        includeTags
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    await saveFixtures(con, Keyword, keywordsFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesTransport()),
+        garmr: createGarmrMock(),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return extracted tags from prompt', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I love Python and machine learning' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.onboardingProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'fullstack']),
+    );
+  });
+
+  it('should return error for empty prompt', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: '' },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'I love coding' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return saved tags on repeated call without calling bragi', async () => {
+    loggedUser = '1';
+
+    const first = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I love Python and machine learning' },
+    });
+    expect(first.errors).toBeFalsy();
+
+    const spy = jest.fn();
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          onboardingProfileTags: spy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const second = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'different prompt' },
+    });
+    expect(second.errors).toBeFalsy();
+    expect(second.data.onboardingProfileTags.includeTags).toEqual(
+      first.data.onboardingProfileTags.includeTags,
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('should pass tag vocabulary to bragi', async () => {
+    loggedUser = '1';
+
+    jest.restoreAllMocks();
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+    const bragiSpy = jest.fn().mockResolvedValue(
+      new OnboardingProfileTagsResponse({
+        id: 'mock-id',
+        extractedTags: [
+          new ExtractedProfileTag({ name: 'webdev', confidence: 0.9 }),
+          new ExtractedProfileTag({ name: 'rust', confidence: 0.7 }),
+        ],
+      }),
+    );
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          onboardingProfileTags: bragiSpy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const res = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I like web development and rust' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.onboardingProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'rust']),
+    );
+    expect(bragiSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onboardingPrompt: 'I like web development and rust',
+        tagVocabulary: expect.arrayContaining(['webdev', 'rust', 'golang']),
+      }),
+    );
+  });
+
+  it('should propagate bragi NotFound error', async () => {
+    loggedUser = '1';
+
+    jest.restoreAllMocks();
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'I love coding' },
+      },
+      'NOT_FOUND',
+      'Onboarding profile tags not found',
+    );
+  });
+
+  it('should return error for prompt exceeding max length', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'a'.repeat(2001) },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
   });
 });

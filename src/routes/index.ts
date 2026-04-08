@@ -136,6 +136,7 @@ https://app.daily.dev`,
       userIds: string[];
       config?: PersonalizedDigestFeatureConfig;
       type?: UserPersonalizedDigestType;
+      deduplicate?: boolean;
     };
   }>('/digest/send', async (req, res) => {
     const authorization = req.headers.authorization;
@@ -152,7 +153,7 @@ https://app.daily.dev`,
     const userCountLimit = 100;
     res.header('content-type', 'application/json');
 
-    const { userIds, config, type } = req.body || {};
+    const { userIds, config, type, deduplicate } = req.body || {};
     const digestType = type ?? UserPersonalizedDigestType.Digest;
 
     if (!Array.isArray(userIds)) {
@@ -185,7 +186,7 @@ https://app.daily.dev`,
           personalizedDigest,
           emailSendTimestamp: timestamp,
           previousSendTimestamp: previousDate.getTime(),
-          deduplicate: false,
+          deduplicate: !!deduplicate,
           config,
         });
       }),

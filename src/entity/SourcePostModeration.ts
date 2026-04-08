@@ -52,6 +52,7 @@ export enum WarningReason {
 }
 
 export type SourcePostModerationFlags = Partial<{
+  aiModerated: boolean;
   vordr: boolean;
   warningReason: WarningReason;
   dedupKey: string;

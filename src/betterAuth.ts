@@ -256,6 +256,11 @@ const normalizeSignUpUsername = async (
 const validateExperienceLevel = (body?: Record<string, unknown>): void => {
   const experienceLevel = body?.experienceLevel;
 
+  // will be allowed in v2 onboarding
+  if (!experienceLevel) {
+    return;
+  }
+
   if (
     typeof experienceLevel !== 'string' ||
     !userExperienceLevelSchema.safeParse(experienceLevel).success
