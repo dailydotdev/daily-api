@@ -539,6 +539,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           identifiers: { id: user.id },
           message_data: { url, name: user.name },
           to: user.email,
+          send_to_unsubscribed: true,
         });
       },
       password: {
@@ -572,6 +573,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
             identifiers: { email },
             message_data: { otp, type },
             to: email,
+            send_to_unsubscribed: true,
           });
         },
       }),
