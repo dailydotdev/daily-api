@@ -287,20 +287,10 @@ const cookieDomain = process.env.BETTER_AUTH_BASE_URL
   ? extractRootDomain(new URL(process.env.BETTER_AUTH_BASE_URL).hostname)
   : undefined;
 
-const getOAuthErrorRedirectUrl = (): string | undefined => {
-  const webappUrl = process.env.COMMENTS_PREFIX;
-  if (!webappUrl) {
-    return undefined;
-  }
-  return `${webappUrl}/callback`;
-};
-
 export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
     : [];
-
-  const oauthErrorRedirectUrl = getOAuthErrorRedirectUrl();
 
   return {
     database: pool,
@@ -308,11 +298,9 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     basePath: '/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
-    ...(oauthErrorRedirectUrl && {
-      onAPIError: {
-        errorURL: oauthErrorRedirectUrl,
-      },
-    }),
+    onAPIError: {
+      errorURL: `${process.env.COMMENTS_PREFIX}/callback`,
+    },
     secondaryStorage: {
       get: (key) => singleRedisClient.get(`ba:${key}`),
       set: (key, value, ttl) =>
