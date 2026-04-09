@@ -171,9 +171,29 @@ const redirectToProfileImage = async (
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
-  fastify.get('/', (req, res) =>
-    res.redirect('https://r.daily.dev/api-redirect'),
-  );
+  fastify.get('/', (req, res) => {
+    // Some OAuth providers (e.g. GitHub) redirect cancellations to the
+    // API root instead of the BetterAuth callback URL. Forward the error
+    // params to the webapp callback so the popup can close cleanly.
+    const { error, state } = req.query as Record<string, string>;
+    if (error && state) {
+      const webappOrigin = process.env.COMMENTS_PREFIX;
+      if (webappOrigin) {
+        req.log.warn(
+          { error, state },
+          'OAuth error redirected to API root, forwarding to webapp callback',
+        );
+        const callbackUrl = new URL(`${webappOrigin}/callback`);
+        const params = new URLSearchParams(req.url.split('?')[1] ?? '');
+        params.forEach((value, key) => {
+          callbackUrl.searchParams.set(key, value);
+        });
+        return res.redirect(callbackUrl.toString());
+      }
+    }
+
+    return res.redirect('https://r.daily.dev/api-redirect');
+  });
   fastify.get('/landing', (req, res) => res.redirect('https://daily.dev'));
   fastify.get('/tos', (req, res) => res.redirect('https://daily.dev/tos'));
   fastify.get('/privacy', (req, res) =>

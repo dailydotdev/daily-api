@@ -298,6 +298,9 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     basePath: '/auth',
     secret: process.env.BETTER_AUTH_SECRET ?? '',
     trustedOrigins,
+    onAPIError: {
+      errorURL: `${process.env.COMMENTS_PREFIX}/callback`,
+    },
     secondaryStorage: {
       get: (key) => singleRedisClient.get(`ba:${key}`),
       set: (key, value, ttl) =>

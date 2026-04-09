@@ -119,6 +119,57 @@ export const logoutBetterAuth = async (
   }
 };
 
+const isOAuthCallbackPath = (url: string): boolean =>
+  /\/auth\/callback\//.test(url);
+
+const rewriteOAuthErrorRedirect = (
+  request: FastifyRequest,
+  response: Response,
+): string | undefined => {
+  if (!isOAuthCallbackPath(request.url)) {
+    return undefined;
+  }
+
+  if (response.status < 300 || response.status >= 400) {
+    return undefined;
+  }
+
+  const location = response.headers.get('location');
+  if (!location) {
+    return undefined;
+  }
+
+  const webappCallback = `${process.env.COMMENTS_PREFIX}/callback`;
+  if (!webappCallback) {
+    return undefined;
+  }
+
+  if (location.startsWith(webappCallback)) {
+    return undefined;
+  }
+
+  let redirectUrl: URL;
+  try {
+    redirectUrl = new URL(location, `${request.protocol}://${request.host}`);
+  } catch {
+    return undefined;
+  }
+
+  const hasError =
+    redirectUrl.searchParams.has('error') ||
+    redirectUrl.searchParams.get('state') === 'state_not_found';
+  if (!hasError) {
+    return undefined;
+  }
+
+  const callbackUrl = new URL(webappCallback);
+  redirectUrl.searchParams.forEach((value, key) => {
+    callbackUrl.searchParams.set(key, value);
+  });
+
+  return callbackUrl.toString();
+};
+
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
   // Apple sends OAuth callbacks as application/x-www-form-urlencoded POSTs.
   // Fastify does not parse this content type by default, so collect the raw
@@ -142,6 +193,18 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           reply,
           body,
         });
+
+        const rewrittenUrl = rewriteOAuthErrorRedirect(request, response);
+        if (rewrittenUrl) {
+          request.log.warn(
+            { originalLocation: response.headers.get('location') },
+            'OAuth callback error redirect rewritten to webapp',
+          );
+          reply.header('location', rewrittenUrl);
+          reply.status(302);
+          return reply.send();
+        }
+
         return sendBetterAuthResponse(reply, response);
       } catch (error) {
         return sendBetterAuthError(
