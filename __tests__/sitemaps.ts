@@ -7,6 +7,7 @@ import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   AGENTS_DIGEST_SOURCE,
+  Archive,
   CollectionPost,
   Keyword,
   KeywordStatus,
@@ -18,6 +19,12 @@ import {
   SourceType,
   User,
 } from '../src/entity';
+import {
+  ArchivePeriodType,
+  ArchiveRankingType,
+  ArchiveScopeType,
+  ArchiveSubjectType,
+} from '../src/common/archive';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
 import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
@@ -1052,6 +1059,195 @@ describe('GET /sitemaps/evergreen.xml', () => {
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.text).toContain('/posts/evergreen-no-author-evergreen-norep');
     expect(res.text).not.toContain('/posts/evergreen-low-rep-evergreen-lowrep');
+  });
+});
+
+describe('GET /sitemaps/archive-index.xml', () => {
+  const archiveBase = {
+    subjectType: ArchiveSubjectType.Post,
+    rankingType: ArchiveRankingType.Best,
+  };
+
+  it('should return index pages for tags and sources with archives', async () => {
+    const createdAt = new Date('2025-03-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'rust',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'rust',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-02-01T00:00:00.000Z'),
+        createdAt,
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'a',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-index.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    // Source 'a' has handle 'a'
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/sources/a/best-of</loc>',
+    );
+    // Tag rust should appear once (deduplicated)
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/rust/best-of</loc>',
+    );
+    // Global archives should not appear
+    expect(res.text).not.toContain('/best-of</loc>\n');
+    // Only one entry for rust (two archives but one index)
+    const rustMatches = res.text.match(/\/tags\/rust\/best-of<\/loc>/g);
+    expect(rustMatches).toHaveLength(1);
+  });
+
+  it('should exclude source archives when the source has been deleted', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'nonexistent-source',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-index.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/sources/nonexistent-source/best-of');
+  });
+});
+
+describe('GET /sitemaps/archive-pages.xml', () => {
+  const archiveBase = {
+    subjectType: ArchiveSubjectType.Post,
+    rankingType: ArchiveRankingType.Best,
+  };
+
+  it('should return individual archive pages with correct URL format', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'golang',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'golang',
+        periodType: ArchivePeriodType.Year,
+        periodStart: new Date('2024-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'b',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-09-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toEqual(
+      'public, max-age=7200, s-maxage=7200',
+    );
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    // Monthly tag archive with zero-padded month
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/golang/best-of/2025/01</loc>',
+    );
+    // Yearly tag archive
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/golang/best-of/2024</loc>',
+    );
+    // Source archive uses handle (source 'b' has handle 'b')
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/sources/b/best-of/2025/09</loc>',
+    );
+    // Lastmod should be present
+    expect(res.text).toContain('<lastmod>');
+  });
+
+  it('should exclude global archives', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages.xml')
+      .expect(200);
+
+    // Should not contain any best-of URL for global scope
+    expect(res.text).not.toContain('/best-of/2025/01</loc>');
+  });
+});
+
+describe('GET /sitemaps/index.xml (archive entries)', () => {
+  it('should include archive sitemaps in the sitemap index', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/index.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-index.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-pages.xml</loc>',
+    );
   });
 });
 
