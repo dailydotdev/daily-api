@@ -1150,6 +1150,25 @@ describe('GET /sitemaps/archive-index.xml', () => {
 
     expect(res.text).not.toContain('/sources/nonexistent-source/best-of');
   });
+
+  it('should exclude squad sources from archive index', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'm',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-index.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/sources/moderatedSquad/best-of');
+  });
 });
 
 describe('GET /sitemaps/archive-pages-:scopeType-:periodType-:page.xml', () => {
@@ -1302,6 +1321,25 @@ describe('GET /sitemaps/archive-pages-:scopeType-:periodType-:page.xml', () => {
       .expect(200);
 
     expect(res.text).not.toContain('/sources/nonexistent-source/best-of');
+  });
+
+  it('should exclude squad sources from archive pages', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'm',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-source-month-0.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/sources/moderatedSquad/best-of');
   });
 });
 
