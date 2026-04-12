@@ -1152,13 +1152,13 @@ describe('GET /sitemaps/archive-index.xml', () => {
   });
 });
 
-describe('GET /sitemaps/archive-pages.xml', () => {
+describe('GET /sitemaps/archive-pages-:scopeType-:periodType-:page.xml', () => {
   const archiveBase = {
     subjectType: ArchiveSubjectType.Post,
     rankingType: ArchiveRankingType.Best,
   };
 
-  it('should return individual archive pages with correct URL format', async () => {
+  it('should return tag monthly archive pages with correct URL format', async () => {
     const createdAt = new Date('2025-04-01T10:00:00.000Z');
 
     await con.getRepository(Archive).save([
@@ -1178,18 +1178,10 @@ describe('GET /sitemaps/archive-pages.xml', () => {
         periodStart: new Date('2024-01-01T00:00:00.000Z'),
         createdAt,
       },
-      {
-        ...archiveBase,
-        scopeType: ArchiveScopeType.Source,
-        scopeId: 'b',
-        periodType: ArchivePeriodType.Month,
-        periodStart: new Date('2025-09-01T00:00:00.000Z'),
-        createdAt,
-      },
     ]);
 
     const res = await request(app.server)
-      .get('/sitemaps/archive-pages.xml')
+      .get('/sitemaps/archive-pages-tag-month-0.xml')
       .expect(200);
 
     expect(res.header['content-type']).toContain('application/xml');
@@ -1203,24 +1195,102 @@ describe('GET /sitemaps/archive-pages.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/tags/golang/best-of/2025/01</loc>',
     );
-    // Yearly tag archive
-    expect(res.text).toContain(
+    // Should not include yearly archives
+    expect(res.text).not.toContain(
       '<loc>http://localhost:5002/tags/golang/best-of/2024</loc>',
-    );
-    // Source archive uses handle (source 'b' has handle 'b')
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/sources/b/best-of/2025/09</loc>',
     );
     // Lastmod should be present
     expect(res.text).toContain('<lastmod>');
   });
 
-  it('should exclude global archives', async () => {
+  it('should return tag yearly archive pages', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
     await con.getRepository(Archive).save([
       {
         ...archiveBase,
-        scopeType: ArchiveScopeType.Global,
-        scopeId: null,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'golang',
+        periodType: ArchivePeriodType.Year,
+        periodStart: new Date('2024-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-tag-year-0.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/golang/best-of/2024</loc>',
+    );
+  });
+
+  it('should return source monthly archive pages using handle', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'b',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-09-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-source-month-0.xml')
+      .expect(200);
+
+    // Source archive uses handle (source 'b' has handle 'b')
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/sources/b/best-of/2025/09</loc>',
+    );
+  });
+
+  it('should return 404 for invalid scopeType', async () => {
+    await request(app.server)
+      .get('/sitemaps/archive-pages-invalid-month-0.xml')
+      .expect(404);
+  });
+
+  it('should return 404 for invalid periodType', async () => {
+    await request(app.server)
+      .get('/sitemaps/archive-pages-tag-invalid-0.xml')
+      .expect(404);
+  });
+
+  it('should return 404 for negative page', async () => {
+    await request(app.server)
+      .get('/sitemaps/archive-pages-tag-month--1.xml')
+      .expect(404);
+  });
+
+  it('should return 404 for non-integer page', async () => {
+    await request(app.server)
+      .get('/sitemaps/archive-pages-tag-month-abc.xml')
+      .expect(404);
+  });
+
+  it('should return empty urlset for page beyond data', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-tag-month-999.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).not.toContain('<loc>');
+  });
+
+  it('should exclude source archives when the source has been deleted', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'nonexistent-source',
         periodType: ArchivePeriodType.Month,
         periodStart: new Date('2025-01-01T00:00:00.000Z'),
         createdAt: new Date(),
@@ -1228,16 +1298,39 @@ describe('GET /sitemaps/archive-pages.xml', () => {
     ]);
 
     const res = await request(app.server)
-      .get('/sitemaps/archive-pages.xml')
+      .get('/sitemaps/archive-pages-source-month-0.xml')
       .expect(200);
 
-    // Should not contain any best-of URL for global scope
-    expect(res.text).not.toContain('/best-of/2025/01</loc>');
+    expect(res.text).not.toContain('/sources/nonexistent-source/best-of');
   });
 });
 
 describe('GET /sitemaps/index.xml (archive entries)', () => {
-  it('should include archive sitemaps in the sitemap index', async () => {
+  const archiveBase = {
+    subjectType: ArchiveSubjectType.Post,
+    rankingType: ArchiveRankingType.Best,
+  };
+
+  it('should include archive-index and paginated archive-pages sitemaps', async () => {
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'golang',
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'a',
+        periodType: ArchivePeriodType.Year,
+        periodStart: new Date('2024-01-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    ]);
+
     const res = await request(app.server)
       .get('/sitemaps/index.xml')
       .expect(200);
@@ -1246,8 +1339,26 @@ describe('GET /sitemaps/index.xml (archive entries)', () => {
       '<loc>http://localhost:5002/api/sitemaps/archive-index.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-pages-tag-month-0.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-pages-source-year-0.xml</loc>',
+    );
+    // Should not contain old non-paginated archive-pages.xml
+    expect(res.text).not.toContain(
       '<loc>http://localhost:5002/api/sitemaps/archive-pages.xml</loc>',
     );
+  });
+
+  it('should not include archive-pages entries when no archives exist', async () => {
+    const res = await request(app.server)
+      .get('/sitemaps/index.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-index.xml</loc>',
+    );
+    expect(res.text).not.toContain('archive-pages-');
   });
 });
 

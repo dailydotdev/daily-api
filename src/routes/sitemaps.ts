@@ -487,9 +487,7 @@ const buildArchivePagesPaginatedQuery = (
     .createQueryBuilder()
     .select('a."scopeType"', 'scopeType')
     .addSelect(
-      scopeType === ArchiveScopeType.Source
-        ? 's.handle'
-        : 'a."scopeId"',
+      scopeType === ArchiveScopeType.Source ? 's.handle' : 'a."scopeId"',
       'scopeId',
     )
     .addSelect('a."periodType"', 'periodType')
@@ -564,10 +562,13 @@ const buildArchivePagesIndexEntries = (
     .flatMap(({ scopeType, periodType, count }) => {
       const pages = Math.max(1, Math.ceil(count / ARCHIVE_PAGES_LIMIT));
 
-      return Array.from({ length: pages }, (_, i) =>
-        `  <sitemap>
+      return Array.from(
+        { length: pages },
+        (_, i) =>
+          `  <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/archive-pages-${scopeType}-${periodType}-${i}.xml`)}</loc>
-  </sitemap>`);
+  </sitemap>`,
+      );
     })
     .join('\n');
 
