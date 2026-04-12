@@ -455,7 +455,7 @@ const buildArchiveIndexSitemapQuery = (
       scopeTypes: [ArchiveScopeType.Tag, ArchiveScopeType.Source],
     })
     .andWhere(
-      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle IS NOT NULL ELSE TRUE END`,
+      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle IS NOT NULL AND s.type != '${SourceType.Squad}' ELSE TRUE END`,
     )
     .groupBy('a."scopeType"')
     .addGroupBy(
@@ -498,7 +498,11 @@ const buildArchivePagesPaginatedQuery = (
     .andWhere('a."periodType" = :periodType', { periodType });
 
   if (scopeType === ArchiveScopeType.Source) {
-    qb.innerJoin(Source, 's', 's.id = a."scopeId"');
+    qb.innerJoin(
+      Source,
+      's',
+      `s.id = a."scopeId" AND s.type != '${SourceType.Squad}'`,
+    );
     qb.orderBy('s.handle', 'ASC');
   } else {
     qb.orderBy('a."scopeId"', 'ASC');
