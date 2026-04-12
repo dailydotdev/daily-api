@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import {
+  Archive,
   Keyword,
   KeywordStatus,
   Post,
@@ -10,6 +11,7 @@ import {
   User,
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
+import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
@@ -23,6 +25,7 @@ import {
 
 const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-maxage=${2 * ONE_HOUR_IN_SECONDS}`;
 const DEFAULT_SITEMAP_LIMIT = 50_000;
+const ARCHIVE_PAGES_LIMIT = 50_000;
 const QUALIFIED_SOURCE_MIN_PUBLIC_POSTS = 10;
 const ARENA_SITEMAP_GROUP_IDS = [
   '385404b4-f0f4-4e81-a338-bdca851eca31',
@@ -399,6 +402,144 @@ const buildUsersSitemapQuery = (
     .addOrderBy('u.username', 'ASC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
+const zeroPadMonth = (month: number): string =>
+  month.toString().padStart(2, '0');
+
+const getArchiveBestOfUrl = (
+  prefix: string,
+  scopeType: ArchiveScopeType,
+  scopeId: string,
+): string => {
+  const segment = scopeType === ArchiveScopeType.Tag ? 'tags' : 'sources';
+
+  return `${prefix}/${segment}/${encodeURIComponent(scopeId)}/best-of`;
+};
+
+const getArchivePageUrl = (
+  prefix: string,
+  scopeType: ArchiveScopeType,
+  scopeId: string,
+  periodType: ArchivePeriodType,
+  periodStart: Date,
+): string => {
+  const base = getArchiveBestOfUrl(prefix, scopeType, scopeId);
+  const year = periodStart.getUTCFullYear();
+
+  if (periodType === ArchivePeriodType.Year) {
+    return `${base}/${year}`;
+  }
+
+  const month = zeroPadMonth(periodStart.getUTCMonth() + 1);
+
+  return `${base}/${year}/${month}`;
+};
+
+const buildArchiveIndexSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<Archive> =>
+  source
+    .createQueryBuilder()
+    .select('DISTINCT a."scopeType"', 'scopeType')
+    .addSelect(
+      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle ELSE a."scopeId" END`,
+      'scopeId',
+    )
+    .addSelect('MAX(a."createdAt")', 'lastmod')
+    .from(Archive, 'a')
+    .leftJoin(
+      Source,
+      's',
+      `a."scopeType" = '${ArchiveScopeType.Source}' AND s.id = a."scopeId"`,
+    )
+    .where('a."scopeType" IN (:...scopeTypes)', {
+      scopeTypes: [ArchiveScopeType.Tag, ArchiveScopeType.Source],
+    })
+    .andWhere(
+      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle IS NOT NULL ELSE TRUE END`,
+    )
+    .groupBy('a."scopeType"')
+    .addGroupBy(
+      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle ELSE a."scopeId" END`,
+    )
+    .orderBy('a."scopeType"', 'ASC')
+    .addOrderBy(
+      `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle ELSE a."scopeId" END`,
+      'ASC',
+    )
+    .limit(DEFAULT_SITEMAP_LIMIT);
+
+const VALID_ARCHIVE_SCOPE_TYPES = new Set<string>([
+  ArchiveScopeType.Tag,
+  ArchiveScopeType.Source,
+]);
+const VALID_ARCHIVE_PERIOD_TYPES = new Set<string>([
+  ArchivePeriodType.Month,
+  ArchivePeriodType.Year,
+]);
+
+const buildArchivePagesPaginatedQuery = (
+  source: DataSource | EntityManager,
+  scopeType: ArchiveScopeType,
+  periodType: ArchivePeriodType,
+  page: number,
+): SelectQueryBuilder<Archive> => {
+  const qb = source
+    .createQueryBuilder()
+    .select('a."scopeType"', 'scopeType')
+    .addSelect(
+      scopeType === ArchiveScopeType.Source ? 's.handle' : 'a."scopeId"',
+      'scopeId',
+    )
+    .addSelect('a."periodType"', 'periodType')
+    .addSelect('a."periodStart"', 'periodStart')
+    .addSelect('a."createdAt"', 'lastmod')
+    .from(Archive, 'a')
+    .where('a."scopeType" = :scopeType', { scopeType })
+    .andWhere('a."periodType" = :periodType', { periodType });
+
+  if (scopeType === ArchiveScopeType.Source) {
+    qb.innerJoin(Source, 's', 's.id = a."scopeId"');
+    qb.orderBy('s.handle', 'ASC');
+  } else {
+    qb.orderBy('a."scopeId"', 'ASC');
+  }
+
+  qb.addOrderBy('a."periodStart"', 'ASC')
+    .limit(ARCHIVE_PAGES_LIMIT)
+    .offset(page * ARCHIVE_PAGES_LIMIT);
+
+  return qb;
+};
+
+const getArchivePagesCount = async (
+  con: DataSource,
+): Promise<{ scopeType: string; periodType: string; count: number }[]> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    const rows = await queryRunner.manager
+      .createQueryBuilder()
+      .select('a."scopeType"', 'scopeType')
+      .addSelect('a."periodType"', 'periodType')
+      .addSelect('COUNT(*)', 'count')
+      .from(Archive, 'a')
+      .where('a."scopeType" IN (:...scopeTypes)', {
+        scopeTypes: [ArchiveScopeType.Tag, ArchiveScopeType.Source],
+      })
+      .groupBy('a."scopeType"')
+      .addGroupBy('a."periodType"')
+      .getRawMany<{ scopeType: string; periodType: string; count: string }>();
+
+    return rows.map((row) => ({
+      scopeType: row.scopeType,
+      periodType: row.periodType,
+      count: Number(row.count),
+    }));
+  } finally {
+    await queryRunner.release();
+  }
+};
+
 const getPostsSitemapPath = (page: number): string =>
   page === 1 ? '/api/sitemaps/posts-1.xml' : `/api/sitemaps/posts-${page}.xml`;
 
@@ -413,9 +554,28 @@ const buildEvergreenSitemapStream = async (
 ): Promise<Readable> =>
   buildPaginatedPostSitemapStream(con, page, buildEvergreenSitemapQuery);
 
+const buildArchivePagesIndexEntries = (
+  prefix: string,
+  archivePageCounts: { scopeType: string; periodType: string; count: number }[],
+): string =>
+  archivePageCounts
+    .flatMap(({ scopeType, periodType, count }) => {
+      const pages = Math.max(1, Math.ceil(count / ARCHIVE_PAGES_LIMIT));
+
+      return Array.from(
+        { length: pages },
+        (_, i) =>
+          `  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/archive-pages-${scopeType}-${periodType}-${i}.xml`)}</loc>
+  </sitemap>`,
+      );
+    })
+    .join('\n');
+
 const getSitemapIndexXml = (
   postsSitemapCount: number,
   evergreenSitemapCount: number,
+  archivePageCounts: { scopeType: string; periodType: string; count: number }[],
 ): string => {
   const prefix = getSitemapUrlPrefix();
   const postsSitemaps = buildSitemapIndexEntries(
@@ -427,6 +587,10 @@ const getSitemapIndexXml = (
     prefix,
     evergreenSitemapCount,
     getEvergreenSitemapPath,
+  );
+  const archivePagesSitemaps = buildArchivePagesIndexEntries(
+    prefix,
+    archivePageCounts,
   );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -454,6 +618,10 @@ ${evergreenSitemaps}
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/users.xml`)}</loc>
   </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/archive-index.xml`)}</loc>
+  </sitemap>
+${archivePagesSitemaps}
 </sitemapindex>`;
 };
 
@@ -669,18 +837,89 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       );
   });
 
-  fastify.get('/index.xml', async (_, res) => {
+  fastify.get('/archive-index.xml', async (_, res) => {
     const con = await createOrGetConnection();
-    const postsSitemapCount = getSitemapPageCount(
-      await getReplicaQueryCount(con, buildPostsSitemapBaseQuery),
-    );
-    const evergreenSitemapCount = getSitemapPageCount(
-      await getReplicaQueryCount(con, buildEvergreenSitemapBaseQuery),
-    );
+    const prefix = getSitemapUrlPrefix();
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(getSitemapIndexXml(postsSitemapCount, evergreenSitemapCount));
+      .send(
+        await buildSitemapXmlStream(con, buildArchiveIndexSitemapQuery, (row) =>
+          getArchiveBestOfUrl(
+            prefix,
+            row.scopeType as ArchiveScopeType,
+            row.scopeId,
+          ),
+        ),
+      );
+  });
+
+  fastify.get<{
+    Params: { scopeType: string; periodType: string; page: string };
+  }>('/archive-pages-:scopeType-:periodType-:page.xml', async (req, res) => {
+    const { scopeType, periodType } = req.params;
+    const page = Number.parseInt(req.params.page, 10);
+
+    if (
+      !VALID_ARCHIVE_SCOPE_TYPES.has(scopeType) ||
+      !VALID_ARCHIVE_PERIOD_TYPES.has(periodType) ||
+      !Number.isInteger(page) ||
+      page < 0
+    ) {
+      return res.code(404).send();
+    }
+
+    const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        await buildSitemapXmlStream(
+          con,
+          (source) =>
+            buildArchivePagesPaginatedQuery(
+              source,
+              scopeType as ArchiveScopeType,
+              periodType as ArchivePeriodType,
+              page,
+            ),
+          (row) =>
+            getArchivePageUrl(
+              prefix,
+              row.scopeType as ArchiveScopeType,
+              row.scopeId,
+              row.periodType as ArchivePeriodType,
+              new Date(row.periodStart),
+            ),
+        ),
+      );
+  });
+
+  fastify.get('/index.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+    const [postsSitemapCount, evergreenSitemapCount, archivePageCounts] =
+      await Promise.all([
+        getReplicaQueryCount(con, buildPostsSitemapBaseQuery).then(
+          getSitemapPageCount,
+        ),
+        getReplicaQueryCount(con, buildEvergreenSitemapBaseQuery).then(
+          getSitemapPageCount,
+        ),
+        getArchivePagesCount(con),
+      ]);
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(
+        getSitemapIndexXml(
+          postsSitemapCount,
+          evergreenSitemapCount,
+          archivePageCounts,
+        ),
+      );
   });
 }
