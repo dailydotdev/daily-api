@@ -12,6 +12,9 @@ export class ChannelHighlightDefinition {
   @PrimaryColumn({ type: 'text' })
   channel: string;
 
+  @Column({ type: 'text', default: '' })
+  displayName: string;
+
   @Column({ type: 'text', default: 'disabled' })
   mode: ChannelHighlightMode;
 

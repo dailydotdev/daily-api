@@ -139,6 +139,14 @@ const existsByUserAndHotTake =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
+const defaultChannelDisplayName = ({
+  channel,
+  displayName,
+}: {
+  channel?: string;
+  displayName?: string | null;
+}): string => displayName?.trim() || channel || '';
+
 export const nullIfNotTeamMember = <
   T,
   Ctx extends Pick<Context, 'isTeamMember' | 'roles'>,
@@ -1377,6 +1385,45 @@ const obj = new GraphORM({
             }),
             ...rest,
           };
+        },
+      },
+    },
+  },
+  ChannelConfiguration: {
+    from: 'ChannelHighlightDefinition',
+    requiredColumns: ['channel'],
+    fields: {
+      displayName: {
+        transform: (value: string, _, parent) =>
+          defaultChannelDisplayName({
+            channel: (parent as { channel?: string }).channel,
+            displayName: value,
+          }),
+      },
+      digest: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."channel" = "${parentAlias}"."channel"`)
+              .andWhere(`"${childAlias}"."enabled" = true`)
+              .orderBy(`"${childAlias}"."key"`, 'ASC')
+              .limit(1),
+        },
+      },
+    },
+  },
+  ChannelDigestConfiguration: {
+    from: 'ChannelDigest',
+    fields: {
+      source: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
+              .andWhere(`"${childAlias}"."active" = true`)
+              .limit(1),
         },
       },
     },
