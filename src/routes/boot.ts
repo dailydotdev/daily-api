@@ -919,6 +919,9 @@ export const getBootData = async (
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
+  const shouldRefreshJwt =
+    !req.accessToken?.expiresIn ||
+    differenceInMinutes(req.accessToken.expiresIn, new Date()) <= 3;
 
   const baSessionCookie = req.cookies[cookies.authSession.key];
   if (baSessionCookie) {
@@ -933,14 +936,11 @@ export const getBootData = async (
         req.userId = session.user.id;
         req.trackingId = req.userId;
         setTrackingId(req, res, req.trackingId);
-        const jwtValid =
-          req.accessToken?.expiresIn &&
-          differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
         return loggedInBoot({
           con,
           req,
           res,
-          refreshToken: !jwtValid,
+          refreshToken: shouldRefreshJwt,
           middleware,
           userId: req.userId,
         });
@@ -957,16 +957,12 @@ export const getBootData = async (
     setCookie(req, res, 'authSession', undefined);
   }
 
-  if (
-    req.userId &&
-    req.accessToken?.expiresIn &&
-    differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
-  ) {
+  if (req.userId && req.accessToken?.expiresIn) {
     return loggedInBoot({
       con,
       req,
       res,
-      refreshToken: false,
+      refreshToken: shouldRefreshJwt,
       middleware,
       userId: req.userId,
     });
