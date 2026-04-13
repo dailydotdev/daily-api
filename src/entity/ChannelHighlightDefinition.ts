@@ -15,6 +15,9 @@ export class ChannelHighlightDefinition {
   @Column({ type: 'text', default: '' })
   displayName: string;
 
+  @Column({ type: 'smallint', default: 0 })
+  order: number;
+
   @Column({ type: 'text', default: 'disabled' })
   mode: ChannelHighlightMode;
 

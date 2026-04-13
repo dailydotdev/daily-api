@@ -171,16 +171,19 @@ describe('query channelConfigurations', () => {
         channel: 'career',
         displayName: 'Career Growth',
         mode: 'shadow',
+        order: 1,
       },
       {
         channel: 'backend',
         displayName: 'Backend Engineering',
         mode: 'publish',
+        order: 2,
       },
       {
         channel: 'disabled',
         displayName: 'Disabled',
         mode: 'disabled',
+        order: 0,
       },
     ]);
 
@@ -200,6 +203,11 @@ describe('query channelConfigurations', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.channelConfigurations).toEqual([
       {
+        channel: 'career',
+        displayName: 'Career Growth',
+        digest: null,
+      },
+      {
         channel: 'backend',
         displayName: 'Backend Engineering',
         digest: {
@@ -210,11 +218,6 @@ describe('query channelConfigurations', () => {
             handle: 'backend_digest',
           },
         },
-      },
-      {
-        channel: 'career',
-        displayName: 'Career Growth',
-        digest: null,
       },
     ]);
   });

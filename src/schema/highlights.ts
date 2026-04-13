@@ -124,7 +124,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`"${builder.alias}"."mode" != :disabledMode`, {
               disabledMode: 'disabled',
             })
-            .orderBy(`"${builder.alias}"."channel"`, 'ASC');
+            .orderBy(`"${builder.alias}"."order"`, 'ASC')
+            .addOrderBy(`"${builder.alias}"."channel"`, 'ASC');
           return builder;
         },
         true,
