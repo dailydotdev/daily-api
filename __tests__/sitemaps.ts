@@ -1133,7 +1133,7 @@ describe('GET /sitemaps/archive-index.xml', () => {
     rankingType: ArchiveRankingType.Best,
   };
 
-  it('should return index pages for tags and sources with archives', async () => {
+  it('should return index pages for global, tag, and source archives', async () => {
     const createdAt = new Date('2025-03-01T10:00:00.000Z');
 
     await con.getRepository(Archive).save([
@@ -1190,11 +1190,14 @@ describe('GET /sitemaps/archive-index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/tags/rust/best-of</loc>',
     );
-    // Global archives should not appear
-    expect(res.text).not.toContain('/best-of</loc>\n');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of</loc>',
+    );
     // Only one entry for rust (two archives but one index)
     const rustMatches = res.text.match(/\/tags\/rust\/best-of<\/loc>/g);
     expect(rustMatches).toHaveLength(1);
+    const globalMatches = res.text.match(/\/posts\/best-of<\/loc>/g);
+    expect(globalMatches).toHaveLength(1);
   });
 
   it('should exclude source archives when the source has been deleted', async () => {
@@ -1334,6 +1337,52 @@ describe('GET /sitemaps/archive-pages-:scopeType-:periodType-:page.xml', () => {
     );
   });
 
+  it('should return global monthly archive pages', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-03-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-global-month-0.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of/2025/03</loc>',
+    );
+  });
+
+  it('should return global yearly archive pages', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Year,
+        periodStart: new Date('2024-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-global-year-0.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of/2024</loc>',
+    );
+  });
+
   it('should return 404 for invalid scopeType', async () => {
     await request(app.server)
       .get('/sitemaps/archive-pages-invalid-month-0.xml')
@@ -1418,6 +1467,14 @@ describe('GET /sitemaps/index.xml (archive entries)', () => {
     await con.getRepository(Archive).save([
       {
         ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-02-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+      {
+        ...archiveBase,
         scopeType: ArchiveScopeType.Tag,
         scopeId: 'golang',
         periodType: ArchivePeriodType.Month,
@@ -1440,6 +1497,9 @@ describe('GET /sitemaps/index.xml (archive entries)', () => {
 
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/archive-index.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-pages-global-month-0.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/archive-pages-tag-month-0.xml</loc>',
