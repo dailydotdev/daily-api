@@ -87,7 +87,7 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
   `${prefix}/posts/${slug}`;
 
 const getTagSitemapUrl = (prefix: string, value: string): string =>
-  `${prefix}/tags/${value}`;
+  `${prefix}/tags/${encodeURIComponent(value)}`;
 
 const getAgentSitemapUrl = (prefix: string, entity: string): string =>
   `${prefix}/agents/${encodeURIComponent(entity)}`;
@@ -128,6 +128,14 @@ const streamReplicaQuery = async <T extends ObjectLiteral>(
   }
 };
 
+const POSTS_SITEMAP_EXCLUDED_TYPES = [
+  PostType.Welcome,
+  PostType.Collection,
+  PostType.Share,
+  PostType.Brief,
+  PostType.SocialTwitter,
+];
+
 const buildPostsSitemapBaseQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Post> =>
@@ -135,10 +143,11 @@ const buildPostsSitemapBaseQuery = (
     .createQueryBuilder()
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
-    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .where('p.type NOT IN (:...types)', { types: POSTS_SITEMAP_EXCLUDED_TYPES })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
+    .andWhere('p.visible = true')
     .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
     .andWhere('(u.id is null or u.reputation > 10)');
 
@@ -244,10 +253,11 @@ const buildEvergreenSitemapBaseQuery = (
     .createQueryBuilder()
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
-    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .where('p.type NOT IN (:...types)', { types: POSTS_SITEMAP_EXCLUDED_TYPES })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
+    .andWhere('p.visible = true')
     .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
     .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 10 })
     .andWhere('(u.id is null or u.reputation > 10)');
