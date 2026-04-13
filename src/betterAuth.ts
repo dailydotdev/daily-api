@@ -455,6 +455,8 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 'Failed to extract tracking ID for new user',
               );
             }
+
+            return { data: { id: await generateLongId() } };
           },
           after: async (user, ctx) => {
             try {
