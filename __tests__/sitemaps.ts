@@ -15,10 +15,13 @@ import {
   PostType,
   SentimentEntity,
   SentimentGroup,
+  SharePost,
+  SocialTwitterPost,
   Source,
   SourceType,
   User,
 } from '../src/entity';
+import { BriefPost } from '../src/entity/posts/BriefPost';
 import {
   ArchivePeriodType,
   ArchiveRankingType,
@@ -254,6 +257,68 @@ describe('GET /sitemaps/posts-:page.xml', () => {
   });
 });
 
+describe('GET /sitemaps/posts.xml (type filtering)', () => {
+  it('should exclude noindex post types and collection posts', async () => {
+    const postBase = { sourceId: 'a', createdAt: now };
+
+    await con.getRepository(BriefPost).insert({
+      ...postBase,
+      id: 'brief-post',
+      shortId: 'bp1',
+      title: 'Brief Post',
+    });
+    await con.getRepository(SocialTwitterPost).insert({
+      ...postBase,
+      id: 'social-post',
+      shortId: 'sp1',
+      title: 'Social Post',
+    });
+    await con.getRepository(SharePost).insert({
+      ...postBase,
+      id: 'share-post',
+      shortId: 'shp',
+      title: 'Share Post',
+      sharedPostId: 'p1',
+    });
+    await con.getRepository(CollectionPost).insert({
+      ...postBase,
+      id: 'collection-sitemap',
+      shortId: 'csm',
+      title: 'Collection Sitemap',
+      visible: true,
+      upvotes: 5,
+      collectionSources: ['a', 'b', 'c'],
+    });
+
+    const res = await request(app.server)
+      .get('/sitemaps/posts.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/posts/brief-post');
+    expect(res.text).not.toContain('/posts/social-post');
+    expect(res.text).not.toContain('/posts/share-post');
+    expect(res.text).not.toContain('/posts/collection-sitemap');
+    expect(res.text).toContain('/posts/p4-p4');
+  });
+
+  it('should exclude non-visible posts', async () => {
+    await con.getRepository(Post).insert({
+      id: 'hidden-post',
+      shortId: 'hp1',
+      title: 'Hidden Post',
+      sourceId: 'a',
+      createdAt: now,
+      visible: false,
+    });
+
+    const res = await request(app.server)
+      .get('/sitemaps/posts.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/posts/hidden-post');
+  });
+});
+
 describe('GET /sitemaps/collections.xml', () => {
   it('should return only qualified public collections ordered by time as xml', async () => {
     const updatedAt = new Date('2024-02-01T12:00:00.123Z');
@@ -393,7 +458,7 @@ describe('GET /sitemaps/tags.xml', () => {
     );
     expect(res.text).toContain('<loc>http://localhost:5002/tags/webdev</loc>');
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/tags/web&amp;ai</loc>',
+      '<loc>http://localhost:5002/tags/web%26ai</loc>',
     );
     expect(res.text).not.toContain('/tags/web-development');
     expect(res.text).not.toContain('/tags/politics');
