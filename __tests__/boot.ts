@@ -710,6 +710,37 @@ describe('logged in boot', () => {
     });
   });
 
+  it('should boot logged in user and refresh jwt when token expires within 3 minutes', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+      },
+      2 * 60 * 1000,
+    );
+    const key = app.signCookie(accessToken.token);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.auth.key}=${key};`)
+      .expect(200);
+
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
+    });
+
+    const authCookie = setCookieParser.parse(res, { map: true })[
+      cookies.auth.key
+    ];
+    expect(authCookie?.value).toBeTruthy();
+    expect(authCookie?.value).not.toEqual(key);
+  });
+
   it('should not re-issue JWT token when isPlus in payload is same as user', async () => {
     await saveFixtures(con, User, [
       {

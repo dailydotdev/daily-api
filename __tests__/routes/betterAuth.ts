@@ -61,6 +61,12 @@ describe('betterAuth routes', () => {
       expect(options.account).toMatchObject({
         modelName: 'ba_account',
       });
+      expect(options.session).toMatchObject({
+        modelName: 'ba_session',
+        storeSessionInDatabase: true,
+        expiresIn: 30 * 24 * 60 * 60,
+        updateAge: 24 * 60 * 60,
+      });
     });
 
     it('should forward native callback routes to BetterAuth handler', async () => {
