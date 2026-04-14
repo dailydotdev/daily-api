@@ -33,6 +33,8 @@ import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
+import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
+import { PostHighlight } from '../src/entity/PostHighlight';
 let app: FastifyInstance;
 let con: DataSource;
 const previousSitemapLimit = process.env.SITEMAP_LIMIT;
@@ -150,6 +152,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   nock.cleanAll();
+  await con.getRepository(ChannelHighlightDefinition).clear();
   await saveFixtures(con, SentimentGroup, sentimentGroupsFixture);
   await saveFixtures(con, SentimentEntity, sentimentEntitiesFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
@@ -525,6 +528,9 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/collections.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/highlights.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
     );
     expect(res.text).toContain(
@@ -541,6 +547,86 @@ describe('GET /sitemaps/index.xml', () => {
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
+    );
+  });
+});
+
+describe('GET /sitemaps/highlights.xml', () => {
+  it('should return the highlights sitemap with latest live highlight lastmod per channel', async () => {
+    await con.getRepository(ChannelHighlightDefinition).save([
+      {
+        channel: 'career',
+        displayName: 'Career',
+        mode: 'shadow',
+        order: 1,
+      },
+      {
+        channel: 'backend',
+        displayName: 'Backend',
+        mode: 'publish',
+        order: 2,
+      },
+      {
+        channel: 'disabled',
+        displayName: 'Disabled',
+        mode: 'disabled',
+        order: 0,
+      },
+    ]);
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'p1',
+        channel: 'career',
+        highlightedAt: new Date('2026-04-10T10:00:00.000Z'),
+        headline: 'Career early',
+      },
+      {
+        postId: 'p4',
+        channel: 'career',
+        highlightedAt: new Date('2026-04-12T09:00:00.000Z'),
+        headline: 'Career latest',
+      },
+      {
+        postId: 'p1',
+        channel: 'backend',
+        highlightedAt: new Date('2026-04-09T08:00:00.000Z'),
+        headline: 'Backend live',
+      },
+      {
+        postId: 'p4',
+        channel: 'backend',
+        highlightedAt: new Date('2026-04-13T08:00:00.000Z'),
+        headline: 'Backend retired',
+        retiredAt: new Date('2026-04-13T08:30:00.000Z'),
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/highlights.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights</loc><lastmod>2026-04-12T09:00:00.000Z</lastmod>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights/career</loc><lastmod>2026-04-12T09:00:00.000Z</lastmod>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights/backend</loc><lastmod>2026-04-09T08:00:00.000Z</lastmod>',
+    );
+    expect(res.text).not.toContain('/highlights/disabled');
+    expect(res.text).not.toContain('2026-04-13T08:00:00.000Z');
+
+    expect(res.text.indexOf('/highlights</loc>')).toBeLessThan(
+      res.text.indexOf('/highlights/career</loc>'),
+    );
+    expect(res.text.indexOf('/highlights/career</loc>')).toBeLessThan(
+      res.text.indexOf('/highlights/backend</loc>'),
     );
   });
 });
