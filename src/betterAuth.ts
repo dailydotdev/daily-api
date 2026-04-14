@@ -12,7 +12,7 @@ import { triggerTypedEvent } from './common/typedPubsub';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 import { handleRegex } from './common/object';
 import { validateAndTransformHandle } from './common/handles';
-import { ONE_DAY_IN_SECONDS, ONE_MONTH_IN_SECONDS } from './common/constants';
+import { ONE_MONTH_IN_SECONDS, ONE_HOUR_IN_SECONDS } from './common/constants';
 import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
 import { cookies, extractRootDomain } from './cookies';
@@ -399,7 +399,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
       modelName: 'ba_session',
       storeSessionInDatabase: true,
       expiresIn: ONE_MONTH_IN_SECONDS,
-      updateAge: ONE_DAY_IN_SECONDS,
+      updateAge: 12 * ONE_HOUR_IN_SECONDS,
     },
     account: {
       modelName: 'ba_account',

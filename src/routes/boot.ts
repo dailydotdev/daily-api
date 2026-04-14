@@ -925,6 +925,7 @@ export const getBootData = async (
 
   const baSessionCookie = req.cookies[cookies.authSession.key];
   if (baSessionCookie) {
+    let sessionInvalid = false;
     try {
       const session = (await getBetterAuth().api.getSession({
         headers: fromNodeHeaders(
@@ -947,14 +948,18 @@ export const getBootData = async (
       }
 
       req.log.warn('BetterAuth getSession returned null');
+      sessionInvalid = true;
     } catch (error) {
       req.log.error(
         { err: error instanceof Error ? error.message : String(error) },
         'BetterAuth session validation failed',
       );
     }
-    req.log.warn('BetterAuth session cookie present but validation failed');
-    setCookie(req, res, 'authSession', undefined);
+
+    if (sessionInvalid) {
+      req.log.warn('BetterAuth session cookie present but session invalid');
+      setCookie(req, res, 'authSession', undefined);
+    }
   }
 
   if (req.userId && req.accessToken?.expiresIn) {

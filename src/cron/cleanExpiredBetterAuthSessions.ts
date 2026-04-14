@@ -4,7 +4,7 @@ export const cleanExpiredBetterAuthSessions: Cron = {
   name: 'clean-expired-better-auth-sessions',
   handler: async (con, logger) => {
     const result = await con.query(
-      `DELETE FROM ba_session WHERE "expiresAt" < NOW()`,
+      `DELETE FROM ba_session WHERE "expiresAt" < NOW() - INTERVAL '1 hour'`,
     );
 
     const deleted = Array.isArray(result) ? result[1] : (result?.affected ?? 0);
