@@ -70,7 +70,7 @@ import {
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
-import { differenceInSeconds, isSameDay, subDays } from 'date-fns';
+import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
   runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
@@ -423,7 +423,7 @@ const setAuthCookie = async (
       isTeamMember,
       isPlus,
     },
-    15 * 1000,
+    15 * 60 * 1000,
   );
   setCookie(req, res, 'auth', accessToken.token);
   return accessToken;
