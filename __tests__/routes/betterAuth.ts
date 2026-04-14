@@ -65,7 +65,7 @@ describe('betterAuth routes', () => {
         modelName: 'ba_session',
         storeSessionInDatabase: true,
         expiresIn: 30 * 24 * 60 * 60,
-        updateAge: 24 * 60 * 60,
+        updateAge: 12 * 60 * 60,
       });
     });
 
