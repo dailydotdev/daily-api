@@ -11,6 +11,7 @@ import {
   User,
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
+import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
@@ -97,6 +98,29 @@ const getSourceSitemapUrl = (prefix: string, handle: string): string =>
 
 const getSquadSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/squads/${encodeURIComponent(handle)}`;
+
+const getHighlightsSitemapUrl = (prefix: string, channel?: string): string =>
+  channel
+    ? `${prefix}/highlights/${encodeURIComponent(channel)}`
+    : `${prefix}/highlights`;
+
+type SitemapUrlEntry = {
+  url: string;
+  lastmod?: string;
+};
+
+const getSitemapUrlSetXml = (
+  entries: SitemapUrlEntry[],
+): string => `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries
+  .map(({ url, lastmod }) =>
+    lastmod
+      ? `  <url><loc>${escapeXml(url)}</loc><lastmod>${escapeXml(lastmod)}</lastmod></url>`
+      : `  <url><loc>${escapeXml(url)}</loc></url>`,
+  )
+  .join('\n')}
+</urlset>`;
 
 const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
@@ -298,6 +322,19 @@ const buildCollectionsSitemapQuery = (
       )
       .limit(DEFAULT_SITEMAP_LIMIT),
   );
+
+const buildHighlightsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<ChannelHighlightDefinition> =>
+  source
+    .createQueryBuilder()
+    .select('chd.channel', 'channel')
+    .addSelect('chd."updatedAt"', 'lastmod')
+    .from(ChannelHighlightDefinition, 'chd')
+    .where('chd.mode != :disabledMode', { disabledMode: 'disabled' })
+    .orderBy('chd."order"', 'ASC')
+    .addOrderBy('chd.channel', 'ASC')
+    .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildTagsSitemapQuery = (
   source: DataSource | EntityManager,
@@ -617,6 +654,27 @@ const buildArchivePagesIndexEntries = (
     })
     .join('\n');
 
+const buildHighlightsSitemapXml = async (con: DataSource): Promise<string> => {
+  const prefix = getSitemapUrlPrefix();
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    const rows = await buildHighlightsSitemapQuery(
+      queryRunner.manager,
+    ).getRawMany<{ channel: string; lastmod?: string | Date | null }>();
+
+    return getSitemapUrlSetXml([
+      { url: getHighlightsSitemapUrl(prefix) },
+      ...rows.map((row) => ({
+        url: getHighlightsSitemapUrl(prefix, row.channel),
+        lastmod: getSitemapRowLastmod(row),
+      })),
+    ]);
+  } finally {
+    await queryRunner.release();
+  }
+};
+
 const getSitemapIndexXml = (
   postsSitemapCount: number,
   evergreenSitemapCount: number,
@@ -644,6 +702,9 @@ ${postsSitemaps}
 ${evergreenSitemaps}
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/collections.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/highlights.xml`)}</loc>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
@@ -783,6 +844,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           getPostSitemapUrl(prefix, row.slug),
         ),
       );
+  });
+
+  fastify.get('/highlights.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(await buildHighlightsSitemapXml(con));
   });
 
   fastify.get('/tags.txt', async (_, res) => {

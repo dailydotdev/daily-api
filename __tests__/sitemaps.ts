@@ -33,6 +33,7 @@ import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
+import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
 let app: FastifyInstance;
 let con: DataSource;
 const previousSitemapLimit = process.env.SITEMAP_LIMIT;
@@ -150,6 +151,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   nock.cleanAll();
+  await con.getRepository(ChannelHighlightDefinition).clear();
   await saveFixtures(con, SentimentGroup, sentimentGroupsFixture);
   await saveFixtures(con, SentimentEntity, sentimentEntitiesFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
@@ -525,6 +527,9 @@ describe('GET /sitemaps/index.xml', () => {
       '<loc>http://localhost:5002/api/sitemaps/collections.xml</loc>',
     );
     expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/highlights.xml</loc>',
+    );
+    expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
     );
     expect(res.text).toContain(
@@ -541,6 +546,56 @@ describe('GET /sitemaps/index.xml', () => {
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/tags.xml</loc>',
+    );
+  });
+});
+
+describe('GET /sitemaps/highlights.xml', () => {
+  it('should return the highlights sitemap with enabled channels only', async () => {
+    await con.getRepository(ChannelHighlightDefinition).save([
+      {
+        channel: 'career',
+        displayName: 'Career',
+        mode: 'shadow',
+        order: 1,
+      },
+      {
+        channel: 'backend',
+        displayName: 'Backend',
+        mode: 'publish',
+        order: 2,
+      },
+      {
+        channel: 'disabled',
+        displayName: 'Disabled',
+        mode: 'disabled',
+        order: 0,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/highlights.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain(
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    );
+    expect(res.text).toContain('<loc>http://localhost:5002/highlights</loc>');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights/career</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights/backend</loc>',
+    );
+    expect(res.text).not.toContain('/highlights/disabled');
+
+    expect(res.text.indexOf('/highlights</loc>')).toBeLessThan(
+      res.text.indexOf('/highlights/career</loc>'),
+    );
+    expect(res.text.indexOf('/highlights/career</loc>')).toBeLessThan(
+      res.text.indexOf('/highlights/backend</loc>'),
     );
   });
 });
