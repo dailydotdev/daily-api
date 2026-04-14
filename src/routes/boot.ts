@@ -935,7 +935,7 @@ export const getBootData = async (
               req.headers as Record<string, string | string[] | undefined>,
             ),
           }),
-        { retries: 1, minTimeout: 50 },
+        { retries: 3, minTimeout: 50 },
       )) as BetterAuthSession | null;
 
       if (session) {
