@@ -102,14 +102,14 @@ const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
   tier: 'BASIC',
-  memorySizeGb: 1,
+  memorySizeGb: 2,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_7_2',
   labels: { app: name },
   redisConfigs: {
     'maxmemory-policy': 'volatile-ttl',
-    'maxmemory-gb': '0.95',
+    'maxmemory-gb': '1.9',
   },
   maintenancePolicy: {
     weeklyMaintenanceWindows: [

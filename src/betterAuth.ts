@@ -12,7 +12,7 @@ import { triggerTypedEvent } from './common/typedPubsub';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 import { handleRegex } from './common/object';
 import { validateAndTransformHandle } from './common/handles';
-import { ONE_DAY_IN_SECONDS } from './common/constants';
+import { ONE_DAY_IN_SECONDS, ONE_MONTH_IN_SECONDS } from './common/constants';
 import { singleRedisClient } from './redis';
 import { User } from './entity/user/User';
 import { cookies, extractRootDomain } from './cookies';
@@ -398,7 +398,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
     session: {
       modelName: 'ba_session',
       storeSessionInDatabase: true,
-      expiresIn: 7 * ONE_DAY_IN_SECONDS,
+      expiresIn: ONE_MONTH_IN_SECONDS,
       updateAge: ONE_DAY_IN_SECONDS,
     },
     account: {
@@ -455,6 +455,8 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 'Failed to extract tracking ID for new user',
               );
             }
+
+            return { data: { id: await generateLongId() } };
           },
           after: async (user, ctx) => {
             try {

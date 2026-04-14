@@ -642,6 +642,18 @@ describe('archive queries', () => {
     }
   `;
 
+  const featuredArchivesQuery = `
+    query FeaturedArchives($subjectType: String!, $subjectId: String!) {
+      featuredArchives(subjectType: $subjectType, subjectId: $subjectId) {
+        id
+        scopeType
+        scopeId
+        periodType
+        periodStart
+      }
+    }
+  `;
+
   beforeEach(async () => {
     await materializePeriodArchives({
       con,
@@ -704,6 +716,52 @@ describe('archive queries', () => {
     ]);
   });
 
+  it('should return all relevant archives for a featured post', async () => {
+    const res = await client.query(featuredArchivesQuery, {
+      variables: {
+        subjectType: ArchiveSubjectType.Post,
+        subjectId: 'post-6',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.featuredArchives).toEqual([
+      {
+        id: expect.any(String),
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: marchPeriodStart.toISOString(),
+      },
+      {
+        id: expect.any(String),
+        scopeType: ArchiveScopeType.Source,
+        scopeId: 'source-a',
+        periodType: ArchivePeriodType.Month,
+        periodStart: marchPeriodStart.toISOString(),
+      },
+      {
+        id: expect.any(String),
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'webdev',
+        periodType: ArchivePeriodType.Month,
+        periodStart: marchPeriodStart.toISOString(),
+      },
+    ]);
+  });
+
+  it('should return an empty list when no archives exist for the requested subject type', async () => {
+    const res = await client.query(featuredArchivesQuery, {
+      variables: {
+        subjectType: ArchiveSubjectType.User,
+        subjectId: 'author-good',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.featuredArchives).toEqual([]);
+  });
+
   it('should validate that tag archives require a scopeId', async () =>
     testQueryErrorCode(
       client,
@@ -739,4 +797,16 @@ describe('archive queries', () => {
       'GRAPHQL_VALIDATION_FAILED',
       'month must not be set for yearly archives',
     ));
+
+  it('should accept other archive subject types even when no results exist', async () => {
+    const res = await client.query(featuredArchivesQuery, {
+      variables: {
+        subjectType: ArchiveSubjectType.Squad,
+        subjectId: 'source-a',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.featuredArchives).toEqual([]);
+  });
 });

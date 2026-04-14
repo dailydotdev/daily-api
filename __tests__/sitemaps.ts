@@ -15,10 +15,13 @@ import {
   PostType,
   SentimentEntity,
   SentimentGroup,
+  SharePost,
+  SocialTwitterPost,
   Source,
   SourceType,
   User,
 } from '../src/entity';
+import { BriefPost } from '../src/entity/posts/BriefPost';
 import {
   ArchivePeriodType,
   ArchiveRankingType,
@@ -254,6 +257,68 @@ describe('GET /sitemaps/posts-:page.xml', () => {
   });
 });
 
+describe('GET /sitemaps/posts.xml (type filtering)', () => {
+  it('should exclude noindex post types and collection posts', async () => {
+    const postBase = { sourceId: 'a', createdAt: now };
+
+    await con.getRepository(BriefPost).insert({
+      ...postBase,
+      id: 'brief-post',
+      shortId: 'bp1',
+      title: 'Brief Post',
+    });
+    await con.getRepository(SocialTwitterPost).insert({
+      ...postBase,
+      id: 'social-post',
+      shortId: 'sp1',
+      title: 'Social Post',
+    });
+    await con.getRepository(SharePost).insert({
+      ...postBase,
+      id: 'share-post',
+      shortId: 'shp',
+      title: 'Share Post',
+      sharedPostId: 'p1',
+    });
+    await con.getRepository(CollectionPost).insert({
+      ...postBase,
+      id: 'collection-sitemap',
+      shortId: 'csm',
+      title: 'Collection Sitemap',
+      visible: true,
+      upvotes: 5,
+      collectionSources: ['a', 'b', 'c'],
+    });
+
+    const res = await request(app.server)
+      .get('/sitemaps/posts.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/posts/brief-post');
+    expect(res.text).not.toContain('/posts/social-post');
+    expect(res.text).not.toContain('/posts/share-post');
+    expect(res.text).not.toContain('/posts/collection-sitemap');
+    expect(res.text).toContain('/posts/p4-p4');
+  });
+
+  it('should exclude non-visible posts', async () => {
+    await con.getRepository(Post).insert({
+      id: 'hidden-post',
+      shortId: 'hp1',
+      title: 'Hidden Post',
+      sourceId: 'a',
+      createdAt: now,
+      visible: false,
+    });
+
+    const res = await request(app.server)
+      .get('/sitemaps/posts.xml')
+      .expect(200);
+
+    expect(res.text).not.toContain('/posts/hidden-post');
+  });
+});
+
 describe('GET /sitemaps/collections.xml', () => {
   it('should return only qualified public collections ordered by time as xml', async () => {
     const updatedAt = new Date('2024-02-01T12:00:00.123Z');
@@ -393,7 +458,7 @@ describe('GET /sitemaps/tags.xml', () => {
     );
     expect(res.text).toContain('<loc>http://localhost:5002/tags/webdev</loc>');
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/tags/web&amp;ai</loc>',
+      '<loc>http://localhost:5002/tags/web%26ai</loc>',
     );
     expect(res.text).not.toContain('/tags/web-development');
     expect(res.text).not.toContain('/tags/politics');
@@ -1068,7 +1133,7 @@ describe('GET /sitemaps/archive-index.xml', () => {
     rankingType: ArchiveRankingType.Best,
   };
 
-  it('should return index pages for tags and sources with archives', async () => {
+  it('should return index pages for global, tag, and source archives', async () => {
     const createdAt = new Date('2025-03-01T10:00:00.000Z');
 
     await con.getRepository(Archive).save([
@@ -1125,11 +1190,14 @@ describe('GET /sitemaps/archive-index.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/tags/rust/best-of</loc>',
     );
-    // Global archives should not appear
-    expect(res.text).not.toContain('/best-of</loc>\n');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of</loc>',
+    );
     // Only one entry for rust (two archives but one index)
     const rustMatches = res.text.match(/\/tags\/rust\/best-of<\/loc>/g);
     expect(rustMatches).toHaveLength(1);
+    const globalMatches = res.text.match(/\/posts\/best-of<\/loc>/g);
+    expect(globalMatches).toHaveLength(1);
   });
 
   it('should exclude source archives when the source has been deleted', async () => {
@@ -1269,6 +1337,52 @@ describe('GET /sitemaps/archive-pages-:scopeType-:periodType-:page.xml', () => {
     );
   });
 
+  it('should return global monthly archive pages', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-03-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-global-month-0.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of/2025/03</loc>',
+    );
+  });
+
+  it('should return global yearly archive pages', async () => {
+    const createdAt = new Date('2025-04-01T10:00:00.000Z');
+
+    await con.getRepository(Archive).save([
+      {
+        ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Year,
+        periodStart: new Date('2024-01-01T00:00:00.000Z'),
+        createdAt,
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get('/sitemaps/archive-pages-global-year-0.xml')
+      .expect(200);
+
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/posts/best-of/2024</loc>',
+    );
+  });
+
   it('should return 404 for invalid scopeType', async () => {
     await request(app.server)
       .get('/sitemaps/archive-pages-invalid-month-0.xml')
@@ -1353,6 +1467,14 @@ describe('GET /sitemaps/index.xml (archive entries)', () => {
     await con.getRepository(Archive).save([
       {
         ...archiveBase,
+        scopeType: ArchiveScopeType.Global,
+        scopeId: null,
+        periodType: ArchivePeriodType.Month,
+        periodStart: new Date('2025-02-01T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+      {
+        ...archiveBase,
         scopeType: ArchiveScopeType.Tag,
         scopeId: 'golang',
         periodType: ArchivePeriodType.Month,
@@ -1375,6 +1497,9 @@ describe('GET /sitemaps/index.xml (archive entries)', () => {
 
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/archive-index.xml</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/api/sitemaps/archive-pages-global-month-0.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/archive-pages-tag-month-0.xml</loc>',

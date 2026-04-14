@@ -1,5 +1,6 @@
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { ONE_MONTH_IN_SECONDS } from './common/constants';
 import { generateTrackingId } from './ids';
 import { setTrackingId } from './tracking';
 import { counters } from './telemetry';
@@ -62,7 +63,7 @@ export const cookies: {
   authSession: {
     key: env === 'production' ? '__Secure-dast' : 'dast',
     opts: {
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: ONE_MONTH_IN_SECONDS,
       signed: false,
       httpOnly: true,
       secure: env === 'production',

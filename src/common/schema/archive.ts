@@ -74,3 +74,8 @@ export const archiveIndexQuerySchema = z
       });
     }
   });
+
+export const featuredArchivesQuerySchema = z.object({
+  subjectType: archiveSubjectTypeSchema,
+  subjectId: z.string().min(1),
+});

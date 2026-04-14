@@ -87,7 +87,7 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
   `${prefix}/posts/${slug}`;
 
 const getTagSitemapUrl = (prefix: string, value: string): string =>
-  `${prefix}/tags/${value}`;
+  `${prefix}/tags/${encodeURIComponent(value)}`;
 
 const getAgentSitemapUrl = (prefix: string, entity: string): string =>
   `${prefix}/agents/${encodeURIComponent(entity)}`;
@@ -128,6 +128,14 @@ const streamReplicaQuery = async <T extends ObjectLiteral>(
   }
 };
 
+const POSTS_SITEMAP_EXCLUDED_TYPES = [
+  PostType.Welcome,
+  PostType.Collection,
+  PostType.Share,
+  PostType.Brief,
+  PostType.SocialTwitter,
+];
+
 const buildPostsSitemapBaseQuery = (
   source: DataSource | EntityManager,
 ): SelectQueryBuilder<Post> =>
@@ -135,10 +143,11 @@ const buildPostsSitemapBaseQuery = (
     .createQueryBuilder()
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
-    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .where('p.type NOT IN (:...types)', { types: POSTS_SITEMAP_EXCLUDED_TYPES })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
+    .andWhere('p.visible = true')
     .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
     .andWhere('(u.id is null or u.reputation > 10)');
 
@@ -244,10 +253,11 @@ const buildEvergreenSitemapBaseQuery = (
     .createQueryBuilder()
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
-    .where('p.type NOT IN (:...types)', { types: [PostType.Welcome] })
+    .where('p.type NOT IN (:...types)', { types: POSTS_SITEMAP_EXCLUDED_TYPES })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')
+    .andWhere('p.visible = true')
     .andWhere('p."createdAt" <= current_timestamp - interval \'90 day\'')
     .andWhere('p.upvotes >= :minUpvotes', { minUpvotes: 10 })
     .andWhere('(u.id is null or u.reputation > 10)');
@@ -408,17 +418,32 @@ const zeroPadMonth = (month: number): string =>
 const getArchiveBestOfUrl = (
   prefix: string,
   scopeType: ArchiveScopeType,
-  scopeId: string,
+  scopeId: string | null,
 ): string => {
-  const segment = scopeType === ArchiveScopeType.Tag ? 'tags' : 'sources';
+  switch (scopeType) {
+    case ArchiveScopeType.Global:
+      return `${prefix}/posts/best-of`;
+    case ArchiveScopeType.Tag:
+      if (!scopeId) {
+        throw new Error('Archive tag sitemap URL requires a scopeId');
+      }
 
-  return `${prefix}/${segment}/${encodeURIComponent(scopeId)}/best-of`;
+      return `${prefix}/tags/${encodeURIComponent(scopeId)}/best-of`;
+    case ArchiveScopeType.Source:
+      if (!scopeId) {
+        throw new Error('Archive source sitemap URL requires a scopeId');
+      }
+
+      return `${prefix}/sources/${encodeURIComponent(scopeId)}/best-of`;
+  }
+
+  throw new Error(`Unsupported archive scope type: ${scopeType}`);
 };
 
 const getArchivePageUrl = (
   prefix: string,
   scopeType: ArchiveScopeType,
-  scopeId: string,
+  scopeId: string | null,
   periodType: ArchivePeriodType,
   periodStart: Date,
 ): string => {
@@ -452,7 +477,11 @@ const buildArchiveIndexSitemapQuery = (
       `a."scopeType" = '${ArchiveScopeType.Source}' AND s.id = a."scopeId"`,
     )
     .where('a."scopeType" IN (:...scopeTypes)', {
-      scopeTypes: [ArchiveScopeType.Tag, ArchiveScopeType.Source],
+      scopeTypes: [
+        ArchiveScopeType.Global,
+        ArchiveScopeType.Tag,
+        ArchiveScopeType.Source,
+      ],
     })
     .andWhere(
       `CASE WHEN a."scopeType" = '${ArchiveScopeType.Source}' THEN s.handle IS NOT NULL AND s.type != '${SourceType.Squad}' ELSE TRUE END`,
@@ -469,6 +498,7 @@ const buildArchiveIndexSitemapQuery = (
     .limit(DEFAULT_SITEMAP_LIMIT);
 
 const VALID_ARCHIVE_SCOPE_TYPES = new Set<string>([
+  ArchiveScopeType.Global,
   ArchiveScopeType.Tag,
   ArchiveScopeType.Source,
 ]);
@@ -487,7 +517,11 @@ const buildArchivePagesPaginatedQuery = (
     .createQueryBuilder()
     .select('a."scopeType"', 'scopeType')
     .addSelect(
-      scopeType === ArchiveScopeType.Source ? 's.handle' : 'a."scopeId"',
+      scopeType === ArchiveScopeType.Global
+        ? 'NULL'
+        : scopeType === ArchiveScopeType.Source
+          ? 's.handle'
+          : 'a."scopeId"',
       'scopeId',
     )
     .addSelect('a."periodType"', 'periodType')
@@ -497,15 +531,18 @@ const buildArchivePagesPaginatedQuery = (
     .where('a."scopeType" = :scopeType', { scopeType })
     .andWhere('a."periodType" = :periodType', { periodType });
 
-  if (scopeType === ArchiveScopeType.Source) {
-    qb.innerJoin(
-      Source,
-      's',
-      `s.id = a."scopeId" AND s.type != '${SourceType.Squad}'`,
-    );
-    qb.orderBy('s.handle', 'ASC');
-  } else {
-    qb.orderBy('a."scopeId"', 'ASC');
+  switch (scopeType) {
+    case ArchiveScopeType.Source:
+      qb.innerJoin(
+        Source,
+        's',
+        `s.id = a."scopeId" AND s.type != '${SourceType.Squad}'`,
+      );
+      qb.orderBy('s.handle', 'ASC');
+      break;
+    case ArchiveScopeType.Tag:
+      qb.orderBy('a."scopeId"', 'ASC');
+      break;
   }
 
   qb.addOrderBy('a."periodStart"', 'ASC')
@@ -528,7 +565,11 @@ const getArchivePagesCount = async (
       .addSelect('COUNT(*)', 'count')
       .from(Archive, 'a')
       .where('a."scopeType" IN (:...scopeTypes)', {
-        scopeTypes: [ArchiveScopeType.Tag, ArchiveScopeType.Source],
+        scopeTypes: [
+          ArchiveScopeType.Global,
+          ArchiveScopeType.Tag,
+          ArchiveScopeType.Source,
+        ],
       })
       .groupBy('a."scopeType"')
       .addGroupBy('a."periodType"')

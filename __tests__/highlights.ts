@@ -8,7 +8,10 @@ import {
   saveFixtures,
 } from './helpers';
 import createOrGetConnection from '../src/db';
-import { ArticlePost, Source } from '../src/entity';
+import { ArticlePost } from '../src/entity/posts/ArticlePost';
+import { ChannelDigest } from '../src/entity/ChannelDigest';
+import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
+import { Source, SourceType } from '../src/entity/Source';
 import {
   PostHighlight,
   PostHighlightSignificance,
@@ -86,9 +89,13 @@ const createTestPosts = async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  await con.getRepository(ChannelDigest).clear();
+  await con.getRepository(ChannelHighlightDefinition).clear();
   await con.getRepository(PostHighlight).clear();
   await con.getRepository(ArticlePost).delete(['h1', 'h2', 'h3', 'h4']);
-  await con.getRepository(Source).delete(['a', 'b', 'c']);
+  await con
+    .getRepository(Source)
+    .delete(['a', 'b', 'c', 'backend_digest', 'career_digest']);
 });
 
 const QUERY = `
@@ -129,6 +136,92 @@ const MAJOR_HEADLINES_QUERY = `
     }
   }
 `;
+
+const CHANNEL_CONFIGURATIONS_QUERY = `
+  query ChannelConfigurations {
+    channelConfigurations {
+      channel
+      displayName
+      digest {
+        frequency
+        source {
+          id
+          name
+          handle
+        }
+      }
+    }
+  }
+`;
+
+describe('query channelConfigurations', () => {
+  it('should return non-disabled highlight channels with digest metadata', async () => {
+    await con.getRepository(Source).save({
+      id: 'backend_digest',
+      name: 'Backend Digest',
+      image: 'https://example.com/backend.png',
+      handle: 'backend_digest',
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+    });
+
+    await con.getRepository(ChannelHighlightDefinition).save([
+      {
+        channel: 'career',
+        displayName: 'Career Growth',
+        mode: 'shadow',
+        order: 1,
+      },
+      {
+        channel: 'backend',
+        displayName: 'Backend Engineering',
+        mode: 'publish',
+        order: 2,
+      },
+      {
+        channel: 'disabled',
+        displayName: 'Disabled',
+        mode: 'disabled',
+        order: 0,
+      },
+    ]);
+
+    await con.getRepository(ChannelDigest).save({
+      key: 'backend-digest',
+      channel: 'backend',
+      sourceId: 'backend_digest',
+      targetAudience: 'backend developers',
+      frequency: 'daily',
+      includeSentiment: false,
+      sentimentGroupIds: [],
+      enabled: true,
+    });
+
+    const res = await client.query(CHANNEL_CONFIGURATIONS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelConfigurations).toEqual([
+      {
+        channel: 'career',
+        displayName: 'Career Growth',
+        digest: null,
+      },
+      {
+        channel: 'backend',
+        displayName: 'Backend Engineering',
+        digest: {
+          frequency: 'daily',
+          source: {
+            id: 'backend_digest',
+            name: 'Backend Digest',
+            handle: 'backend_digest',
+          },
+        },
+      },
+    ]);
+  });
+});
 
 describe('query postHighlights', () => {
   it('should return empty array when no highlights exist', async () => {

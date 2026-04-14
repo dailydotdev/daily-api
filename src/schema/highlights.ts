@@ -12,8 +12,31 @@ import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../entity/PostHighlight';
+import type { GQLSource } from './sources';
+
+type GQLChannelDigestConfiguration = {
+  frequency: string;
+  source?: GQLSource | null;
+};
+
+type GQLChannelConfiguration = {
+  channel: string;
+  displayName: string;
+  digest?: GQLChannelDigestConfiguration | null;
+};
 
 export const typeDefs = /* GraphQL */ `
+  type ChannelDigestConfiguration {
+    frequency: String!
+    source: Source
+  }
+
+  type ChannelConfiguration {
+    channel: String!
+    displayName: String!
+    digest: ChannelDigestConfiguration
+  }
+
   type PostHighlight {
     id: ID!
     post: Post!
@@ -35,6 +58,11 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
+    """
+    Get highlight-backed channel configuration with digest metadata
+    """
+    channelConfigurations: [ChannelConfiguration!]!
+
     """
     Get highlights for a channel, ordered by recency
     """
@@ -87,6 +115,21 @@ const getDedupedMajorHeadlinesQuery = (
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
+    channelConfigurations: async (_, __, ctx: Context, info) =>
+      graphorm.query<GQLChannelConfiguration>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."mode" != :disabledMode`, {
+              disabledMode: 'disabled',
+            })
+            .orderBy(`"${builder.alias}"."order"`, 'ASC')
+            .addOrderBy(`"${builder.alias}"."channel"`, 'ASC');
+          return builder;
+        },
+        true,
+      ),
     postHighlights: async (_, args: { channel: string }, ctx: Context, info) =>
       graphorm.query(
         ctx,

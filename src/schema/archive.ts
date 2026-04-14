@@ -6,7 +6,9 @@ import { ArchivePeriodType, getArchivePeriodStart } from '../common/archive';
 import {
   archiveIndexQuerySchema,
   archiveQuerySchema,
+  featuredArchivesQuerySchema,
 } from '../common/schema/archive';
+import { ArchiveItem } from '../entity/ArchiveItem';
 import graphorm from '../graphorm';
 
 type GQLArchive = {
@@ -21,6 +23,7 @@ type GQLArchive = {
 
 type ArchiveQueryArgs = z.infer<typeof archiveQuerySchema>;
 type ArchiveIndexQueryArgs = z.infer<typeof archiveIndexQuerySchema>;
+type FeaturedArchivesQueryArgs = z.infer<typeof featuredArchivesQuerySchema>;
 
 export const typeDefs = /* GraphQL */ `
   type ArchiveItem {
@@ -60,6 +63,9 @@ export const typeDefs = /* GraphQL */ `
       periodType: String
       year: Int
     ): [Archive!]! @cacheControl(maxAge: 3600)
+
+    featuredArchives(subjectType: String!, subjectId: String!): [Archive!]!
+      @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -187,6 +193,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                 },
               );
           }
+
+          return builder;
+        },
+        true,
+      );
+    },
+    featuredArchives: async (
+      _,
+      args: FeaturedArchivesQueryArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLArchive[]> => {
+      const validatedArgsResult = featuredArchivesQuerySchema.safeParse(args);
+
+      if (!validatedArgsResult.success) {
+        throw new ValidationError(validatedArgsResult.error.issues[0].message);
+      }
+
+      const validatedArgs = validatedArgsResult.data;
+
+      return graphorm.query<GQLArchive>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .innerJoin(
+              ArchiveItem,
+              'archiveItem',
+              `"archiveItem"."archiveId" = ${builder.alias}.id`,
+            )
+            .andWhere(`${builder.alias}."subjectType" = :subjectType`, {
+              subjectType: validatedArgs.subjectType,
+            })
+            .andWhere('"archiveItem"."subjectId" = :subjectId', {
+              subjectId: validatedArgs.subjectId,
+            })
+            .distinct(true)
+            .orderBy(`${builder.alias}."periodStart"`, 'DESC')
+            .addOrderBy(`${builder.alias}."scopeType"`, 'ASC')
+            .addOrderBy(`${builder.alias}."scopeId"`, 'ASC');
 
           return builder;
         },
