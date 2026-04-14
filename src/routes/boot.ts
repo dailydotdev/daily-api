@@ -93,6 +93,7 @@ import {
 } from '../common/profile/completion';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
+import { asyncRetry } from '../integrations/retry';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -927,11 +928,15 @@ export const getBootData = async (
   if (baSessionCookie) {
     let sessionInvalid = false;
     try {
-      const session = (await getBetterAuth().api.getSession({
-        headers: fromNodeHeaders(
-          req.headers as Record<string, string | string[] | undefined>,
-        ),
-      })) as BetterAuthSession | null;
+      const session = (await asyncRetry(
+        () =>
+          getBetterAuth().api.getSession({
+            headers: fromNodeHeaders(
+              req.headers as Record<string, string | string[] | undefined>,
+            ),
+          }),
+        { retries: 1, minTimeout: 50 },
+      )) as BetterAuthSession | null;
 
       if (session) {
         req.userId = session.user.id;
