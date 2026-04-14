@@ -96,6 +96,7 @@ query QuestDashboard {
   questDashboard {
     currentStreak
     longestStreak
+    hasNewQuestRotations
     daily {
       regular {
         rotationId
@@ -122,6 +123,22 @@ query QuestDashboard {
         rotationId
       }
     }
+  }
+}
+`;
+
+const QUEST_NEW_ROTATIONS_QUERY = `
+query QuestDashboard {
+  questDashboard {
+    hasNewQuestRotations
+  }
+}
+`;
+
+const MARK_QUEST_ROTATIONS_VIEWED_MUTATION = `
+mutation MarkQuestRotationsViewed {
+  markQuestRotationsViewed {
+    _
   }
 }
 `;
@@ -743,6 +760,89 @@ describe('claimQuestReward mutation', () => {
 });
 
 describe('questDashboard query', () => {
+  it('should expose when there are unseen active quest rotations', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    await saveFixtures(con, Quest, [
+      {
+        id: questId,
+        name: 'Fresh quest',
+        description: 'New quest',
+        type: QuestType.Daily,
+        eventType: QuestEventType.PostUpvote,
+        criteria: {
+          targetCount: 1,
+        },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: questRotationId,
+        questId,
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+        periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+      },
+    ]);
+
+    const res = await client.query(QUEST_NEW_ROTATIONS_QUERY);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.hasNewQuestRotations).toBe(true);
+  });
+
+  it('should clear new quest rotations after marking them viewed', async () => {
+    const now = new Date();
+    loggedUser = questUserId;
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    await saveFixtures(con, Quest, [
+      {
+        id: questId,
+        name: 'Fresh quest',
+        description: 'New quest',
+        type: QuestType.Daily,
+        eventType: QuestEventType.PostUpvote,
+        criteria: {
+          targetCount: 1,
+        },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: questRotationId,
+        questId,
+        type: QuestType.Daily,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date(now.getTime() - 60 * 60 * 1000),
+        periodEnd: new Date(now.getTime() + 60 * 60 * 1000),
+      },
+    ]);
+
+    const markRes = await client.mutate(MARK_QUEST_ROTATIONS_VIEWED_MUTATION);
+
+    expect(markRes.errors).toBeUndefined();
+    expect(markRes.data.markQuestRotationsViewed._).toBe(true);
+
+    const dashboardRes = await client.query(QUEST_NEW_ROTATIONS_QUERY);
+
+    expect(dashboardRes.errors).toBeUndefined();
+    expect(dashboardRes.data.questDashboard.hasNewQuestRotations).toBe(false);
+
+    const profile = await con
+      .getRepository(UserQuestProfile)
+      .findOneByOrFail({ userId: questUserId });
+
+    expect(profile.lastViewedQuestRotationsAt).toBeTruthy();
+  });
+
   it('should return the current quest streak when consecutive quest days end yesterday', async () => {
     loggedUser = questUserId;
 
