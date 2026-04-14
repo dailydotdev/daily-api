@@ -70,7 +70,7 @@ import {
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
-import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
+import { differenceInSeconds, isSameDay, subDays } from 'date-fns';
 import {
   runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
@@ -423,7 +423,7 @@ const setAuthCookie = async (
       isTeamMember,
       isPlus,
     },
-    15 * 60 * 1000,
+    15 * 1000,
   );
   setCookie(req, res, 'auth', accessToken.token);
   return accessToken;
@@ -924,47 +924,57 @@ export const getBootData = async (
     !req.accessToken?.expiresIn ||
     differenceInMinutes(req.accessToken.expiresIn, new Date()) <= 3;
 
-  const baSessionCookie = req.cookies[cookies.authSession.key];
-  if (baSessionCookie) {
-    let sessionInvalid = false;
-    try {
-      const session = (await asyncRetry(
-        () =>
-          getBetterAuth().api.getSession({
-            headers: fromNodeHeaders(
-              req.headers as Record<string, string | string[] | undefined>,
-            ),
-          }),
-        { retries: 3 },
-      )) as BetterAuthSession | null;
+  let sessionInvalid = false;
+  try {
+    const session = (await asyncRetry(
+      () =>
+        getBetterAuth().api.getSession({
+          headers: fromNodeHeaders(
+            req.headers as Record<string, string | string[] | undefined>,
+          ),
+        }),
+      { retries: 3 },
+    )) as BetterAuthSession | null;
 
-      if (session) {
-        req.userId = session.user.id;
-        req.trackingId = req.userId;
-        setTrackingId(req, res, req.trackingId);
-        return loggedInBoot({
-          con,
-          req,
-          res,
-          refreshToken: shouldRefreshJwt,
-          middleware,
-          userId: req.userId,
-        });
+    if (session) {
+      const cookieKey = cookies.authSession.key;
+      const rawToken = req.cookies[cookieKey];
+      if (rawToken) {
+        const sessionExpiresAt = session.session.expiresAt.getTime();
+        const cookieExpiresAt =
+          Date.now() + (cookies.authSession.opts.maxAge ?? 0) * 1000;
+        if (sessionExpiresAt !== cookieExpiresAt) {
+          setCookie(req, res, 'authSession', rawToken, {
+            expires: session.session.expiresAt,
+          });
+        }
       }
 
-      req.log.warn('BetterAuth getSession returned null');
-      sessionInvalid = true;
-    } catch (error) {
-      req.log.error(
-        { err: error instanceof Error ? error.message : String(error) },
-        'BetterAuth session validation failed',
-      );
+      req.userId = session.user.id;
+      req.trackingId = req.userId;
+      setTrackingId(req, res, req.trackingId);
+      return loggedInBoot({
+        con,
+        req,
+        res,
+        refreshToken: shouldRefreshJwt,
+        middleware,
+        userId: req.userId,
+      });
     }
 
-    if (sessionInvalid) {
-      req.log.warn('BetterAuth session cookie present but session invalid');
-      setCookie(req, res, 'authSession', undefined);
-    }
+    req.log.warn('BetterAuth getSession returned null');
+    sessionInvalid = true;
+  } catch (error) {
+    req.log.error(
+      { err: error instanceof Error ? error.message : String(error) },
+      'BetterAuth session validation failed',
+    );
+  }
+
+  if (sessionInvalid) {
+    req.log.warn('BetterAuth session cookie present but session invalid');
+    setCookie(req, res, 'authSession', undefined);
   }
 
   if (req.userId && req.accessToken?.expiresIn) {
