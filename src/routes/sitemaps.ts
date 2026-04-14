@@ -12,6 +12,7 @@ import {
 } from '../entity';
 import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
+import { PostHighlight } from '../entity/PostHighlight';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
@@ -329,9 +330,16 @@ const buildHighlightsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('chd.channel', 'channel')
-    .addSelect('chd."updatedAt"', 'lastmod')
+    .addSelect('MAX(ph."highlightedAt")', 'lastmod')
     .from(ChannelHighlightDefinition, 'chd')
+    .leftJoin(
+      PostHighlight,
+      'ph',
+      'ph.channel = chd.channel AND ph."retiredAt" IS NULL',
+    )
     .where('chd.mode != :disabledMode', { disabledMode: 'disabled' })
+    .groupBy('chd.channel')
+    .addGroupBy('chd."order"')
     .orderBy('chd."order"', 'ASC')
     .addOrderBy('chd.channel', 'ASC')
     .limit(DEFAULT_SITEMAP_LIMIT);
@@ -663,12 +671,27 @@ const buildHighlightsSitemapXml = async (con: DataSource): Promise<string> => {
       queryRunner.manager,
     ).getRawMany<{ channel: string; lastmod?: string | Date | null }>();
 
+    const channelEntries = rows.map((row) => ({
+      url: getHighlightsSitemapUrl(prefix, row.channel),
+      lastmod: getSitemapRowLastmod(row),
+    }));
+    const rootLastmod = channelEntries.reduce<string | undefined>(
+      (latest, entry) => {
+        if (!entry.lastmod) {
+          return latest;
+        }
+
+        return !latest || entry.lastmod > latest ? entry.lastmod : latest;
+      },
+      undefined,
+    );
+
     return getSitemapUrlSetXml([
-      { url: getHighlightsSitemapUrl(prefix) },
-      ...rows.map((row) => ({
-        url: getHighlightsSitemapUrl(prefix, row.channel),
-        lastmod: getSitemapRowLastmod(row),
-      })),
+      {
+        url: getHighlightsSitemapUrl(prefix),
+        lastmod: rootLastmod,
+      },
+      ...channelEntries,
     ]);
   } finally {
     await queryRunner.release();

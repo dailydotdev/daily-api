@@ -34,6 +34,7 @@ import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
+import { PostHighlight } from '../src/entity/PostHighlight';
 let app: FastifyInstance;
 let con: DataSource;
 const previousSitemapLimit = process.env.SITEMAP_LIMIT;
@@ -551,7 +552,7 @@ describe('GET /sitemaps/index.xml', () => {
 });
 
 describe('GET /sitemaps/highlights.xml', () => {
-  it('should return the highlights sitemap with enabled channels only', async () => {
+  it('should return the highlights sitemap with latest live highlight lastmod per channel', async () => {
     await con.getRepository(ChannelHighlightDefinition).save([
       {
         channel: 'career',
@@ -572,6 +573,33 @@ describe('GET /sitemaps/highlights.xml', () => {
         order: 0,
       },
     ]);
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'p1',
+        channel: 'career',
+        highlightedAt: new Date('2026-04-10T10:00:00.000Z'),
+        headline: 'Career early',
+      },
+      {
+        postId: 'p4',
+        channel: 'career',
+        highlightedAt: new Date('2026-04-12T09:00:00.000Z'),
+        headline: 'Career latest',
+      },
+      {
+        postId: 'p1',
+        channel: 'backend',
+        highlightedAt: new Date('2026-04-09T08:00:00.000Z'),
+        headline: 'Backend live',
+      },
+      {
+        postId: 'p4',
+        channel: 'backend',
+        highlightedAt: new Date('2026-04-13T08:00:00.000Z'),
+        headline: 'Backend retired',
+        retiredAt: new Date('2026-04-13T08:30:00.000Z'),
+      },
+    ]);
 
     const res = await request(app.server)
       .get('/sitemaps/highlights.xml')
@@ -582,14 +610,17 @@ describe('GET /sitemaps/highlights.xml', () => {
     expect(res.text).toContain(
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     );
-    expect(res.text).toContain('<loc>http://localhost:5002/highlights</loc>');
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/highlights/career</loc>',
+      '<loc>http://localhost:5002/highlights</loc><lastmod>2026-04-12T09:00:00.000Z</lastmod>',
     );
     expect(res.text).toContain(
-      '<loc>http://localhost:5002/highlights/backend</loc>',
+      '<loc>http://localhost:5002/highlights/career</loc><lastmod>2026-04-12T09:00:00.000Z</lastmod>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/highlights/backend</loc><lastmod>2026-04-09T08:00:00.000Z</lastmod>',
     );
     expect(res.text).not.toContain('/highlights/disabled');
+    expect(res.text).not.toContain('2026-04-13T08:00:00.000Z');
 
     expect(res.text.indexOf('/highlights</loc>')).toBeLessThan(
       res.text.indexOf('/highlights/career</loc>'),
