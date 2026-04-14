@@ -58,6 +58,7 @@ type GQLQuestDashboard = {
   level: GQLQuestLevel;
   currentStreak: number;
   longestStreak: number;
+  hasNewQuestRotations: boolean;
   daily: GQLQuestBucket;
   weekly: GQLQuestBucket;
   milestone: GQLUserQuest[];
@@ -259,6 +260,30 @@ const getQuestStreaks = async ({
   };
 };
 
+const getLatestActiveQuestRotationCreatedAt = async ({
+  con,
+  now,
+}: {
+  con: EntityManager;
+  now: Date;
+}): Promise<Date | null> => {
+  const result = await con
+    .getRepository(QuestRotation)
+    .createQueryBuilder('rotation')
+    .select('MAX(rotation."createdAt")', 'latestCreatedAt')
+    .where('rotation."periodStart" <= :now', { now })
+    .andWhere('rotation."periodEnd" > :now', { now })
+    .getRawOne<{ latestCreatedAt: Date | string | null }>();
+
+  if (!result?.latestCreatedAt) {
+    return null;
+  }
+
+  const latestCreatedAt = new Date(result.latestCreatedAt);
+
+  return Number.isNaN(latestCreatedAt.getTime()) ? null : latestCreatedAt;
+};
+
 const getQuestDashboard = async ({
   con,
   userId,
@@ -270,48 +295,84 @@ const getQuestDashboard = async ({
   isPlus: boolean;
   now: Date;
 }): Promise<GQLQuestDashboard> => {
-  const [profile, dailyQuests, weeklyQuests, milestoneQuests, streaks] =
-    await Promise.all([
-      con.getRepository(UserQuestProfile).findOne({
-        where: {
-          userId,
-        },
-      }),
-      getCurrentUserQuestsByType({
-        con,
+  const [
+    profile,
+    dailyQuests,
+    weeklyQuests,
+    milestoneQuests,
+    streaks,
+    latestActiveQuestRotationCreatedAt,
+  ] = await Promise.all([
+    con.getRepository(UserQuestProfile).findOne({
+      where: {
         userId,
-        type: QuestType.Daily,
-        isPlus,
-        now,
-      }),
-      getCurrentUserQuestsByType({
-        con,
-        userId,
-        type: QuestType.Weekly,
-        isPlus,
-        now,
-      }),
-      getCurrentUserQuestsByType({
-        con,
-        userId,
-        type: QuestType.Milestone,
-        isPlus,
-        now,
-      }),
-      getQuestStreaks({
-        con,
-        userId,
-        now,
-      }),
-    ]);
+      },
+    }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Daily,
+      isPlus,
+      now,
+    }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Weekly,
+      isPlus,
+      now,
+    }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Milestone,
+      isPlus,
+      now,
+    }),
+    getQuestStreaks({
+      con,
+      userId,
+      now,
+    }),
+    getLatestActiveQuestRotationCreatedAt({
+      con,
+      now,
+    }),
+  ]);
 
   return {
     level: getQuestLevelState(profile?.totalXp ?? 0),
     ...streaks,
+    hasNewQuestRotations:
+      !!latestActiveQuestRotationCreatedAt &&
+      (!profile?.lastViewedQuestRotationsAt ||
+        profile.lastViewedQuestRotationsAt <
+          latestActiveQuestRotationCreatedAt),
     daily: toQuestBucket(dailyQuests),
     weekly: toQuestBucket(weeklyQuests),
     milestone: milestoneQuests,
   };
+};
+
+const saveQuestRotationsViewedAt = async ({
+  con,
+  userId,
+  now,
+}: {
+  con: EntityManager;
+  userId: string;
+  now: Date;
+}): Promise<void> => {
+  await con
+    .createQueryBuilder()
+    .insert()
+    .into(UserQuestProfile)
+    .values({
+      userId,
+      lastViewedQuestRotationsAt: now,
+    })
+    .orUpdate(['lastViewedQuestRotationsAt'], ['userId'])
+    .execute();
 };
 
 const getClaimQuestRewardPayload = async ({
@@ -596,6 +657,7 @@ export const typeDefs = /* GraphQL */ `
     level: QuestLevel!
     currentStreak: Int!
     longestStreak: Int!
+    hasNewQuestRotations: Boolean!
     daily: QuestBucket!
     weekly: QuestBucket!
     milestone: [UserQuest!]!
@@ -633,6 +695,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     claimQuestReward(userQuestId: ID!): ClaimQuestRewardPayload! @auth
+    markQuestRotationsViewed: EmptyResponse! @auth
     trackQuestEvent(eventType: ClientQuestEventType!): EmptyResponse! @auth
   }
 
@@ -696,6 +759,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       return dashboard;
+    },
+    markQuestRotationsViewed: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await saveQuestRotationsViewedAt({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        now: new Date(),
+      });
+
+      return {
+        _: true,
+      };
     },
     trackQuestEvent: async (
       _,
