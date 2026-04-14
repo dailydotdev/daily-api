@@ -150,3 +150,56 @@ describe('GET /:id/profile-image', () => {
       .expect('Location', fallbackImages.avatar);
   });
 });
+
+describe('GET /mobile', () => {
+  const androidUA =
+    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36';
+  const iosUA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+  it('should redirect to Play Store for Android', async () => {
+    const res = await request(app.server)
+      .get('/mobile')
+      .set('User-Agent', androidUA)
+      .expect(307);
+
+    expect(res.headers.location).toContain('play.google.com');
+  });
+
+  it('should redirect to App Store for iOS', async () => {
+    const res = await request(app.server)
+      .get('/mobile')
+      .set('User-Agent', iosUA)
+      .expect(307);
+
+    expect(res.headers.location).toContain('apps.apple.com');
+  });
+
+  it('should redirect logged-in user to webapp by default', async () => {
+    await saveFixtures(con, User, [{ id: '1', username: 'test' }]);
+
+    const res = await request(app.server)
+      .get('/mobile')
+      .set('User-Agent', androidUA)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .set('user-id', '1')
+      .set('logged-in', 'true')
+      .expect(307);
+
+    expect(res.headers.location).toBe('https://app.daily.dev');
+  });
+
+  it('should skip auth redirect when auth=0', async () => {
+    await saveFixtures(con, User, [{ id: '1', username: 'test' }]);
+
+    const res = await request(app.server)
+      .get('/mobile?auth=0')
+      .set('User-Agent', androidUA)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .set('user-id', '1')
+      .set('logged-in', 'true')
+      .expect(307);
+
+    expect(res.headers.location).toContain('play.google.com');
+  });
+});
