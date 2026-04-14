@@ -133,7 +133,9 @@ const redirectToMobile =
     const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
 
-    if (!!req.userId) {
+    const skipAuth = url.searchParams.get('auth') === '0';
+
+    if (!skipAuth && !!req.userId) {
       return res.redirect(`https://app.daily.dev${url.search}`);
     }
 
