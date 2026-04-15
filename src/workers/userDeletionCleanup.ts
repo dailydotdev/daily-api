@@ -156,6 +156,14 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
       .getRepository(UserTransaction)
       .update({ receiverId: userId }, { receiverId: ghostUser.id });
     await con.getRepository(DigestPost).delete({ authorId: userId });
+    // Manually set user source posts to ghost user
+    await con
+      .getRepository(Post)
+      .update(
+        { authorId: userId, sourceId: userId },
+        { authorId: ghostUser.id, sourceId: ghostUser.id },
+      );
+    // Manually set shared post to 404 dummy user
     await con
       .getRepository(Post)
       .update({ authorId: userId }, { authorId: ghostUser.id });
