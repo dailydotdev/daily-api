@@ -96,7 +96,7 @@ const batchDelete = async ({
     }
   }
   if (totalDeleted > 0) {
-    log.info({ table, totalDeleted, userId }, 'batch deleted rows');
+    log.debug({ table, totalDeleted, userId }, 'batch deleted rows');
   }
 };
 
