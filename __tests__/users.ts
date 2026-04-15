@@ -4736,68 +4736,6 @@ describe('mutation deleteUser', () => {
     expect(markedUser?.flags).toMatchObject({ inDeletion: true });
   });
 
-  describe('deleting user resume', () => {
-    it('should delete user resume if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-    });
-
-    it('should handle case when user has no resume', async () => {
-      loggedUser = '1';
-
-      // Mock that the resume file doesn't exist
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-
-      // User should still be marked for deletion
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne?.flags).toMatchObject({ inDeletion: true });
-    });
-  });
-
-  describe('deleting user employment agreement', () => {
-    it('should delete user employment agreement if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-    });
-
-    it('should handle case when user has no employment agreement', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-
-      // User should still be marked for deletion
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne?.flags).toMatchObject({ inDeletion: true });
-    });
-  });
-
   describe('opportunity and organization cleanup', () => {
     const testUserId = 'opp-cleanup-user';
     const testUserId2 = 'opp-cleanup-user-2';

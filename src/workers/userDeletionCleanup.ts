@@ -21,7 +21,6 @@ import {
   SourceUser,
   View,
 } from '../entity';
-import { ArticlePost } from '../entity/posts/ArticlePost';
 import { DigestPost } from '../entity/posts/DigestPost';
 import { PostMention } from '../entity/posts/PostMention';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
@@ -64,6 +63,11 @@ import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { UserCandidateAnswer } from '../entity/user/UserCandidateAnswer';
 import { User } from '../entity/user/User';
 import { ghostUser } from '../common/utils';
+import {
+  deleteEmploymentAgreementByUserId,
+  deleteResumeByUserId,
+} from '../common/googleCloud';
+import { logger } from '../logger';
 
 const BATCH_SIZE = 1000;
 
@@ -113,6 +117,10 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
 
     log.info({ userId }, 'starting user deletion cleanup');
 
+    // Step 0: Clean up external resources
+    await deleteResumeByUserId(userId);
+    await deleteEmploymentAgreementByUserId({ userId, logger });
+
     // Step 1: Ghost user reassignment
     await con
       .getRepository(Comment)
@@ -142,21 +150,15 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
       .getRepository(ReputationEvent)
       .update({ grantToId: userId }, { grantToId: ghostUser.id });
     await con
+      .getRepository(ReputationEvent)
+      .update({ grantById: userId }, { grantById: ghostUser.id });
+    await con
       .getRepository(UserTransaction)
       .update({ senderId: userId }, { senderId: ghostUser.id });
     await con
       .getRepository(UserTransaction)
       .update({ receiverId: userId }, { receiverId: ghostUser.id });
-    await con
-      .getRepository(ArticlePost)
-      .update({ authorId: userId }, { authorId: null });
     await con.getRepository(DigestPost).delete({ authorId: userId });
-    await con
-      .getRepository(Post)
-      .update(
-        { authorId: userId, sourceId: userId },
-        { authorId: ghostUser.id, sourceId: ghostUser.id },
-      );
     await con
       .getRepository(Post)
       .update({ authorId: userId }, { authorId: ghostUser.id });

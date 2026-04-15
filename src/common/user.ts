@@ -10,10 +10,7 @@ import { logger } from '../logger';
 import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
 import { SubscriptionProvider, SubscriptionStatus } from './plus';
-import {
-  deleteEmploymentAgreementByUserId,
-  deleteResumeByUserId,
-} from './googleCloud';
+
 import { ConflictError } from '../errors';
 
 export const deleteUser = async (
@@ -89,10 +86,6 @@ export const deleteUser = async (
         );
       }
     }
-
-    // Delete user's resume if exists
-    await deleteResumeByUserId(userId);
-    await deleteEmploymentAgreementByUserId({ userId, logger });
 
     // Mark user for async deletion — CDC will trigger the cleanup worker
     await con.getRepository(User).update(userId, {
