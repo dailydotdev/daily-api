@@ -1490,6 +1490,61 @@ describe('storeNotificationBundle', () => {
     ]);
   });
 
+  it('should truncate attachment title for SocialTwitter posts exceeding 140 characters', () => {
+    const type = NotificationType.SourcePostAdded;
+    const longTitle = 'a'.repeat(200);
+    const post = {
+      ...postsFixture[0],
+      title: longTitle,
+      type: PostType.SocialTwitter,
+    } as Reference<Post>;
+    const ctx: NotificationSourceContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.attachments![0].title).toEqual(`${'a'.repeat(137)}...`);
+    expect(actual.attachments![0].title!.length).toEqual(140);
+  });
+
+  it('should not truncate attachment title for SocialTwitter posts within 140 characters', () => {
+    const type = NotificationType.SourcePostAdded;
+    const shortTitle = 'a'.repeat(140);
+    const post = {
+      ...postsFixture[0],
+      title: shortTitle,
+      type: PostType.SocialTwitter,
+    } as Reference<Post>;
+    const ctx: NotificationSourceContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.attachments![0].title).toEqual(shortTitle);
+  });
+
+  it('should not truncate attachment title for non-SocialTwitter posts', () => {
+    const type = NotificationType.SourcePostAdded;
+    const longTitle = 'a'.repeat(200);
+    const post = {
+      ...postsFixture[0],
+      title: longTitle,
+      type: PostType.Article,
+    } as Reference<Post>;
+    const ctx: NotificationSourceContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.attachments![0].title).toEqual(longTitle);
+  });
+
   it('should generate user_post_added notification', () => {
     const type = NotificationType.UserPostAdded;
     const ctx: NotificationUserContext & NotificationPostContext = {

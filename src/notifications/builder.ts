@@ -311,10 +311,18 @@ export class NotificationBuilder {
         post.type as keyof typeof postTypeToAttachmentType
       ] ?? NotificationAttachmentType.Post;
 
+    const MAX_TWITTER_TITLE_LENGTH = 140;
+    const title = post.title ?? '';
+    const truncatedTitle =
+      post.type === PostType.SocialTwitter &&
+      title.length > MAX_TWITTER_TITLE_LENGTH
+        ? `${title.substring(0, MAX_TWITTER_TITLE_LENGTH - 3)}...`
+        : title;
+
     this.attachments.push({
       type,
       image: (post as ArticlePost)?.image || pickImageUrl(post),
-      title: post.title ?? '',
+      title: truncatedTitle,
       referenceId: post.id,
     });
     return this;
