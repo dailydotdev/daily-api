@@ -205,7 +205,7 @@ const buildSitemapXmlStream = async <T extends ObjectLiteral>(
 };
 
 const getSitemapPageCount = (totalPosts: number): number =>
-  Math.max(1, Math.ceil(totalPosts / getPaginatedSitemapLimit()));
+  Math.ceil(totalPosts / getPaginatedSitemapLimit());
 
 const getReplicaQueryCount = async (
   con: DataSource,
@@ -215,6 +215,20 @@ const getReplicaQueryCount = async (
 
   try {
     return await buildQuery(queryRunner.manager).getCount();
+  } finally {
+    await queryRunner.release();
+  }
+};
+
+const hasPaginatedSitemapPage = async (
+  con: DataSource,
+  buildQuery: (source: EntityManager, page: number) => SelectQueryBuilder<Post>,
+  page: number,
+): Promise<boolean> => {
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    return !!(await buildQuery(queryRunner.manager, page).limit(1).getRawOne());
   } finally {
     await queryRunner.release();
   }
@@ -739,6 +753,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const con = await createOrGetConnection();
 
+    if (
+      !(await hasPaginatedSitemapPage(con, buildPostsSitemapQuery, page))
+    ) {
+      return res.code(404).send();
+    }
+
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
@@ -764,6 +784,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
+
+    if (
+      !(await hasPaginatedSitemapPage(con, buildEvergreenSitemapQuery, page))
+    ) {
+      return res.code(404).send();
+    }
 
     return res
       .type('application/xml')

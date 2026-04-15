@@ -255,6 +255,10 @@ describe('GET /sitemaps/posts-:page.xml', () => {
       '<loc>http://localhost:5002/posts/p6-p6</loc>',
     );
   });
+
+  it('should return 404 for paginated pages with no rows', async () => {
+    await request(app.server).get('/sitemaps/posts-3.xml').expect(404);
+  });
 });
 
 describe('GET /sitemaps/posts.xml (type filtering)', () => {
@@ -1124,6 +1128,10 @@ describe('GET /sitemaps/evergreen.xml', () => {
     expect(res.header['content-type']).toContain('application/xml');
     expect(res.text).toContain('/posts/evergreen-no-author-evergreen-norep');
     expect(res.text).not.toContain('/posts/evergreen-low-rep-evergreen-lowrep');
+  });
+
+  it('should return 404 for paginated pages with no rows', async () => {
+    await request(app.server).get('/sitemaps/evergreen-2.xml').expect(404);
   });
 });
 
