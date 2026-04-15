@@ -929,11 +929,17 @@ const onUserChange = async (
 
     await checkProfileCompletionAchievement(con, logger, data.payload.after!);
 
-    const beforeUserFlags = JSON.parse(
-      (data.payload.before!.flags as unknown as string) || '{}',
+    const rawBeforeFlags = data.payload.before!.flags;
+    const rawAfterFlags = data.payload.after!.flags;
+    const beforeUserFlags = (
+      typeof rawBeforeFlags === 'string'
+        ? JSON.parse(rawBeforeFlags || '{}')
+        : rawBeforeFlags || {}
     ) as UserFlags;
-    const afterUserFlags = JSON.parse(
-      (data.payload.after!.flags as unknown as string) || '{}',
+    const afterUserFlags = (
+      typeof rawAfterFlags === 'string'
+        ? JSON.parse(rawAfterFlags || '{}')
+        : rawAfterFlags || {}
     ) as UserFlags;
     if (!beforeUserFlags.inDeletion && afterUserFlags.inDeletion) {
       await triggerTypedEvent(logger, 'api.v1.user-deletion-requested', {

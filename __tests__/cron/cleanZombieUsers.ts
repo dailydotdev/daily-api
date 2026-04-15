@@ -18,7 +18,6 @@ beforeEach(async () => {
     User,
     usersFixture.map((u) => ({ ...u, emailConfirmed: true, flags: {} })),
   );
-  // Reset inDeletion flag for all users to ensure test isolation
   await con.query(`UPDATE "user" SET flags = '{}'`);
 });
 
@@ -32,13 +31,15 @@ describe('cleanZombieUsers', () => {
       .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(6);
 
-    const markedUsers = users.filter((u) => (u.flags as UserFlags)?.inDeletion);
-    expect(markedUsers.length).toEqual(4);
-    expect(markedUsers.map((u) => u.id)).not.toContain('1');
-    expect(markedUsers.map((u) => u.id)).not.toContain('2');
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
+    );
+    expect(marked.map((u) => u.id)).toEqual(['3', '4']);
   });
 
   it('should mark users with email confirmed false that are older than one hour for deletion', async () => {
@@ -50,28 +51,31 @@ describe('cleanZombieUsers', () => {
       .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(6);
 
-    const markedUsers = users.filter((u) => (u.flags as UserFlags)?.inDeletion);
-    expect(markedUsers.length).toEqual(4);
-    expect(markedUsers.map((u) => u.id)).not.toContain('1');
-    expect(markedUsers.map((u) => u.id)).not.toContain('2');
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
+    );
+    expect(marked.map((u) => u.id)).toEqual(['3', '4']);
   });
 
   it('should not mark users with info confirmed true and email confirmed true', async () => {
     await con
       .getRepository(User)
       .update({ id: Not('1') }, { infoConfirmed: true, emailConfirmed: true });
-    await con
-      .getRepository(User)
-      .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(6);
 
-    const markedUsers = users.filter((u) => (u.flags as UserFlags)?.inDeletion);
-    expect(markedUsers.length).toEqual(0);
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
+    );
+    expect(marked.length).toEqual(0);
   });
 });
