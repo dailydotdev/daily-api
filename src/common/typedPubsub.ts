@@ -108,6 +108,9 @@ export type PubSubSchema = {
     id: string;
     email: string;
   };
+  'api.v1.user-deletion-requested': {
+    userId: string;
+  };
   'api.v1.user-created': {
     user: ChangeObject<User>;
   };

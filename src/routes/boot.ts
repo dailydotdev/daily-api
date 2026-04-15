@@ -693,7 +693,7 @@ const loggedInBoot = async ({
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
 
-    if (!user) {
+    if (!user || user.flags?.inDeletion) {
       return handleNonExistentUser(con, req, res, middleware);
     }
 

@@ -52,6 +52,7 @@ import {
 } from '../../entity';
 import { BookmarkList } from '../../entity/BookmarkList';
 import { HotTake } from '../../entity/user/HotTake';
+import type { UserFlags } from '../../entity/user/User';
 import { UserStack } from '../../entity/user/UserStack';
 import { SharePost } from '../../entity/posts/SharePost';
 import { PostAnalytics } from '../../entity/posts/PostAnalytics';
@@ -927,6 +928,18 @@ const onUserChange = async (
     }
 
     await checkProfileCompletionAchievement(con, logger, data.payload.after!);
+
+    const beforeUserFlags = JSON.parse(
+      (data.payload.before!.flags as unknown as string) || '{}',
+    ) as UserFlags;
+    const afterUserFlags = JSON.parse(
+      (data.payload.after!.flags as unknown as string) || '{}',
+    ) as UserFlags;
+    if (!beforeUserFlags.inDeletion && afterUserFlags.inDeletion) {
+      await triggerTypedEvent(logger, 'api.v1.user-deletion-requested', {
+        userId: data.payload.after!.id,
+      });
+    }
   }
   if (data.payload.op === 'd') {
     await triggerTypedEvent(logger, 'user-deleted', {

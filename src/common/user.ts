@@ -1,38 +1,20 @@
 import { DataSource } from 'typeorm';
-import {
-  Alerts,
-  ArticlePost,
-  Bookmark,
-  BookmarkList,
-  Comment,
-  DevCard,
-  Feed,
-  Organization,
-  Post,
-  PostReport,
-  Settings,
-  SourceDisplay,
-  SourceRequest,
-  User,
-  View,
-} from '../entity';
+import { Organization, User } from '../entity';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUser } from '../entity/opportunities/user';
-import { ghostUser } from './index';
+import { updateFlagsStatement } from './utils';
 import { cancelSubscription } from './paddle';
 import type { AuthContext, Context } from '../Context';
 import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
-import { UserTransaction } from '../entity/user/UserTransaction';
 import { SubscriptionProvider, SubscriptionStatus } from './plus';
 import {
   deleteEmploymentAgreementByUserId,
   deleteResumeByUserId,
 } from './googleCloud';
 import { ConflictError } from '../errors';
-import { DigestPost } from '../entity/posts/DigestPost';
 
 export const deleteUser = async (
   con: DataSource,
@@ -76,110 +58,60 @@ export const deleteUser = async (
       }
     }
 
+    // Check organization recruiter subscription conflicts before marking for deletion
+    const opportunityOrganization = await con
+      .getRepository(OpportunityUser)
+      .createQueryBuilder('ou')
+      .select('ou."opportunityId"', 'opportunityId')
+      .addSelect('oj."organizationId"', 'organizationId')
+      .innerJoin(OpportunityJob, 'oj', 'oj.id = ou."opportunityId"')
+      .where('ou."userId" = :userId', { userId })
+      .getRawMany<{
+        opportunityId: string;
+        organizationId: string;
+      }>();
+
+    if (opportunityOrganization.length > 0) {
+      const orgsWithActiveSubscription = await con
+        .getRepository(Organization)
+        .createQueryBuilder('org')
+        .where('org.id IN (:...ids)', {
+          ids: opportunityOrganization.map((item) => item.organizationId),
+        })
+        .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
+          status: SubscriptionStatus.Active,
+        })
+        .getCount();
+
+      if (orgsWithActiveSubscription > 0) {
+        throw new ConflictError(
+          'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
+        );
+      }
+    }
+
     // Delete user's resume if exists
     await deleteResumeByUserId(userId);
     await deleteEmploymentAgreementByUserId({ userId, logger });
 
-    await con.transaction(async (entityManager): Promise<void> => {
-      await entityManager.getRepository(View).delete({ userId });
-      await entityManager.getRepository(Alerts).delete({ userId });
-      await entityManager.getRepository(BookmarkList).delete({ userId });
-      await entityManager.getRepository(Bookmark).delete({ userId });
-      await entityManager.getRepository(Comment).update(
-        { userId },
-        {
-          userId: ghostUser.id,
-        },
-      );
-      await entityManager.getRepository(Comment).delete({ userId });
-      await entityManager.getRepository(DevCard).delete({ userId });
-      await entityManager.getRepository(Feed).delete({ userId });
-      await entityManager.getRepository(PostReport).delete({ userId });
-      await entityManager.getRepository(Settings).delete({ userId });
-      await entityManager.getRepository(SourceDisplay).delete({ userId });
-      await entityManager.getRepository(SourceRequest).delete({ userId });
-      await entityManager
-        .getRepository(ArticlePost)
-        .update({ authorId: userId }, { authorId: null });
-      // Delete digest posts authored by the user
-      await entityManager
-        .getRepository(DigestPost)
-        .delete({ authorId: userId });
-      // Manually set user source posts to ghost user
-      await entityManager
-        .getRepository(Post)
-        .update(
-          { authorId: userId, sourceId: userId },
-          { authorId: ghostUser.id, sourceId: ghostUser.id },
-        );
-      // Manually set shared post to 404 dummy user
-      await entityManager
-        .getRepository(Post)
-        .update({ authorId: userId }, { authorId: ghostUser.id });
-      await entityManager
-        .getRepository(Post)
-        .update({ scoutId: userId }, { scoutId: null });
-      await entityManager.getRepository(UserTransaction).update(
-        {
-          senderId: userId,
-        },
-        {
-          senderId: ghostUser.id,
-        },
-      );
-      await entityManager.getRepository(UserTransaction).update(
-        {
-          receiverId: userId,
-        },
-        {
-          receiverId: ghostUser.id,
-        },
-      );
-
-      const opportunityOrganization = await entityManager
-        .getRepository(OpportunityUser)
-        .createQueryBuilder('ou')
-        .select('ou."opportunityId"', 'opportunityId')
-        .addSelect('oj."organizationId"', 'organizationId')
-        .innerJoin(OpportunityJob, 'oj', 'oj.id = ou."opportunityId"')
-        .where('ou."userId" = :userId', { userId })
-        .getRawMany<{
-          opportunityId: string;
-          organizationId: string;
-        }>();
-
-      if (opportunityOrganization.length > 0) {
-        const orgsWithActiveSubscription = await entityManager
-          .getRepository(Organization)
-          .createQueryBuilder('org')
-          .where('org.id IN (:...ids)', {
-            ids: opportunityOrganization.map((item) => item.organizationId),
-          })
-          .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
-            status: SubscriptionStatus.Active,
-          })
-          .getCount();
-
-        if (orgsWithActiveSubscription > 0) {
-          throw new ConflictError(
-            'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
-          );
-        }
-      }
-
-      await entityManager.query(
-        'DELETE FROM ba_verification WHERE identifier IN ($1, $2)',
-        [`change-email:${userId}`, `signup-verify:${userId}`],
-      );
-
-      await entityManager.getRepository(User).delete(userId);
+    // Mark user for async deletion — CDC will trigger the cleanup worker
+    await con.getRepository(User).update(userId, {
+      flags: updateFlagsStatement<User>({ inDeletion: true }),
     });
+
+    // Immediately invalidate all sessions
+    await con.query('DELETE FROM ba_session WHERE "userId" = $1', [userId]);
+    await con.query(
+      'DELETE FROM ba_verification WHERE identifier IN ($1, $2)',
+      [`change-email:${userId}`, `signup-verify:${userId}`],
+    );
+
     logger.info(
       {
         userId,
         messageId,
       },
-      'deleted user',
+      'user marked for deletion',
     );
   } catch (err) {
     logger.error(
