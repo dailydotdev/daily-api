@@ -21,7 +21,7 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
 
     const [user, settings, lastStreak, redisExpiryTime] = await Promise.all([
       queryReadReplica(con, ({ queryRunner }) => {
-        return queryRunner.manager.getRepository(User).findOneOrFail({
+        return queryRunner.manager.getRepository(User).findOne({
           select: ['id', 'coresRole'],
           where: {
             id: userId,
