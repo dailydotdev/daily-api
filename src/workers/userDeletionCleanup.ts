@@ -126,9 +126,6 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
       .getRepository(Comment)
       .update({ userId }, { userId: ghostUser.id });
     await con
-      .getRepository(SourceUser)
-      .update({ userId }, { userId: ghostUser.id });
-    await con
       .getRepository(SourcePostModeration)
       .update({ createdById: userId }, { createdById: ghostUser.id });
     await con
@@ -197,6 +194,7 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
     await con.getRepository(Settings).delete({ userId });
     await con.getRepository(UserPersonalizedDigest).delete({ userId });
     await con.getRepository(UserMarketingCta).delete({ userId });
+    await con.getRepository(SourceUser).delete({ userId });
     await con.getRepository(SourceMember).delete({ userId });
     await con.getRepository(UserAchievement).delete({ userId });
     await con.getRepository(UserExperience).delete({ userId });
