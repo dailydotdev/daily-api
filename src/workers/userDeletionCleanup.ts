@@ -236,7 +236,8 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
     await con.getRepository(SourceRequest).delete({ userId });
     // Legacy table without TypeORM entity
     await con.query('DELETE FROM comment_upvote WHERE "userId" = $1', [userId]);
-    // Auth tables
+    // Auth tables (ba_session may already be deleted by deleteUser, safe to re-run)
+    await con.query('DELETE FROM ba_session WHERE "userId" = $1', [userId]);
     await con.query('DELETE FROM ba_account WHERE "userId" = $1', [userId]);
 
     // Step 3: Hard delete the user — triggers CDC user-deleted event
