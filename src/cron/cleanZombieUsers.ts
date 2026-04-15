@@ -1,9 +1,7 @@
 import { Cron } from './cron';
 import { User } from '../entity';
-import { LessThan, In } from 'typeorm';
 import { subHours } from 'date-fns';
-
-const BATCH_SIZE = 50;
+import { updateFlagsStatement } from '../common/utils';
 
 const cron: Cron = {
   name: 'clean-zombie-users',
@@ -12,24 +10,25 @@ const cron: Cron = {
     const timeThreshold = subHours(new Date(), 1);
     const userRepo = con.getRepository(User);
 
-    const zombieUsers = await userRepo.find({
-      select: ['id'],
-      where: [
-        { infoConfirmed: false, createdAt: LessThan(timeThreshold) },
-        { emailConfirmed: false, createdAt: LessThan(timeThreshold) },
-      ],
-    });
+    const zombieUsers = await userRepo
+      .createQueryBuilder('user')
+      .select(['user.id'])
+      .where('("infoConfirmed" = false OR "emailConfirmed" = false)')
+      .andWhere('"createdAt" < :timeThreshold', { timeThreshold })
+      .andWhere(
+        `(flags->>'inDeletion' IS NULL OR flags->>'inDeletion' = 'false')`,
+      )
+      .getMany();
 
-    const ids = zombieUsers.map((u) => u.id);
-    let totalDeleted = 0;
-
-    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-      const batch = ids.slice(i, i + BATCH_SIZE);
-      const { affected } = await userRepo.delete({ id: In(batch) });
-      totalDeleted += affected ?? 0;
+    let totalMarked = 0;
+    for (const zombie of zombieUsers) {
+      await userRepo.update(zombie.id, {
+        flags: updateFlagsStatement<User>({ inDeletion: true }),
+      });
+      totalMarked++;
     }
 
-    logger.info({ count: totalDeleted }, 'zombies users cleaned! 🧟');
+    logger.info({ count: totalMarked }, 'zombie users marked for deletion 🧟');
   },
 };
 

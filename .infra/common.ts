@@ -510,6 +510,13 @@ export const workers: Worker[] = [
     topic: 'api.v1.generate-channel-highlight',
     subscription: 'api.generate-channel-highlight',
   },
+  {
+    topic: 'api.v1.user-deletion-requested',
+    subscription: 'api.user-deletion-cleanup',
+    args: {
+      ackDeadlineSeconds: 600,
+    },
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

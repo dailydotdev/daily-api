@@ -86,6 +86,7 @@ import generateChannelDigest from './generateChannelDigest';
 import generateChannelHighlight from './generateChannelHighlight';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
+import userDeletionCleanup from './userDeletionCleanup';
 
 export { Worker } from './worker';
 
@@ -173,6 +174,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   agenticDigestTweet,
   generateChannelDigest,
   generateChannelHighlight,
+  userDeletionCleanup,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -135,12 +135,7 @@ import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
-import {
-  UserTransaction,
-  UserTransactionProcessor,
-  UserTransactionStatus,
-} from '../src/entity/user/UserTransaction';
-import { DeletedUser } from '../src/entity/user/DeletedUser';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
 import { randomUUID } from 'crypto';
 import {
   ClaimableItem,
@@ -4591,59 +4586,8 @@ describe('mutation deleteUser', () => {
 
     await client.mutate(MUTATION);
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(4);
-
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
-  });
-
-  it('should delete author ID from post', async () => {
-    loggedUser = '1';
-
-    await client.mutate(MUTATION);
-
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.authorId).toEqual(null);
-  });
-
-  it('should delete digest posts on user deletion', async () => {
-    loggedUser = '1';
-
-    await con.getRepository(Source).save({
-      id: '1',
-      name: 'User Source',
-      image: 'https://daily.dev/1.jpg',
-      handle: 'user1',
-      active: true,
-      private: false,
-    });
-
-    await con.getRepository(Post).save({
-      id: 'pdigest1',
-      shortId: 'spdigest1',
-      title: 'Digest Post',
-      sourceId: '1',
-      authorId: '1',
-      type: PostType.Digest,
-      createdAt: new Date(),
-    });
-
-    await client.mutate(MUTATION);
-
-    const deletedDigest = await con
-      .getRepository(Post)
-      .findOneBy({ id: 'pdigest1' });
-    expect(deletedDigest).toBeNull();
-  });
-
-  it('should delete scout ID from post', async () => {
-    loggedUser = '1';
-
-    await client.mutate(MUTATION);
-
-    const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
-    expect(post.authorId).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should cancel paddle subscription for user', async () => {
@@ -4663,7 +4607,7 @@ describe('mutation deleteUser', () => {
 
     expect(cancelSubscription).toHaveBeenCalledWith({ subscriptionId: '123' });
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should not call cancel subscription for gifted subscription', async () => {
@@ -4684,7 +4628,7 @@ describe('mutation deleteUser', () => {
 
     expect(cancelSubscription).not.toHaveBeenCalled();
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   describe('when user has a storekit subscription', () => {
@@ -4753,10 +4697,10 @@ describe('mutation deleteUser', () => {
       const userOne = await con
         .getRepository(User)
         .findOneBy({ id: 'sk-del-user-0' });
-      expect(userOne).toEqual(null);
+      expect(userOne?.flags).toMatchObject({ inDeletion: true });
     });
 
-    it('should delete user if storekit subscription is expired', async () => {
+    it('should mark user for deletion if storekit subscription is expired', async () => {
       loggedUser = 'sk-del-user-0';
 
       await con.getRepository(User).update(
@@ -4776,130 +4720,20 @@ describe('mutation deleteUser', () => {
       const userOne = await con
         .getRepository(User)
         .findOneBy({ id: 'sk-del-user-0' });
-      expect(userOne).toEqual(null);
+      expect(userOne?.flags).toMatchObject({ inDeletion: true });
     });
   });
 
-  it('should set user transactions to ghost', async () => {
-    loggedUser = '1';
-
-    const userTransactions = await con.getRepository(UserTransaction).save([
-      {
-        id: '962c880f-7523-426c-b02f-e5695e94d77f',
-        processor: UserTransactionProcessor.Njord,
-        receiverId: '1',
-        status: UserTransactionStatus.Success,
-        productId: null,
-        senderId: '2',
-        fee: 0,
-        value: 100,
-        valueIncFees: 100,
-      },
-      {
-        id: '4f2e8ff9-4489-466b-9296-87630839fdac',
-        processor: UserTransactionProcessor.Njord,
-        receiverId: '2',
-        status: UserTransactionStatus.Success,
-        productId: null,
-        senderId: '1',
-        fee: 0,
-        value: 100,
-        valueIncFees: 100,
-      },
-    ]);
-
-    await client.mutate(MUTATION);
-
-    const transactions = await con.getRepository(UserTransaction).findBy({
-      id: In(userTransactions.map((t) => t.id)),
-    });
-
-    expect(transactions.length).toEqual(2);
-    expect(
-      transactions.find((t) => t.id === '962c880f-7523-426c-b02f-e5695e94d77f')!
-        .receiverId,
-    ).toEqual(ghostUser.id);
-    expect(
-      transactions.find((t) => t.id === '4f2e8ff9-4489-466b-9296-87630839fdac')!
-        .senderId,
-    ).toEqual(ghostUser.id);
-  });
-
-  it('should soft delete user', async () => {
+  it('should mark user for deletion', async () => {
     loggedUser = '1';
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
-
     expect(user).not.toBeNull();
 
     await client.mutate(MUTATION);
 
-    const deletedUser = await con
-      .getRepository(DeletedUser)
-      .findOneBy({ id: '1' });
-    expect(deletedUser).not.toBeNull();
-  });
-
-  describe('deleting user resume', () => {
-    it('should delete user resume if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-    });
-
-    it('should handle case when user has no resume', async () => {
-      loggedUser = '1';
-
-      // Mock that the resume file doesn't exist
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-
-      // User should still be deleted
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne).toEqual(null);
-    });
-  });
-
-  describe('deleting user employment agreement', () => {
-    it('should delete user employment agreement if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-    });
-
-    it('should handle case when user has no employment agreement', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-
-      // User should still be deleted
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne).toEqual(null);
-    });
+    const markedUser = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(markedUser?.flags).toMatchObject({ inDeletion: true });
   });
 
   describe('opportunity and organization cleanup', () => {
@@ -4997,11 +4831,8 @@ describe('DELETE /v1/users/me', () => {
   it('should delete user from database', async () => {
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(4);
-
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should clear cookies', async () => {
@@ -5020,31 +4851,6 @@ describe('DELETE /v1/users/me', () => {
     expect(cookies.dast.value).toBeFalsy();
     expect(cookies.ory_kratos_session.value).toBeFalsy();
     expect(cookies.ory_kratos_continuity.value).toBeFalsy();
-  });
-
-  it('clears invitedBy from associated features', async () => {
-    await con.getRepository(Feature).insert({
-      feature: FeatureType.Search,
-      userId: '2',
-      value: FeatureValue.Allow,
-      invitedById: '1',
-    });
-
-    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
-
-    const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
-    expect(feature.invitedById).toBeNull();
-  });
-
-  it('removes associated invite records', async () => {
-    await con.getRepository(Invite).insert({
-      userId: '1',
-      campaign: InviteCampaignType.Search,
-    });
-
-    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
-
-    expect(await con.getRepository(Invite).count()).toEqual(0);
   });
 });
 
