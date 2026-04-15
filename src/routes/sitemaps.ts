@@ -753,9 +753,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const con = await createOrGetConnection();
 
-    if (
-      !(await hasPaginatedSitemapPage(con, buildPostsSitemapQuery, page))
-    ) {
+    if (!(await hasPaginatedSitemapPage(con, buildPostsSitemapQuery, page))) {
       return res.code(404).send();
     }
 
