@@ -468,7 +468,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
               const setClauses: string[] = [
                 `flags = CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}' ELSE flags END`,
               ];
-              const values: string[] = [user.id];
+              const values: unknown[] = [user.id];
               let paramIndex = 2;
 
               const hookCtx = ctx as BetterAuthDbHookContext;
@@ -496,6 +496,12 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 body?.referralOrigin ?? cookieReferral?.referralOrigin,
               );
               addField('timezone', body?.timezone ?? oauthState?.timezone);
+
+              if (typeof body?.acceptedMarketing === 'boolean') {
+                setClauses.push(`"acceptedMarketing" = $${paramIndex}`);
+                values.push(body.acceptedMarketing);
+                paramIndex++;
+              }
 
               const ip =
                 hookCtx?.request?.headers
