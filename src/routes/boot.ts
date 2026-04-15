@@ -939,6 +939,19 @@ export const getBootData = async (
       )) as BetterAuthSession | null;
 
       if (session) {
+        const cookieKey = cookies.authSession.key;
+        const rawToken = req.cookies[cookieKey];
+        if (rawToken) {
+          const sessionExpiresAt = session.session.expiresAt.getTime();
+          const cookieExpiresAt =
+            Date.now() + (cookies.authSession.opts.maxAge ?? 0) * 1000;
+          if (sessionExpiresAt !== cookieExpiresAt) {
+            setCookie(req, res, 'authSession', rawToken, {
+              expires: session.session.expiresAt,
+            });
+          }
+        }
+
         req.userId = session.user.id;
         req.trackingId = req.userId;
         setTrackingId(req, res, req.trackingId);

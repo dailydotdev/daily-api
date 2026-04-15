@@ -486,6 +486,9 @@ describe('logged in boot', () => {
         getSession: async () =>
           ({
             user: { id: '1' },
+            session: {
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
           }) as unknown,
       },
     } as ReturnType<typeof betterAuthModule.getBetterAuth>);
