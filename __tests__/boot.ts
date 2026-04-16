@@ -177,6 +177,7 @@ const LOGGED_IN_BODY = {
     },
   },
   marketingCta: null,
+  marketingCtaVariants: [],
   feeds: [],
 };
 

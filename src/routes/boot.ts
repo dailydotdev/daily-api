@@ -10,7 +10,11 @@ import { DataSource, Not, QueryRunner } from 'typeorm';
 import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
-import { GQLUser, getMarketingCta } from '../schema/users';
+import {
+  GQLUser,
+  getMarketingCta,
+  getMarketingCtaVariants,
+} from '../schema/users';
 import { extractHandleFromUrl } from '../common/schema/socials';
 import {
   Alerts,
@@ -179,6 +183,7 @@ export type LoggedInBoot = BaseBoot & {
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
+  marketingCtaVariants: string[];
 };
 
 export type FunnelLoggedInUser = GQLUser & {
@@ -650,7 +655,7 @@ const loggedInBoot = async ({
       visit,
       roles,
       extra,
-      [alerts, settings, marketingCta, user],
+      [alerts, settings, marketingCta, user, marketingCtaVariants],
       [
         squads,
         lastBanner,
@@ -673,6 +678,7 @@ const loggedInBoot = async ({
           getSettings(queryRunner, userId),
           getMarketingCta(queryRunner, log, userId),
           getUser(queryRunner, userId),
+          getMarketingCtaVariants(queryRunner, userId),
         ]);
       }),
       queryReadReplica(con, async ({ queryRunner }) => {
@@ -800,6 +806,7 @@ const loggedInBoot = async ({
       accessToken,
       exp,
       marketingCta,
+      marketingCtaVariants,
       feeds,
       geo,
       ...extra,

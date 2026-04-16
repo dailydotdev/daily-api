@@ -19,6 +19,7 @@ import {
   getAuthorPostStats,
   Invite,
   MarketingCta,
+  MarketingCtaStatus,
   Post,
   PostStats,
   Settings,
@@ -1264,6 +1265,40 @@ export const typeDefs = /* GraphQL */ `
     impressionsAds: Int!
   }
 
+  """
+  Marketing CTA flags content
+  """
+  type MarketingCtaFlags {
+    title: String!
+    description: String
+    image: String
+    tagText: String
+    tagColor: String
+    ctaUrl: String!
+    ctaText: String!
+  }
+
+  """
+  Marketing CTA platform targets
+  """
+  type MarketingCtaTargets {
+    webapp: Boolean!
+    extension: Boolean!
+    ios: Boolean!
+  }
+
+  """
+  Marketing CTA shown to a user
+  """
+  type MarketingCta {
+    campaignId: String!
+    createdAt: DateTime!
+    variant: String!
+    status: String!
+    flags: MarketingCtaFlags!
+    targets: MarketingCtaTargets!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1490,6 +1525,11 @@ export const typeDefs = /* GraphQL */ `
     Get daily impressions history for all posts authored by the authenticated user (last 45 days)
     """
     userPostsAnalyticsHistory: [UserPostsAnalyticsHistoryNode!]! @auth
+
+    """
+    Get all active marketing CTAs the user qualifies for and hasn't dismissed, filtered by variant
+    """
+    marketingCtasByVariant(variant: String!): [MarketingCta!]! @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1901,6 +1941,27 @@ export const getMarketingCta = async (
     marketingCta.flags.image = mapCloudinaryUrl(marketingCta.flags.image);
   }
   return marketingCta || cachePrefillMarketingCta(con, userId);
+};
+
+export const getMarketingCtaVariants = async (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<string[]> => {
+  if (!userId || systemUserIds.includes(userId)) {
+    return [];
+  }
+
+  const rows = await con.manager
+    .getRepository(UserMarketingCta)
+    .createQueryBuilder('umc')
+    .innerJoin('umc.marketingCta', 'mc')
+    .select('DISTINCT mc.variant', 'variant')
+    .where('umc."userId" = :userId', { userId })
+    .andWhere('umc."readAt" IS NULL')
+    .andWhere('mc.status = :status', { status: MarketingCtaStatus.Active })
+    .getRawMany<{ variant: string }>();
+
+  return rows.map((row) => row.variant);
 };
 
 const getUserStreakQuery = async (
@@ -3023,6 +3084,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               excludedTypes: [PostType.Brief, PostType.Digest],
             }),
       });
+    },
+    marketingCtasByVariant: async (
+      _,
+      { variant }: { variant: string },
+      ctx: AuthContext,
+    ): Promise<MarketingCta[]> => {
+      const userMarketingCtas = await ctx.con
+        .getRepository(UserMarketingCta)
+        .createQueryBuilder('umc')
+        .innerJoinAndSelect('umc.marketingCta', 'mc')
+        .where('umc."userId" = :userId', { userId: ctx.userId })
+        .andWhere('umc."readAt" IS NULL')
+        .andWhere('mc.status = :status', {
+          status: MarketingCtaStatus.Active,
+        })
+        .andWhere('mc.variant = :variant', { variant })
+        .getMany();
+
+      return userMarketingCtas
+        .map((umc) => umc.marketingCta)
+        .filter((mc): mc is MarketingCta => !!mc)
+        .map((mc) => {
+          if (mc.flags?.image) {
+            mc.flags.image = mapCloudinaryUrl(mc.flags.image);
+          }
+          return mc;
+        });
     },
   },
   Mutation: {
