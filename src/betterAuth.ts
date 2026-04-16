@@ -563,7 +563,7 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
             captcha({
               provider: 'cloudflare-turnstile',
               secretKey: turnstileSecretKey,
-              endpoints: ['/sign-up/email'],
+              endpoints: ['/sign-up/email', '/sign-in/email'],
             }),
           ]
         : []),
