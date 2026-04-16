@@ -89,6 +89,7 @@ export const typeDefs = /* GraphQL */ `
     browsingContextEnabled: Boolean
     prompt: JSONObject
     timezoneMismatchIgnore: String
+    lastPrompt: String
     defaultWriteTab: DefaultWriteTab
   }
 
