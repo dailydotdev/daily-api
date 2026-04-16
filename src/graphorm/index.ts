@@ -1483,13 +1483,6 @@ const obj = new GraphORM({
       },
     },
   },
-  Prompt: {
-    fields: {
-      flags: {
-        jsonType: true,
-      },
-    },
-  },
   Product: {
     fields: {
       flags: {

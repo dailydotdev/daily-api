@@ -37,7 +37,6 @@ export type SettingsFlags = Partial<{
   browsingContextEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
-  lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
 }>;
 
@@ -53,7 +52,6 @@ export type SettingsFlagsPublic = Pick<
   | 'browsingContextEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
-  | 'lastPrompt'
   | 'defaultWriteTab'
 >;
 
