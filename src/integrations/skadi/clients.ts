@@ -1,11 +1,16 @@
 import { RequestInit } from 'node-fetch';
-import { ISkadiClient, SkadiResponse } from './types';
+import {
+  ISkadiClient,
+  SkadiResponse,
+  type EngagementCreative,
+  type SkadiAd,
+} from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
 import { counters } from '../../telemetry';
 
-export class SkadiClient implements ISkadiClient {
+export class SkadiClient<TValue> implements ISkadiClient<TValue> {
   private readonly fetchOptions: RequestInit;
   private readonly garmr: IGarmrService;
 
@@ -30,8 +35,8 @@ export class SkadiClient implements ISkadiClient {
     metadata: {
       USERID: string;
     },
-  ): Promise<SkadiResponse> {
-    return this.garmr.execute(() => {
+  ): Promise<SkadiResponse<TValue>> {
+    return this.garmr.execute(({ signal }) => {
       return fetchParse(`${this.url}/private`, {
         ...this.fetchOptions,
         method: 'POST',
@@ -42,6 +47,7 @@ export class SkadiClient implements ISkadiClient {
           placement,
           metadata,
         }),
+        signal,
       });
     });
   }
@@ -86,9 +92,27 @@ const garmrSkadiPersonalizedDigestService = new GarmrService({
   },
 });
 
-export const skadiPersonalizedDigestClient = new SkadiClient(
-  process.env.SKADI_ORIGIN,
-  {
-    garmr: garmrSkadiPersonalizedDigestService,
+export const skadiPersonalizedDigestClient = new SkadiClient<{
+  digest: SkadiAd;
+}>(process.env.SKADI_ORIGIN, {
+  garmr: garmrSkadiPersonalizedDigestService,
+});
+
+const garmrSkadiEngagementService = new GarmrService({
+  service: `${SkadiClient.name}Engagement`,
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
   },
-);
+  retryOpts: {
+    maxAttempts: 0,
+  },
+  timeoutMs: 600,
+});
+
+export const skadiEngagementClient = new SkadiClient<{
+  engagement: EngagementCreative;
+}>(process.env.SKADI_ORIGIN, {
+  garmr: garmrSkadiEngagementService,
+});

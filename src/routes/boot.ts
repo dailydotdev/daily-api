@@ -98,6 +98,10 @@ import {
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
 import { asyncRetry } from '../integrations/retry';
+import {
+  skadiEngagementClient,
+  type EngagementCreative,
+} from '../integrations/skadi';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -152,6 +156,7 @@ export type BaseBoot = {
   squads: BootSquadSource[];
   exp?: Experimentation;
   geo: Geo;
+  engagementCreatives?: EngagementCreative[];
 };
 
 export type BootUserReferral = Partial<{
@@ -205,6 +210,7 @@ type BootMiddleware = (
 type BootQuery = {
   referrer?: string | string[];
   app_platform?: string | string[];
+  ega?: string | string[];
 };
 
 const getBootQuery = (req: FastifyRequest): BootQuery =>
@@ -629,6 +635,39 @@ const getLocation = async (
   return location;
 };
 
+const isEngagementAdsEnabled = (req: FastifyRequest): boolean =>
+  unwrapArray(getBootQuery(req).ega) === '1';
+
+const getEngagementCreatives = async (
+  userId: string,
+  enabled: boolean,
+): Promise<EngagementCreative[]> => {
+  if (!enabled) {
+    return [];
+  }
+
+  try {
+    const response = await skadiEngagementClient.getAd('default_engagement', {
+      USERID: userId,
+    });
+
+    if (!response.value?.engagement || !response.generation_id) {
+      return [];
+    }
+
+    return [
+      {
+        ...response.value.engagement,
+        gen_id: response.generation_id,
+      },
+    ];
+  } catch (error) {
+    logger.error({ userId, err: error }, 'failed to fetch engagement ad');
+
+    return [];
+  }
+};
+
 const loggedInBoot = async ({
   con,
   req,
@@ -668,6 +707,7 @@ const loggedInBoot = async ({
       balance,
       clickbaitTries,
       anonymousTheme,
+      engagementCreatives,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -695,6 +735,7 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
+      getEngagementCreatives(userId, isEngagementAdsEnabled(req)),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -809,6 +850,7 @@ const loggedInBoot = async ({
       marketingCtaVariants,
       feeds,
       geo,
+      engagementCreatives,
       ...extra,
     } as LoggedInBoot;
   });
@@ -880,13 +922,15 @@ const anonymousBoot = async (
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
-  const [visit, extra, firstVisit, exp, existingTheme] = await Promise.all([
-    visitSection(req, res),
-    middleware ? middleware(con, req, res) : {},
-    getAnonymousFirstVisit(req.trackingId),
-    getExperimentation({ userId: req.trackingId, con, ...geo }),
-    getAnonymousTheme(req.trackingId),
-  ]);
+  const [visit, extra, firstVisit, exp, existingTheme, engagementCreatives] =
+    await Promise.all([
+      visitSection(req, res),
+      middleware ? middleware(con, req, res) : {},
+      getAnonymousFirstVisit(req.trackingId),
+      getExperimentation({ userId: req.trackingId, con, ...geo }),
+      getAnonymousTheme(req.trackingId),
+      getEngagementCreatives(req.trackingId ?? '', isEngagementAdsEnabled(req)),
+    ]);
 
   // Determine theme: use existing preference or referrer-based default
   const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
@@ -916,6 +960,7 @@ const anonymousBoot = async (
     squads: [],
     exp,
     geo,
+    engagementCreatives,
     ...extra,
   };
 };

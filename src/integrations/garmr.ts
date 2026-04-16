@@ -10,6 +10,8 @@ import {
   Policy,
   retry,
   SamplingBreaker,
+  timeout,
+  TimeoutStrategy,
   wrap,
 } from 'cockatiel';
 import { logger } from '../logger';
@@ -55,6 +57,7 @@ export class GarmrService implements IGarmrService {
     breakerOpts,
     retryOpts,
     limits,
+    timeoutMs,
     events,
   }: {
     service: string;
@@ -73,6 +76,7 @@ export class GarmrService implements IGarmrService {
       maxRequests: number;
       queuedRequests?: number;
     };
+    timeoutMs?: number;
     events?: Partial<{
       onBreak?: (props: {
         event: FailureReason<Error>;
@@ -151,7 +155,17 @@ export class GarmrService implements IGarmrService {
       events?.onReset?.({ meta: instanceMeta });
     });
 
-    this.instance = wrap(retryPolicy, circuitBreakerPolicy, bulkheadPolicy);
+    const policies: IPolicy[] = [
+      retryPolicy,
+      circuitBreakerPolicy,
+      bulkheadPolicy,
+    ];
+
+    if (timeoutMs && timeoutMs > 0) {
+      policies.push(timeout(timeoutMs, TimeoutStrategy.Cooperative));
+    }
+
+    this.instance = wrap(...policies);
   }
 
   execute<T>(

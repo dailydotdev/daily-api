@@ -112,6 +112,7 @@ const BASE_BODY = {
   },
   exp: { f: 'enc', e: [], a: {} },
   geo: {},
+  engagementCreatives: [],
 };
 
 const LOGGED_IN_BODY = {
@@ -2234,5 +2235,126 @@ describe('boot profile completion', () => {
       hasWork: true,
       hasEducation: true,
     });
+  });
+});
+
+describe('engagement creatives', () => {
+  const GENERATION_ID = 'test-generation-id';
+
+  const skadiEngagementPayload = {
+    promoted_name: 'Test Brand',
+    promoted_body: 'Test body',
+    promoted_cta: 'Try now',
+    promoted_url: 'https://example.com',
+    promoted_logo_img: {
+      dark: 'https://example.com/logo-dark.png',
+      light: 'https://example.com/logo-light.png',
+    },
+    promoted_icon_img: {
+      dark: 'https://example.com/icon-dark.png',
+      light: 'https://example.com/icon-light.png',
+    },
+    promoted_gradient_start: { dark: '#FF0000', light: '#CC0000' },
+    promoted_gradient_end: { dark: '#0000FF', light: '#0000CC' },
+    tools: ['tool1', 'tool2'],
+    keywords: ['keyword1', 'keyword2'],
+    tags: ['tag1', 'tag2'],
+  };
+
+  const skadiResponse = {
+    generation_id: GENERATION_ID,
+    value: { engagement: skadiEngagementPayload },
+  };
+
+  const expectedCreative = {
+    ...skadiEngagementPayload,
+    gen_id: GENERATION_ID,
+  };
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  it('should not fetch engagement creatives when ega param is missing', async () => {
+    const scope = nock(process.env.SKADI_ORIGIN)
+      .post('/private')
+      .reply(200, skadiResponse);
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([]);
+    expect(scope.isDone()).toBe(false);
+  });
+
+  it('should return engagement creatives when ega=1 for logged in user', async () => {
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private', {
+        placement: 'default_engagement',
+        metadata: { USERID: '1' },
+      })
+      .reply(200, skadiResponse);
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?ega=1`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([expectedCreative]);
+  });
+
+  it('should return engagement creatives when ega=1 for anonymous user', async () => {
+    nock(process.env.SKADI_ORIGIN).post('/private').reply(200, skadiResponse);
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?ega=1`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([expectedCreative]);
+  });
+
+  it('should return empty array when skadi returns no generation_id', async () => {
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private')
+      .reply(200, { value: { engagement: skadiEngagementPayload } });
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?ega=1`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([]);
+  });
+
+  it('should return empty array when skadi returns empty response', async () => {
+    nock(process.env.SKADI_ORIGIN).post('/private').reply(200, {});
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?ega=1`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([]);
+  });
+
+  it('should return empty array when skadi returns error', async () => {
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private')
+      .reply(500, 'Internal Server Error');
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?ega=1`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([]);
   });
 });

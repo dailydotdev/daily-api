@@ -7,19 +7,38 @@ export type SkadiAd = {
   company_logo: string;
   call_to_action: string;
 };
-export type SkadiResponse = Partial<{
+export type SkadiResponse<TValue> = Partial<{
   type: string;
-  value: {
-    digest: SkadiAd;
-  };
+  value: TValue;
   pixels: string[];
+  generation_id: string;
 }>;
 
-export interface ISkadiClient {
+export type ThemedValue = {
+  dark: string;
+  light: string;
+};
+
+export type EngagementCreative = {
+  gen_id: string;
+  promoted_name: string;
+  promoted_body: string;
+  promoted_cta: string;
+  promoted_url: string;
+  promoted_logo_img: ThemedValue;
+  promoted_icon_img: ThemedValue;
+  promoted_gradient_start: ThemedValue;
+  promoted_gradient_end: ThemedValue;
+  tools: string[];
+  keywords: string[];
+  tags: string[];
+};
+
+export interface ISkadiClient<TValue> {
   getAd(
     placement: string,
     metadata: {
       USERID: string;
     },
-  ): Promise<SkadiResponse>;
+  ): Promise<SkadiResponse<TValue>>;
 }
