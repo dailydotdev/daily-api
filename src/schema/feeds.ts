@@ -41,6 +41,7 @@ import {
 import { In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  connectionFromNodes,
   CursorPage,
   feedCursorPageGenerator,
   GQLEmptyResponse,
@@ -87,12 +88,16 @@ import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
 import {
+  emptyFeedV2Connection,
   feedV2QueryResolver,
   feedV2Resolvers,
   feedV2TypeDefs,
   type FeedV2Args,
+  getFeedV2AllowedPostTypes,
+  getFeedV2FieldTree,
   getForYouFeedGenerator,
   isSavedNoAiEnabled,
+  toFeedV2PostConnection,
 } from './feedV2';
 
 interface GQLTagsCategory {
@@ -1163,6 +1168,10 @@ interface FeedPage extends Page {
   score?: number;
 }
 
+type FeedVersionArgs = Pick<FeedArgs, 'ranking'> & {
+  version: number;
+};
+
 const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage, unknown> = {
   connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
     const cursor = getCursorFromAfter(after || undefined);
@@ -1218,6 +1227,36 @@ const applyFeedPaging = (
   }
   return newBuilder;
 };
+
+const shouldUseFeedGenerator = ({ version }: FeedVersionArgs) => {
+  return version >= 2;
+};
+
+const getConfiguredFeedId = (
+  ctx: Pick<Context, 'userId'>,
+  args: Pick<ConfiguredFeedArgs, 'feedId'> | Pick<FeedV2Args, 'feedId'>,
+): string | undefined => args.feedId || ctx.userId;
+
+const getConfiguredFeedQueryParams = (
+  ctx: Context,
+  args: Pick<ConfiguredFeedArgs, 'feedId'> | Pick<FeedV2Args, 'feedId'>,
+) => feedToFilters(ctx.con, getConfiguredFeedId(ctx, args), ctx.userId);
+
+const buildConfiguredFeedQuery = (
+  ctx: Context,
+  args: Pick<ConfiguredFeedArgs, 'feedId' | 'unreadOnly'> | FeedV2Args,
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+  queryParams: AnonymousFeedFilters | undefined,
+) =>
+  configuredFeedBuilder(
+    ctx,
+    getConfiguredFeedId(ctx, args),
+    args.unreadOnly,
+    builder,
+    alias,
+    queryParams,
+  );
 
 interface UpvotedPage extends Page {
   timestamp?: Date;
@@ -1387,26 +1426,85 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
       builder,
       alias,
       queryParams: AnonymousFeedFilters | undefined,
-    ) => {
-      const feedId = args.feedId || ctx.userId;
-
-      return configuredFeedBuilder(
-        ctx,
-        feedId,
-        args.unreadOnly,
-        builder,
-        alias,
-        queryParams,
-      );
-    },
+    ) => buildConfiguredFeedQuery(ctx, args, builder, alias, queryParams),
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx, args) =>
-        feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
+      fetchQueryParams: (ctx, args) => getConfiguredFeedQueryParams(ctx, args),
       allowPrivatePosts: false,
     },
   );
+
+const feedResolverV2Local: IFieldResolver<
+  unknown,
+  AuthContext,
+  FeedV2Args
+> = async (source, args, ctx, info) => {
+  const postFieldTree = getFeedV2FieldTree(info, 'FeedPostItem', 'post');
+  const allowedPostTypes = getFeedV2AllowedPostTypes(args.supportedTypes);
+
+  if ((args.supportedTypes && !allowedPostTypes?.length) || !postFieldTree) {
+    return emptyFeedV2Connection(args);
+  }
+
+  const page = feedPageGenerator.connArgsToPage(args);
+  const queryParams = await getConfiguredFeedQueryParams(ctx, args);
+  const supportedTypes = allowedPostTypes?.filter((type) => {
+    return queryParams.excludeTypes
+      ? !queryParams.excludeTypes.includes(type)
+      : true;
+  });
+  const sourceTypes = queryParams.excludeSourceTypes?.length
+    ? baseFeedConfig.source_types?.filter(
+        (type) => !queryParams.excludeSourceTypes?.includes(type),
+      ) || []
+    : [];
+
+  const nodes = await graphorm.queryResolveTree<GQLPost>(
+    ctx,
+    postFieldTree,
+    (builder) => {
+      builder.queryBuilder = applyFeedWhere(
+        ctx,
+        applyFeedPaging(
+          ctx,
+          args,
+          page,
+          buildConfiguredFeedQuery(
+            ctx,
+            args,
+            builder.queryBuilder,
+            builder.alias,
+            queryParams,
+          ),
+          builder.alias,
+        ),
+        builder.alias,
+        supportedTypes || ['article'],
+        true,
+        true,
+        false,
+        true,
+        true,
+        sourceTypes,
+      );
+      return builder;
+    },
+    true,
+  );
+
+  return toFeedV2PostConnection(
+    connectionFromNodes(
+      args,
+      nodes,
+      undefined,
+      page,
+      feedPageGenerator,
+      undefined,
+      queryParams,
+    ),
+  );
+};
 
 const feedResolverCursor = feedResolver<
   unknown,
@@ -1554,23 +1652,15 @@ const postRepostsFeedResolver = feedResolver(
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      if (shouldUseFeedGenerator(args)) {
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: feedGenerators['popular']!,
-          },
-          ctx,
-          info,
-        );
-      }
-      if (args.version >= 2 && args.ranking === Ranking.TIME) {
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: feedGenerators['time']!,
+            generator:
+              args.ranking === Ranking.TIME
+                ? feedGenerators['time']!
+                : feedGenerators['popular']!,
           },
           ctx,
           info,
@@ -1579,22 +1669,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
-      const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: getForYouFeedGenerator({
-              ...args,
-              noAi: shouldApplyNoAi,
-            }),
-          },
-          ctx,
-          info,
-        );
-      }
-      if (args.version >= 2 && args.ranking === Ranking.TIME) {
+      if (shouldUseFeedGenerator(args)) {
+        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
         return feedResolverCursor(
           source,
           {
@@ -1611,7 +1687,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return feedResolverV1(source, args, ctx, info);
     },
     feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
-      feedV2QueryResolver(source, args, ctx, info),
+      shouldUseFeedGenerator(args)
+        ? feedV2QueryResolver(source, args, ctx, info)
+        : feedResolverV2Local(source, args, ctx, info),
     followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
       return feedResolverCursor(
         source,

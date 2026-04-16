@@ -5,6 +5,7 @@ import graphorm from '../graphorm';
 import type { AuthContext, BaseContext } from '../Context';
 import type { GQLPost } from './posts';
 import type { FeedGenerator, FeedResponse } from '../integrations/feed';
+import type { Connection } from 'graphql-relay';
 import {
   isFeedResponseHighlightItem,
   versionToFeedGenerator,
@@ -171,7 +172,7 @@ const supportsHighlights = ({
 }: Pick<FeedV2Args, 'supportedTypes' | 'highlightsLimit'>): boolean =>
   !!supportedTypes?.includes('highlight') && !!highlightsLimit;
 
-const getAllowedPostTypes = (
+export const getFeedV2AllowedPostTypes = (
   supportedTypes: FeedV2Args['supportedTypes'],
 ): string[] | undefined =>
   supportedTypes?.filter((type) => type !== 'highlight');
@@ -192,7 +193,7 @@ const getResolveTreeChild = (
   );
 };
 
-const getFeedV2FieldTree = (
+export const getFeedV2FieldTree = (
   info: GraphQLResolveInfo,
   typeName: 'FeedPostItem' | 'FeedHighlightsItem',
   fieldName: 'post' | 'highlights',
@@ -248,6 +249,32 @@ const toFeedV2Items = ({
     return acc;
   }, []);
 
+export const toFeedV2PostConnection = (
+  connection: Connection<GQLPost>,
+): Connection<GQLFeedItem> => ({
+  pageInfo: connection.pageInfo,
+  edges: connection.edges.map((edge) => ({
+    cursor: edge.cursor,
+    node: {
+      itemType: 'post',
+      postId: edge.node.id,
+      post: edge.node,
+      feedMeta: edge.node.feedMeta ?? null,
+    },
+  })),
+});
+
+export const emptyFeedV2Connection = ({
+  after,
+}: Pick<FeedV2Args, 'after'>): Connection<GQLFeedItem> =>
+  graphorm.nodesToConnection<GQLFeedItem>(
+    [],
+    0,
+    () => !!after,
+    () => false,
+    () => after || '',
+  );
+
 export const feedV2QueryResolver: IFieldResolver<
   unknown,
   AuthContext,
@@ -257,7 +284,7 @@ export const feedV2QueryResolver: IFieldResolver<
     limit: Math.min(args.first || 30, 50),
     cursor: args.after || undefined,
   };
-  const allowedPostTypes = getAllowedPostTypes(args.supportedTypes);
+  const allowedPostTypes = getFeedV2AllowedPostTypes(args.supportedTypes);
   const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
   const response = await getForYouFeedGenerator({
     ...args,
