@@ -1228,16 +1228,8 @@ const applyFeedPaging = (
   return newBuilder;
 };
 
-const shouldUseFeedGenerator = ({ version, ranking }: FeedVersionArgs) => {
-  if (version >= 2 && ranking === Ranking.POPULARITY) {
-    return true;
-  }
-
-  if (version >= 2 && ranking === Ranking.TIME) {
-    return true;
-  }
-
-  return false;
+const shouldUseFeedGenerator = ({ version }: FeedVersionArgs) => {
+  return version >= 2;
 };
 
 const getConfiguredFeedId = (
