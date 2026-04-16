@@ -1605,6 +1605,75 @@ describe('query feedV2', () => {
       },
     ]);
   });
+
+  it('should fall back to the local feed resolver for legacy versions', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    const fallbackQuery = `
+      query FeedFallback($first: Int, $version: Int) {
+        feed(first: $first, version: $version, unreadOnly: false) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              id
+              title
+              type
+              feedMeta
+            }
+          }
+        }
+        feedV2(first: $first, version: $version, unreadOnly: false) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              __typename
+              ... on FeedPostItem {
+                feedMeta
+                post {
+                  id
+                  title
+                  type
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(fallbackQuery, {
+      variables: {
+        first: 10,
+        version: 1,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.pageInfo).toEqual(res.data.feed.pageInfo);
+    expect(res.data.feedV2.edges).toEqual(
+      res.data.feed.edges.map((edge) => ({
+        cursor: edge.cursor,
+        node: {
+          __typename: 'FeedPostItem',
+          feedMeta: edge.node.feedMeta,
+          post: {
+            id: edge.node.id,
+            title: edge.node.title,
+            type: edge.node.type,
+          },
+        },
+      })),
+    );
+  });
 });
 
 describe('query feedByConfig', () => {
