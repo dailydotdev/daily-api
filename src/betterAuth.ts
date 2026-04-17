@@ -18,7 +18,18 @@ import { User } from './entity/user/User';
 import { cookies, extractRootDomain } from './cookies';
 import { getGeo } from './common/geo';
 import { getUserCoresRole } from './common/user';
-import { generateLongId } from './ids';
+import { generateLongId, generateShortId } from './ids';
+import { UserActionType } from './entity/user/UserAction';
+import { insertOrIgnoreAction } from './schema/actions';
+import { DigestPost } from './entity/posts/DigestPost';
+import { DIGEST_SOURCE } from './entity/Source';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from './notifications/common';
+import { addClaimableItemsToUser } from './entity/user/utils';
+import { claimAnonOpportunities } from './common/opportunity/user';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -287,6 +298,71 @@ const cookieDomain = process.env.BETTER_AUTH_BASE_URL
   ? extractRootDomain(new URL(process.env.BETTER_AUTH_BASE_URL).hostname)
   : undefined;
 
+const MAX_DELETED_USER_COLLISION_RETRIES = 3;
+
+const ensureNonDeletedUserId = async (
+  pool: Pool,
+  candidate: string,
+): Promise<string> => {
+  let id = candidate;
+  for (let i = 0; i < MAX_DELETED_USER_COLLISION_RETRIES; i++) {
+    const { rowCount } = await pool.query(
+      'SELECT id FROM public."deleted_user" WHERE id = $1',
+      [id],
+    );
+    if (!rowCount) {
+      return id;
+    }
+    id = await generateLongId();
+  }
+  return id;
+};
+
+const resolveSignUpUserId = async (
+  pool: Pool,
+  user: { email: string },
+  ctx: unknown,
+): Promise<{ data: { id: string } }> => {
+  try {
+    const hookCtx = ctx as BetterAuthDbHookContext;
+    const cookieHeader = hookCtx?.request?.headers?.get('cookie') ?? '';
+    const trackingId = parseTrackingIdFromCookieHeader(cookieHeader);
+    if (trackingId) {
+      const existing = await pool.query<{ email: string }>(
+        'SELECT email FROM public."user" WHERE id = $1',
+        [trackingId],
+      );
+      if (existing.rowCount && existing.rowCount > 0) {
+        const existingEmail = existing.rows[0].email;
+
+        logger.warn(
+          {
+            trackingId,
+            sameEmail: existingEmail === user.email,
+          },
+          'Tracking cookie ID collision: cookie holds an existing user ID during signup',
+        );
+
+        if (existingEmail !== user.email) {
+          // user has stale tracking cookie generate new user
+          // is to safely insert since its a new email
+          // in latter stage better auth logic will correlate
+          // with existing credential if it exists for email
+          return { data: { id: await generateLongId() } };
+        }
+      }
+      return { data: { id: trackingId } };
+    }
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      'Failed to extract tracking ID for new user',
+    );
+  }
+
+  return { data: { id: await generateLongId() } };
+};
+
 export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
   const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS
     ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(',')
@@ -416,52 +492,17 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
       user: {
         create: {
           before: async (user, ctx) => {
-            try {
-              const hookCtx = ctx as BetterAuthDbHookContext;
-              const cookieHeader =
-                hookCtx?.request?.headers?.get('cookie') ?? '';
-              const trackingId = parseTrackingIdFromCookieHeader(cookieHeader);
-              if (trackingId) {
-                const existing = await pool.query<{ email: string }>(
-                  'SELECT email FROM public."user" WHERE id = $1',
-                  [trackingId],
-                );
-                if (existing.rowCount && existing.rowCount > 0) {
-                  const existingEmail = existing.rows[0].email;
-
-                  logger.warn(
-                    {
-                      trackingId,
-                      sameEmail: existingEmail === user.email,
-                    },
-                    'Tracking cookie ID collision: cookie holds an existing user ID during signup',
-                  );
-
-                  if (existingEmail !== user.email) {
-                    // user has stale tracking cookie generate new user
-                    // is to safely insert since its a new email
-                    // in latter stage better auth logic will correlate
-                    // with existing credential if it exists for email
-                    const newId = await generateLongId();
-
-                    return { data: { id: newId } };
-                  }
-                }
-                return { data: { id: trackingId } };
-              }
-            } catch (err) {
-              logger.error(
-                { err: err instanceof Error ? err.message : String(err) },
-                'Failed to extract tracking ID for new user',
-              );
-            }
-
-            return { data: { id: await generateLongId() } };
+            const resolved = await resolveSignUpUserId(pool, user, ctx);
+            resolved.data.id = await ensureNonDeletedUserId(
+              pool,
+              resolved.data.id,
+            );
+            return resolved;
           },
           after: async (user, ctx) => {
             try {
               await pool.query(
-                'INSERT INTO feed (id, "userId") VALUES (gen_random_uuid(), $1) ON CONFLICT DO NOTHING',
+                'INSERT INTO feed (id, "userId") VALUES ($1, $1) ON CONFLICT DO NOTHING',
                 [user.id],
               );
 
@@ -503,6 +544,20 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 paramIndex++;
               }
 
+              const notificationFlags =
+                body?.acceptedMarketing === false
+                  ? {
+                      ...DEFAULT_NOTIFICATION_SETTINGS,
+                      [NotificationType.Marketing]: {
+                        email: NotificationPreferenceStatus.Muted,
+                        inApp: NotificationPreferenceStatus.Muted,
+                      },
+                    }
+                  : DEFAULT_NOTIFICATION_SETTINGS;
+              setClauses.push(`"notificationFlags" = $${paramIndex}`);
+              values.push(notificationFlags);
+              paramIndex++;
+
               const ip =
                 hookCtx?.request?.headers
                   ?.get('x-forwarded-for')
@@ -520,6 +575,62 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $1`,
                 values,
               );
+
+              await insertOrIgnoreAction(
+                AppDataSource.manager,
+                user.id,
+                UserActionType.CheckedCoresRole,
+              );
+
+              const digestPostId = await generateShortId();
+              await AppDataSource.getRepository(DigestPost)
+                .createQueryBuilder()
+                .insert()
+                .values({
+                  id: digestPostId,
+                  shortId: digestPostId,
+                  authorId: user.id,
+                  private: true,
+                  visible: false,
+                  sourceId: DIGEST_SOURCE,
+                })
+                .orIgnore()
+                .execute();
+
+              try {
+                await addClaimableItemsToUser(AppDataSource, {
+                  id: user.id,
+                  email: user.email,
+                });
+              } catch (err) {
+                logger.error(
+                  {
+                    err: err instanceof Error ? err.message : String(err),
+                    userId: user.id,
+                  },
+                  'Failed to add claimable items for new BA user',
+                );
+              }
+
+              try {
+                for (const identifier of [user.id, user.email].filter(
+                  Boolean,
+                )) {
+                  await claimAnonOpportunities({
+                    anonUserId: identifier,
+                    userId: user.id,
+                    con: AppDataSource.manager,
+                  });
+                }
+              } catch (err) {
+                logger.error(
+                  {
+                    err: err instanceof Error ? err.message : String(err),
+                    userId: user.id,
+                  },
+                  'Failed to claim anonymous opportunities for new BA user',
+                );
+              }
 
               await triggerTypedEvent(logger, 'api.v1.ba-user-created', {
                 userId: user.id,
