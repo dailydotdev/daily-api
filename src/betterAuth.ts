@@ -315,7 +315,9 @@ const ensureNonDeletedUserId = async (
     }
     id = await generateLongId();
   }
-  return id;
+  throw new Error(
+    `Failed to generate non-deleted user id after ${MAX_DELETED_USER_COLLISION_RETRIES} retries`,
+  );
 };
 
 const resolveSignUpUserId = async (

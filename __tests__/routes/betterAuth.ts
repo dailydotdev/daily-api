@@ -175,13 +175,23 @@ describe('betterAuth routes', () => {
         overrides: {
           body?: Record<string, unknown>;
           cookie?: string;
+          ip?: string;
         } = {},
-      ) => ({
-        request: new Request('http://localhost/auth/sign-up/email', {
-          headers: overrides.cookie ? { cookie: overrides.cookie } : undefined,
-        }),
-        body: overrides.body,
-      });
+      ) => {
+        const headers: Record<string, string> = {};
+        if (overrides.cookie) {
+          headers.cookie = overrides.cookie;
+        }
+        if (overrides.ip) {
+          headers['x-forwarded-for'] = overrides.ip;
+        }
+        return {
+          request: new Request('http://localhost/auth/sign-up/email', {
+            headers: Object.keys(headers).length ? headers : undefined,
+          }),
+          body: overrides.body,
+        };
+      };
 
       const createBaseUser = async () => {
         const id = await generateShortId();
@@ -224,11 +234,11 @@ describe('betterAuth routes', () => {
         expect(digestPost!.private).toBeTruthy();
       });
 
-      it('should set UserAction for cores role', async () => {
+      it('should set UserAction for cores role when ip is present', async () => {
         const after = await getAfterHook();
         const user = await createBaseUser();
 
-        await after(user, makeContext());
+        await after(user, makeContext({ ip: '1.2.3.4' }));
 
         const userAction = await con.getRepository(UserAction).findOneBy({
           userId: user.id,
