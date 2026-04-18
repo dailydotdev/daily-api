@@ -407,6 +407,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Deprecated, no longer in use. Kept for backwards compatibility.
+      """
+      noAi: Boolean = false
     ): PostConnection! @auth
 
     """

@@ -101,6 +101,11 @@ export const feedV2TypeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
+      Deprecated, no longer in use. Kept for backwards compatibility.
+      """
+      noAi: Boolean = false
+
+      """
       Number of highlights to include in a highlights item.
       If zero or null, highlights items are not requested.
       """
