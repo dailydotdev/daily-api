@@ -569,17 +569,17 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 setClauses.push(`"coresRole" = $${paramIndex}`);
                 values.push(String(coresRole));
                 paramIndex++;
+
+                await insertOrIgnoreAction(
+                  AppDataSource.manager,
+                  user.id,
+                  UserActionType.CheckedCoresRole,
+                );
               }
 
               await pool.query(
                 `UPDATE public."user" SET ${setClauses.join(', ')} WHERE id = $1`,
                 values,
-              );
-
-              await insertOrIgnoreAction(
-                AppDataSource.manager,
-                user.id,
-                UserActionType.CheckedCoresRole,
               );
 
               const digestPostId = await generateShortId();
