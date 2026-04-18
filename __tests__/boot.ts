@@ -1400,7 +1400,6 @@ describe('boot misc', () => {
         sidebarSquadExpanded: true,
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
-        noAiFeedEnabled: false,
         browsingContextEnabled: false,
       },
     });

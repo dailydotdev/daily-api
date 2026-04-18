@@ -96,7 +96,6 @@ import {
   getFeedV2AllowedPostTypes,
   getFeedV2FieldTree,
   getForYouFeedGenerator,
-  isSavedNoAiEnabled,
   toFeedV2PostConnection,
 } from './feedV2';
 
@@ -408,11 +407,6 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
-
-      """
-      Exclude AI-related content from the feed
-      """
-      noAi: Boolean = false
     ): PostConnection! @auth
 
     """
@@ -1139,7 +1133,6 @@ interface AnonymousFeedArgs extends FeedArgs {
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
   version: number;
-  noAi?: boolean;
 }
 
 interface SourceFeedArgs extends FeedArgs {
@@ -1670,15 +1663,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
       if (shouldUseFeedGenerator(args)) {
-        const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: getForYouFeedGenerator({
-              ...args,
-              noAi: shouldApplyNoAi,
-            }),
+            generator: getForYouFeedGenerator(args),
           },
           ctx,
           info,

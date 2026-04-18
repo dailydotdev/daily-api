@@ -11,7 +11,6 @@ Object {
     "flags": Object {
       "clickbaitShieldEnabled": null,
       "defaultWriteTab": null,
-      "noAiFeedEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -49,7 +48,6 @@ Object {
     "flags": Object {
       "clickbaitShieldEnabled": null,
       "defaultWriteTab": null,
-      "noAiFeedEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -89,7 +87,6 @@ Object {
     "flags": Object {
       "clickbaitShieldEnabled": null,
       "defaultWriteTab": null,
-      "noAiFeedEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -129,7 +126,6 @@ Object {
     "flags": Object {
       "clickbaitShieldEnabled": null,
       "defaultWriteTab": null,
-      "noAiFeedEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,

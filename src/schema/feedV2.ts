@@ -18,14 +18,11 @@ import {
   fixedIdsFeedBuilder,
   Ranking,
 } from '../common';
-import { NO_AI_BLOCKED_TAGS, NO_AI_BLOCKED_WORDS } from '../common/noAiFilter';
-import { Settings, type PostHighlight } from '../entity';
-import { queryReadReplica } from '../common/queryReadReplica';
+import { type PostHighlight } from '../entity';
 
 export type FeedV2Args = FeedArgs & {
   unreadOnly: boolean;
   version: number;
-  noAi?: boolean;
   highlightsLimit?: number | null;
 };
 
@@ -104,11 +101,6 @@ export const feedV2TypeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
-      Exclude AI-related content from the feed
-      """
-      noAi: Boolean = false
-
-      """
       Number of highlights to include in a highlights item.
       If zero or null, highlights items are not requested.
       """
@@ -117,50 +109,16 @@ export const feedV2TypeDefs = /* GraphQL */ `
   }
 `;
 
-const mergeUniqueStrings = (
-  current: string[] | undefined,
-  additions: readonly string[],
-): string[] => Array.from(new Set([...(current ?? []), ...additions]));
-
-const withNoAi = (generator: FeedGenerator): FeedGenerator =>
-  generator.withConfigTransform((result) => ({
-    ...result,
-    config: {
-      ...result.config,
-      blocked_tags: mergeUniqueStrings(
-        result.config.blocked_tags,
-        NO_AI_BLOCKED_TAGS,
-      ),
-      blocked_title_words: mergeUniqueStrings(
-        result.config.blocked_title_words,
-        NO_AI_BLOCKED_WORDS,
-      ),
-    },
-  }));
-
 export const getForYouFeedGenerator = ({
   ranking,
   version,
-  noAi,
-}: Pick<FeedV2Args, 'ranking' | 'version' | 'noAi'>): FeedGenerator => {
+}: Pick<FeedV2Args, 'ranking' | 'version'>): FeedGenerator => {
   const generator =
     ranking === Ranking.TIME
       ? versionToTimeFeedGenerator(version)
       : versionToFeedGenerator(version);
 
-  return noAi ? withNoAi(generator) : generator;
-};
-
-export const isSavedNoAiEnabled = async (
-  ctx: AuthContext,
-): Promise<boolean> => {
-  const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Settings).findOneBy({
-      userId: ctx.userId,
-    }),
-  );
-
-  return settings?.flags?.noAiFeedEnabled ?? false;
+  return generator;
 };
 
 const encodeFeedMeta = (feedMeta: string | null | undefined): string | null =>
@@ -285,11 +243,7 @@ export const feedV2QueryResolver: IFieldResolver<
     cursor: args.after || undefined,
   };
   const allowedPostTypes = getFeedV2AllowedPostTypes(args.supportedTypes);
-  const shouldApplyNoAi = args.noAi || (await isSavedNoAiEnabled(ctx));
-  const response = await getForYouFeedGenerator({
-    ...args,
-    noAi: shouldApplyNoAi,
-  }).generate(ctx, {
+  const response = await getForYouFeedGenerator(args).generate(ctx, {
     user_id: ctx.userId || ctx.trackingId,
     page_size: page.limit,
     offset: 0,
