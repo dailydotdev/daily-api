@@ -1382,6 +1382,7 @@ describe('boot misc', () => {
       userId: '1',
       theme: 'bright',
       insaneMode: true,
+      flags: { removedFlag: true } as never,
     });
     const settings = new Object(data);
     delete settings['updatedAt'];
@@ -1403,6 +1404,7 @@ describe('boot misc', () => {
         browsingContextEnabled: false,
       },
     });
+    expect(res.body.settings.flags.removedFlag).toBeUndefined();
   });
 
   it('should return unread notifications count', async () => {
