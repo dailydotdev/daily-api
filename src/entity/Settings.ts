@@ -33,7 +33,6 @@ export type SettingsFlags = Partial<{
   sidebarResourcesExpanded: boolean;
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
-  noAiFeedEnabled: boolean;
   browsingContextEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
@@ -49,7 +48,6 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarResourcesExpanded'
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
-  | 'noAiFeedEnabled'
   | 'browsingContextEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
@@ -167,7 +165,6 @@ export const SETTINGS_DEFAULT = {
     sidebarResourcesExpanded: true,
     sidebarBookmarksExpanded: true,
     clickbaitShieldEnabled: true,
-    noAiFeedEnabled: false,
     defaultWriteTab: DefaultWriteTab.NewPost,
   },
 };

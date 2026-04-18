@@ -1382,6 +1382,7 @@ describe('boot misc', () => {
       userId: '1',
       theme: 'bright',
       insaneMode: true,
+      flags: { removedFlag: true } as never,
     });
     const settings = new Object(data);
     delete settings['updatedAt'];
@@ -1400,10 +1401,10 @@ describe('boot misc', () => {
         sidebarSquadExpanded: true,
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
-        noAiFeedEnabled: false,
         browsingContextEnabled: false,
       },
     });
+    expect(res.body.settings.flags.removedFlag).toBeUndefined();
   });
 
   it('should return unread notifications count', async () => {
