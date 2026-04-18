@@ -8,7 +8,6 @@ import { z } from 'zod';
 import { decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { AppDataSource } from './data-source';
 import { logger } from './logger';
-import { triggerTypedEvent } from './common/typedPubsub';
 import { sendEmail, CioTransactionalMessageTemplateId } from './common/mailing';
 import { handleRegex } from './common/object';
 import { validateAndTransformHandle } from './common/handles';
@@ -30,6 +29,7 @@ import {
 } from './notifications/common';
 import { addClaimableItemsToUser } from './entity/user/utils';
 import { claimAnonOpportunities } from './common/opportunity/user';
+import { triggerTypedEvent } from './common/typedPubsub';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -633,10 +633,6 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                   'Failed to claim anonymous opportunities for new BA user',
                 );
               }
-
-              await triggerTypedEvent(logger, 'api.v1.ba-user-created', {
-                userId: user.id,
-              });
             } catch (err) {
               logger.error(
                 {
@@ -646,6 +642,10 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 'Failed to set up new user defaults after BA creation',
               );
             }
+
+            await triggerTypedEvent(logger, 'api.v1.ba-user-created', {
+              userId: user.id,
+            });
           },
         },
       },
