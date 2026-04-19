@@ -1010,6 +1010,95 @@ describe('leaderboard', () => {
         },
       });
     });
+
+    it('should exclude milestone quests from all stats', async () => {
+      const now = new Date();
+      const { periodStart: weekStart } = getQuestWindow(QuestType.Weekly, now);
+
+      await saveFixtures(con, Quest, [
+        {
+          id: '00000000-0000-0000-0000-000000000301',
+          name: 'Daily Quest',
+          description: 'A daily quest',
+          type: QuestType.Daily,
+          eventType: QuestEventType.HotTakeVote,
+          criteria: { targetCount: 1 },
+          active: true,
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000302',
+          name: 'Read 1000 Articles',
+          description: 'A milestone quest',
+          type: QuestType.Milestone,
+          eventType: QuestEventType.BriefRead,
+          criteria: { targetCount: 1000 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: '00000000-0000-0000-0000-000000000311',
+          questId: '00000000-0000-0000-0000-000000000301',
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 1,
+          periodStart: weekStart,
+          periodEnd: new Date(weekStart.getTime() + 24 * 60 * 60 * 1000),
+        },
+        {
+          id: '00000000-0000-0000-0000-000000000312',
+          questId: '00000000-0000-0000-0000-000000000302',
+          type: QuestType.Milestone,
+          plusOnly: false,
+          slot: 1,
+          periodStart: new Date('2024-01-01'),
+          periodEnd: new Date('2099-01-01'),
+        },
+      ]);
+
+      await con.getRepository(UserQuest).save([
+        {
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000311',
+          status: UserQuestStatus.Completed,
+          progress: 1,
+          completedAt: new Date(weekStart.getTime() + 2 * 60 * 60 * 1000),
+        },
+        {
+          userId: '1',
+          rotationId: '00000000-0000-0000-0000-000000000312',
+          status: UserQuestStatus.Completed,
+          progress: 1000,
+          completedAt: new Date(weekStart.getTime() + 3 * 60 * 60 * 1000),
+        },
+        {
+          userId: '2',
+          rotationId: '00000000-0000-0000-0000-000000000312',
+          status: UserQuestStatus.Claimed,
+          progress: 1000,
+          completedAt: new Date(weekStart.getTime() + 4 * 60 * 60 * 1000),
+          claimedAt: new Date(weekStart.getTime() + 5 * 60 * 60 * 1000),
+        },
+      ]);
+
+      const res = await client.query(QUEST_COMPLETION_STATS_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.questCompletionStats).toMatchObject({
+        totalCount: 1,
+        allTimeLeader: {
+          questId: '00000000-0000-0000-0000-000000000301',
+          questName: 'Daily Quest',
+          count: 1,
+        },
+        weeklyLeader: {
+          questId: '00000000-0000-0000-0000-000000000301',
+          questName: 'Daily Quest',
+          count: 1,
+        },
+      });
+    });
   });
 
   describe('popularHotTakes', () => {
