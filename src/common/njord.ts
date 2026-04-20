@@ -653,6 +653,10 @@ export const awardUser = async (
           receiverId,
           note,
           flags,
+          entityReference: {
+            id: receiverId,
+            type: UserTransactionType.User,
+          },
         });
 
         try {
