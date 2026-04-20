@@ -149,10 +149,7 @@ import {
 } from '../../../src/entity/user/UserTransaction';
 import { Quest, QuestEventType, QuestType } from '../../../src/entity/Quest';
 import { QuestRotation } from '../../../src/entity/QuestRotation';
-import {
-  UserQuest,
-  UserQuestStatus,
-} from '../../../src/entity/user/UserQuest';
+import { UserQuest, UserQuestStatus } from '../../../src/entity/user/UserQuest';
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
