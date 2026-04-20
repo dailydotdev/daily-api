@@ -145,7 +145,14 @@ import {
   UserTransaction,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../../../src/entity/user/UserTransaction';
+import { Quest, QuestEventType, QuestType } from '../../../src/entity/Quest';
+import { QuestRotation } from '../../../src/entity/QuestRotation';
+import {
+  UserQuest,
+  UserQuestStatus,
+} from '../../../src/entity/user/UserQuest';
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
@@ -8052,6 +8059,191 @@ describe('user transaction achievement progress', () => {
     expect(userAchievement).not.toBeNull();
     expect(userAchievement!.progress).toEqual(200);
     expect(userAchievement!.unlockedAt).toBeNull();
+  });
+});
+
+describe('user transaction award given quest progress', () => {
+  let senderId: string;
+  let receiverId: string;
+  let productId: string;
+  let questId: string;
+  let rotationId: string;
+
+  beforeEach(async () => {
+    senderId = randomUUID();
+    receiverId = randomUUID();
+    productId = randomUUID();
+    questId = randomUUID();
+    rotationId = randomUUID();
+
+    await saveFixtures(con, User, [
+      {
+        id: senderId,
+        bio: null,
+        name: 'Award Sender',
+        image: 'https://daily.dev/award-sender.jpg',
+        email: `award-sender-${senderId}@daily.dev`,
+        createdAt: new Date(),
+        username: `sender${senderId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+      {
+        id: receiverId,
+        bio: null,
+        name: 'Award Receiver',
+        image: 'https://daily.dev/award-receiver.jpg',
+        email: `award-receiver-${receiverId}@daily.dev`,
+        createdAt: new Date(),
+        username: `recv${receiverId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+
+    await con.getRepository(Product).save({
+      id: productId,
+      type: ProductType.Award,
+      image: 'https://daily.dev/product.jpg',
+      name: 'Award Given Quest Product',
+      value: 10,
+      flags: {},
+    });
+
+    const now = new Date();
+    const periodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const periodEnd = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+    await con.getRepository(Quest).save({
+      id: questId,
+      name: `Give 5 awards ${questId}`,
+      description: 'Give 5 awards this week',
+      type: QuestType.Weekly,
+      eventType: QuestEventType.AwardGiven,
+      criteria: { targetCount: 5 },
+      active: true,
+    });
+
+    await con.getRepository(QuestRotation).save({
+      id: rotationId,
+      questId,
+      type: QuestType.Weekly,
+      plusOnly: false,
+      slot: 0,
+      periodStart,
+      periodEnd,
+    });
+  });
+
+  const buildTransactionChange = (
+    id: string,
+    referenceType: string | null,
+    referenceId: string | null,
+  ) => ({
+    before: {
+      id,
+      productId,
+      referenceId,
+      referenceType,
+      status: UserTransactionStatus.Processing,
+      receiverId,
+      senderId,
+      value: 10,
+      valueIncFees: 10,
+      fee: 0,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    },
+    after: {
+      id,
+      productId,
+      referenceId,
+      referenceType,
+      status: UserTransactionStatus.Success,
+      receiverId,
+      senderId,
+      value: 10,
+      valueIncFees: 10,
+      fee: 0,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    },
+    op: 'u' as const,
+    table: 'user_transaction',
+  });
+
+  it('should increment award_given quest progress for user-type awards', async () => {
+    const transactionId = randomUUID();
+
+    await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      productId,
+      referenceId: receiverId,
+      referenceType: UserTransactionType.User,
+      status: UserTransactionStatus.Success,
+      receiverId,
+      senderId,
+      value: 10,
+      valueIncFees: 10,
+      fee: 0,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    });
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserTransaction>(
+        buildTransactionChange(
+          transactionId,
+          UserTransactionType.User,
+          receiverId,
+        ),
+      ),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneBy({
+      rotationId,
+      userId: senderId,
+    });
+
+    expect(userQuest).not.toBeNull();
+    expect(userQuest!.progress).toEqual(1);
+    expect(userQuest!.status).toEqual(UserQuestStatus.InProgress);
+  });
+
+  it('should not increment award_given quest progress when referenceType is null', async () => {
+    const transactionId = randomUUID();
+
+    await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      productId,
+      referenceId: null,
+      referenceType: null,
+      status: UserTransactionStatus.Success,
+      receiverId,
+      senderId,
+      value: 10,
+      valueIncFees: 10,
+      fee: 0,
+      request: {},
+      flags: {},
+      processor: UserTransactionProcessor.Njord,
+    });
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserTransaction>(
+        buildTransactionChange(transactionId, null, null),
+      ),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneBy({
+      rotationId,
+      userId: senderId,
+    });
+
+    expect(userQuest).toBeNull();
   });
 });
 

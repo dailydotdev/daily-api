@@ -1785,7 +1785,8 @@ const onUserTransactionChange = async (
 
     if (
       (transaction.referenceType === UserTransactionType.Post ||
-        transaction.referenceType === UserTransactionType.Comment) &&
+        transaction.referenceType === UserTransactionType.Comment ||
+        transaction.referenceType === UserTransactionType.User) &&
       transaction.senderId &&
       transaction.receiverId !== transaction.senderId
     ) {
@@ -1795,14 +1796,6 @@ const onUserTransactionChange = async (
         transaction.receiverId,
         AchievementEventType.AwardReceived,
       );
-    }
-
-    if (
-      (transaction.referenceType === UserTransactionType.Post ||
-        transaction.referenceType === UserTransactionType.Comment) &&
-      transaction.senderId &&
-      transaction.receiverId !== transaction.senderId
-    ) {
       await checkAchievementProgress(
         con,
         logger,
