@@ -122,10 +122,20 @@ export const logoutBetterAuth = async (
 const isOAuthCallbackPath = (url: string): boolean =>
   /\/auth\/callback\//.test(url);
 
-const rewriteOAuthErrorRedirect = (
+const oauthProviderPattern = /\/auth\/callback\/([^/?]+)/;
+
+export type OAuthErrorRewrite = {
+  url: string;
+  provider?: string;
+  error?: string;
+  errorDescription?: string;
+  state?: string;
+};
+
+export const rewriteOAuthErrorRedirect = (
   request: FastifyRequest,
   response: Response,
-): string | undefined => {
+): OAuthErrorRewrite | undefined => {
   if (!isOAuthCallbackPath(request.url)) {
     return undefined;
   }
@@ -167,7 +177,14 @@ const rewriteOAuthErrorRedirect = (
     callbackUrl.searchParams.set(key, value);
   });
 
-  return callbackUrl.toString();
+  return {
+    url: callbackUrl.toString(),
+    provider: request.url.match(oauthProviderPattern)?.[1],
+    error: redirectUrl.searchParams.get('error') ?? undefined,
+    errorDescription:
+      redirectUrl.searchParams.get('error_description') ?? undefined,
+    state: redirectUrl.searchParams.get('state') ?? undefined,
+  };
 };
 
 const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
@@ -194,13 +211,20 @@ const betterAuthRoute = async (fastify: FastifyInstance): Promise<void> => {
           body,
         });
 
-        const rewrittenUrl = rewriteOAuthErrorRedirect(request, response);
-        if (rewrittenUrl) {
+        const rewrite = rewriteOAuthErrorRedirect(request, response);
+        if (rewrite) {
           request.log.warn(
-            { originalLocation: response.headers.get('location') },
+            {
+              provider: rewrite.provider,
+              error: rewrite.error,
+              errorDescription: rewrite.errorDescription,
+              state: rewrite.state,
+              userId: request.userId || request.trackingId,
+              originalLocation: response.headers.get('location'),
+            },
             'OAuth callback error redirect rewritten to webapp',
           );
-          reply.header('location', rewrittenUrl);
+          reply.header('location', rewrite.url);
           reply.status(302);
           return reply.send();
         }

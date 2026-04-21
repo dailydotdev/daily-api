@@ -29,6 +29,8 @@ import { generateShortId } from '../../src/ids';
 import { usersFixture } from '../fixture';
 import { ioRedisPool } from '../../src/redis';
 import * as betterAuthModule from '../../src/betterAuth';
+import { rewriteOAuthErrorRedirect } from '../../src/routes/betterAuth';
+import type { FastifyRequest } from 'fastify';
 
 jest.mock('../../src/common/paddle/index.ts', () => ({
   ...(jest.requireActual('../../src/common/paddle/index.ts') as Record<
@@ -393,6 +395,184 @@ describe('betterAuth routes', () => {
       expect(res.text).toBe('/auth/callback/google?state=test&code=abc');
 
       getBetterAuthSpy.mockRestore();
+    });
+  });
+
+  describe('rewriteOAuthErrorRedirect helper', () => {
+    const makeRequest = (url: string): FastifyRequest =>
+      ({
+        url,
+        protocol: 'http',
+        host: 'localhost',
+      }) as FastifyRequest;
+
+    const makeRedirectResponse = (
+      location: string | null,
+      status = 302,
+    ): Response => {
+      const headers = new Headers();
+      if (location !== null) {
+        headers.set('location', location);
+      }
+      return new Response(null, { status, headers });
+    };
+
+    it('should return payload with all fields for error redirect', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/google'),
+        makeRedirectResponse(
+          '/api/auth/error?error=access_denied&error_description=cancelled&state=abc123',
+        ),
+      );
+
+      expect(result).toEqual({
+        url: `${process.env.COMMENTS_PREFIX}/callback?error=access_denied&error_description=cancelled&state=abc123`,
+        provider: 'google',
+        error: 'access_denied',
+        errorDescription: 'cancelled',
+        state: 'abc123',
+      });
+    });
+
+    it('should return payload when state is state_not_found even without error param', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/github'),
+        makeRedirectResponse('/api/auth/error?state=state_not_found'),
+      );
+
+      expect(result).toEqual({
+        url: `${process.env.COMMENTS_PREFIX}/callback?state=state_not_found`,
+        provider: 'github',
+        error: undefined,
+        errorDescription: undefined,
+        state: 'state_not_found',
+      });
+    });
+
+    it('should return undefined for non-callback paths', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/sign-in/social'),
+        makeRedirectResponse('/api/auth/error?error=access_denied'),
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined for non-3xx responses', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/google'),
+        makeRedirectResponse('/api/auth/error?error=access_denied', 200),
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when location header is missing', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/google'),
+        makeRedirectResponse(null),
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when redirect has no error params', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/google'),
+        makeRedirectResponse('/some-other-page?state=success'),
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when location already points at webapp callback', () => {
+      const result = rewriteOAuthErrorRedirect(
+        makeRequest('/auth/callback/google'),
+        makeRedirectResponse(
+          `${process.env.COMMENTS_PREFIX}/callback?error=access_denied`,
+        ),
+      );
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('OAuth callback error rewrite', () => {
+    const mockBetterAuthRedirect = (location: string) =>
+      jest.spyOn(betterAuthModule, 'getBetterAuth').mockReturnValue({
+        handler: async () =>
+          new Response(null, {
+            status: 302,
+            headers: { location },
+          }),
+        api: {
+          getSession: async () => null,
+          setPassword: async () => ({ status: true }),
+        },
+      } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+    it('should rewrite error redirect to webapp callback with params forwarded', async () => {
+      const spy = mockBetterAuthRedirect(
+        '/api/auth/error?error=access_denied&error_description=cancelled&state=abc123',
+      );
+
+      const res = await request(app.server).get('/auth/callback/google');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe(
+        `${process.env.COMMENTS_PREFIX}/callback?error=access_denied&error_description=cancelled&state=abc123`,
+      );
+
+      spy.mockRestore();
+    });
+
+    it('should rewrite when state is state_not_found even without error param', async () => {
+      const spy = mockBetterAuthRedirect(
+        '/api/auth/error?state=state_not_found',
+      );
+
+      const res = await request(app.server).get('/auth/callback/github');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe(
+        `${process.env.COMMENTS_PREFIX}/callback?state=state_not_found`,
+      );
+
+      spy.mockRestore();
+    });
+
+    it('should pass through redirect without error params', async () => {
+      const spy = mockBetterAuthRedirect('/some-other-page?state=success');
+
+      const res = await request(app.server).get('/auth/callback/google');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe('/some-other-page?state=success');
+
+      spy.mockRestore();
+    });
+
+    it('should not rewrite when location already points at webapp callback', async () => {
+      const originalLocation = `${process.env.COMMENTS_PREFIX}/callback?error=access_denied`;
+      const spy = mockBetterAuthRedirect(originalLocation);
+
+      const res = await request(app.server).get('/auth/callback/google');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe(originalLocation);
+
+      spy.mockRestore();
+    });
+
+    it('should not rewrite non-callback paths', async () => {
+      const spy = mockBetterAuthRedirect('/api/auth/error?error=access_denied');
+
+      const res = await request(app.server).get('/auth/sign-in/social');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe('/api/auth/error?error=access_denied');
+
+      spy.mockRestore();
     });
   });
 });
