@@ -31,6 +31,7 @@ import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
+import { counters } from './telemetry/metrics';
 import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
@@ -244,6 +245,13 @@ export default async function app(
                   code: 'UNEXPECTED',
                 };
               }
+
+              if (typeof newError.extensions?.code === 'string') {
+                counters?.api?.graphqlErrors?.add(1, {
+                  'graphql.error.code': newError.extensions.code,
+                });
+              }
+
               if (isProd) {
                 newError.originalError = undefined;
               }
