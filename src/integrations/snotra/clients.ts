@@ -1,7 +1,7 @@
 import { RequestInit } from 'node-fetch';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { fetchParse } from '../retry';
+import { retryFetchParse } from '../retry';
 import {
   ISnotraClient,
   ProfileRequest,
@@ -12,6 +12,7 @@ import {
 import {
   isMockEnabled,
   mockSnotraEngagementProfile,
+  mockSnotraUserProfile,
 } from '../../mocks/opportunity/services';
 
 export class SnotraClient implements ISnotraClient {
@@ -41,7 +42,7 @@ export class SnotraClient implements ISnotraClient {
     }
 
     return this.garmr.execute(() => {
-      return fetchParse<ProfileResponse>(
+      return retryFetchParse<ProfileResponse>(
         `${this.url}/api/v1/memstore/shortprofile`,
         {
           ...this.fetchOptions,
@@ -56,8 +57,13 @@ export class SnotraClient implements ISnotraClient {
   }
 
   getUserProfile(request: UserProfileRequest): Promise<UserProfileResponse> {
+    // Mock path: return mock user profile
+    if (isMockEnabled()) {
+      return Promise.resolve(mockSnotraUserProfile);
+    }
+
     return this.garmr.execute(() => {
-      return fetchParse<UserProfileResponse>(
+      return retryFetchParse<UserProfileResponse>(
         `${this.url}/api/v1/user/profile`,
         {
           ...this.fetchOptions,

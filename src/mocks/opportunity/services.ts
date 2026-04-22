@@ -9,6 +9,7 @@ import {
   SalaryPeriod,
   SeniorityLevel,
 } from '@dailydotdev/schema';
+import { PersonaliseState } from '../../integrations/snotra';
 
 /**
  * Check if external services should be mocked
@@ -122,4 +123,13 @@ export const mockSnotraEngagementProfile = {
   profile_text:
     'Active developer with strong engagement in React and TypeScript communities. Regular contributor to open source projects and frequent reader of frontend development content. Shows consistent interest in modern web technologies and best practices.',
   update_at: new Date().toISOString(),
+};
+
+/**
+ * Mock user profile returned from Snotra getUserProfile
+ */
+export const mockSnotraUserProfile = {
+  personalise: {
+    state: PersonaliseState.Personalised,
+  },
 };

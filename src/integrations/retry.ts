@@ -9,7 +9,7 @@ import {
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { Message } from '@bufbuild/protobuf';
-import { isTest } from '../common';
+import { isTest } from '../common/utils';
 
 export class AbortError extends Error {
   public originalError: Error;
