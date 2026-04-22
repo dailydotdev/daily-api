@@ -38,6 +38,7 @@ export type SettingsFlags = Partial<{
   timezoneMismatchIgnore: string;
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
+  legacyPostLayoutOptOut: boolean;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -53,6 +54,7 @@ export type SettingsFlagsPublic = Pick<
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'
   | 'defaultWriteTab'
+  | 'legacyPostLayoutOptOut'
 >;
 
 @Entity()
