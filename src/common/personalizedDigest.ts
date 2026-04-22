@@ -257,7 +257,7 @@ const personalizedDigestFeedClient = new FeedClient(
         queuedRequests: 1000,
       },
       retryOpts: {
-        maxAttempts: 1,
+        maxAttempts: 0,
       },
       events: {
         onBreak: ({ meta }) => {
