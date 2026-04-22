@@ -13,7 +13,11 @@ import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
-import { NoSchemaIntrospectionCustomRule } from 'graphql';
+import {
+  Kind,
+  NoSchemaIntrospectionCustomRule,
+  type OperationDefinitionNode,
+} from 'graphql';
 
 import './config';
 
@@ -249,6 +253,8 @@ export default async function app(
               if (typeof newError.extensions?.code === 'string') {
                 counters?.api?.graphqlErrors?.add(1, {
                   'graphql.error.code': newError.extensions.code,
+                  'graphql.operation.name':
+                    ctx?.graphqlOperationName || 'unknown',
                 });
               }
 
@@ -279,6 +285,22 @@ export default async function app(
         reply.header('vary', varyHeaders);
       },
     },
+  });
+
+  app.register(async (instance) => {
+    instance.graphql.addHook(
+      'preValidation',
+      async (_schema, document, context) => {
+        const operations = document.definitions.filter(
+          (d): d is OperationDefinitionNode =>
+            d.kind === Kind.OPERATION_DEFINITION,
+        );
+
+        if (operations.length === 1) {
+          context.graphqlOperationName = operations[0].name?.value;
+        }
+      },
+    );
   });
 
   if (isProd) {

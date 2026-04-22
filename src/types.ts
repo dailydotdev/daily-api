@@ -124,6 +124,12 @@ declare module 'fastify' {
   }
 }
 
+declare module 'mercurius' {
+  interface MercuriusContext {
+    graphqlOperationName?: string;
+  }
+}
+
 type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
 
 export type ChangeObject<Type> = {
