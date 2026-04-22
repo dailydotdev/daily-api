@@ -76,6 +76,7 @@ export const typeDefs = /* GraphQL */ `
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
+    legacyPostLayoutOptOut: Boolean
   }
 
   input SettingsFlagsPublicInput {
@@ -90,6 +91,7 @@ export const typeDefs = /* GraphQL */ `
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
+    legacyPostLayoutOptOut: Boolean
   }
 
   """

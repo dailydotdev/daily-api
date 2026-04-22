@@ -1402,6 +1402,7 @@ describe('boot misc', () => {
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
         browsingContextEnabled: false,
+        legacyPostLayoutOptOut: false,
       },
     });
     expect(res.body.settings.flags.removedFlag).toBeUndefined();

@@ -13,6 +13,7 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     timezoneMismatchIgnore,
     lastPrompt,
     defaultWriteTab,
+    legacyPostLayoutOptOut,
   } = flags ?? {};
 
   return {
@@ -27,5 +28,6 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     timezoneMismatchIgnore,
     lastPrompt,
     defaultWriteTab,
+    legacyPostLayoutOptOut: legacyPostLayoutOptOut ?? false,
   };
 };
