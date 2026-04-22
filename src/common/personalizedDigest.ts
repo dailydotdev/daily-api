@@ -286,7 +286,7 @@ const personalizedDigestFeedClient = new FeedClient(
 );
 
 export const personalizedDigestSnotraClient = new SnotraClient(
-  process.env.SNOTRA_ORIGIN as string,
+  process.env.SNOTRA_USER_API_ORIGIN as string,
   {
     fetchOptions: {
       timeout: 10 * 1000,
