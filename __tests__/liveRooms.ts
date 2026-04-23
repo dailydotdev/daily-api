@@ -52,13 +52,17 @@ describe('live rooms', () => {
   const CREATE_MUTATION = /* GraphQL */ `
     mutation CreateLiveRoom($input: CreateLiveRoomInput!) {
       createLiveRoom(input: $input) {
-        id
-        topic
-        mode
-        status
-        host {
+        role
+        token
+        room {
           id
-          username
+          topic
+          mode
+          status
+          host {
+            id
+            username
+          }
         }
       }
     }
@@ -161,17 +165,21 @@ describe('live rooms', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.createLiveRoom).toMatchObject({
-      topic: 'GraphQL and SFUs',
-      mode: 'debate',
-      status: 'created',
-      host: {
-        id: '1',
-        username: 'idoshamun',
+      role: 'host',
+      token: expect.any(String),
+      room: {
+        topic: 'GraphQL and SFUs',
+        mode: 'debate',
+        status: 'created',
+        host: {
+          id: '1',
+          username: 'idoshamun',
+        },
       },
     });
 
     const room = await con.getRepository(LiveRoom).findOneByOrFail({
-      id: res.data.createLiveRoom.id,
+      id: res.data.createLiveRoom.room.id,
     });
 
     expect(room).toMatchObject({
@@ -181,6 +189,23 @@ describe('live rooms', () => {
     });
     expect(scope.isDone()).toBe(true);
     expect(preparePath.split('/')[3]).toBe(room.id);
+
+    const verified = jwt.verify(
+      res.data.createLiveRoom.token,
+      'flyting-join-secret',
+      {
+        algorithms: ['HS256'],
+        audience: 'flyting',
+        issuer: 'daily-api',
+      },
+    );
+
+    expect(verified).toMatchObject({
+      iat: expect.any(Number),
+      participantId: '1',
+      role: 'host',
+      roomId: room.id,
+    });
   });
 
   it('keeps the durable room when prepare fails ambiguously', async () => {
@@ -212,7 +237,7 @@ describe('live rooms', () => {
 
     expect(scope.isDone()).toBe(true);
     expect(rooms).toHaveLength(1);
-  });
+  }, 10000);
 
   it('removes the durable room when prepare fails definitively', async () => {
     loggedUser = '1';

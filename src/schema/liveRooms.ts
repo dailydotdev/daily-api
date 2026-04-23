@@ -61,7 +61,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
-    createLiveRoom(input: CreateLiveRoomInput!): LiveRoom! @auth
+    createLiveRoom(input: CreateLiveRoomInput!): LiveRoomJoinToken! @auth
     endLiveRoom(roomId: ID!): LiveRoom! @auth
     liveRoomJoinToken(roomId: ID!): LiveRoomJoinToken! @auth
   }
@@ -109,6 +109,34 @@ const assertCanEndRoom = ({
   throw new ForbiddenError('Access denied!');
 };
 
+const createJoinTokenPayload = async ({
+  room,
+  participantId,
+  role,
+}: {
+  room: LiveRoom;
+  participantId: string;
+  role: LiveRoomParticipantRole;
+}): Promise<GQLLiveRoomJoinToken> => {
+  const secret = process.env.FLYTING_JOIN_TOKEN_SECRET;
+  if (!secret) {
+    throw new Error('FLYTING_JOIN_TOKEN_SECRET is not configured');
+  }
+
+  const token = await createLiveRoomJoinToken({
+    participantId,
+    role,
+    roomId: room.id,
+    secret,
+  });
+
+  return {
+    room,
+    role,
+    token,
+  };
+};
+
 export const resolvers: IResolvers = {
   Query: {
     liveRoom: async (
@@ -153,8 +181,7 @@ export const resolvers: IResolvers = {
       _,
       args: { input: { mode: LiveRoomMode; topic: string } },
       ctx: AuthContext,
-      info,
-    ): Promise<GQLLiveRoom> => {
+    ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
       const roomRepo = ctx.con.getRepository(LiveRoom);
       const room = await roomRepo.save(
@@ -178,11 +205,10 @@ export const resolvers: IResolvers = {
         throw error;
       }
 
-      return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
-        builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
-          id: room.id,
-        });
-        return builder;
+      return createJoinTokenPayload({
+        room,
+        participantId: ctx.userId,
+        role: LiveRoomParticipantRole.Host,
       });
     },
     endLiveRoom: async (
@@ -244,18 +270,11 @@ export const resolvers: IResolvers = {
           ? LiveRoomParticipantRole.Host
           : LiveRoomParticipantRole.Audience;
 
-      const token = await createLiveRoomJoinToken({
+      return createJoinTokenPayload({
+        room,
         participantId: ctx.userId,
         role,
-        roomId: room.id,
-        secret,
       });
-
-      return {
-        room,
-        role,
-        token,
-      };
     },
   },
 };
