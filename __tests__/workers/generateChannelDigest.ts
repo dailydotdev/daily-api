@@ -1,4 +1,3 @@
-import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import { PubSub } from '@google-cloud/pubsub';
 import {
@@ -21,12 +20,6 @@ import worker from '../../src/workers/generateChannelDigest';
 import { createMockLogger, expectSuccessfulTypedBackground } from '../helpers';
 import { createSource } from '../fixture/source';
 
-const yggdrasilOrigin = process.env.YGGDRASIL_SENTIMENT_ORIGIN;
-
-if (!yggdrasilOrigin) {
-  throw new Error('Missing YGGDRASIL_SENTIMENT_ORIGIN');
-}
-
 let con: DataSource;
 
 beforeAll(async () => {
@@ -39,9 +32,6 @@ const saveDefinition = async ({
   channel = 'vibes',
   targetAudience = 'audience',
   frequency = 'daily',
-  includeSentiment = false,
-  minHighlightScore = null,
-  sentimentGroupIds = [],
 }: Partial<ChannelDigest> = {}): Promise<ChannelDigest> =>
   con.getRepository(ChannelDigest).save({
     key,
@@ -49,9 +39,6 @@ const saveDefinition = async ({
     channel,
     targetAudience,
     frequency,
-    includeSentiment,
-    minHighlightScore,
-    sentimentGroupIds,
     enabled: true,
   });
 
@@ -92,7 +79,6 @@ const getLockKey = (digestKey: string, scheduledAt: string) =>
 describe('generateChannelDigest worker', () => {
   afterEach(async () => {
     jest.restoreAllMocks();
-    nock.cleanAll();
     await deleteKeysByPattern('channel-digest:*');
     await con.getRepository(ChannelDigest).clear();
     await con
@@ -234,9 +220,6 @@ describe('generateChannelDigest worker', () => {
       targetAudience:
         'software engineers and engineering leaders who care about AI tooling, agentic engineering, models, and vibe coding. They range from vibe coders to seasoned engineers tracking how AI is reshaping their craft.',
       frequency: 'daily',
-      includeSentiment: true,
-      minHighlightScore: 0.65,
-      sentimentGroupIds: ['group-1', 'group-2'],
     });
     await savePost({
       id: 'post-1',
@@ -245,15 +228,6 @@ describe('generateChannelDigest worker', () => {
       createdAt: new Date('2026-03-03T09:00:00.000Z'),
       channel: 'vibes',
     });
-
-    nock(yggdrasilOrigin)
-      .get('/api/sentiment/highlights')
-      .query(true)
-      .times(2)
-      .reply(200, {
-        items: [],
-        cursor: null,
-      });
 
     await expectSuccessfulTypedBackground<'api.v1.generate-channel-digest'>(
       worker,

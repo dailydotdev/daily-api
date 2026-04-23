@@ -193,8 +193,6 @@ describe('query channelConfigurations', () => {
       sourceId: 'backend_digest',
       targetAudience: 'backend developers',
       frequency: 'daily',
-      includeSentiment: false,
-      sentimentGroupIds: [],
       enabled: true,
     });
 

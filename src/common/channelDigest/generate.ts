@@ -1,13 +1,12 @@
 import {
   SentimentDigestItem,
-  SentimentDigestPost,
   SentimentDigestRequest,
+  SentimentDigestPost,
 } from '@dailydotdev/schema';
 import type { DataSource } from 'typeorm';
 import type { ChannelDigest } from '../../entity/ChannelDigest';
 import { generateShortId } from '../../ids';
 import { getBragiClient } from '../../integrations/bragi/clients';
-import { yggdrasilSentimentClient } from '../../integrations/yggdrasil/clients';
 import { FreeformPost } from '../../entity/posts/FreeformPost';
 import { markdown } from '../markdown';
 import { Post, PostOrigin, PostType } from '../../entity/posts/Post';
@@ -27,20 +26,6 @@ type DigestPostRow = {
 };
 
 const toDigestDate = (date: Date): string => date.toISOString().slice(0, 10);
-
-const toLikes = (
-  metrics: {
-    like_count?: number;
-  } | null,
-): number => {
-  const raw = metrics?.like_count;
-  const likes = typeof raw === 'number' ? raw : Number(raw || 0);
-  if (Number.isNaN(likes) || likes < 0) {
-    return 0;
-  }
-
-  return Math.floor(likes);
-};
 
 const getDigestWindowStart = async ({
   con,
@@ -120,34 +105,6 @@ const findDigestPosts = async ({
     .getRawMany<DigestPostRow>();
 };
 
-const findSentimentItems = async ({
-  definition,
-  from,
-  to,
-}: {
-  definition: ChannelDigest;
-  from: Date;
-  to: Date;
-}) => {
-  if (!definition.includeSentiment || !definition.sentimentGroupIds.length) {
-    return [];
-  }
-
-  const responses = await Promise.all(
-    definition.sentimentGroupIds.map((groupId) =>
-      yggdrasilSentimentClient.getHighlights({
-        groupId,
-        from: from.toISOString(),
-        to: to.toISOString(),
-        minHighlightScore: definition.minHighlightScore ?? undefined,
-        orderBy: 'recency',
-      }),
-    ),
-  );
-
-  return responses.flatMap((response) => response.items);
-};
-
 const buildDigestPosts = ({
   posts,
 }: {
@@ -218,21 +175,14 @@ export const generateChannelDigest = async ({
   const excludedSourceIds = await getChannelDigestSourceIds({
     con,
   });
-  const [sentimentItems, posts] = await Promise.all([
-    findSentimentItems({
-      definition,
-      from,
-      to: now,
-    }),
-    findDigestPosts({
-      con,
-      from,
-      channel: definition.channel,
-      excludedSourceIds,
-    }),
-  ]);
+  const posts = await findDigestPosts({
+    con,
+    from,
+    channel: definition.channel,
+    excludedSourceIds,
+  });
 
-  if (!sentimentItems.length && !posts.length) {
+  if (!posts.length) {
     return null;
   }
 
@@ -241,14 +191,7 @@ export const generateChannelDigest = async ({
     date: toDigestDate(now),
     targetAudience: definition.targetAudience,
     frequency: definition.frequency,
-    sentimentItems: sentimentItems.map(
-      (item) =>
-        new SentimentDigestItem({
-          text: item.text || '',
-          authorHandle: item.author?.handle || '',
-          likes: toLikes(item.metrics),
-        }),
-    ),
+    sentimentItems: [] as SentimentDigestItem[],
     posts: buildDigestPosts({
       posts,
     }),

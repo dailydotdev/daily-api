@@ -589,8 +589,6 @@ describe('generateChannelHighlight worker', () => {
       channel: 'vibes',
       targetAudience: 'Digest readers',
       frequency: 'daily',
-      includeSentiment: false,
-      sentimentGroupIds: [],
       enabled: true,
     });
     await con.getRepository(ChannelHighlightDefinition).save({
