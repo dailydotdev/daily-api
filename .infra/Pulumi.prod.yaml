@@ -261,6 +261,8 @@ config:
       secure: AAABABe5GePYDxcK+9QGqmQV7zE3Pv5wWtGkfFOV1MosH+KVFIfK6Is=
     googleIosClientId:
       secure: AAABAENK/HL3DH78uShJwePe91GmOlM4YkNuaLsXkPrWp8p6tvW5XAlTMCN5XCSFCkQog94YZHEO0idbBTKPF1H727qb7XvUqVjkEP8yY7Sf77geK2VHUN+NMAkkeuaFar5dlJUkqCY=
+    snotraUserApiOrigin:
+      secure: AAABADX/8nmDxoZRpWxaAYCBL52wANtG5kR34DGnQgBkZKd0DKaxc8DQyXbRt/XuhNfj2+vI3xfDeSThDWlzKQFCNK0fAO4IUcuRBdDx6Q==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
