@@ -356,6 +356,14 @@ export const workers: Worker[] = [
     subscription: 'api.organization-user-removed',
   },
   {
+    topic: 'api.v1.live-room-started',
+    subscription: 'api.live-room-started',
+  },
+  {
+    topic: 'api.v1.live-room-ended',
+    subscription: 'api.live-room-ended',
+  },
+  {
     topic: 'skadi.v2.campaign-updated',
     subscription: 'api.campaign-updated-v2-slack',
   },
