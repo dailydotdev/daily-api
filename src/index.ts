@@ -258,6 +258,20 @@ export default async function app(
                 });
               }
 
+              if (
+                !ctx?.graphqlOperationName &&
+                remoteConfig.vars.verboseGqlLogging
+              ) {
+                app.log.warn(
+                  {
+                    originalError: error.originalError,
+                    err: newError,
+                    gqlQuery: ctx?.reply?.request?.body,
+                  },
+                  'unknown graphql operation name for error',
+                );
+              }
+
               if (isProd) {
                 newError.originalError = undefined;
               }

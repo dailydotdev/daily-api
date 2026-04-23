@@ -51,6 +51,7 @@ export type RemoteConfigValue = {
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;
   newViewLogs: boolean;
+  verboseGqlLogging: boolean;
 };
 
 class RemoteConfig {
