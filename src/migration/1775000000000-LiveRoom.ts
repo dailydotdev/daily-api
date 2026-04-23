@@ -25,32 +25,9 @@ export class LiveRoom1775000000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_live_room_status" ON "live_room" ("status")
     `);
-
-    await queryRunner.query(`
-      CREATE TABLE "live_room_lifecycle_event" (
-        "eventId" uuid NOT NULL,
-        "roomId" uuid NOT NULL,
-        "type" text NOT NULL,
-        "occurredAt" TIMESTAMPTZ NOT NULL,
-        "processedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_live_room_lifecycle_event_id" PRIMARY KEY ("eventId")
-      )
-    `);
-
-    await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS "IDX_live_room_lifecycle_event_room_id"
-      ON "live_room_lifecycle_event" ("roomId")
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      DROP INDEX IF EXISTS "public"."IDX_live_room_lifecycle_event_room_id"
-    `);
-    await queryRunner.query(`
-      DROP TABLE "live_room_lifecycle_event"
-    `);
-
     await queryRunner.query(`
       DROP INDEX IF EXISTS "public"."IDX_live_room_status"
     `);

@@ -3,6 +3,8 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -30,6 +32,13 @@ export class LiveRoom {
 
   @Column({ type: 'text' })
   hostId: User['id'];
+
+  @ManyToOne('User', {
+    createForeignKeyConstraints: false,
+    lazy: true,
+  })
+  @JoinColumn({ name: 'hostId' })
+  host: Promise<User>;
 
   @Column({ type: 'text' })
   topic: string;

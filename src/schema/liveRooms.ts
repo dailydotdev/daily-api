@@ -12,7 +12,8 @@ import {
 } from '../common/schema/liveRooms';
 import { NotFoundError } from '../errors';
 import { LiveRoom } from '../entity/LiveRoom';
-import { flytingClient } from '../integrations/flyting/client';
+import graphorm from '../graphorm';
+import { getFlytingClient } from '../integrations/flyting/client';
 import { AbortError, HttpError } from '../integrations/retry';
 import { Roles } from '../roles';
 
@@ -23,6 +24,8 @@ type GQLLiveRoomJoinToken = {
   role: LiveRoomParticipantRole;
   token: string;
 };
+
+const activeLiveRoomStatuses = [LiveRoomStatus.Created, LiveRoomStatus.Live];
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(LiveRoomMode, 'LiveRoomMode')}
@@ -54,7 +57,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     liveRoom(id: ID!): LiveRoom @auth
-    myLiveRooms: [LiveRoom!]! @auth
+    activeLiveRooms: [LiveRoom!]! @auth
   }
 
   extend type Mutation {
@@ -65,11 +68,15 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const shouldDeleteRoomAfterPrepareFailure = (error: unknown): boolean => {
-  return (
-    error instanceof AbortError &&
-    error.originalError instanceof HttpError &&
-    error.originalError.statusCode < 500
-  );
+  if (error instanceof HttpError) {
+    return error.statusCode < 500;
+  }
+
+  if (error instanceof AbortError && error.originalError instanceof HttpError) {
+    return error.originalError.statusCode < 500;
+  }
+
+  return false;
 };
 
 const getRoomOrThrow = async ({
@@ -108,27 +115,45 @@ export const resolvers: IResolvers = {
       _,
       args: { id: string },
       ctx: AuthContext,
-    ): Promise<GQLLiveRoom> => {
-      const room = await getRoomOrThrow({ roomId: args.id, ctx });
-
-      return room;
-    },
-    myLiveRooms: async (_, __, ctx: AuthContext): Promise<GQLLiveRoom[]> => {
-      return ctx.con.getRepository(LiveRoom).find({
-        where: {
-          hostId: ctx.userId,
+      info,
+    ): Promise<GQLLiveRoom> =>
+      graphorm.queryOneOrFail<GQLLiveRoom>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+            id: args.id,
+          });
+          return builder;
         },
-        order: {
-          createdAt: 'DESC',
+        LiveRoom,
+      ),
+    activeLiveRooms: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLLiveRoom[]> =>
+      graphorm.query<GQLLiveRoom>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."status" IN (:...statuses)`, {
+              statuses: activeLiveRoomStatuses,
+            })
+            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC');
+          return builder;
         },
-      });
-    },
+        true,
+      ),
   },
   Mutation: {
     createLiveRoom: async (
       _,
       args: { input: { mode: LiveRoomMode; topic: string } },
       ctx: AuthContext,
+      info,
     ): Promise<GQLLiveRoom> => {
       const input = createLiveRoomSchema.parse(args.input);
       const roomRepo = ctx.con.getRepository(LiveRoom);
@@ -142,10 +167,9 @@ export const resolvers: IResolvers = {
       );
 
       try {
-        await flytingClient.prepareRoom({
+        await getFlytingClient().prepareRoom({
           mode: room.mode,
           roomId: room.id,
-          topic: room.topic,
         });
       } catch (error) {
         if (shouldDeleteRoomAfterPrepareFailure(error)) {
@@ -154,12 +178,18 @@ export const resolvers: IResolvers = {
         throw error;
       }
 
-      return room;
+      return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
+        builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+          id: room.id,
+        });
+        return builder;
+      });
     },
     endLiveRoom: async (
       _,
       args: { roomId: string },
       ctx: AuthContext,
+      info,
     ): Promise<GQLLiveRoom> => {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
@@ -167,10 +197,15 @@ export const resolvers: IResolvers = {
       assertCanEndRoom({ ctx, room });
 
       if (room.status === LiveRoomStatus.Ended) {
-        return room;
+        return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
+          builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+            id: room.id,
+          });
+          return builder;
+        });
       }
 
-      await flytingClient.endRoom({ roomId: room.id });
+      await getFlytingClient().endRoom({ roomId: room.id });
 
       await ctx.con.getRepository(LiveRoom).update(
         { id: room.id },
@@ -180,7 +215,12 @@ export const resolvers: IResolvers = {
         },
       );
 
-      return getRoomOrThrow({ roomId: room.id, ctx });
+      return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
+        builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+          id: room.id,
+        });
+        return builder;
+      });
     },
     liveRoomJoinToken: async (
       _,
@@ -217,9 +257,5 @@ export const resolvers: IResolvers = {
         token,
       };
     },
-  },
-  LiveRoom: {
-    host: (room: LiveRoom, _, ctx: AuthContext) =>
-      ctx.dataLoader.user.load({ userId: room.hostId }),
   },
 };

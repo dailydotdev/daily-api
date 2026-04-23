@@ -1,39 +1,22 @@
-import { TypeOrmError } from '../errors';
 import { LiveRoom } from '../entity/LiveRoom';
-import { LiveRoomLifecycleEvent } from '../entity/LiveRoomLifecycleEvent';
 import {
-  LiveRoomLifecycleEventType,
   LiveRoomStatus,
+  liveRoomLifecycleEventSchema,
 } from '../common/schema/liveRooms';
 import { TypedWorker } from './worker';
-import type { TypeORMQueryFailedError } from '../errors';
 
 export const liveRoomStartedWorker: TypedWorker<'api.v1.live-room-started'> = {
   subscription: 'api.live-room-started',
   handler: async ({ data }, con, logger) => {
+    const input = liveRoomLifecycleEventSchema.parse(data);
+
     await con.transaction(async (manager) => {
-      try {
-        await manager.getRepository(LiveRoomLifecycleEvent).insert({
-          eventId: data.eventId,
-          roomId: data.roomId,
-          type: data.type as LiveRoomLifecycleEventType,
-          occurredAt: new Date(data.occurredAt),
-        });
-      } catch (error) {
-        const queryError = error as TypeORMQueryFailedError;
-        if (queryError.code === TypeOrmError.DUPLICATE_ENTRY) {
-          return;
-        }
-
-        throw error;
-      }
-
       const roomRepo = manager.getRepository(LiveRoom);
-      const room = await roomRepo.findOneBy({ id: data.roomId });
+      const room = await roomRepo.findOneBy({ id: input.roomId });
 
       if (!room) {
         logger.warn(
-          { roomId: data.roomId },
+          { roomId: input.roomId },
           'Live room not found for lifecycle event',
         );
         return;
@@ -44,10 +27,10 @@ export const liveRoomStartedWorker: TypedWorker<'api.v1.live-room-started'> = {
       }
 
       await roomRepo.update(
-        { id: data.roomId },
+        { id: input.roomId },
         {
           status: LiveRoomStatus.Live,
-          startedAt: room.startedAt ?? new Date(data.occurredAt),
+          startedAt: room.startedAt ?? new Date(input.occurredAt),
         },
       );
     });

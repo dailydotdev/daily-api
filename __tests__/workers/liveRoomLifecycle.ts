@@ -1,7 +1,6 @@
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { LiveRoom } from '../../src/entity/LiveRoom';
-import { LiveRoomLifecycleEvent } from '../../src/entity/LiveRoomLifecycleEvent';
 import { User } from '../../src/entity/user/User';
 import {
   LiveRoomLifecycleEventType,
@@ -109,10 +108,13 @@ describe('live room lifecycle workers', () => {
       payload,
     );
 
-    const events = await con.getRepository(LiveRoomLifecycleEvent).findBy({
-      roomId: '4d84f9a2-29ce-4a15-92e0-f3f1f31cb26e',
+    const room = await con.getRepository(LiveRoom).findOneByOrFail({
+      id: '4d84f9a2-29ce-4a15-92e0-f3f1f31cb26e',
     });
 
-    expect(events).toHaveLength(1);
+    expect(room).toMatchObject({
+      status: LiveRoomStatus.Live,
+      startedAt: new Date('2026-04-23T15:00:00.000Z'),
+    });
   });
 });

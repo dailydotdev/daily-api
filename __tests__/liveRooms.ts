@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { LiveRoom } from '../src/entity/LiveRoom';
@@ -14,16 +15,10 @@ import {
 } from './helpers';
 import { usersFixture } from './fixture/user';
 import { User } from '../src/entity/user/User';
-import { flytingClient } from '../src/integrations/flyting/client';
 import { LiveRoomStatus } from '../src/common/schema/liveRooms';
-import { AbortError, HttpError } from '../src/integrations/retry';
 
-jest.mock('../src/integrations/flyting/client', () => ({
-  flytingClient: {
-    prepareRoom: jest.fn(),
-    endRoom: jest.fn(),
-  },
-}));
+const flytingOrigin = 'http://flyting.test';
+const flytingInternalKey = 'flyting-internal-key';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -32,6 +27,9 @@ let loggedUser: string | null = null;
 
 beforeAll(async () => {
   process.env.FLYTING_JOIN_TOKEN_SECRET = 'flyting-join-secret';
+  process.env.FLYTING_INTERNAL_KEY = flytingInternalKey;
+  process.env.FLYTING_ORIGIN = flytingOrigin;
+
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
@@ -39,11 +37,14 @@ beforeAll(async () => {
   client = state.client;
 });
 
-afterAll(() => disposeGraphQLTesting(state));
+afterAll(async () => {
+  nock.cleanAll();
+  await disposeGraphQLTesting(state);
+});
 
 beforeEach(async () => {
   loggedUser = null;
-  jest.clearAllMocks();
+  nock.cleanAll();
   await saveFixtures(con, User, usersFixture);
 });
 
@@ -70,16 +71,24 @@ describe('live rooms', () => {
         topic
         mode
         status
+        host {
+          id
+          username
+        }
       }
     }
   `;
 
-  const MY_QUERY = /* GraphQL */ `
-    query MyLiveRooms {
-      myLiveRooms {
+  const ACTIVE_QUERY = /* GraphQL */ `
+    query ActiveLiveRooms {
+      activeLiveRooms {
         id
         topic
         status
+        host {
+          id
+          username
+        }
       }
     }
   `;
@@ -93,6 +102,10 @@ describe('live rooms', () => {
           id
           topic
           status
+          host {
+            id
+            username
+          }
         }
       }
     }
@@ -125,7 +138,17 @@ describe('live rooms', () => {
 
   it('creates a live room and prepares it in flyting', async () => {
     loggedUser = '1';
-    (flytingClient.prepareRoom as jest.Mock).mockResolvedValue(undefined);
+
+    let preparePath = '';
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'debate',
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(function reply(uri) {
+        preparePath = uri;
+        return [200, { room: { roomId: 'ignored' } }];
+      });
 
     const res = await client.mutate(CREATE_MUTATION, {
       variables: {
@@ -156,18 +179,20 @@ describe('live rooms', () => {
       topic: 'GraphQL and SFUs',
       status: LiveRoomStatus.Created,
     });
-    expect(flytingClient.prepareRoom).toHaveBeenCalledWith({
-      mode: 'debate',
-      roomId: room.id,
-      topic: 'GraphQL and SFUs',
-    });
+    expect(scope.isDone()).toBe(true);
+    expect(preparePath.split('/')[3]).toBe(room.id);
   });
 
   it('keeps the durable room when prepare fails ambiguously', async () => {
     loggedUser = '1';
-    (flytingClient.prepareRoom as jest.Mock).mockRejectedValue(
-      new Error('timeout'),
-    );
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'debate',
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .times(6)
+      .reply(500, { message: 'boom' });
 
     const res = await client.mutate(CREATE_MUTATION, {
       variables: {
@@ -185,20 +210,19 @@ describe('live rooms', () => {
       topic: 'Ambiguous prepare',
     });
 
+    expect(scope.isDone()).toBe(true);
     expect(rooms).toHaveLength(1);
   });
 
   it('removes the durable room when prepare fails definitively', async () => {
     loggedUser = '1';
-    (flytingClient.prepareRoom as jest.Mock).mockRejectedValue(
-      new AbortError(
-        new HttpError(
-          'https://flyting/internal/live-rooms/room/prepare',
-          400,
-          '',
-        ),
-      ),
-    );
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'debate',
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(400, { message: 'invalid' });
 
     const res = await client.mutate(CREATE_MUTATION, {
       variables: {
@@ -216,38 +240,64 @@ describe('live rooms', () => {
       topic: 'Invalid prepare',
     });
 
+    expect(scope.isDone()).toBe(true);
     expect(rooms).toHaveLength(0);
   });
 
-  it('returns the current user live rooms', async () => {
+  it('returns all active live rooms', async () => {
     loggedUser = '1';
 
     await saveFixtures(con, LiveRoom, [
       {
         id: '0d0bd25e-e1f9-4b7d-8ddb-82f11e882201',
         hostId: '1',
-        topic: 'First room',
+        topic: 'Created room',
         mode: 'debate',
         status: LiveRoomStatus.Created,
+        createdAt: new Date('2026-04-23T10:00:00.000Z'),
       },
       {
         id: 'cc4f63c0-b26e-44fb-b9f8-4c977b28a123',
         hostId: '2',
-        topic: 'Other room',
+        topic: 'Live room',
         mode: 'debate',
-        status: LiveRoomStatus.Created,
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+        createdAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+      {
+        id: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Ended room',
+        mode: 'debate',
+        status: LiveRoomStatus.Ended,
+        endedAt: new Date('2026-04-23T12:00:00.000Z'),
+        createdAt: new Date('2026-04-23T12:00:00.000Z'),
       },
     ]);
 
-    const res = await client.query(MY_QUERY);
+    const res = await client.query(ACTIVE_QUERY);
 
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
-      myLiveRooms: [
+      activeLiveRooms: [
+        {
+          id: 'cc4f63c0-b26e-44fb-b9f8-4c977b28a123',
+          topic: 'Live room',
+          status: 'live',
+          host: {
+            id: '2',
+            username: 'tsahidaily',
+          },
+        },
         {
           id: '0d0bd25e-e1f9-4b7d-8ddb-82f11e882201',
-          topic: 'First room',
+          topic: 'Created room',
           status: 'created',
+          host: {
+            id: '1',
+            username: 'idoshamun',
+          },
         },
       ],
     });
@@ -273,7 +323,18 @@ describe('live rooms', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.liveRoomJoinToken.role).toBe('host');
+    expect(res.data.liveRoomJoinToken).toMatchObject({
+      role: 'host',
+      room: {
+        id: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        topic: 'Token room',
+        status: 'created',
+        host: {
+          id: '1',
+          username: 'idoshamun',
+        },
+      },
+    });
 
     const verified = jwt.verify(
       res.data.liveRoomJoinToken.token,
@@ -322,38 +383,46 @@ describe('live rooms', () => {
 
   it('ends a live room for the host', async () => {
     loggedUser = '1';
-    (flytingClient.endRoom as jest.Mock).mockResolvedValue({ found: true });
 
     await saveFixtures(con, LiveRoom, [
       {
-        id: '868f0787-e557-4db8-9d3f-5f18f1ab053d',
+        id: 'a8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
         hostId: '1',
-        topic: 'End room',
+        topic: 'Endable room',
         mode: 'debate',
         status: LiveRoomStatus.Live,
-        startedAt: new Date('2026-04-23T12:00:00.000Z'),
+        startedAt: new Date('2026-04-23T15:00:00.000Z'),
       },
     ]);
 
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/a8c0e8ab-7517-4f08-b44c-5c24d3df2f18/end')
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        room: {
+          roomId: 'a8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
+          status: 'ended',
+        },
+      });
+
     const res = await client.mutate(END_MUTATION, {
       variables: {
-        roomId: '868f0787-e557-4db8-9d3f-5f18f1ab053d',
+        roomId: 'a8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
       },
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.endLiveRoom.status).toBe('ended');
     expect(res.data.endLiveRoom.endedAt).toBeTruthy();
-    expect(flytingClient.endRoom).toHaveBeenCalledWith({
-      roomId: '868f0787-e557-4db8-9d3f-5f18f1ab053d',
-    });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('rejects ending a room by a non-host', async () => {
     loggedUser = '2';
+
     await saveFixtures(con, LiveRoom, [
       {
-        id: '5c516ee7-c0b8-4bff-ad99-d6c9dd8a01ea',
+        id: '13f8f8a6-bf26-4e5b-bb46-aef17389db7b',
         hostId: '1',
         topic: 'Protected room',
         mode: 'debate',
@@ -366,7 +435,7 @@ describe('live rooms', () => {
       {
         mutation: END_MUTATION,
         variables: {
-          roomId: '5c516ee7-c0b8-4bff-ad99-d6c9dd8a01ea',
+          roomId: '13f8f8a6-bf26-4e5b-bb46-aef17389db7b',
         },
       },
       'FORBIDDEN',
@@ -375,29 +444,36 @@ describe('live rooms', () => {
   });
 
   it('returns a room by id', async () => {
-    loggedUser = '2';
+    loggedUser = '1';
+
     await saveFixtures(con, LiveRoom, [
       {
-        id: '84cc36d1-d6ab-4950-9cc1-3cdf0f5d69d1',
-        hostId: '1',
-        topic: 'Visible room',
+        id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        hostId: '2',
+        topic: 'Readable room',
         mode: 'debate',
-        status: LiveRoomStatus.Created,
+        status: LiveRoomStatus.Live,
       },
     ]);
 
     const res = await client.query(GET_QUERY, {
       variables: {
-        id: '84cc36d1-d6ab-4950-9cc1-3cdf0f5d69d1',
+        id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
       },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.liveRoom).toEqual({
-      id: '84cc36d1-d6ab-4950-9cc1-3cdf0f5d69d1',
-      topic: 'Visible room',
-      mode: 'debate',
-      status: 'created',
+    expect(res.data).toEqual({
+      liveRoom: {
+        id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        topic: 'Readable room',
+        mode: 'debate',
+        status: 'live',
+        host: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
     });
   });
 
@@ -407,7 +483,7 @@ describe('live rooms', () => {
       {
         query: GET_QUERY,
         variables: {
-          id: '84cc36d1-d6ab-4950-9cc1-3cdf0f5d69d1',
+          id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
         },
       },
       'UNAUTHENTICATED',

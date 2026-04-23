@@ -41,7 +41,6 @@ export * from './SquadPublicRequest';
 export * from './UserCompany';
 export * from './Organization';
 export * from './LiveRoom';
-export * from './LiveRoomLifecycleEvent';
 export * from './campaign';
 export * from './PersonalAccessToken';
 export * from './Feedback';

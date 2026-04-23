@@ -2,6 +2,7 @@ import type { RequestInit } from 'node-fetch';
 import { GarmrNoopService, GarmrService, type IGarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { AbortError, HttpError, retryFetch } from '../retry';
+import type { LiveRoomMode } from '../../common/schema/liveRooms';
 
 export class FlytingClient {
   private readonly fetchOptions: RequestInit;
@@ -25,9 +26,8 @@ export class FlytingClient {
   }
 
   async prepareRoom(input: {
-    mode: string;
+    mode: LiveRoomMode;
     roomId: string;
-    topic: string;
   }): Promise<void> {
     await this.garmr.execute(async () => {
       const response = await retryFetch(
@@ -41,7 +41,6 @@ export class FlytingClient {
           },
           body: JSON.stringify({
             mode: input.mode,
-            topic: input.topic,
           }),
         },
       );
@@ -93,10 +92,11 @@ const garmrFlytingService = new GarmrService({
   },
 });
 
-export const flytingClient = new FlytingClient(
-  process.env.FLYTING_ORIGIN || '',
-  process.env.FLYTING_INTERNAL_KEY || '',
-  {
-    garmr: garmrFlytingService,
-  },
-);
+export const getFlytingClient = (): FlytingClient =>
+  new FlytingClient(
+    process.env.FLYTING_ORIGIN || '',
+    process.env.FLYTING_INTERNAL_KEY || '',
+    {
+      garmr: garmrFlytingService,
+    },
+  );
