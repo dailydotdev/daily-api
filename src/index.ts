@@ -9,11 +9,12 @@ import fastify, {
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import mercurius, { MercuriusError } from 'mercurius';
+import mercurius, { type MercuriusContext, MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import {
+  type DocumentNode,
   Kind,
   NoSchemaIntrospectionCustomRule,
   type OperationDefinitionNode,
@@ -302,19 +303,27 @@ export default async function app(
   });
 
   app.register(async (instance) => {
-    instance.graphql.addHook(
-      'preValidation',
-      async (_schema, document, context) => {
-        const operations = document.definitions.filter(
-          (d): d is OperationDefinitionNode =>
-            d.kind === Kind.OPERATION_DEFINITION,
-        );
+    const setGqlOperationName = (
+      _schema: unknown,
+      document: DocumentNode,
+      context: MercuriusContext,
+    ) => {
+      if (context.graphqlOperationName) {
+        return;
+      }
 
-        if (operations.length === 1) {
-          context.graphqlOperationName = operations[0].name?.value;
-        }
-      },
-    );
+      const operations = document.definitions.filter(
+        (d): d is OperationDefinitionNode =>
+          d.kind === Kind.OPERATION_DEFINITION,
+      );
+
+      if (operations.length === 1) {
+        context.graphqlOperationName = operations[0].name?.value;
+      }
+    };
+
+    instance.graphql.addHook('preValidation', setGqlOperationName);
+    instance.graphql.addHook('preExecution', setGqlOperationName);
   });
 
   if (isProd) {
