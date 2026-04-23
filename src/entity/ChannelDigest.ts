@@ -27,15 +27,6 @@ export class ChannelDigest {
   @Column({ type: 'text' })
   frequency: ChannelDigestFrequency;
 
-  @Column({ type: 'boolean', default: false })
-  includeSentiment: boolean;
-
-  @Column({ type: 'real', nullable: true })
-  minHighlightScore: number | null;
-
-  @Column({ type: 'text', array: true, default: [] })
-  sentimentGroupIds: string[];
-
   @Column({ type: 'boolean', default: true })
   enabled: boolean;
 

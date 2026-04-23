@@ -5,12 +5,10 @@ import {
   KeywordStatus,
   Post,
   PostType,
-  SentimentEntity,
   Source,
   SourceType,
   User,
 } from '../entity';
-import { AGENTS_DIGEST_SOURCE } from '../entity/Source';
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
 import { PostHighlight } from '../entity/PostHighlight';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
@@ -29,10 +27,6 @@ const SITEMAP_CACHE_CONTROL = `public, max-age=${2 * ONE_HOUR_IN_SECONDS}, s-max
 const DEFAULT_SITEMAP_LIMIT = 50_000;
 const ARCHIVE_PAGES_LIMIT = 50_000;
 const QUALIFIED_SOURCE_MIN_PUBLIC_POSTS = 10;
-const ARENA_SITEMAP_GROUP_IDS = [
-  '385404b4-f0f4-4e81-a338-bdca851eca31',
-  '970ab2c9-f845-4822-82f0-02169713b814',
-];
 
 const getPaginatedSitemapLimit = (): number => {
   const limit = Number.parseInt(process.env.SITEMAP_LIMIT || '', 10);
@@ -90,9 +84,6 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
 
 const getTagSitemapUrl = (prefix: string, value: string): string =>
   `${prefix}/tags/${encodeURIComponent(value)}`;
-
-const getAgentSitemapUrl = (prefix: string, entity: string): string =>
-  `${prefix}/agents/${encodeURIComponent(entity)}`;
 
 const getSourceSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/sources/${encodeURIComponent(handle)}`;
@@ -368,33 +359,6 @@ const buildTagsSitemapQuery = (
     .from(Keyword, 'k')
     .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
-    .limit(DEFAULT_SITEMAP_LIMIT);
-
-const buildAgentsSitemapQuery = (
-  source: DataSource | EntityManager,
-): SelectQueryBuilder<SentimentEntity> =>
-  source
-    .createQueryBuilder()
-    .select('se.entity', 'entity')
-    .addSelect('se."createdAt"', 'lastmod')
-    .from(SentimentEntity, 'se')
-    .where('se."groupId" IN (:...groupIds)', {
-      groupIds: ARENA_SITEMAP_GROUP_IDS,
-    })
-    .orderBy('se.entity', 'ASC')
-    .limit(DEFAULT_SITEMAP_LIMIT);
-
-const buildAgentsDigestSitemapQuery = (
-  source: DataSource | EntityManager,
-): SelectQueryBuilder<Post> =>
-  source
-    .createQueryBuilder()
-    .select('p.slug', 'slug')
-    .addSelect('p."createdAt"', 'lastmod')
-    .from(Post, 'p')
-    .where('p."sourceId" = :sourceId', { sourceId: AGENTS_DIGEST_SOURCE })
-    .andWhere('NOT p.deleted')
-    .orderBy('p."createdAt"', 'DESC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildSourcesSitemapQuery = (
@@ -747,12 +711,6 @@ ${evergreenSitemaps}
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
   </sitemap>
   <sitemap>
-    <loc>${escapeXml(`${prefix}/api/sitemaps/agents.xml`)}</loc>
-  </sitemap>
-  <sitemap>
-    <loc>${escapeXml(`${prefix}/api/sitemaps/agents-digest.xml`)}</loc>
-  </sitemap>
-  <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/sources.xml`)}</loc>
   </sitemap>
   <sitemap>
@@ -926,34 +884,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(
         await buildSitemapXmlStream(con, buildTagsSitemapQuery, (row) =>
           getTagSitemapUrl(prefix, row.value),
-        ),
-      );
-  });
-
-  fastify.get('/agents.xml', async (_, res) => {
-    const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-
-    return res
-      .type('application/xml')
-      .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(
-        await buildSitemapXmlStream(con, buildAgentsSitemapQuery, (row) =>
-          getAgentSitemapUrl(prefix, row.entity),
-        ),
-      );
-  });
-
-  fastify.get('/agents-digest.xml', async (_, res) => {
-    const con = await createOrGetConnection();
-    const prefix = getSitemapUrlPrefix();
-
-    return res
-      .type('application/xml')
-      .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(
-        await buildSitemapXmlStream(con, buildAgentsDigestSitemapQuery, (row) =>
-          getPostSitemapUrl(prefix, row.slug),
         ),
       );
   });

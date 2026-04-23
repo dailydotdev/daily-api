@@ -1,4 +1,3 @@
-import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ChannelDigest } from '../../src/entity/ChannelDigest';
@@ -6,12 +5,6 @@ import { AGENTS_DIGEST_SOURCE, Source } from '../../src/entity/Source';
 import { FreeformPost } from '../../src/entity/posts/FreeformPost';
 import { generateChannelDigest } from '../../src/common/channelDigest/generate';
 import { createSource } from '../fixture/source';
-
-const yggdrasilOrigin = process.env.YGGDRASIL_SENTIMENT_ORIGIN;
-
-if (!yggdrasilOrigin) {
-  throw new Error('Missing YGGDRASIL_SENTIMENT_ORIGIN');
-}
 
 let con: DataSource;
 
@@ -25,9 +18,6 @@ const saveDefinition = async ({
   channel = 'vibes',
   targetAudience = 'audience',
   frequency = 'daily',
-  includeSentiment = false,
-  minHighlightScore = null,
-  sentimentGroupIds = [],
 }: Partial<ChannelDigest> = {}): Promise<ChannelDigest> =>
   con.getRepository(ChannelDigest).save({
     key,
@@ -35,9 +25,6 @@ const saveDefinition = async ({
     channel,
     targetAudience,
     frequency,
-    includeSentiment,
-    minHighlightScore,
-    sentimentGroupIds,
     enabled: true,
   });
 
@@ -70,13 +57,8 @@ const savePost = async ({
   });
 
 describe('generateChannelDigest', () => {
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
-  it('should fetch sentiment for the agentic digest and save the generated post', async () => {
+  it('should save the generated post when channel posts exist', async () => {
     const now = new Date('2026-03-03T10:00:00.000Z');
-    const from = new Date('2026-03-02T10:00:00.000Z').toISOString();
 
     await con
       .getRepository(Source)
@@ -99,9 +81,6 @@ describe('generateChannelDigest', () => {
       targetAudience:
         'software engineers and engineering leaders who care about AI tooling, agentic engineering, models, and vibe coding. They range from vibe coders to seasoned engineers tracking how AI is reshaping their craft.',
       frequency: 'daily',
-      includeSentiment: true,
-      minHighlightScore: 0.65,
-      sentimentGroupIds: ['group-1', 'group-2'],
     });
     await savePost({
       id: 'post-1',
@@ -111,45 +90,12 @@ describe('generateChannelDigest', () => {
       channel: 'vibes',
     });
 
-    const scope = nock(yggdrasilOrigin)
-      .get('/api/sentiment/highlights')
-      .query({
-        from,
-        group_id: 'group-1',
-        min_highlight_score: '0.65',
-        order_by: 'recency',
-        to: now.toISOString(),
-      })
-      .reply(200, {
-        items: [
-          {
-            text: 'Worker highlight text',
-            author: { handle: 'worker_author' },
-            metrics: { like_count: 42 },
-          },
-        ],
-        cursor: null,
-      })
-      .get('/api/sentiment/highlights')
-      .query({
-        from,
-        group_id: 'group-2',
-        min_highlight_score: '0.65',
-        order_by: 'recency',
-        to: now.toISOString(),
-      })
-      .reply(200, {
-        items: [],
-        cursor: null,
-      });
-
     const result = await generateChannelDigest({
       con,
       definition,
       now,
     });
 
-    expect(scope.isDone()).toBe(true);
     expect(result).toMatchObject({
       sourceId: AGENTS_DIGEST_SOURCE,
       title: 'Mock sentiment digest',

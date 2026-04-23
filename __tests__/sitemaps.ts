@@ -6,15 +6,12 @@ import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
-  AGENTS_DIGEST_SOURCE,
   Archive,
   CollectionPost,
   Keyword,
   KeywordStatus,
   Post,
   PostType,
-  SentimentEntity,
-  SentimentGroup,
   SharePost,
   SocialTwitterPost,
   Source,
@@ -87,42 +84,6 @@ const postsFixture: DeepPartial<Post>[] = [
   },
 ];
 
-const sentimentGroupsFixture: DeepPartial<SentimentGroup>[] = [
-  {
-    id: '385404b4-f0f4-4e81-a338-bdca851eca31',
-    name: 'Coding Agents',
-  },
-  {
-    id: '970ab2c9-f845-4822-82f0-02169713b814',
-    name: 'LLMs',
-  },
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    name: 'Other Group',
-  },
-];
-
-const sentimentEntitiesFixture: DeepPartial<SentimentEntity>[] = [
-  {
-    groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-    entity: 'claude_code',
-    name: 'Claude Code',
-    logo: 'https://example.com/claude.png',
-  },
-  {
-    groupId: '970ab2c9-f845-4822-82f0-02169713b814',
-    entity: 'gpt_4_1',
-    name: 'GPT 4.1',
-    logo: 'https://example.com/gpt.png',
-  },
-  {
-    groupId: '11111111-1111-1111-1111-111111111111',
-    entity: 'not_in_arena',
-    name: 'Not In Arena',
-    logo: 'https://example.com/other.png',
-  },
-];
-
 const createSourcePostFixtures = (
   sourceId: string,
   count: number,
@@ -153,8 +114,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   nock.cleanAll();
   await con.getRepository(ChannelHighlightDefinition).clear();
-  await saveFixtures(con, SentimentGroup, sentimentGroupsFixture);
-  await saveFixtures(con, SentimentEntity, sentimentEntitiesFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await con.getRepository(Post).insert(postsFixture);
@@ -533,12 +492,6 @@ describe('GET /sitemaps/index.xml', () => {
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/highlights.xml</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/api/sitemaps/agents.xml</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/api/sitemaps/agents-digest.xml</loc>',
     );
     expect(res.text).toContain(
       '<loc>http://localhost:5002/api/sitemaps/sources.xml</loc>',
@@ -965,85 +918,6 @@ describe('GET /sitemaps/users.xml', () => {
     expect(res.text).not.toContain('/deletedpost');
     expect(res.text).not.toContain('/hiddenpost');
     expect(res.text).not.toContain('/noposts');
-  });
-});
-
-describe('GET /sitemaps/agents.xml', () => {
-  it('should return arena entity pages sitemap as xml', async () => {
-    const res = await request(app.server)
-      .get('/sitemaps/agents.xml')
-      .expect(200);
-
-    expect(res.header['content-type']).toContain('application/xml');
-    expect(res.header['cache-control']).toBeTruthy();
-    expect(res.text).toContain(
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/agents/claude_code</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/agents/gpt_4_1</loc>',
-    );
-    expect(res.text).toContain('<lastmod>');
-    expect(res.text).not.toContain('/agents/not_in_arena');
-  });
-});
-
-describe('GET /sitemaps/agents-digest.xml', () => {
-  it('should return agents digest posts sitemap as xml', async () => {
-    await con.getRepository(Post).insert([
-      {
-        id: 'ad1',
-        shortId: 'ad1',
-        title: 'AD1',
-        sourceId: AGENTS_DIGEST_SOURCE,
-        createdAt: now,
-        type: PostType.Digest,
-      },
-      {
-        id: 'ad2',
-        shortId: 'ad2',
-        title: 'AD2',
-        sourceId: AGENTS_DIGEST_SOURCE,
-        createdAt: new Date(now.getTime() - 1000),
-        type: PostType.Digest,
-      },
-      {
-        id: 'ad3',
-        shortId: 'ad3',
-        title: 'AD3',
-        sourceId: AGENTS_DIGEST_SOURCE,
-        createdAt: new Date(now.getTime() - 2000),
-        type: PostType.Digest,
-        deleted: true,
-      },
-    ]);
-
-    const res = await request(app.server)
-      .get('/sitemaps/agents-digest.xml')
-      .expect(200);
-
-    expect(res.header['content-type']).toContain('application/xml');
-    expect(res.header['cache-control']).toEqual(
-      'public, max-age=7200, s-maxage=7200',
-    );
-    expect(res.text).toContain(
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/ad1-ad1</loc>',
-    );
-    expect(res.text).toContain(
-      '<loc>http://localhost:5002/posts/ad2-ad2</loc>',
-    );
-    expect(res.text).toContain('<lastmod>');
-    expect(res.text).not.toContain('/posts/ad3-ad3');
-    expect(
-      res.text.indexOf('<loc>http://localhost:5002/posts/ad1-ad1</loc>'),
-    ).toBeLessThan(
-      res.text.indexOf('<loc>http://localhost:5002/posts/ad2-ad2</loc>'),
-    );
   });
 });
 
