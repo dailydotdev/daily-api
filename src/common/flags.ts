@@ -14,6 +14,10 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     lastPrompt,
     defaultWriteTab,
     legacyPostLayoutOptOut,
+    shortcutsMode,
+    shortcutsAppearance,
+    showShortcutsOnWebapp,
+    shortcutMeta,
   } = flags ?? {};
 
   return {
@@ -29,5 +33,9 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     lastPrompt,
     defaultWriteTab,
     legacyPostLayoutOptOut: legacyPostLayoutOptOut ?? false,
+    shortcutsMode,
+    shortcutsAppearance,
+    showShortcutsOnWebapp,
+    shortcutMeta,
   };
 };
