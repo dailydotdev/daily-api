@@ -100,8 +100,8 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
-    shortcutsMode: ShortcutsMode
-    shortcutsAppearance: ShortcutsAppearance
+    shortcutsMode: String
+    shortcutsAppearance: String
     showShortcutsOnWebapp: Boolean
     shortcutMeta: JSONObject
   }
