@@ -26,6 +26,23 @@ export enum DefaultWriteTab {
   Poll = 'Poll',
 }
 
+export enum ShortcutsMode {
+  Auto = 'auto',
+  Manual = 'manual',
+}
+
+export enum ShortcutsAppearance {
+  Tile = 'tile',
+  Icon = 'icon',
+  Chip = 'chip',
+}
+
+export type ShortcutMeta = {
+  name?: string;
+  iconUrl?: string;
+  color?: string;
+};
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -39,6 +56,10 @@ export type SettingsFlags = Partial<{
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
   legacyPostLayoutOptOut: boolean;
+  shortcutsMode: ShortcutsMode;
+  shortcutsAppearance: ShortcutsAppearance;
+  showShortcutsOnWebapp: boolean;
+  shortcutMeta: Record<string, ShortcutMeta>;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -55,6 +76,10 @@ export type SettingsFlagsPublic = Pick<
   | 'lastPrompt'
   | 'defaultWriteTab'
   | 'legacyPostLayoutOptOut'
+  | 'shortcutsMode'
+  | 'shortcutsAppearance'
+  | 'showShortcutsOnWebapp'
+  | 'shortcutMeta'
 >;
 
 @Entity()
