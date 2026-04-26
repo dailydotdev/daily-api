@@ -6,7 +6,9 @@ import {
 } from 'graphql-relay';
 import type { SelectQueryBuilder } from 'typeorm';
 import { BaseContext, Context } from '../Context';
+import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
+import { redisPubSub } from '../redis';
 import type { OffsetPage } from './common';
 import {
   PostHighlight,
@@ -72,6 +74,10 @@ export const typeDefs = /* GraphQL */ `
     Get major headlines across all channels, deduplicated by post and ordered by recency
     """
     majorHeadlines(first: Int, after: String): PostHighlightConnection!
+  }
+
+  extend type Subscription {
+    newHighlight: PostHighlight! @auth
   }
 `;
 
@@ -181,6 +187,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (nodes) => nodes.slice(0, page.limit - 1),
         true,
       );
+    },
+  },
+  Subscription: {
+    newHighlight: {
+      subscribe: async (): Promise<
+        AsyncIterable<{ newHighlight: PostHighlight }>
+      > => {
+        const iterator = redisPubSub.asyncIterator<PostHighlight>(
+          NEW_HIGHLIGHT_CHANNEL,
+        );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return { done: false, value: { newHighlight: value } };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
 };
