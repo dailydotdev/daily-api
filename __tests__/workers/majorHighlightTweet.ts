@@ -1,13 +1,18 @@
+import { PubSub } from '@google-cloud/pubsub';
+import { type DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 import worker from '../../src/workers/majorHighlightTweet';
 import { typedWorkers } from '../../src/workers';
 import { PostHighlightSignificance } from '../../src/entity/PostHighlight';
-import { expectSuccessfulTypedBackground } from '../helpers';
+import {
+  checkRedisObjectExists,
+  deleteKeysByPattern,
+  setRedisObjectIfNotExistsWithExpiry,
+} from '../../src/redis';
+import { createMockLogger, expectSuccessfulTypedBackground } from '../helpers';
 
-const mockCheckRedisObjectExists = jest.fn();
-const mockSetRedisObjectIfNotExistsWithExpiry = jest.fn();
-const mockSetRedisObjectWithExpiry = jest.fn();
-const mockDeleteRedisKey = jest.fn();
 const mockPostTweet = jest.fn();
+let con: DataSource;
 
 const createEvent = (
   overrides: Partial<{
@@ -28,17 +33,6 @@ const createEvent = (
   ...overrides,
 });
 
-jest.mock('../../src/redis', () => ({
-  ...jest.requireActual<Record<string, unknown>>('../../src/redis'),
-  checkRedisObjectExists: (...args: unknown[]) =>
-    mockCheckRedisObjectExists(...args),
-  setRedisObjectIfNotExistsWithExpiry: (...args: unknown[]) =>
-    mockSetRedisObjectIfNotExistsWithExpiry(...args),
-  setRedisObjectWithExpiry: (...args: unknown[]) =>
-    mockSetRedisObjectWithExpiry(...args),
-  deleteRedisKey: (...args: unknown[]) => mockDeleteRedisKey(...args),
-}));
-
 jest.mock('../../src/integrations/twitter/clients', () => ({
   getTwitterClient: () => ({
     postTweet: (...args: unknown[]) => mockPostTweet(...args),
@@ -46,13 +40,17 @@ jest.mock('../../src/integrations/twitter/clients', () => ({
 }));
 
 describe('majorHighlightTweet worker', () => {
+  beforeAll(async () => {
+    con = await createOrGetConnection();
+  });
+
   beforeEach(() => {
     jest.resetAllMocks();
-    mockCheckRedisObjectExists.mockResolvedValue(0);
-    mockSetRedisObjectIfNotExistsWithExpiry.mockResolvedValue(true);
-    mockSetRedisObjectWithExpiry.mockResolvedValue('OK');
-    mockDeleteRedisKey.mockResolvedValue(1);
     mockPostTweet.mockResolvedValue('tweet-id');
+  });
+
+  afterEach(async () => {
+    await deleteKeysByPattern('major-highlight:tweet:*');
   });
 
   it('should be registered', () => {
@@ -76,14 +74,16 @@ describe('majorHighlightTweet worker', () => {
     expect(mockPostTweet).toHaveBeenCalledWith({
       text: 'BREAKING: Breaking highlight headline',
     });
-    expect(mockSetRedisObjectWithExpiry).toHaveBeenCalledWith(
-      'major-highlight:tweet:done:highlight-breaking',
-      '1',
-      604800,
-    );
-    expect(mockDeleteRedisKey).toHaveBeenCalledWith(
-      'major-highlight:tweet:lock:highlight-breaking',
-    );
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:done:highlight-breaking',
+      ),
+    ).toBe(1);
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:lock:highlight-breaking',
+      ),
+    ).toBe(0);
   });
 
   it('should publish tweet for major highlights', async () => {
@@ -102,19 +102,6 @@ describe('majorHighlightTweet worker', () => {
     });
   });
 
-  it('should trim the headline before tweeting', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
-      worker,
-      createEvent({
-        headline: '  Trimmed highlight headline  ',
-      }),
-    );
-
-    expect(mockPostTweet).toHaveBeenCalledWith({
-      text: 'BREAKING: Trimmed highlight headline',
-    });
-  });
-
   it('should skip non-major highlights', async () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
@@ -126,24 +113,26 @@ describe('majorHighlightTweet worker', () => {
       }),
     );
 
-    expect(mockCheckRedisObjectExists).not.toHaveBeenCalled();
     expect(mockPostTweet).not.toHaveBeenCalled();
   });
 
-  it('should skip blank headlines', async () => {
+  it('should skip empty headlines', async () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
-        headline: '   ',
+        headline: '',
       }),
     );
 
-    expect(mockCheckRedisObjectExists).not.toHaveBeenCalled();
     expect(mockPostTweet).not.toHaveBeenCalled();
   });
 
   it('should skip duplicate events', async () => {
-    mockCheckRedisObjectExists.mockResolvedValue(1);
+    await setRedisObjectIfNotExistsWithExpiry(
+      'major-highlight:tweet:done:highlight-duplicate',
+      '1',
+      60,
+    );
 
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
@@ -154,7 +143,24 @@ describe('majorHighlightTweet worker', () => {
       }),
     );
 
-    expect(mockSetRedisObjectIfNotExistsWithExpiry).not.toHaveBeenCalled();
+    expect(mockPostTweet).not.toHaveBeenCalled();
+  });
+
+  it('should skip when lock is already acquired', async () => {
+    await setRedisObjectIfNotExistsWithExpiry(
+      'major-highlight:tweet:lock:highlight-locked',
+      'worker-1',
+      60,
+    );
+
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-locked',
+        postId: 'post-locked',
+      }),
+    );
+
     expect(mockPostTweet).not.toHaveBeenCalled();
   });
 
@@ -171,25 +177,76 @@ describe('majorHighlightTweet worker', () => {
     expect(mockPostTweet).toHaveBeenCalledWith({
       text: `BREAKING: ${'a'.repeat(267)}...`,
     });
+    expect(
+      await checkRedisObjectExists('major-highlight:tweet:done:highlight-long'),
+    ).toBe(1);
+    expect(
+      await checkRedisObjectExists('major-highlight:tweet:lock:highlight-long'),
+    ).toBe(0);
   });
 
   it('should release lock when twitter publish fails', async () => {
     mockPostTweet.mockRejectedValue(new Error('twitter failed'));
+    const logger = createMockLogger();
 
     await expect(
-      expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
-        worker,
-        createEvent({
-          highlightId: 'highlight-error',
-          postId: 'post-error',
-          headline: 'Error highlight headline',
-        }),
+      worker.handler(
+        {
+          messageId: 'msg',
+          data: createEvent({
+            highlightId: 'highlight-error',
+            postId: 'post-error',
+            headline: 'Error highlight headline',
+          }),
+        },
+        con,
+        logger,
+        new PubSub(),
       ),
     ).rejects.toThrow('twitter failed');
 
-    expect(mockDeleteRedisKey).toHaveBeenCalledWith(
-      'major-highlight:tweet:lock:highlight-error',
+    expect(logger.error).toHaveBeenCalledWith(
+      {
+        highlightId: 'highlight-error',
+        messageId: 'msg',
+        err: expect.any(Error),
+      },
+      'failed to publish major highlight tweet',
     );
-    expect(mockSetRedisObjectWithExpiry).not.toHaveBeenCalled();
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:lock:highlight-error',
+      ),
+    ).toBe(0);
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:done:highlight-error',
+      ),
+    ).toBe(0);
+  });
+
+  it('should mark successful tweets as done', async () => {
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-success',
+        postId: 'post-success',
+        headline: 'Successful highlight headline',
+      }),
+    );
+
+    expect(mockPostTweet).toHaveBeenCalledWith({
+      text: 'BREAKING: Successful highlight headline',
+    });
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:done:highlight-success',
+      ),
+    ).toBe(1);
+    expect(
+      await checkRedisObjectExists(
+        'major-highlight:tweet:lock:highlight-success',
+      ),
+    ).toBe(0);
   });
 });

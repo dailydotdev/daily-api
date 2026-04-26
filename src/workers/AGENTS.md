@@ -404,6 +404,10 @@ describe('myWorker', () => {
 });
 ```
 
+For worker tests that use Redis or persisted entities, prefer the repo's normal integration pattern: use the real Redis/DB helpers and clean up state with `deleteKeysByPattern(...)` / repository cleanup instead of mocking Redis or Postgres helpers. Mock external integrations like Slack, Twitter, or LLM clients, not the storage layer, unless the storage abstraction itself is what you're testing.
+
+Do not add input normalization such as trimming or reformatting unless the product requirement, existing behavior, or reviewer guidance explicitly calls for it. Keep worker output transformations minimal and intentional.
+
 ## Best Practices
 
 1. **Use Typed Workers**: Use `TypedWorker` for all workers. This ensures type safety and consistency across the codebase.
@@ -443,4 +447,3 @@ describe('myWorker', () => {
 - **GraphORM**: See `src/graphorm/AGENTS.md` for GraphQL query optimization
 - **Main Architecture**: See `AGENTS.md` for high-level architecture overview
 - **Pulumi**: See `.infra/` directory for infrastructure configuration
-

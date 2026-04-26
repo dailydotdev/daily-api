@@ -13,17 +13,15 @@ const MAX_HEADLINE_LENGTH =
   MAX_TWEET_LENGTH - MAJOR_HIGHLIGHT_TWEET_PREFIX.length;
 
 const buildTweetText = (headline: string): string => {
-  const trimmedHeadline = headline.trim();
-
-  if (!trimmedHeadline) {
+  if (!headline) {
     return '';
   }
 
-  if (trimmedHeadline.length <= MAX_HEADLINE_LENGTH) {
-    return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${trimmedHeadline}`;
+  if (headline.length <= MAX_HEADLINE_LENGTH) {
+    return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline}`;
   }
 
-  return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${trimmedHeadline.substring(0, MAX_HEADLINE_LENGTH - 3)}...`;
+  return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline.substring(0, MAX_HEADLINE_LENGTH - 3)}...`;
 };
 
 const worker: TypedWorker<'api.v1.post-highlighted'> = {
