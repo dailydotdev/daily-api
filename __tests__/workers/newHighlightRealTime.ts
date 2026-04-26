@@ -89,6 +89,14 @@ describe('newHighlightRealTime worker', () => {
         highlightedAt: highlight.highlightedAt,
         createdAt: highlight.createdAt,
         updatedAt: highlight.updatedAt,
+        post: expect.objectContaining({
+          id: 'highlight-post',
+          title: 'Highlight post',
+          source: expect.objectContaining({
+            id: 'highlight-source',
+            handle: 'highlight-source',
+          }),
+        }),
       }),
     );
   });

@@ -9,15 +9,6 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
   handler: async (message, con, logger): Promise<void> => {
     const { highlightId } = message.data;
     const highlight = await con.getRepository(PostHighlight).findOne({
-      select: [
-        'id',
-        'postId',
-        'channel',
-        'highlightedAt',
-        'headline',
-        'createdAt',
-        'updatedAt',
-      ],
       where: { id: highlightId },
     });
 
@@ -29,7 +20,16 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
       return;
     }
 
-    await redisPubSub.publish(NEW_HIGHLIGHT_CHANNEL, highlight);
+    const post = await highlight.post;
+    const source = await post.source;
+
+    await redisPubSub.publish(NEW_HIGHLIGHT_CHANNEL, {
+      ...highlight,
+      post: {
+        ...post,
+        source,
+      },
+    });
   },
   parseMessage: (message) => PostHighlightedMessage.fromBinary(message.data),
 };
