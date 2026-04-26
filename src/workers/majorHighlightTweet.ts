@@ -6,23 +6,8 @@ import { withRedisDoneLock } from './withRedisDoneLock';
 import type { TypedWorker } from './worker';
 
 const MAJOR_HIGHLIGHT_TWEET_PREFIX = 'BREAKING: ';
-const MAX_TWEET_LENGTH = 280;
 const MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
-const MAX_HEADLINE_LENGTH =
-  MAX_TWEET_LENGTH - MAJOR_HIGHLIGHT_TWEET_PREFIX.length;
-
-const buildTweetText = (headline: string): string => {
-  if (!headline) {
-    return '';
-  }
-
-  if (headline.length <= MAX_HEADLINE_LENGTH) {
-    return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline}`;
-  }
-
-  return `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline.substring(0, MAX_HEADLINE_LENGTH - 3)}...`;
-};
 
 const worker: TypedWorker<'api.v1.post-highlighted'> = {
   subscription: 'api.major-highlight-tweet',
@@ -34,12 +19,6 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
       significance !== PostHighlightSignificance.Breaking &&
       significance !== PostHighlightSignificance.Major
     ) {
-      return;
-    }
-
-    const tweetText = buildTweetText(data.headline);
-
-    if (!tweetText) {
       return;
     }
 
@@ -58,7 +37,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
           }
 
           await twitterClient.postTweet({
-            text: tweetText,
+            text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${data.headline}`,
           });
         },
       });

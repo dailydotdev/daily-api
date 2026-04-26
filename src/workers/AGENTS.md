@@ -404,7 +404,7 @@ describe('myWorker', () => {
 });
 ```
 
-For worker tests that use Redis or persisted entities, prefer the repo's normal integration pattern: use the real Redis/DB helpers and clean up state with `deleteKeysByPattern(...)` / repository cleanup instead of mocking Redis or Postgres helpers. Mock external integrations like Slack, Twitter, or LLM clients, not the storage layer, unless the storage abstraction itself is what you're testing.
+When a worker reuses a shared helper such as `withRedisDoneLock`, do not re-test that helper's Redis/dedup mechanics in the worker-specific test file. Focus worker tests on the worker's own business logic and mock only the external integrations it calls. If a worker test genuinely needs Redis or persisted state for coverage, use the repo's normal integration pattern with real Redis/DB helpers and explicit cleanup instead of mocking storage helpers.
 
 Do not add input normalization such as trimming or reformatting unless the product requirement, existing behavior, or reviewer guidance explicitly calls for it. Keep worker output transformations minimal and intentional.
 
