@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { PostHighlightedMessage } from '@dailydotdev/schema';
 import createOrGetConnection from '../../../src/db';
-import { Post, Source, User } from '../../../src/entity';
+import { Post, PostType, Source, User } from '../../../src/entity';
 import { PostHighlightSignificance } from '../../../src/entity/PostHighlight';
 import { majorHeadlineAdded } from '../../../src/workers/notifications/majorHeadlineAdded';
 import {
@@ -123,6 +123,17 @@ describe('majorHeadlineAdded notification worker', () => {
 
     expect(result).toBeUndefined();
   });
+
+  it.each([PostType.Welcome, PostType.Brief, PostType.Digest])(
+    'should skip when post type is %s',
+    async (type) => {
+      await con.getRepository(Post).update('p1', { type });
+
+      const result = await invoke();
+
+      expect(result).toBeUndefined();
+    },
+  );
 
   it('should exclude users that muted in-app major_headline_added', async () => {
     await con.getRepository(User).update(

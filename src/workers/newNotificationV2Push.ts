@@ -35,11 +35,13 @@ const worker: Worker = {
         data.notification.type === NotificationType.MajorHeadlineAdded;
 
       if (isMajorHeadline) {
-        const [significanceStr] = (data.notification.uniqueKey || '').split(
-          ':',
-        );
+        const parts = (data.notification.uniqueKey || '').split(':');
+        const significanceStr = parts[1];
         const significance = parseInt(significanceStr, 10);
-        if (significance !== PostHighlightSignificance.Breaking) {
+        if (
+          Number.isNaN(significance) ||
+          significance !== PostHighlightSignificance.Breaking
+        ) {
           return;
         }
       }

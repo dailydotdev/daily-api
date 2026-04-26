@@ -317,7 +317,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.MajorHeadlineAdded]: {
-    email: NotificationPreferenceStatus.Subscribed,
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
 };

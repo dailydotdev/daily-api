@@ -266,6 +266,102 @@ it('should separate users with and without showAt into different push calls', as
   );
 });
 
+describe('major headline push notifications', () => {
+  beforeEach(async () => {
+    await deleteKeysByPattern('notification:major_headline_dedup:*');
+  });
+
+  it('should skip push when major headline significance is not Breaking', async () => {
+    const major = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.MajorHeadlineAdded,
+      uniqueKey: 'p1:2:global', // Major significance (2)
+      attachments: [],
+      avatars: [],
+    });
+    await con.getRepository(UserNotification).insert([
+      { userId: '1', notificationId: major.id },
+      { userId: '2', notificationId: major.id },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: major.id,
+        type: NotificationType.MajorHeadlineAdded,
+        uniqueKey: 'p1:2:global',
+        public: true,
+      },
+    });
+    expect(sendPushNotification).toHaveBeenCalledTimes(0);
+  });
+
+  it('should skip push when uniqueKey is malformed', async () => {
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notif.id,
+        type: NotificationType.MajorHeadlineAdded,
+        uniqueKey: 'unparseable',
+        public: true,
+      },
+    });
+    expect(sendPushNotification).toHaveBeenCalledTimes(0);
+  });
+
+  it('should dedup major headline pushes per user within TTL window', async () => {
+    const breaking = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.MajorHeadlineAdded,
+      uniqueKey: 'p1:1:global', // Breaking significance (1)
+      attachments: [],
+      avatars: [],
+    });
+    await con.getRepository(UserNotification).insert([
+      { userId: '1', notificationId: breaking.id },
+      { userId: '2', notificationId: breaking.id },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: breaking.id,
+        type: NotificationType.MajorHeadlineAdded,
+        uniqueKey: 'p1:1:global',
+        public: true,
+      },
+    });
+    expect(sendPushNotification).toHaveBeenCalledTimes(1);
+    expect(sendPushNotification).toHaveBeenCalledWith(
+      expect.arrayContaining(['1', '2']),
+      expect.any(Object),
+      undefined,
+      undefined,
+    );
+
+    (sendPushNotification as jest.Mock).mockClear();
+
+    const breaking2 = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.MajorHeadlineAdded,
+      uniqueKey: 'p2:1:global',
+      attachments: [],
+      avatars: [],
+    });
+    await con.getRepository(UserNotification).insert([
+      { userId: '1', notificationId: breaking2.id },
+      { userId: '2', notificationId: breaking2.id },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: breaking2.id,
+        type: NotificationType.MajorHeadlineAdded,
+        uniqueKey: 'p2:1:global',
+        public: true,
+      },
+    });
+    expect(sendPushNotification).toHaveBeenCalledTimes(0);
+  });
+});
+
 it('should not send award push notification if the user prefers not to receive them', async () => {
   const userId = '1';
   const repo = con.getRepository(User);
