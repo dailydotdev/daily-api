@@ -9,6 +9,15 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
   handler: async (message, con, logger): Promise<void> => {
     const { highlightId } = message.data;
     const highlight = await con.getRepository(PostHighlight).findOne({
+      select: [
+        'id',
+        'postId',
+        'channel',
+        'highlightedAt',
+        'headline',
+        'createdAt',
+        'updatedAt',
+      ],
       where: { id: highlightId },
     });
 

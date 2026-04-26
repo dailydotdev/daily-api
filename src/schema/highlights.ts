@@ -27,6 +27,17 @@ type GQLChannelConfiguration = {
   digest?: GQLChannelDigestConfiguration | null;
 };
 
+type GQLSubscribedPostHighlight = Pick<
+  PostHighlight,
+  | 'id'
+  | 'postId'
+  | 'channel'
+  | 'highlightedAt'
+  | 'headline'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
 export const typeDefs = /* GraphQL */ `
   type ChannelDigestConfiguration {
     frequency: String!
@@ -192,9 +203,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Subscription: {
     newHighlight: {
       subscribe: async (): Promise<
-        AsyncIterable<{ newHighlight: PostHighlight }>
+        AsyncIterable<{ newHighlight: GQLSubscribedPostHighlight }>
       > => {
-        const iterator = redisPubSub.asyncIterator<PostHighlight>(
+        const iterator = redisPubSub.asyncIterator<GQLSubscribedPostHighlight>(
           NEW_HIGHLIGHT_CHANNEL,
         );
 
@@ -221,5 +232,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         };
       },
     },
+  },
+  PostHighlight: {
+    post: async (source: GQLSubscribedPostHighlight, _, ctx: Context, info) =>
+      graphorm.queryOne(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where(`${builder.alias}.id = :id`, {
+            id: source.postId,
+          });
+          return builder;
+        },
+        true,
+      ),
   },
 };
