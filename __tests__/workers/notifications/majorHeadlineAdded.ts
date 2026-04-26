@@ -145,17 +145,18 @@ describe('majorHeadlineAdded notification worker', () => {
   });
 
   it('should skip when no users are subscribed', async () => {
-    await con.getRepository(User).update(
-      {},
-      {
+    await con
+      .createQueryBuilder()
+      .update(User)
+      .set({
         notificationFlags: {
           [NotificationType.MajorHeadlineAdded]: {
             inApp: NotificationPreferenceStatus.Muted,
             email: NotificationPreferenceStatus.Muted,
           },
         },
-      },
-    );
+      })
+      .execute();
 
     const result = await invoke();
 

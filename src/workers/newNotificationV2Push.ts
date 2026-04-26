@@ -15,11 +15,7 @@ import { counters } from '../telemetry';
 import { In } from 'typeorm';
 import { PostHighlightSignificance } from '../entity/PostHighlight';
 import { setRedisObjectIfNotExistsWithExpiry } from '../redis';
-import {
-  generateStorageKey,
-  StorageKey,
-  StorageTopic,
-} from '../config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 
 const MAJOR_HEADLINE_PUSH_DEDUP_SECONDS = 7200;
 
