@@ -235,16 +235,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   },
   PostHighlight: {
     post: async (source: GQLSubscribedPostHighlight, _, ctx: Context, info) =>
-      graphorm.queryOne(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder.where(`${builder.alias}.id = :id`, {
-            id: source.postId,
-          });
-          return builder;
-        },
-        true,
-      ),
+      'post' in source && source.post
+        ? source.post
+        : graphorm.queryOne(
+            ctx,
+            info,
+            (builder) => {
+              builder.queryBuilder.where(`${builder.alias}.id = :id`, {
+                id: source.postId,
+              });
+              return builder;
+            },
+            true,
+          ),
   },
 };
