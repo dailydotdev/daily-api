@@ -8,10 +8,20 @@ import { User } from '../entity/user/User';
 import {
   getNotificationV2AndChildren,
   NotificationChannel,
+  NotificationType,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
 import { In } from 'typeorm';
+import { PostHighlightSignificance } from '../entity/PostHighlight';
+import { setRedisObjectIfNotExistsWithExpiry } from '../redis';
+import {
+  generateStorageKey,
+  StorageKey,
+  StorageTopic,
+} from '../config';
+
+const MAJOR_HEADLINE_PUSH_DEDUP_SECONDS = 7200;
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -25,6 +35,19 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     if (data.notification.public) {
+      const isMajorHeadline =
+        data.notification.type === NotificationType.MajorHeadlineAdded;
+
+      if (isMajorHeadline) {
+        const [significanceStr] = (data.notification.uniqueKey || '').split(
+          ':',
+        );
+        const significance = parseInt(significanceStr, 10);
+        if (significance !== PostHighlightSignificance.Breaking) {
+          return;
+        }
+      }
+
       const [notification, , avatars] = await getNotificationV2AndChildren(
         con,
         data.notification.id,
@@ -54,6 +77,32 @@ const worker: Worker = {
 
               if (!users.length) {
                 return;
+              }
+
+              if (isMajorHeadline) {
+                const dedupResults = await Promise.all(
+                  users.map(async (user) => {
+                    const acquired = await setRedisObjectIfNotExistsWithExpiry(
+                      generateStorageKey(
+                        StorageTopic.Notification,
+                        StorageKey.MajorHeadlineDedup,
+                        user.id,
+                      ),
+                      '1',
+                      MAJOR_HEADLINE_PUSH_DEDUP_SECONDS,
+                    );
+                    return acquired ? user : null;
+                  }),
+                );
+                users.length = 0;
+                for (const user of dedupResults) {
+                  if (user) {
+                    users.push(user);
+                  }
+                }
+                if (!users.length) {
+                  return;
+                }
               }
 
               // group push notifications per showAt

@@ -440,6 +440,11 @@ export const workers: Worker[] = [
     subscription: 'api.recruiter-new-candidate-notification',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-headline-added-notification',
+    args: { ackDeadlineSeconds: 60 },
+  },
+  {
     topic: 'gondul.v1.candidate-application-scored',
     subscription: 'api.candidate-review-opportunity-slack',
   },
