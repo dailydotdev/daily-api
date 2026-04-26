@@ -9,6 +9,25 @@ const mockSetRedisObjectWithExpiry = jest.fn();
 const mockDeleteRedisKey = jest.fn();
 const mockPostTweet = jest.fn();
 
+const createEvent = (
+  overrides: Partial<{
+    highlightId: string;
+    channel: string;
+    postId: string;
+    headline: string;
+    significance: PostHighlightSignificance;
+    highlightedAt: string;
+  }> = {},
+) => ({
+  highlightId: 'highlight-id',
+  channel: 'ai',
+  postId: 'post-id',
+  headline: 'Highlight headline',
+  significance: PostHighlightSignificance.Breaking,
+  highlightedAt: new Date().toISOString(),
+  ...overrides,
+});
+
 jest.mock('../../src/redis', () => ({
   ...jest.requireActual<Record<string, unknown>>('../../src/redis'),
   checkRedisObjectExists: (...args: unknown[]) =>
@@ -45,14 +64,14 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should publish tweet for breaking highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-      highlightId: 'highlight-breaking',
-      channel: 'ai',
-      postId: 'post-breaking',
-      headline: 'Breaking highlight headline',
-      significance: PostHighlightSignificance.Breaking,
-      highlightedAt: new Date().toISOString(),
-    });
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-breaking',
+        postId: 'post-breaking',
+        headline: 'Breaking highlight headline',
+      }),
+    );
 
     expect(mockPostTweet).toHaveBeenCalledWith({
       text: 'BREAKING: Breaking highlight headline',
@@ -68,29 +87,56 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should publish tweet for major highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-      highlightId: 'highlight-major',
-      channel: 'ai',
-      postId: 'post-major',
-      headline: 'Major highlight headline',
-      significance: PostHighlightSignificance.Major,
-      highlightedAt: new Date().toISOString(),
-    });
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-major',
+        postId: 'post-major',
+        headline: 'Major highlight headline',
+        significance: PostHighlightSignificance.Major,
+      }),
+    );
 
     expect(mockPostTweet).toHaveBeenCalledWith({
       text: 'BREAKING: Major highlight headline',
     });
   });
 
-  it('should skip non-major highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-      highlightId: 'highlight-routine',
-      channel: 'ai',
-      postId: 'post-routine',
-      headline: 'Routine highlight headline',
-      significance: PostHighlightSignificance.Routine,
-      highlightedAt: new Date().toISOString(),
+  it('should trim the headline before tweeting', async () => {
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        headline: '  Trimmed highlight headline  ',
+      }),
+    );
+
+    expect(mockPostTweet).toHaveBeenCalledWith({
+      text: 'BREAKING: Trimmed highlight headline',
     });
+  });
+
+  it('should skip non-major highlights', async () => {
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-routine',
+        postId: 'post-routine',
+        headline: 'Routine highlight headline',
+        significance: PostHighlightSignificance.Routine,
+      }),
+    );
+
+    expect(mockCheckRedisObjectExists).not.toHaveBeenCalled();
+    expect(mockPostTweet).not.toHaveBeenCalled();
+  });
+
+  it('should skip blank headlines', async () => {
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        headline: '   ',
+      }),
+    );
 
     expect(mockCheckRedisObjectExists).not.toHaveBeenCalled();
     expect(mockPostTweet).not.toHaveBeenCalled();
@@ -99,30 +145,28 @@ describe('majorHighlightTweet worker', () => {
   it('should skip duplicate events', async () => {
     mockCheckRedisObjectExists.mockResolvedValue(1);
 
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-      highlightId: 'highlight-duplicate',
-      channel: 'ai',
-      postId: 'post-duplicate',
-      headline: 'Duplicate highlight headline',
-      significance: PostHighlightSignificance.Breaking,
-      highlightedAt: new Date().toISOString(),
-    });
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-duplicate',
+        postId: 'post-duplicate',
+        headline: 'Duplicate highlight headline',
+      }),
+    );
 
     expect(mockSetRedisObjectIfNotExistsWithExpiry).not.toHaveBeenCalled();
     expect(mockPostTweet).not.toHaveBeenCalled();
   });
 
   it('should truncate long headlines to fit twitter limit', async () => {
-    const headline = 'a'.repeat(400);
-
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-      highlightId: 'highlight-long',
-      channel: 'ai',
-      postId: 'post-long',
-      headline,
-      significance: PostHighlightSignificance.Breaking,
-      highlightedAt: new Date().toISOString(),
-    });
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-long',
+        postId: 'post-long',
+        headline: 'a'.repeat(400),
+      }),
+    );
 
     expect(mockPostTweet).toHaveBeenCalledWith({
       text: `BREAKING: ${'a'.repeat(267)}...`,
@@ -133,14 +177,14 @@ describe('majorHighlightTweet worker', () => {
     mockPostTweet.mockRejectedValue(new Error('twitter failed'));
 
     await expect(
-      expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(worker, {
-        highlightId: 'highlight-error',
-        channel: 'ai',
-        postId: 'post-error',
-        headline: 'Error highlight headline',
-        significance: PostHighlightSignificance.Breaking,
-        highlightedAt: new Date().toISOString(),
-      }),
+      expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+        worker,
+        createEvent({
+          highlightId: 'highlight-error',
+          postId: 'post-error',
+          headline: 'Error highlight headline',
+        }),
+      ),
     ).rejects.toThrow('twitter failed');
 
     expect(mockDeleteRedisKey).toHaveBeenCalledWith(
