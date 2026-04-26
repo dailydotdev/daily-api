@@ -312,6 +312,10 @@ export const workers: Worker[] = [
     subscription: 'api.agentic-digest-tweet',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-highlight-tweet',
+  },
+  {
     topic: 'api.v1.source-post-moderation-submitted',
     subscription: 'api.source-post-moderation-submitted-notification',
   },
