@@ -20,9 +20,9 @@ from (
             and post."createdAt" <= timezone('utc', now()) - interval '30 minutes'
         group by "postId"
     ) res
-    where res."partial" != res."total" and res."total" >= 30 and (res."partial" * 1.0 / res."total") >= 0.55
+    where res."partial" != res."total" and res."total" >= 15 and (res."partial" * 1.0 / res."total") >= 0.55
     order by (res."partial" * 1.0 / res."total") desc
-    limit 3
+    limit 25
 ) as res
 where "post".id = res."postId"
 `);

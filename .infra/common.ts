@@ -151,6 +151,10 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.new-highlight-real-time',
+  },
+  {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
   },
@@ -310,6 +314,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.post-visible',
     subscription: 'api.agentic-digest-tweet',
+  },
+  {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-highlight-tweet',
   },
   {
     topic: 'api.v1.source-post-moderation-submitted',

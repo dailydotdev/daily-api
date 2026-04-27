@@ -443,4 +443,3 @@ describe('myWorker', () => {
 - **GraphORM**: See `src/graphorm/AGENTS.md` for GraphQL query optimization
 - **Main Architecture**: See `AGENTS.md` for high-level architecture overview
 - **Pulumi**: See `.infra/` directory for infrastructure configuration
-
