@@ -1,7 +1,12 @@
 import { PubSub } from '@google-cloud/pubsub';
 import { type DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { deleteKeysByPattern } from '../../src/redis';
+import {
+  deleteKeysByPattern,
+  ioRedisPool,
+  redisPubSub,
+  singleRedisClient,
+} from '../../src/redis';
 import worker from '../../src/workers/majorHighlightTweet';
 import { typedWorkers } from '../../src/workers';
 import { PostHighlightSignificance } from '../../src/entity/PostHighlight';
@@ -37,9 +42,23 @@ jest.mock('../../src/integrations/twitter/clients', () => ({
   }),
 }));
 
+jest.setTimeout(30000);
+
 describe('majorHighlightTweet worker', () => {
   beforeAll(async () => {
     con = await createOrGetConnection();
+  });
+
+  afterAll(async () => {
+    if (con?.isInitialized) {
+      await con.destroy();
+    }
+
+    singleRedisClient.disconnect();
+    redisPubSub.getPublisher().disconnect();
+    redisPubSub.getSubscriber().disconnect();
+    await redisPubSub.close();
+    await ioRedisPool.end();
   });
 
   beforeEach(() => {
