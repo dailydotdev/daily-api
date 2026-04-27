@@ -5,9 +5,31 @@ import { getTwitterClient } from '../integrations/twitter/clients';
 import { withRedisDoneLock } from './withRedisDoneLock';
 import type { TypedWorker } from './worker';
 
-const MAJOR_HIGHLIGHT_TWEET_PREFIX = 'BREAKING: ';
+const HIGHLIGHT_TWEET_PREFIXES: Record<
+  PostHighlightSignificance.Breaking | PostHighlightSignificance.Major,
+  string[]
+> = {
+  [PostHighlightSignificance.Breaking]: ['BREAKING', 'ALERT', 'FLASH'],
+  [PostHighlightSignificance.Major]: ['JUST IN', 'MAJOR', 'NEW'],
+};
 const MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
+
+const getHighlightTweetPrefix = (
+  highlightId: string,
+  significance:
+    | PostHighlightSignificance.Breaking
+    | PostHighlightSignificance.Major,
+): string => {
+  const prefixes = HIGHLIGHT_TWEET_PREFIXES[significance];
+  const seed = [...highlightId].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+  const index = seed % prefixes.length;
+
+  return `${prefixes[index]}: `;
+};
 
 const withMajorHighlightTweetLock = ({
   scope,
@@ -62,7 +84,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
               }
 
               await twitterClient.postTweet({
-                text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline}`,
+                text: `${getHighlightTweetPrefix(highlightId, significance)}${headline}`,
               });
             },
           });
