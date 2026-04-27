@@ -121,7 +121,7 @@ describe('majorHighlightTweet worker', () => {
     );
 
     expect(mockPostTweet).toHaveBeenCalledWith({
-      text: 'URGENT: Breaking variant headline',
+      text: 'FLASH: Breaking variant headline',
     });
   });
 

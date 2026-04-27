@@ -9,8 +9,8 @@ const HIGHLIGHT_TWEET_PREFIXES: Record<
   PostHighlightSignificance.Breaking | PostHighlightSignificance.Major,
   string[]
 > = {
-  [PostHighlightSignificance.Breaking]: ['BREAKING', 'ALERT', 'URGENT'],
-  [PostHighlightSignificance.Major]: ['JUST IN', 'NOW', 'UPDATE'],
+  [PostHighlightSignificance.Breaking]: ['BREAKING', 'ALERT', 'FLASH'],
+  [PostHighlightSignificance.Major]: ['JUST IN', 'MAJOR', 'NEW'],
 };
 const MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
