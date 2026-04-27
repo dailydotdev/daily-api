@@ -5,7 +5,7 @@ import {
 } from '../common/schema/liveRooms';
 import { TypedWorker } from './worker';
 
-export const liveRoomEndedWorker: TypedWorker<'api.v1.live-room-ended'> = {
+export const liveRoomEndedWorker: TypedWorker<'flyting.v1.room-ended'> = {
   subscription: 'api.live-room-ended',
   handler: async ({ data }, con, logger) => {
     const input = liveRoomLifecycleEventSchema.parse(data);

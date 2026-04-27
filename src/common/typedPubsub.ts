@@ -179,13 +179,13 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
-  'api.v1.live-room-started': {
+  'flyting.v1.room-started': {
     eventId: string;
     roomId: LiveRoom['id'];
     occurredAt: string;
     type: 'room_started';
   };
-  'api.v1.live-room-ended': {
+  'flyting.v1.room-ended': {
     eventId: string;
     roomId: LiveRoom['id'];
     occurredAt: string;

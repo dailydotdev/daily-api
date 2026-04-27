@@ -33,7 +33,7 @@ describe('live room lifecycle workers', () => {
       },
     ]);
 
-    await expectSuccessfulTypedBackground<'api.v1.live-room-started'>(
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
       liveRoomStartedWorker,
       {
         eventId: '91cf8383-bac0-4da4-8a2a-e472b2ef5ce3',
@@ -63,7 +63,7 @@ describe('live room lifecycle workers', () => {
       },
     ]);
 
-    await expectSuccessfulTypedBackground<'api.v1.live-room-ended'>(
+    await expectSuccessfulTypedBackground<'flyting.v1.room-ended'>(
       liveRoomEndedWorker,
       {
         eventId: '688260d3-d16f-4e96-85e8-e2eb2bdb52b0',
@@ -99,11 +99,11 @@ describe('live room lifecycle workers', () => {
       type: LiveRoomLifecycleEventType.RoomStarted,
     };
 
-    await expectSuccessfulTypedBackground<'api.v1.live-room-started'>(
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
       liveRoomStartedWorker,
       payload,
     );
-    await expectSuccessfulTypedBackground<'api.v1.live-room-started'>(
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
       liveRoomStartedWorker,
       payload,
     );

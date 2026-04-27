@@ -356,11 +356,11 @@ export const workers: Worker[] = [
     subscription: 'api.organization-user-removed',
   },
   {
-    topic: 'api.v1.live-room-started',
+    topic: 'flyting.v1.room-started',
     subscription: 'api.live-room-started',
   },
   {
-    topic: 'api.v1.live-room-ended',
+    topic: 'flyting.v1.room-ended',
     subscription: 'api.live-room-ended',
   },
   {
