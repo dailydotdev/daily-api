@@ -9,11 +9,31 @@ const MAJOR_HIGHLIGHT_TWEET_PREFIX = 'BREAKING: ';
 const MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 
+const withMajorHighlightTweetLock = ({
+  scope,
+  id,
+  lockValue,
+  execute,
+}: {
+  scope: 'highlight' | 'post';
+  id: string;
+  lockValue: string;
+  execute: () => Promise<void>;
+}) =>
+  withRedisDoneLock({
+    doneKey: `major-highlight:tweet:${scope}-done:${id}`,
+    lockKey: `major-highlight:tweet:${scope}-lock:${id}`,
+    lockValue,
+    lockTtlSeconds: MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS,
+    doneTtlSeconds: MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS,
+    execute,
+  });
+
 const worker: TypedWorker<'api.v1.post-highlighted'> = {
   subscription: 'api.major-highlight-tweet',
   parseMessage: (message) => PostHighlightedMessage.fromBinary(message.data),
   handler: async ({ data, messageId }, _con, logger): Promise<void> => {
-    const { highlightId, significance } = data;
+    const { headline, highlightId, postId, significance } = data;
 
     if (
       significance !== PostHighlightSignificance.Breaking &&
@@ -23,21 +43,28 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
     }
 
     try {
-      await withRedisDoneLock({
-        doneKey: `major-highlight:tweet:done:${highlightId}`,
-        lockKey: `major-highlight:tweet:lock:${highlightId}`,
-        lockValue: messageId || highlightId,
-        lockTtlSeconds: MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS,
-        doneTtlSeconds: MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS,
+      const lockValue = messageId || highlightId;
+
+      await withMajorHighlightTweetLock({
+        scope: 'highlight',
+        id: highlightId,
+        lockValue,
         execute: async () => {
-          const twitterClient = getTwitterClient();
+          await withMajorHighlightTweetLock({
+            scope: 'post',
+            id: postId,
+            lockValue,
+            execute: async () => {
+              const twitterClient = getTwitterClient();
 
-          if (!twitterClient) {
-            throw new Error('twitter client is not configured');
-          }
+              if (!twitterClient) {
+                throw new Error('twitter client is not configured');
+              }
 
-          await twitterClient.postTweet({
-            text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${data.headline}`,
+              await twitterClient.postTweet({
+                text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${headline}`,
+              });
+            },
           });
         },
       });
@@ -45,6 +72,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
       logger.error(
         {
           highlightId,
+          postId,
           messageId,
           err,
         },
