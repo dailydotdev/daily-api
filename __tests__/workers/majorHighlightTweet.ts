@@ -16,6 +16,7 @@ const mockPostTweet = jest.fn();
 let con: DataSource;
 const clearMajorHighlightTweetLocks = () =>
   deleteKeysByPattern('major-highlight:tweet:*');
+const mockMathRandom = jest.spyOn(Math, 'random');
 
 const createEvent = (
   overrides: Partial<{
@@ -63,12 +64,18 @@ describe('majorHighlightTweet worker', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    mockMathRandom.mockReturnValue(0);
     mockPostTweet.mockResolvedValue('tweet-id');
     return clearMajorHighlightTweetLocks();
   });
 
   afterEach(async () => {
+    mockMathRandom.mockReset();
     await clearMajorHighlightTweetLocks();
+  });
+
+  afterAll(() => {
+    mockMathRandom.mockRestore();
   });
 
   it('should be registered', () => {
@@ -106,7 +113,24 @@ describe('majorHighlightTweet worker', () => {
     );
 
     expect(mockPostTweet).toHaveBeenCalledWith({
-      text: 'BREAKING: Major highlight headline',
+      text: 'JUST IN: Major highlight headline',
+    });
+  });
+
+  it('should vary the prefix within the configured breaking options', async () => {
+    mockMathRandom.mockReturnValue(0.9);
+
+    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+      worker,
+      createEvent({
+        highlightId: 'highlight-breaking-variant',
+        postId: 'post-breaking-variant',
+        headline: 'Breaking variant headline',
+      }),
+    );
+
+    expect(mockPostTweet).toHaveBeenCalledWith({
+      text: 'URGENT: Breaking variant headline',
     });
   });
 
