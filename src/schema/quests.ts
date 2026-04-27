@@ -14,6 +14,7 @@ import {
 } from '../common/quest';
 import { transferCores } from '../common/njord';
 import { systemUser } from '../common/utils';
+import { awardXp } from '../common/xp';
 import {
   Quest,
   QuestEventType,
@@ -442,27 +443,7 @@ const applyQuestRewards = async ({
   const rewardTotals = toQuestRewardTotals(rewards);
 
   if (rewardTotals.xp > 0) {
-    await con
-      .createQueryBuilder()
-      .insert()
-      .into(UserQuestProfile)
-      .values({
-        userId: ctx.userId,
-        totalXp: 0,
-      })
-      .orIgnore()
-      .execute();
-
-    await con
-      .createQueryBuilder()
-      .update(UserQuestProfile)
-      .set({
-        totalXp: () => `"totalXp" + ${rewardTotals.xp}`,
-      })
-      .where({
-        userId: ctx.userId,
-      })
-      .execute();
+    await awardXp({ con, userId: ctx.userId, amount: rewardTotals.xp });
   }
 
   if (rewardTotals.reputation > 0) {

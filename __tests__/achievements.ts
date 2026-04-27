@@ -17,6 +17,7 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { UserCompany } from '../src/entity/UserCompany';
 import { UserAchievement } from '../src/entity/user/UserAchievement';
+import { UserQuestProfile } from '../src/entity/user/UserQuestProfile';
 import { updateUserAchievementProgress } from '../src/common/achievement';
 import {
   createMockLogger,
@@ -65,6 +66,7 @@ const achievementsFixture = [
     eventType: AchievementEventType.ProfileImageUpdate,
     criteria: {},
     points: 5,
+    xp: 10,
     rarity: 0.8,
     createdAt: new Date('2024-01-01'),
   },
@@ -77,6 +79,7 @@ const achievementsFixture = [
     eventType: AchievementEventType.BookmarkPost,
     criteria: { targetCount: 10 },
     points: 10,
+    xp: 25,
     rarity: 0.5,
     createdAt: new Date('2024-01-02'),
   },
@@ -89,6 +92,7 @@ const achievementsFixture = [
     eventType: AchievementEventType.SquadJoin,
     criteria: {},
     points: 5,
+    xp: 10,
     rarity: 0.6,
     createdAt: new Date('2024-01-03'),
   },
@@ -96,6 +100,11 @@ const achievementsFixture = [
 
 beforeEach(async () => {
   loggedUser = null;
+  await con
+    .getRepository(UserQuestProfile)
+    .createQueryBuilder()
+    .delete()
+    .execute();
   await con
     .getRepository(UserAchievement)
     .createQueryBuilder()
@@ -133,6 +142,8 @@ const USER_ACHIEVEMENTS_QUERY = /* GraphQL */ `
       achievement {
         id
         name
+        points
+        xp
       }
       progress
       unlockedAt
@@ -209,14 +220,20 @@ describe('query userAchievements', () => {
 
     const [first, second, third] = res.data.userAchievements;
     expect(first.achievement.id).toBe(achievementIds.a1);
+    expect(first.achievement.points).toBe(5);
+    expect(first.achievement.xp).toBe(10);
     expect(first.progress).toBe(1);
     expect(first.unlockedAt).toBeTruthy();
 
     expect(second.achievement.id).toBe(achievementIds.a2);
+    expect(second.achievement.points).toBe(10);
+    expect(second.achievement.xp).toBe(25);
     expect(second.progress).toBe(5);
     expect(second.unlockedAt).toBeNull();
 
     expect(third.achievement.id).toBe(achievementIds.a3);
+    expect(third.achievement.points).toBe(5);
+    expect(third.achievement.xp).toBe(10);
     expect(third.progress).toBe(0);
     expect(third.unlockedAt).toBeNull();
   });
@@ -639,5 +656,74 @@ describe('tracked achievement', () => {
       where: { id: '1' },
     });
     expect(user?.flags?.trackedAchievementId).toBeNull();
+  });
+});
+
+describe('achievement XP reward', () => {
+  it('should award XP when an achievement is unlocked', async () => {
+    const wasUnlocked = await updateUserAchievementProgress(
+      con,
+      createMockLogger(),
+      '1',
+      achievementIds.a2,
+      10,
+      10,
+      25,
+    );
+
+    expect(wasUnlocked).toBe(true);
+
+    const profile = await con
+      .getRepository(UserQuestProfile)
+      .findOneBy({ userId: '1' });
+    expect(profile).toBeTruthy();
+    expect(profile!.totalXp).toBe(25);
+  });
+
+  it('should not award XP when achievement is not unlocked', async () => {
+    const wasUnlocked = await updateUserAchievementProgress(
+      con,
+      createMockLogger(),
+      '1',
+      achievementIds.a2,
+      5,
+      10,
+      25,
+    );
+
+    expect(wasUnlocked).toBe(false);
+
+    const profile = await con
+      .getRepository(UserQuestProfile)
+      .findOneBy({ userId: '1' });
+    expect(profile).toBeNull();
+  });
+
+  it('should accumulate XP from multiple achievement unlocks', async () => {
+    await updateUserAchievementProgress(
+      con,
+      createMockLogger(),
+      '1',
+      achievementIds.a1,
+      1,
+      1,
+      10,
+    );
+
+    await updateUserAchievementProgress(
+      con,
+      createMockLogger(),
+      '1',
+      achievementIds.a2,
+      10,
+      10,
+      25,
+    );
+
+    const profile = await con
+      .getRepository(UserQuestProfile)
+      .findOneBy({ userId: '1' });
+    expect(profile).toBeTruthy();
+    expect(profile!.totalXp).toBe(35);
   });
 });

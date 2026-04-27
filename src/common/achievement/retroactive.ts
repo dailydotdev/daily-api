@@ -616,6 +616,7 @@ export const syncUsersRetroactiveAchievements = async ({
             achievement.id,
             progress,
             targetCount,
+            achievement.xp,
           );
 
           if (wasUnlocked) {

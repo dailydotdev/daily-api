@@ -10,6 +10,7 @@ import { User } from '../../entity/user/User';
 import { UserAchievement } from '../../entity/user/UserAchievement';
 import { updateFlagsStatement } from '../utils';
 import { triggerTypedEvent } from '../typedPubsub';
+import { awardXp } from '../xp';
 
 export {
   AchievementEventType,
@@ -59,6 +60,7 @@ export async function updateUserAchievementProgress(
   achievementId: string,
   progress: number,
   targetCount: number,
+  achievementXp?: number,
 ): Promise<boolean> {
   const userAchievement = await getOrCreateUserAchievement(
     con,
@@ -106,6 +108,10 @@ export async function updateUserAchievementProgress(
           { userId, showAchievementUnlock: achievementId },
           { conflictPaths: ['userId'] },
         );
+
+      if (achievementXp) {
+        await awardXp({ con: manager, userId, amount: achievementXp });
+      }
     }
   });
 
@@ -119,6 +125,7 @@ export async function incrementUserAchievementProgress(
   achievementId: string,
   targetCount: number,
   incrementBy: number = 1,
+  achievementXp?: number,
 ): Promise<boolean> {
   const userAchievement = await getOrCreateUserAchievement(
     con,
@@ -139,6 +146,7 @@ export async function incrementUserAchievementProgress(
     achievementId,
     newProgress,
     targetCount,
+    achievementXp,
   );
 }
 
@@ -157,6 +165,7 @@ async function evaluateInstantAchievement(
       achievement.id,
       1, // Instant achievements are always complete with 1 action
       targetCount,
+      achievement.xp,
     );
 
     if (wasUnlocked) {
@@ -188,6 +197,7 @@ async function evaluateMilestoneAchievement(
       achievement.id,
       targetCount,
       incrementBy,
+      achievement.xp,
     );
 
     if (wasUnlocked) {
@@ -219,6 +229,7 @@ async function evaluateAbsoluteValueAchievement(
       achievement.id,
       currentValue,
       targetCount,
+      achievement.xp,
     );
 
     if (wasUnlocked) {

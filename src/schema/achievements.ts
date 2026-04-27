@@ -195,6 +195,10 @@ export const typeDefs = /* GraphQL */ `
     """
     points: Int!
     """
+    XP awarded for unlocking this achievement
+    """
+    xp: Int!
+    """
     Percentage of active users who unlocked this (null if not yet calculated)
     """
     rarity: Float
