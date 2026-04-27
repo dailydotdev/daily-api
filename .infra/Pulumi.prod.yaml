@@ -268,6 +268,7 @@ config:
       secure: AAABAALaAGQ1uwwU5q3Ep8ro0VNLMUyhrb3MR8zm6FqHe83mdrCNuAFlcYhgvWaiBlI46U4j4zbjuT44xYV31ew6S9IRsMs6mZEBRPq+tIQiGBdM9j0sRU/unVaPDpBa
     flytingInternalKey:
       secure: AAABANX83TDkPUQk7zofUmwW7Y8iGjKRMi1qjYQEcYwFcsraNkMXo48lLNRFKNFfGFNC6kNl+5QAHkzURLLP5MQxP7KIAyKUBMOEGFI3ft3YiYVhENmcymvVNfoP0pBk
+    recswipeOrigin: http://recswipe-api.recswipe.svc.cluster.local
   api:k8s:
     host: subs.daily.dev
     namespace: daily
