@@ -13,7 +13,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
   subscription: 'api.major-highlight-tweet',
   parseMessage: (message) => PostHighlightedMessage.fromBinary(message.data),
   handler: async ({ data, messageId }, _con, logger): Promise<void> => {
-    const { highlightId, significance } = data;
+    const { highlightId, postId, significance } = data;
 
     if (
       significance !== PostHighlightSignificance.Breaking &&
@@ -30,14 +30,23 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
         lockTtlSeconds: MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS,
         doneTtlSeconds: MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS,
         execute: async () => {
-          const twitterClient = getTwitterClient();
+          await withRedisDoneLock({
+            doneKey: `major-highlight:tweet:post-done:${postId}`,
+            lockKey: `major-highlight:tweet:post-lock:${postId}`,
+            lockValue: messageId || highlightId,
+            lockTtlSeconds: MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS,
+            doneTtlSeconds: MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS,
+            execute: async () => {
+              const twitterClient = getTwitterClient();
 
-          if (!twitterClient) {
-            throw new Error('twitter client is not configured');
-          }
+              if (!twitterClient) {
+                throw new Error('twitter client is not configured');
+              }
 
-          await twitterClient.postTweet({
-            text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${data.headline}`,
+              await twitterClient.postTweet({
+                text: `${MAJOR_HIGHLIGHT_TWEET_PREFIX}${data.headline}`,
+              });
+            },
           });
         },
       });
@@ -45,6 +54,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
       logger.error(
         {
           highlightId,
+          postId,
           messageId,
           err,
         },
