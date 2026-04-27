@@ -9,6 +9,8 @@ import { createMockLogger, expectSuccessfulTypedBackground } from '../helpers';
 
 const mockPostTweet = jest.fn();
 let con: DataSource;
+const clearMajorHighlightTweetLocks = () =>
+  deleteKeysByPattern('major-highlight:tweet:*');
 
 const createEvent = (
   overrides: Partial<{
@@ -43,10 +45,11 @@ describe('majorHighlightTweet worker', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockPostTweet.mockResolvedValue('tweet-id');
+    return clearMajorHighlightTweetLocks();
   });
 
   afterEach(async () => {
-    await deleteKeysByPattern('major-highlight:tweet:*');
+    await clearMajorHighlightTweetLocks();
   });
 
   it('should be registered', () => {
