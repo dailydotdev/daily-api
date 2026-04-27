@@ -16,7 +16,6 @@ const mockPostTweet = jest.fn();
 let con: DataSource;
 const clearMajorHighlightTweetLocks = () =>
   deleteKeysByPattern('major-highlight:tweet:*');
-const mockMathRandom = jest.spyOn(Math, 'random');
 
 const createEvent = (
   overrides: Partial<{
@@ -28,7 +27,7 @@ const createEvent = (
     highlightedAt: string;
   }> = {},
 ) => ({
-  highlightId: 'highlight-id',
+  highlightId: 'c',
   channel: 'ai',
   postId: 'post-id',
   headline: 'Highlight headline',
@@ -64,18 +63,12 @@ describe('majorHighlightTweet worker', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    mockMathRandom.mockReturnValue(0);
     mockPostTweet.mockResolvedValue('tweet-id');
     return clearMajorHighlightTweetLocks();
   });
 
   afterEach(async () => {
-    mockMathRandom.mockReset();
     await clearMajorHighlightTweetLocks();
-  });
-
-  afterAll(() => {
-    mockMathRandom.mockRestore();
   });
 
   it('should be registered', () => {
@@ -90,7 +83,7 @@ describe('majorHighlightTweet worker', () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
-        highlightId: 'highlight-breaking',
+        highlightId: 'c',
         postId: 'post-breaking',
         headline: 'Breaking highlight headline',
       }),
@@ -105,7 +98,7 @@ describe('majorHighlightTweet worker', () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
-        highlightId: 'highlight-major',
+        highlightId: 'c',
         postId: 'post-major',
         headline: 'Major highlight headline',
         significance: PostHighlightSignificance.Major,
@@ -118,12 +111,10 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should vary the prefix within the configured breaking options', async () => {
-    mockMathRandom.mockReturnValue(0.9);
-
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
-        highlightId: 'highlight-breaking-variant',
+        highlightId: 'b',
         postId: 'post-breaking-variant',
         headline: 'Breaking variant headline',
       }),
@@ -140,7 +131,7 @@ describe('majorHighlightTweet worker', () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
-        highlightId: 'highlight-dedup-1',
+        highlightId: 'c',
         postId,
         headline: 'First highlight headline',
       }),
@@ -164,7 +155,7 @@ describe('majorHighlightTweet worker', () => {
 
   it('should skip reprocessing the same highlight', async () => {
     const event = createEvent({
-      highlightId: 'highlight-retry',
+      highlightId: 'c',
       postId: 'post-retry',
       headline: 'Retry highlight headline',
     });
@@ -202,6 +193,7 @@ describe('majorHighlightTweet worker', () => {
     await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
       worker,
       createEvent({
+        highlightId: 'c',
         headline: `  ${'a'.repeat(400)}  `,
       }),
     );
@@ -220,7 +212,7 @@ describe('majorHighlightTweet worker', () => {
         {
           messageId: 'msg',
           data: createEvent({
-            highlightId: 'highlight-error',
+            highlightId: 'c',
             postId: 'post-error',
             headline: 'Error highlight headline',
           }),
@@ -233,7 +225,7 @@ describe('majorHighlightTweet worker', () => {
 
     expect(logger.error).toHaveBeenCalledWith(
       {
-        highlightId: 'highlight-error',
+        highlightId: 'c',
         postId: 'post-error',
         messageId: 'msg',
         err: expect.any(Error),

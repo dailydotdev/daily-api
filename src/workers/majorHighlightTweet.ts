@@ -16,12 +16,17 @@ const MAJOR_HIGHLIGHT_TWEET_DONE_TTL_SECONDS = 7 * ONE_DAY_IN_SECONDS;
 const MAJOR_HIGHLIGHT_TWEET_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
 
 const getHighlightTweetPrefix = (
+  highlightId: string,
   significance:
     | PostHighlightSignificance.Breaking
     | PostHighlightSignificance.Major,
 ): string => {
   const prefixes = HIGHLIGHT_TWEET_PREFIXES[significance];
-  const index = Math.floor(Math.random() * prefixes.length);
+  const seed = [...highlightId].reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+  const index = seed % prefixes.length;
 
   return `${prefixes[index]}: `;
 };
@@ -79,7 +84,7 @@ const worker: TypedWorker<'api.v1.post-highlighted'> = {
               }
 
               await twitterClient.postTweet({
-                text: `${getHighlightTweetPrefix(significance)}${headline}`,
+                text: `${getHighlightTweetPrefix(highlightId, significance)}${headline}`,
               });
             },
           });
