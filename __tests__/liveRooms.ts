@@ -365,43 +365,6 @@ describe('live rooms', () => {
     });
   });
 
-  it('normalizes legacy debate rooms to moderated on reads', async () => {
-    await saveFixtures(con, LiveRoom, [
-      {
-        id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
-        hostId: '1',
-        topic: 'Legacy debate room',
-        mode: 'debate' as LiveRoom['mode'],
-        status: LiveRoomStatus.Live,
-        createdAt: new Date('2026-04-23T13:00:00.000Z'),
-      },
-    ]);
-
-    const byIdResponse = await client.query(GET_QUERY, {
-      variables: {
-        id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
-      },
-    });
-
-    expect(byIdResponse.errors).toBeFalsy();
-    expect(byIdResponse.data.liveRoom).toMatchObject({
-      id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
-      mode: 'moderated',
-    });
-
-    const activeResponse = await client.query(ACTIVE_QUERY);
-
-    expect(activeResponse.errors).toBeFalsy();
-    expect(activeResponse.data.activeLiveRooms).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
-          mode: 'moderated',
-        }),
-      ]),
-    );
-  });
-
   it('returns a join token for the host role', async () => {
     loggedUser = '1';
 

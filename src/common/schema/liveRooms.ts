@@ -61,13 +61,3 @@ export const liveRoomLifecycleEventSchema = z.object({
   occurredAt: z.string().min(1),
   type: liveRoomLifecycleEventTypeSchema,
 });
-
-export const normalizeStoredLiveRoomMode = (
-  mode: string | null | undefined,
-): LiveRoomMode => {
-  if (mode === 'debate') {
-    return LiveRoomMode.Moderated;
-  }
-
-  return liveRoomModeSchema.parse(mode);
-};

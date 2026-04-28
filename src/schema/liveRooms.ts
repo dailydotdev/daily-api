@@ -9,7 +9,6 @@ import {
   LiveRoomParticipantRole,
   liveRoomIdInputSchema,
   LiveRoomStatus,
-  normalizeStoredLiveRoomMode,
 } from '../common/schema/liveRooms';
 import { NotFoundError } from '../errors';
 import { LiveRoom } from '../entity/LiveRoom';
@@ -148,10 +147,6 @@ const getJoinParticipantId = (ctx: Context): string => {
 };
 
 export const resolvers: IResolvers = {
-  LiveRoom: {
-    mode: (room: LiveRoom): LiveRoomMode =>
-      normalizeStoredLiveRoomMode(room.mode as string),
-  },
   Query: {
     liveRoom: async (
       _,
