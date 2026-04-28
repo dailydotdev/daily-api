@@ -11,7 +11,6 @@ import {
   MockContext,
   saveFixtures,
   testMutationErrorCode,
-  testQueryErrorCode,
 } from './helpers';
 import { usersFixture } from './fixture/user';
 import { User } from '../src/entity/user/User';
@@ -24,6 +23,7 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
+let loggedTrackingId: string | undefined = undefined;
 
 beforeAll(async () => {
   process.env.FLYTING_JOIN_TOKEN_SECRET = 'flyting-join-secret';
@@ -32,7 +32,17 @@ beforeAll(async () => {
 
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () =>
+      new MockContext(
+        con,
+        loggedUser,
+        [],
+        undefined,
+        false,
+        false,
+        '',
+        loggedTrackingId,
+      ),
   );
   client = state.client;
 });
@@ -44,6 +54,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  loggedTrackingId = undefined;
   nock.cleanAll();
   await saveFixtures(con, User, usersFixture);
 });
@@ -270,8 +281,6 @@ describe('live rooms', () => {
   });
 
   it('returns only live rooms', async () => {
-    loggedUser = '1';
-
     await saveFixtures(con, LiveRoom, [
       {
         id: '0d0bd25e-e1f9-4b7d-8ddb-82f11e882201',
@@ -363,10 +372,60 @@ describe('live rooms', () => {
     );
 
     expect(verified).toMatchObject({
+      authKind: 'authenticated',
       iat: expect.any(Number),
       participantId: '1',
       role: 'host',
       roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
+    });
+  });
+
+  it('returns an anonymous join token for a live room using trackingId identity', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Live room',
+        mode: 'debate',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+    ]);
+
+    const res = await client.mutate(JOIN_TOKEN_MUTATION, {
+      variables: {
+        roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.liveRoomJoinToken).toMatchObject({
+      role: 'audience',
+      room: {
+        id: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        topic: 'Live room',
+        status: 'live',
+      },
+    });
+
+    const verified = jwt.verify(
+      res.data.liveRoomJoinToken.token,
+      'flyting-join-secret',
+      {
+        algorithms: ['HS256'],
+        audience: 'flyting',
+        issuer: 'daily-api',
+      },
+    );
+
+    expect(verified).toMatchObject({
+      authKind: 'anonymous',
+      iat: expect.any(Number),
+      participantId: 'tracking-anon-1',
+      role: 'audience',
+      roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
     });
   });
 
@@ -394,6 +453,32 @@ describe('live rooms', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
       'Cannot join an ended live room',
+    );
+  });
+
+  it('rejects anonymous join tokens for rooms that are not live yet', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'b14bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Created room',
+        mode: 'debate',
+        status: LiveRoomStatus.Created,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: JOIN_TOKEN_MUTATION,
+        variables: {
+          roomId: 'b14bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Anonymous viewers can only join live rooms',
     );
   });
 
@@ -493,15 +578,38 @@ describe('live rooms', () => {
     });
   });
 
-  it('requires authentication to query a room', () =>
-    testQueryErrorCode(
-      client,
+  it('returns a live room by id for an anonymous caller', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
       {
-        query: GET_QUERY,
-        variables: {
-          id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        id: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        hostId: '2',
+        topic: 'Public live room',
+        mode: 'debate',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(GET_QUERY, {
+      variables: {
+        id: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      liveRoom: {
+        id: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        topic: 'Public live room',
+        mode: 'debate',
+        status: 'live',
+        host: {
+          id: '2',
+          username: 'tsahidaily',
         },
       },
-      'UNAUTHENTICATED',
-    ));
+    });
+  });
 });
