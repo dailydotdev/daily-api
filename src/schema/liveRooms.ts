@@ -162,9 +162,12 @@ export const resolvers: IResolvers = {
             id: args.id,
           });
           if (!ctx.userId) {
-            builder.queryBuilder.andWhere(`"${builder.alias}"."status" = :status`, {
-              status: LiveRoomStatus.Live,
-            });
+            builder.queryBuilder.andWhere(
+              `"${builder.alias}"."status" = :status`,
+              {
+                status: LiveRoomStatus.Live,
+              },
+            );
           }
           return builder;
         },
