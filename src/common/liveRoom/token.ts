@@ -11,6 +11,7 @@ export const DEFAULT_LIVE_ROOM_JOIN_TOKEN_TTL_SECONDS =
 export const createLiveRoomJoinToken = async (input: {
   participantId: string;
   role: LiveRoomParticipantRole;
+  authKind?: 'authenticated' | 'anonymous';
   roomId: string;
   audience?: string;
   expiresInSeconds?: number;
@@ -26,6 +27,7 @@ export const createLiveRoomJoinToken = async (input: {
       jti: randomUUID(),
       participantId: input.participantId,
       role: input.role,
+      authKind: input.authKind ?? 'authenticated',
       roomId: input.roomId,
     },
     input.secret,

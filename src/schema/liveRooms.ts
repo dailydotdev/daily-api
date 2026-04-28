@@ -1,6 +1,6 @@
 import type { IResolvers } from '@graphql-tools/utils';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import type { AuthContext } from '../Context';
+import type { Context } from '../Context';
 import { toGQLEnum } from '../common';
 import { createLiveRoomJoinToken } from '../common/liveRoom/token';
 import {
@@ -54,14 +54,14 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    liveRoom(id: ID!): LiveRoom @auth
-    activeLiveRooms: [LiveRoom!]! @auth
+    liveRoom(id: ID!): LiveRoom
+    activeLiveRooms: [LiveRoom!]!
   }
 
   extend type Mutation {
     createLiveRoom(input: CreateLiveRoomInput!): LiveRoomJoinToken! @auth
     endLiveRoom(roomId: ID!): LiveRoom! @auth
-    liveRoomJoinToken(roomId: ID!): LiveRoomJoinToken! @auth
+    liveRoomJoinToken(roomId: ID!): LiveRoomJoinToken!
   }
 `;
 
@@ -82,7 +82,7 @@ const getRoomOrThrow = async ({
   ctx,
 }: {
   roomId: string;
-  ctx: AuthContext;
+  ctx: Context;
 }): Promise<LiveRoom> => {
   const room = await ctx.con.getRepository(LiveRoom).findOneBy({ id: roomId });
 
@@ -97,7 +97,7 @@ const assertCanEndRoom = ({
   ctx,
   room,
 }: {
-  ctx: AuthContext;
+  ctx: Context;
   room: LiveRoom;
 }): void => {
   if (room.hostId === ctx.userId || ctx.roles.includes(Roles.Moderator)) {
@@ -108,10 +108,12 @@ const assertCanEndRoom = ({
 };
 
 const createJoinTokenPayload = async ({
+  authKind,
   room,
   participantId,
   role,
 }: {
+  authKind: 'anonymous' | 'authenticated';
   room: LiveRoom;
   participantId: string;
   role: LiveRoomParticipantRole;
@@ -122,6 +124,7 @@ const createJoinTokenPayload = async ({
   }
 
   const token = await createLiveRoomJoinToken({
+    authKind,
     participantId,
     role,
     roomId: room.id,
@@ -135,12 +138,20 @@ const createJoinTokenPayload = async ({
   };
 };
 
+const getJoinParticipantId = (ctx: Context): string => {
+  if (!ctx.trackingId) {
+    throw new ValidationError('Tracking ID is required to join a live room');
+  }
+
+  return ctx.trackingId;
+};
+
 export const resolvers: IResolvers = {
   Query: {
     liveRoom: async (
       _,
       args: { id: string },
-      ctx: AuthContext,
+      ctx: Context,
       info,
     ): Promise<GQLLiveRoom> =>
       graphorm.queryOneOrFail<GQLLiveRoom>(
@@ -150,6 +161,11 @@ export const resolvers: IResolvers = {
           builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
             id: args.id,
           });
+          if (!ctx.userId) {
+            builder.queryBuilder.andWhere(`"${builder.alias}"."status" = :status`, {
+              status: LiveRoomStatus.Live,
+            });
+          }
           return builder;
         },
         LiveRoom,
@@ -157,7 +173,7 @@ export const resolvers: IResolvers = {
     activeLiveRooms: async (
       _,
       __,
-      ctx: AuthContext,
+      ctx: Context,
       info,
     ): Promise<GQLLiveRoom[]> =>
       graphorm.query<GQLLiveRoom>(
@@ -178,7 +194,7 @@ export const resolvers: IResolvers = {
     createLiveRoom: async (
       _,
       args: { input: { mode: LiveRoomMode; topic: string } },
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
       const roomRepo = ctx.con.getRepository(LiveRoom);
@@ -204,15 +220,16 @@ export const resolvers: IResolvers = {
       }
 
       return createJoinTokenPayload({
+        authKind: 'authenticated',
         room,
-        participantId: ctx.userId,
+        participantId: getJoinParticipantId(ctx),
         role: LiveRoomParticipantRole.Host,
       });
     },
     endLiveRoom: async (
       _,
       args: { roomId: string },
-      ctx: AuthContext,
+      ctx: Context,
       info,
     ): Promise<GQLLiveRoom> => {
       const input = liveRoomIdInputSchema.parse(args);
@@ -249,7 +266,7 @@ export const resolvers: IResolvers = {
     liveRoomJoinToken: async (
       _,
       args: { roomId: string },
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
@@ -258,9 +275,9 @@ export const resolvers: IResolvers = {
         throw new ValidationError('Cannot join an ended live room');
       }
 
-      const secret = process.env.FLYTING_JOIN_TOKEN_SECRET;
-      if (!secret) {
-        throw new Error('FLYTING_JOIN_TOKEN_SECRET is not configured');
+      const authKind = ctx.userId ? 'authenticated' : 'anonymous';
+      if (authKind === 'anonymous' && room.status !== LiveRoomStatus.Live) {
+        throw new ValidationError('Anonymous viewers can only join live rooms');
       }
 
       const role =
@@ -269,8 +286,9 @@ export const resolvers: IResolvers = {
           : LiveRoomParticipantRole.Audience;
 
       return createJoinTokenPayload({
+        authKind,
         room,
-        participantId: ctx.userId,
+        participantId: getJoinParticipantId(ctx),
         role,
       });
     },
