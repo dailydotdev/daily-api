@@ -7,7 +7,7 @@ export class UserNotificationEffectiveCreatedAt1777380340090
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
-      CREATE INDEX CONCURRENTLY
+      CREATE INDEX IF NOT EXISTS
         "IDX_user_notification_user_public_effective_created"
       ON "user_notification" (
         "userId",
@@ -19,7 +19,7 @@ export class UserNotificationEffectiveCreatedAt1777380340090
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
-      DROP INDEX CONCURRENTLY
+      DROP INDEX IF EXISTS
         "IDX_user_notification_user_public_effective_created"
     `);
   }
