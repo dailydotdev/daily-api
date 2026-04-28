@@ -227,6 +227,7 @@ describe('live rooms', () => {
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
         mode: 'free_for_all',
+        speakerLimit: 6,
       })
       .matchHeader('x-flyting-internal-key', flytingInternalKey)
       .reply(200, { room: { roomId: 'ignored' } });
@@ -236,6 +237,7 @@ describe('live rooms', () => {
         input: {
           topic: 'Open mic architecture',
           mode: 'free_for_all',
+          speakerLimit: 6,
         },
       },
     });
@@ -253,6 +255,29 @@ describe('live rooms', () => {
 
     expect(room.mode).toBe('free_for_all');
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('rejects speaker limits for moderated live rooms', async () => {
+    loggedUser = '1';
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/)
+      .reply(200, { room: { roomId: 'ignored' } });
+
+    const res = await client.mutate(CREATE_MUTATION, {
+      variables: {
+        input: {
+          topic: 'Strictly moderated',
+          mode: 'moderated',
+          speakerLimit: 3,
+        },
+      },
+    });
+
+    expect(res.errors?.[0]?.message).toBe('Validation error');
+    expect(scope.isDone()).toBe(false);
+    await expect(
+      con.getRepository(LiveRoom).findOneBy({ topic: 'Strictly moderated' }),
+    ).resolves.toBeNull();
   });
 
   it('keeps the durable room when prepare fails ambiguously', async () => {

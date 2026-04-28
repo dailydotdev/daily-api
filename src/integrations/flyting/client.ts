@@ -28,6 +28,7 @@ export class FlytingClient {
   async prepareRoom(input: {
     mode: LiveRoomMode;
     roomId: string;
+    speakerLimit?: number;
   }): Promise<void> {
     await this.garmr.execute(async () => {
       const response = await retryFetch(
@@ -41,6 +42,7 @@ export class FlytingClient {
           },
           body: JSON.stringify({
             mode: input.mode,
+            speakerLimit: input.speakerLimit,
           }),
         },
       );
