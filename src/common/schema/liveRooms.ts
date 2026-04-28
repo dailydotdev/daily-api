@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { enumValues } from './utils';
 
 export enum LiveRoomMode {
-  Debate = 'debate',
+  Moderated = 'moderated',
+  FreeForAll = 'free_for_all',
 }
 
 export enum LiveRoomStatus {
@@ -45,7 +46,7 @@ export const liveRoomLifecycleEventTypeSchema = z.enum(
 
 export const createLiveRoomSchema = z.object({
   topic: z.string().trim().min(1).max(280),
-  mode: liveRoomModeSchema.default(LiveRoomMode.Debate),
+  mode: liveRoomModeSchema.default(LiveRoomMode.Moderated),
 });
 
 export const liveRoomIdSchema = z.uuid('Live room ID must be a valid UUID');

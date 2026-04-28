@@ -50,7 +50,7 @@ export const typeDefs = /* GraphQL */ `
 
   input CreateLiveRoomInput {
     topic: String!
-    mode: LiveRoomMode = debate
+    mode: LiveRoomMode = moderated
   }
 
   extend type Query {
