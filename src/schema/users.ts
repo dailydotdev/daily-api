@@ -2,7 +2,12 @@ import { emailRegex, isNullOrUndefined } from './../common/object';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
+import type { z } from 'zod';
+import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { recswipeClient } from '../integrations/recswipe/clients';
+import { HttpError } from '../integrations/retry';
+import { ServiceError } from '../errors';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { Feed } from '../entity/Feed';
 import { FeedTag } from '../entity/FeedTag';
@@ -1785,10 +1790,43 @@ export const typeDefs = /* GraphQL */ `
     onboardingProfileTags(prompt: String!): OnboardingTagsResult!
       @auth
       @rateLimit(limit: 3, duration: 3600)
+
+    """
+    Discover candidate posts for the Tinder-style swipe onboarding deck.
+    Stateless proxy to the recswipe service that returns lightweight post
+    summaries; clients should hydrate via feedByIds.
+    """
+    onboardingDiscoverPosts(
+      prompt: String
+      selectedTags: [String!]
+      confirmedTags: [String!]
+      likedTitles: [String!]
+      excludeIds: [String!]
+      saturatedTags: [String!]
+      n: Int
+    ): OnboardingDiscoverPostsResult! @auth
   }
 
   type OnboardingTagsResult {
     includeTags: [String!]!
+  }
+
+  """
+  Lightweight post info returned by the onboarding swipe recommender.
+  Use feedByIds to hydrate into full Post objects.
+  """
+  type OnboardingSwipePost {
+    postId: String!
+    title: String!
+    summary: String!
+    tags: [String!]!
+    url: String!
+    sourceId: String!
+  }
+
+  type OnboardingDiscoverPostsResult {
+    posts: [OnboardingSwipePost!]!
+    subPrompts: [String!]!
   }
 `;
 
@@ -4292,6 +4330,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       return { includeTags: tags.map((tag) => tag.name) };
+    },
+    onboardingDiscoverPosts: async (
+      _,
+      args: Partial<z.input<typeof onboardingDiscoverPostsInputSchema>>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingDiscoverPostsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.discoverPosts(ctx.userId, parsed);
+
+        return {
+          posts: (data.posts ?? []).map((p) => ({
+            postId: p.post_id,
+            title: p.title,
+            summary: p.summary,
+            tags: p.tags ?? [],
+            url: p.url,
+            sourceId: p.source_id,
+          })),
+          subPrompts: data.sub_prompts ?? [],
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe discoverPosts request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
     },
   },
   User: {
