@@ -99,6 +99,7 @@ describe('live rooms', () => {
       activeLiveRooms {
         id
         topic
+        mode
         status
         host {
           id
@@ -116,6 +117,7 @@ describe('live rooms', () => {
         room {
           id
           topic
+          mode
           status
           host {
             id
@@ -144,7 +146,7 @@ describe('live rooms', () => {
         variables: {
           input: {
             topic: 'A room topic',
-            mode: 'debate',
+            mode: 'moderated',
           },
         },
       },
@@ -157,7 +159,7 @@ describe('live rooms', () => {
     let preparePath = '';
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
-        mode: 'debate',
+        mode: 'moderated',
       })
       .matchHeader('x-flyting-internal-key', flytingInternalKey)
       .reply(function reply(uri) {
@@ -169,7 +171,7 @@ describe('live rooms', () => {
       variables: {
         input: {
           topic: 'GraphQL and SFUs',
-          mode: 'debate',
+          mode: 'moderated',
         },
       },
     });
@@ -180,7 +182,7 @@ describe('live rooms', () => {
       token: expect.any(String),
       room: {
         topic: 'GraphQL and SFUs',
-        mode: 'debate',
+        mode: 'moderated',
         status: 'created',
         host: {
           id: '1',
@@ -219,12 +221,46 @@ describe('live rooms', () => {
     });
   });
 
+  it('creates a free-for-all live room and forwards its mode to flyting', async () => {
+    loggedUser = '1';
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'free_for_all',
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, { room: { roomId: 'ignored' } });
+
+    const res = await client.mutate(CREATE_MUTATION, {
+      variables: {
+        input: {
+          topic: 'Open mic architecture',
+          mode: 'free_for_all',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createLiveRoom.room).toMatchObject({
+      topic: 'Open mic architecture',
+      mode: 'free_for_all',
+      status: 'created',
+    });
+
+    const room = await con.getRepository(LiveRoom).findOneByOrFail({
+      id: res.data.createLiveRoom.room.id,
+    });
+
+    expect(room.mode).toBe('free_for_all');
+    expect(scope.isDone()).toBe(true);
+  });
+
   it('keeps the durable room when prepare fails ambiguously', async () => {
     loggedUser = '1';
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
-        mode: 'debate',
+        mode: 'moderated',
       })
       .matchHeader('x-flyting-internal-key', flytingInternalKey)
       .times(6)
@@ -234,7 +270,7 @@ describe('live rooms', () => {
       variables: {
         input: {
           topic: 'Ambiguous prepare',
-          mode: 'debate',
+          mode: 'moderated',
         },
       },
     });
@@ -255,7 +291,7 @@ describe('live rooms', () => {
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
-        mode: 'debate',
+        mode: 'moderated',
       })
       .matchHeader('x-flyting-internal-key', flytingInternalKey)
       .reply(400, { message: 'invalid' });
@@ -264,7 +300,7 @@ describe('live rooms', () => {
       variables: {
         input: {
           topic: 'Invalid prepare',
-          mode: 'debate',
+          mode: 'moderated',
         },
       },
     });
@@ -286,7 +322,7 @@ describe('live rooms', () => {
         id: '0d0bd25e-e1f9-4b7d-8ddb-82f11e882201',
         hostId: '1',
         topic: 'Created room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Created,
         createdAt: new Date('2026-04-23T10:00:00.000Z'),
       },
@@ -294,7 +330,7 @@ describe('live rooms', () => {
         id: 'cc4f63c0-b26e-44fb-b9f8-4c977b28a123',
         hostId: '2',
         topic: 'Live room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
         startedAt: new Date('2026-04-23T11:00:00.000Z'),
         createdAt: new Date('2026-04-23T11:00:00.000Z'),
@@ -303,7 +339,7 @@ describe('live rooms', () => {
         id: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
         hostId: '1',
         topic: 'Ended room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Ended,
         endedAt: new Date('2026-04-23T12:00:00.000Z'),
         createdAt: new Date('2026-04-23T12:00:00.000Z'),
@@ -318,6 +354,7 @@ describe('live rooms', () => {
         {
           id: 'cc4f63c0-b26e-44fb-b9f8-4c977b28a123',
           topic: 'Live room',
+          mode: 'moderated',
           status: 'live',
           host: {
             id: '2',
@@ -328,6 +365,43 @@ describe('live rooms', () => {
     });
   });
 
+  it('normalizes legacy debate rooms to moderated on reads', async () => {
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
+        hostId: '1',
+        topic: 'Legacy debate room',
+        mode: 'debate' as LiveRoom['mode'],
+        status: LiveRoomStatus.Live,
+        createdAt: new Date('2026-04-23T13:00:00.000Z'),
+      },
+    ]);
+
+    const byIdResponse = await client.query(GET_QUERY, {
+      variables: {
+        id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
+      },
+    });
+
+    expect(byIdResponse.errors).toBeFalsy();
+    expect(byIdResponse.data.liveRoom).toMatchObject({
+      id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
+      mode: 'moderated',
+    });
+
+    const activeResponse = await client.query(ACTIVE_QUERY);
+
+    expect(activeResponse.errors).toBeFalsy();
+    expect(activeResponse.data.activeLiveRooms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '2f0d2a45-e00d-42d7-8f46-9b12bb8fed12',
+          mode: 'moderated',
+        }),
+      ]),
+    );
+  });
+
   it('returns a join token for the host role', async () => {
     loggedUser = '1';
 
@@ -336,7 +410,7 @@ describe('live rooms', () => {
         id: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
         hostId: '1',
         topic: 'Token room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Created,
       },
     ]);
@@ -388,7 +462,7 @@ describe('live rooms', () => {
         id: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
         hostId: '1',
         topic: 'Live room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
         startedAt: new Date('2026-04-23T11:00:00.000Z'),
       },
@@ -437,7 +511,7 @@ describe('live rooms', () => {
         id: 'e1de5dd8-03f7-4ec4-9094-f4f1bd24ef51',
         hostId: '1',
         topic: 'Ended room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Ended,
         endedAt: new Date(),
       },
@@ -464,7 +538,7 @@ describe('live rooms', () => {
         id: 'b14bb4ae-a0af-4310-b1ff-7d6345cb5253',
         hostId: '1',
         topic: 'Created room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Created,
       },
     ]);
@@ -490,7 +564,7 @@ describe('live rooms', () => {
         id: 'a8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
         hostId: '1',
         topic: 'Endable room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
         startedAt: new Date('2026-04-23T15:00:00.000Z'),
       },
@@ -526,7 +600,7 @@ describe('live rooms', () => {
         id: '13f8f8a6-bf26-4e5b-bb46-aef17389db7b',
         hostId: '1',
         topic: 'Protected room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
       },
     ]);
@@ -552,7 +626,7 @@ describe('live rooms', () => {
         id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
         hostId: '2',
         topic: 'Readable room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
       },
     ]);
@@ -568,7 +642,7 @@ describe('live rooms', () => {
       liveRoom: {
         id: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
         topic: 'Readable room',
-        mode: 'debate',
+        mode: 'moderated',
         status: 'live',
         host: {
           id: '2',
@@ -586,7 +660,7 @@ describe('live rooms', () => {
         id: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
         hostId: '2',
         topic: 'Public live room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
         startedAt: new Date('2026-04-23T11:00:00.000Z'),
       },
@@ -603,7 +677,7 @@ describe('live rooms', () => {
       liveRoom: {
         id: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
         topic: 'Public live room',
-        mode: 'debate',
+        mode: 'moderated',
         status: 'live',
         host: {
           id: '2',
