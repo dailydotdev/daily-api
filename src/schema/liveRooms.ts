@@ -25,8 +25,6 @@ type GQLLiveRoomJoinToken = {
   token: string;
 };
 
-const activeLiveRoomStatuses = [LiveRoomStatus.Created, LiveRoomStatus.Live];
-
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(LiveRoomMode, 'LiveRoomMode')}
   ${toGQLEnum(LiveRoomStatus, 'LiveRoomStatus')}
@@ -167,8 +165,8 @@ export const resolvers: IResolvers = {
         info,
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."status" IN (:...statuses)`, {
-              statuses: activeLiveRoomStatuses,
+            .where(`"${builder.alias}"."status" = :status`, {
+              status: LiveRoomStatus.Live,
             })
             .orderBy(`"${builder.alias}"."createdAt"`, 'DESC');
           return builder;

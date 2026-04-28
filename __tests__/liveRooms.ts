@@ -269,7 +269,7 @@ describe('live rooms', () => {
     expect(rooms).toHaveLength(0);
   });
 
-  it('returns all active live rooms', async () => {
+  it('returns only live rooms', async () => {
     loggedUser = '1';
 
     await saveFixtures(con, LiveRoom, [
@@ -313,15 +313,6 @@ describe('live rooms', () => {
           host: {
             id: '2',
             username: 'tsahidaily',
-          },
-        },
-        {
-          id: '0d0bd25e-e1f9-4b7d-8ddb-82f11e882201',
-          topic: 'Created room',
-          status: 'created',
-          host: {
-            id: '1',
-            username: 'idoshamun',
           },
         },
       ],
