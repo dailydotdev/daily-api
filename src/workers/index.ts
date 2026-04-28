@@ -89,6 +89,8 @@ import majorHighlightTweet from './majorHighlightTweet';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 import userDeletionCleanup from './userDeletionCleanup';
+import { liveRoomStartedWorker } from './liveRoomStarted';
+import { liveRoomEndedWorker } from './liveRoomEnded';
 
 export { Worker } from './worker';
 
@@ -179,6 +181,8 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   majorHighlightTweet,
   newHighlightRealTime,
   userDeletionCleanup,
+  liveRoomStartedWorker,
+  liveRoomEndedWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
