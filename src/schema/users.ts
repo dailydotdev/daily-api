@@ -1820,6 +1820,8 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     summary: String!
     tags: [String!]!
+    url: String!
+    sourceId: String!
   }
 
   type OnboardingDiscoverPostsResult {
@@ -4345,6 +4347,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             title: p.title,
             summary: p.summary,
             tags: p.tags ?? [],
+            url: p.url,
+            sourceId: p.source_id,
           })),
           subPrompts: data.sub_prompts ?? [],
         };

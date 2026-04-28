@@ -29,6 +29,8 @@ describe('RecswipeClient.discoverPosts', () => {
                 title: 'Hello',
                 summary: 'Summary',
                 tags: ['rust'],
+                url: 'https://example.com/p1',
+                source_id: 'src-1',
               },
             ],
             sub_prompts: ['rust developer'],
@@ -56,7 +58,14 @@ describe('RecswipeClient.discoverPosts', () => {
     );
     expect(response).toEqual({
       posts: [
-        { post_id: 'p1', title: 'Hello', summary: 'Summary', tags: ['rust'] },
+        {
+          post_id: 'p1',
+          title: 'Hello',
+          summary: 'Summary',
+          tags: ['rust'],
+          url: 'https://example.com/p1',
+          source_id: 'src-1',
+        },
       ],
       sub_prompts: ['rust developer'],
     });

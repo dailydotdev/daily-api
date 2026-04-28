@@ -70,6 +70,8 @@ describe('mutation onboardingDiscoverPosts', () => {
           title
           summary
           tags
+          url
+          sourceId
         }
         subPrompts
       }
@@ -102,12 +104,16 @@ describe('mutation onboardingDiscoverPosts', () => {
           title: 'Hello',
           summary: 'Summary',
           tags: ['rust', 'systems'],
+          url: 'https://example.com/p1',
+          source_id: 'src-1',
         },
         {
           post_id: 'p2',
           title: 'World',
           summary: 'Other',
           tags: ['go'],
+          url: 'https://example.com/p2',
+          source_id: 'src-2',
         },
       ],
       sub_prompts: ['rust developer', 'systems programming'],
@@ -126,12 +132,16 @@ describe('mutation onboardingDiscoverPosts', () => {
             title: 'Hello',
             summary: 'Summary',
             tags: ['rust', 'systems'],
+            url: 'https://example.com/p1',
+            sourceId: 'src-1',
           },
           {
             postId: 'p2',
             title: 'World',
             summary: 'Other',
             tags: ['go'],
+            url: 'https://example.com/p2',
+            sourceId: 'src-2',
           },
         ],
         subPrompts: ['rust developer', 'systems programming'],
