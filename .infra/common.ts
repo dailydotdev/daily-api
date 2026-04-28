@@ -450,7 +450,6 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.post-highlighted',
     subscription: 'api.major-headline-added-notification',
-    args: { ackDeadlineSeconds: 60 },
   },
   {
     topic: 'gondul.v1.candidate-application-scored',

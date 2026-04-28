@@ -6,17 +6,15 @@ import { PostType, User } from '../../entity';
 import type { PostFlags } from '../../entity';
 import { buildPostContext } from './utils';
 import type { NotificationMajorHeadlineContext } from '../../notifications/types';
-
-const NOTIFY_SIGNIFICANCE = new Set<PostHighlightSignificance>([
-  PostHighlightSignificance.Breaking,
-  PostHighlightSignificance.Major,
-]);
+import { processStream } from '../../common/streaming';
 
 const blockedPostTypes = new Set<PostType>([
   PostType.Welcome,
   PostType.Brief,
   PostType.Digest,
 ]);
+
+const streamConcurrency = 10;
 
 export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighted'> =
   {
@@ -25,7 +23,7 @@ export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighte
     handler: async (data, con) => {
       const { postId, headline, channel, significance } = data;
 
-      if (!NOTIFY_SIGNIFICANCE.has(significance as PostHighlightSignificance)) {
+      if (significance !== PostHighlightSignificance.Breaking) {
         return;
       }
 
@@ -48,16 +46,25 @@ export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighte
         return;
       }
 
-      const users = await con
+      const userIds: string[] = [];
+      const stream = await con
         .createQueryBuilder()
-        .select('u.id', 'userId')
+        .select('u.id', 'id')
         .from(User, 'u')
         .where(
           `COALESCE(u."notificationFlags"->'major_headline_added'->>'inApp', 'subscribed') = 'subscribed'`,
         )
-        .getRawMany<{ userId: string }>();
+        .stream();
 
-      if (!users.length) {
+      await processStream<{ id: string }>(
+        stream,
+        async (row) => {
+          userIds.push(row.id);
+        },
+        streamConcurrency,
+      );
+
+      if (!userIds.length) {
         return;
       }
 
@@ -66,7 +73,7 @@ export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighte
           type: NotificationType.MajorHeadlineAdded,
           ctx: {
             ...baseCtx,
-            userIds: users.map(({ userId }) => userId),
+            userIds,
             headline,
             channel,
             significance,

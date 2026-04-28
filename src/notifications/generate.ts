@@ -768,5 +768,5 @@ export const generateNotificationMap: Record<
       .description(ctx.headline)
       .avatarSource(ctx.source)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost)
-      .uniqueKey(`${ctx.post.id}:${ctx.significance}:${ctx.channel}`),
+      .uniqueKey(ctx.post.id),
 };

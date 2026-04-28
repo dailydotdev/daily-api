@@ -65,18 +65,8 @@ describe('majorHeadlineAdded notification worker', () => {
     });
   });
 
-  it('should generate notification for Major significance', async () => {
-    const result = await invoke({
-      significance: PostHighlightSignificance.Major,
-    });
-
-    expect(result?.length).toEqual(1);
-    expect(result?.[0]?.ctx).toMatchObject({
-      significance: PostHighlightSignificance.Major,
-    });
-  });
-
   it.each([
+    PostHighlightSignificance.Major,
     PostHighlightSignificance.Notable,
     PostHighlightSignificance.Routine,
     PostHighlightSignificance.Unspecified,
