@@ -146,6 +146,29 @@ const getJoinParticipantId = (ctx: Context): string => {
   return ctx.trackingId;
 };
 
+const assertJoinAllowedByFlyting = async ({
+  participantId,
+  roomId,
+}: {
+  participantId: string;
+  roomId: string;
+}): Promise<void> => {
+  const eligibility = await getFlytingClient().getJoinEligibility({
+    participantId,
+    roomId,
+  });
+
+  if (eligibility.canJoin) {
+    return;
+  }
+
+  if (eligibility.reason === 'kicked') {
+    throw new ValidationError('You have been removed from this live room');
+  }
+
+  throw new ValidationError('Cannot join this live room');
+};
+
 export const resolvers: IResolvers = {
   Query: {
     liveRoom: async (
@@ -287,11 +310,17 @@ export const resolvers: IResolvers = {
         room.hostId === ctx.userId
           ? LiveRoomParticipantRole.Host
           : LiveRoomParticipantRole.Audience;
+      const participantId = getJoinParticipantId(ctx);
+
+      await assertJoinAllowedByFlyting({
+        participantId,
+        roomId: room.id,
+      });
 
       return createJoinTokenPayload({
         authKind,
         room,
-        participantId: getJoinParticipantId(ctx),
+        participantId,
         role,
       });
     },

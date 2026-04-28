@@ -81,6 +81,37 @@ export class FlytingClient {
       }
     });
   }
+
+  async getJoinEligibility(input: {
+    participantId: string;
+    roomId: string;
+  }): Promise<{
+    canJoin: boolean;
+    participantId: string;
+    reason?: 'kicked';
+    roomId: string;
+  }> {
+    return this.garmr.execute(async () => {
+      const response = await retryFetch(
+        `${this.url}/internal/live-rooms/${encodeURIComponent(
+          input.roomId,
+        )}/participants/${encodeURIComponent(input.participantId)}/join-eligibility`,
+        {
+          ...this.fetchOptions,
+          method: 'GET',
+          headers: {
+            'x-flyting-internal-key': this.internalApiKey,
+          },
+        },
+      );
+
+      if (response.ok) {
+        return response.json();
+      }
+
+      throw new HttpError(response.url, response.status, await response.text());
+    });
+  }
 }
 
 const garmrFlytingService = new GarmrService({

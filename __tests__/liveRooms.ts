@@ -378,6 +378,17 @@ describe('live rooms', () => {
       },
     ]);
 
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/f44bb4ae-a0af-4310-b1ff-7d6345cb5253/participants/1/join-eligibility',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        participantId: '1',
+        canJoin: true,
+      });
+
     const res = await client.mutate(JOIN_TOKEN_MUTATION, {
       variables: {
         roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
@@ -415,6 +426,7 @@ describe('live rooms', () => {
       role: 'host',
       roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
     });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('returns an anonymous join token for a live room using trackingId identity', async () => {
@@ -430,6 +442,17 @@ describe('live rooms', () => {
         startedAt: new Date('2026-04-23T11:00:00.000Z'),
       },
     ]);
+
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/aa4bb4ae-a0af-4310-b1ff-7d6345cb5253/participants/tracking-anon-1/join-eligibility',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        participantId: 'tracking-anon-1',
+        canJoin: true,
+      });
 
     const res = await client.mutate(JOIN_TOKEN_MUTATION, {
       variables: {
@@ -464,6 +487,7 @@ describe('live rooms', () => {
       role: 'audience',
       roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
     });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('rejects join tokens for ended rooms', async () => {
@@ -517,6 +541,47 @@ describe('live rooms', () => {
       'GRAPHQL_VALIDATION_FAILED',
       'Anonymous viewers can only join live rooms',
     );
+  });
+
+  it('rejects join tokens when flyting reports that the participant was kicked from the room', async () => {
+    loggedTrackingId = 'tracking-kicked-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'c14bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Blocked room',
+        mode: 'moderated',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/c14bb4ae-a0af-4310-b1ff-7d6345cb5253/participants/tracking-kicked-1/join-eligibility',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: 'c14bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        participantId: 'tracking-kicked-1',
+        canJoin: false,
+        reason: 'kicked',
+      });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: JOIN_TOKEN_MUTATION,
+        variables: {
+          roomId: 'c14bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'You have been removed from this live room',
+    );
+
+    expect(scope.isDone()).toBe(true);
   });
 
   it('ends a live room for the host', async () => {
