@@ -237,7 +237,7 @@ config:
     brandDevApiKey:
       secure: AAABADzaXl3Rom9QsMVgGtWwvGejxfHgUk/nM+uc/2p777yB5eT8ppDPUyssld6ipcXjpKpF+mfr/IanuBo5U9pj8M1ntw==
     twitterBearerToken:
-      secure: AAABAM40I6hXKdm/8cjBZBTR+00tTGatLi7WBMGmwoslDjqasqWy3hyMsQFLQQ8gaYuod7yaIhLVXqbeSc39CykCivJRaooukd7Vn8BKTmNHQuyJ3PdmF1FUSmOVci1nVL/L5AWB5pWD5vRbqm+e+nJzsXA1rjgmh+y7+qxnxl82JeOqxCxuTzZn+F4i0WfNhkc=
+      secure: AAABAHs0QZnsuqiiSZp9Bwjy4Ups9jOeKO+AN4xf6J9rZ3mdBAHkTUpDZH4v2nj5oPVpiTbVP5iYbblNsGBRjHR9Zzk7kGKuA4HaGGkthMuTVgxAO4inFzpovCx6u0n0u7BdXcKxG/1BpexLAZIYeGJNDDH1Rx5NoiqaVizMF50ydiObHKFor/ind98hzOoWA+j3Uw==
     betterAuthSecret:
       secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
     betterAuthBaseUrl: https://api.daily.dev
@@ -263,6 +263,11 @@ config:
       secure: AAABAENK/HL3DH78uShJwePe91GmOlM4YkNuaLsXkPrWp8p6tvW5XAlTMCN5XCSFCkQog94YZHEO0idbBTKPF1H727qb7XvUqVjkEP8yY7Sf77geK2VHUN+NMAkkeuaFar5dlJUkqCY=
     snotraUserApiOrigin:
       secure: AAABADX/8nmDxoZRpWxaAYCBL52wANtG5kR34DGnQgBkZKd0DKaxc8DQyXbRt/XuhNfj2+vI3xfDeSThDWlzKQFCNK0fAO4IUcuRBdDx6Q==
+    flytingOrigin: http://flyting.daily.svc.cluster.local:3000
+    flytingJoinTokenSecret:
+      secure: AAABAALaAGQ1uwwU5q3Ep8ro0VNLMUyhrb3MR8zm6FqHe83mdrCNuAFlcYhgvWaiBlI46U4j4zbjuT44xYV31ew6S9IRsMs6mZEBRPq+tIQiGBdM9j0sRU/unVaPDpBa
+    flytingInternalKey:
+      secure: AAABANX83TDkPUQk7zofUmwW7Y8iGjKRMi1qjYQEcYwFcsraNkMXo48lLNRFKNFfGFNC6kNl+5QAHkzURLLP5MQxP7KIAyKUBMOEGFI3ft3YiYVhENmcymvVNfoP0pBk
   api:k8s:
     host: subs.daily.dev
     namespace: daily

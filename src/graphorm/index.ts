@@ -2408,6 +2408,30 @@ const obj = new GraphORM({
       },
     },
   },
+  LiveRoom: {
+    requiredColumns: ['id', 'hostId'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      endedAt: {
+        transform: transformDate,
+      },
+      host: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'hostId',
+        },
+      },
+    },
+  },
   DatasetTool: {
     requiredColumns: ['id', 'title'],
     fields: {

@@ -22,6 +22,8 @@ Use background workers when:
 4. **Heavy computations**: Image processing, data transformations, analytics calculations
 5. **Distributed transactions**: When you need to coordinate changes across multiple systems without blocking the primary transaction
 
+When worker behavior includes user-facing copy variants, prefer deterministic selection derived from stable message data over runtime randomness. Retryable workers should produce the same external side effects for the same logical event so retries stay idempotent and tests do not depend on global random state.
+
 ### Examples of Worker Use Cases
 
 - Sending notifications (email, push, real-time)

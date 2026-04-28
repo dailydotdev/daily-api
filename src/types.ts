@@ -88,6 +88,9 @@ declare global {
       GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
       OUTBOUND_SERVICE_SECRET: string;
+      FLYTING_ORIGIN: string;
+      FLYTING_INTERNAL_KEY: string;
+      FLYTING_JOIN_TOKEN_SECRET: string;
 
       OTEL_SERVICE_NAME: string;
       OTEL_SERVICE_VERSION: string;

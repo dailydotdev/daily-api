@@ -704,6 +704,18 @@ if (vpcNativeProvider) {
         http: {
           paths: [
             {
+              path: '/flyting/ws',
+              pathType: 'ImplementationSpecific',
+              backend: {
+                service: {
+                  name: 'flyting-public',
+                  port: {
+                    name: 'http',
+                  },
+                },
+              },
+            },
+            {
               path: '/*',
               pathType: 'ImplementationSpecific',
               backend: {
