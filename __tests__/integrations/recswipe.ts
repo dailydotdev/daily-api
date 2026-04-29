@@ -128,3 +128,68 @@ describe('RecswipeClient.discoverPosts', () => {
     ).rejects.toBeInstanceOf(HttpError);
   });
 });
+
+describe('RecswipeClient.extractTags', () => {
+  it('should POST prompt body to /api/extract-tags and return tags', async () => {
+    let capturedBody: unknown;
+    let capturedHeaders: Record<string, string | string[]> = {};
+
+    nock(url)
+      .post('/api/extract-tags', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(function () {
+        capturedHeaders = this.req.headers as Record<string, string | string[]>;
+        return [200, { tags: ['rust', 'systems'] }];
+      });
+
+    const client = new RecswipeClient(url);
+    const response = await client.extractTags('user-1', {
+      prompt: 'I like rust and systems programming',
+    });
+
+    expect(capturedBody).toEqual({
+      prompt: 'I like rust and systems programming',
+    });
+    expect(capturedHeaders['x-user-id']).toEqual(
+      expect.arrayContaining(['user-1']),
+    );
+    expect(capturedHeaders['content-type']).toEqual(
+      expect.arrayContaining(['application/json']),
+    );
+    expect(response).toEqual({ tags: ['rust', 'systems'] });
+  });
+
+  it('should omit X-User-Id header when userId is undefined', async () => {
+    let capturedHeaders: Record<string, string | string[]> = {};
+
+    nock(url)
+      .post('/api/extract-tags')
+      .reply(function () {
+        capturedHeaders = this.req.headers as Record<string, string | string[]>;
+        return [200, { tags: [] }];
+      });
+
+    const client = new RecswipeClient(url);
+    await client.extractTags(undefined, { prompt: 'go' });
+
+    expect(capturedHeaders['x-user-id']).toBeUndefined();
+  });
+
+  it('should throw when RECSWIPE_ORIGIN is missing', () => {
+    const client = new RecswipeClient(undefined);
+    expect(() => client.extractTags('user-1', { prompt: 'rust' })).toThrow(
+      'Missing RECSWIPE_ORIGIN',
+    );
+  });
+
+  it('should propagate HttpError on 4xx responses', async () => {
+    nock(url).post('/api/extract-tags').reply(400, 'bad request');
+
+    const client = new RecswipeClient(url);
+    await expect(
+      client.extractTags('user-1', { prompt: 'rust' }),
+    ).rejects.toBeInstanceOf(HttpError);
+  });
+});

@@ -31,3 +31,15 @@ export type DiscoverPostsResponse = {
   posts: DiscoverPostsRawItem[];
   sub_prompts: string[];
 };
+
+export type ExtractTagsParams = {
+  prompt: string;
+};
+
+export type RawExtractTagsRequest = {
+  prompt: string;
+};
+
+export type ExtractTagsResponse = {
+  tags: string[];
+};

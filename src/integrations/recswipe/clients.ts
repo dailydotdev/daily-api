@@ -5,7 +5,10 @@ import { retryFetchParse } from '../retry';
 import type {
   DiscoverPostsParams,
   DiscoverPostsResponse,
+  ExtractTagsParams,
+  ExtractTagsResponse,
   RawDiscoverPostsRequest,
+  RawExtractTagsRequest,
 } from './types';
 
 export class RecswipeClient {
@@ -48,6 +51,31 @@ export class RecswipeClient {
 
     return this.garmr.execute(() =>
       retryFetchParse<DiscoverPostsResponse>(`${this.url}/api/discover-posts`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userId ? { 'X-User-Id': userId } : {}),
+        },
+      }),
+    );
+  }
+
+  extractTags(
+    userId: string | undefined,
+    params: ExtractTagsParams,
+  ): Promise<ExtractTagsResponse> {
+    if (!this.url) {
+      throw new Error('Missing RECSWIPE_ORIGIN');
+    }
+
+    const body: RawExtractTagsRequest = {
+      prompt: params.prompt,
+    };
+
+    return this.garmr.execute(() =>
+      retryFetchParse<ExtractTagsResponse>(`${this.url}/api/extract-tags`, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(body),
