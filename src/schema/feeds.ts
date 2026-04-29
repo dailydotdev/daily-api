@@ -13,6 +13,7 @@ import {
   UserPost,
 } from '../entity';
 import { Category } from '../entity/Category';
+import { Persona } from '../entity/Persona';
 import { GraphQLResolveInfo } from 'graphql';
 
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
@@ -106,6 +107,13 @@ interface GQLTagsCategory {
   tags: string[];
 }
 
+interface GQLPersona {
+  id: string;
+  emoji: string;
+  title: string;
+  tags: string[];
+}
+
 type GQLFeed = {
   id: string;
   userId: string;
@@ -155,6 +163,13 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     emoji: String
     title: String!
+    tags: [String]!
+  }
+
+  type Persona {
+    id: String!
+    title: String!
+    emoji: String!
     tags: [String]!
   }
 
@@ -873,6 +888,11 @@ export const typeDefs = /* GraphQL */ `
     Get the categories of tags
     """
     tagsCategories: [TagsCategory]!
+
+    """
+    Get persona presets for onboarding tag selection
+    """
+    onboardingPersonas: [Persona]! @cacheControl(maxAge: 600)
 
     """
     Get the list of advanced settings
@@ -2178,6 +2198,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
+    onboardingPersonas: (_, __, ctx): Promise<GQLPersona[]> =>
+      ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
       args: ConnectionArguments,
