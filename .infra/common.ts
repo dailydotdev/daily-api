@@ -151,6 +151,10 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.new-highlight-real-time',
+  },
+  {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
   },
@@ -312,6 +316,10 @@ export const workers: Worker[] = [
     subscription: 'api.agentic-digest-tweet',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-highlight-tweet',
+  },
+  {
     topic: 'api.v1.source-post-moderation-submitted',
     subscription: 'api.source-post-moderation-submitted-notification',
   },
@@ -354,6 +362,14 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.organization-user-removed',
     subscription: 'api.organization-user-removed',
+  },
+  {
+    topic: 'flyting.v1.room-started',
+    subscription: 'api.live-room-started',
+  },
+  {
+    topic: 'flyting.v1.room-ended',
+    subscription: 'api.live-room-ended',
   },
   {
     topic: 'skadi.v2.campaign-updated',
@@ -438,6 +454,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.candidate-accepted-opportunity',
     subscription: 'api.recruiter-new-candidate-notification',
+  },
+  {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-headline-added-notification',
   },
   {
     topic: 'gondul.v1.candidate-application-scored',

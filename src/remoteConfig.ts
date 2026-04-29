@@ -52,6 +52,7 @@ export type RemoteConfigValue = {
   digestPostEnabled: boolean;
   newViewLogs: boolean;
   verboseGqlLogging: boolean;
+  engagementAdsEnabled: boolean;
 };
 
 class RemoteConfig {

@@ -16,6 +16,7 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
+  type UserFlags,
   type PostTranslation,
   PostType,
   type PostFlagsPublic,
@@ -311,6 +312,10 @@ const obj = new GraphORM({
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
         transform: (subscriptionFlags: UserSubscriptionFlags) =>
           isPlusMember(subscriptionFlags?.cycle),
+      },
+      isHackathonParticipant: {
+        alias: { field: 'flags', type: 'jsonb' },
+        transform: (flags: UserFlags) => !!flags?.hackathonParticipant,
       },
       plusMemberSince: {
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
@@ -1302,6 +1307,10 @@ const obj = new GraphORM({
         )
         .addSelect('un."readAt"'),
     fields: {
+      createdAt: {
+        rawSelect: true,
+        select: () => `COALESCE(un."showAt", un."createdAt")`,
+      },
       avatars: {
         relation: {
           isMany: true,
@@ -2405,6 +2414,30 @@ const obj = new GraphORM({
       },
       createdAt: {
         transform: transformDate,
+      },
+    },
+  },
+  LiveRoom: {
+    requiredColumns: ['id', 'hostId'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      endedAt: {
+        transform: transformDate,
+      },
+      host: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'hostId',
+        },
       },
     },
   },

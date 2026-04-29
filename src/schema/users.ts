@@ -2,7 +2,13 @@ import { emailRegex, isNullOrUndefined } from './../common/object';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
+import type { z } from 'zod';
+import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
+import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { recswipeClient } from '../integrations/recswipe/clients';
+import { HttpError } from '../integrations/retry';
+import { ServiceError } from '../errors';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { Feed } from '../entity/Feed';
 import { FeedTag } from '../entity/FeedTag';
@@ -276,6 +282,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  isHackathonParticipant?: boolean;
   notificationFlags: UserNotificationFlags;
   socialLinks: UserSocialLink[];
 }
@@ -597,6 +604,11 @@ export const typeDefs = /* GraphQL */ `
     From when the user is a plus member
     """
     plusMemberSince: DateTime
+
+    """
+    Whether the user has signed up for the daily.dev hackathon
+    """
+    isHackathonParticipant: Boolean
 
     """
     Verified companies for this user
@@ -1548,6 +1560,11 @@ export const typeDefs = /* GraphQL */ `
     clearImage(presets: [UploadPreset]): EmptyResponse @auth
 
     """
+    Sign the current user up as a daily.dev hackathon participant
+    """
+    joinHackathon: EmptyResponse @auth
+
+    """
     Update user profile information
     """
     updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
@@ -1785,10 +1802,53 @@ export const typeDefs = /* GraphQL */ `
     onboardingProfileTags(prompt: String!): OnboardingTagsResult!
       @auth
       @rateLimit(limit: 3, duration: 3600)
+
+    """
+    Discover candidate posts for the Tinder-style swipe onboarding deck.
+    Stateless proxy to the recswipe service that returns lightweight post
+    summaries; clients should hydrate via feedByIds.
+    """
+    onboardingDiscoverPosts(
+      prompt: String
+      selectedTags: [String!]
+      confirmedTags: [String!]
+      likedTitles: [String!]
+      excludeIds: [String!]
+      saturatedTags: [String!]
+      n: Int
+    ): OnboardingDiscoverPostsResult! @auth
+
+    """
+    Extract candidate tags from a free-text prompt for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingExtractTags(prompt: String!): OnboardingExtractTagsResult! @auth
   }
 
   type OnboardingTagsResult {
     includeTags: [String!]!
+  }
+
+  """
+  Lightweight post info returned by the onboarding swipe recommender.
+  Use feedByIds to hydrate into full Post objects.
+  """
+  type OnboardingSwipePost {
+    postId: String!
+    title: String!
+    summary: String!
+    tags: [String!]!
+    url: String!
+    sourceId: String!
+  }
+
+  type OnboardingDiscoverPostsResult {
+    posts: [OnboardingSwipePost!]!
+    subPrompts: [String!]!
+  }
+
+  type OnboardingExtractTagsResult {
+    tags: [String!]!
   }
 `;
 
@@ -3114,6 +3174,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
   },
   Mutation: {
+    joinHackathon: async (
+      _,
+      __,
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await con.getRepository(User).update(
+        { id: userId },
+        {
+          flags: updateFlagsStatement<User>({ hackathonParticipant: true }),
+        },
+      );
+
+      return { _: true };
+    },
     clearImage: async (
       _,
       { presets }: { presets: UploadPreset[] },
@@ -4292,6 +4366,62 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       return { includeTags: tags.map((tag) => tag.name) };
+    },
+    onboardingDiscoverPosts: async (
+      _,
+      args: Partial<z.input<typeof onboardingDiscoverPostsInputSchema>>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingDiscoverPostsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.discoverPosts(ctx.userId, parsed);
+
+        return {
+          posts: (data.posts ?? []).map((p) => ({
+            postId: p.post_id,
+            title: p.title,
+            summary: p.summary,
+            tags: p.tags ?? [],
+            url: p.url,
+            sourceId: p.source_id,
+          })),
+          subPrompts: data.sub_prompts ?? [],
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe discoverPosts request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingExtractTags: async (
+      _,
+      args: z.input<typeof onboardingExtractTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingExtractTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.extractTags(ctx.userId, parsed);
+
+        return { tags: data.tags ?? [] };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe extractTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
     },
   },
   User: {

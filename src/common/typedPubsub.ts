@@ -20,6 +20,7 @@ import {
   Submission,
   PostMention,
   SourceMember,
+  LiveRoom,
 } from '../entity';
 import {
   type EventLogger,
@@ -177,6 +178,18 @@ export type PubSubSchema = {
   'api.v1.organization-user-removed': {
     organizationId: Organization['id'];
     memberId: User['id'];
+  };
+  'flyting.v1.room-started': {
+    eventId: string;
+    roomId: LiveRoom['id'];
+    occurredAt: string;
+    type: 'room_started';
+  };
+  'flyting.v1.room-ended': {
+    eventId: string;
+    roomId: LiveRoom['id'];
+    occurredAt: string;
+    type: 'room_ended';
   };
   'api.v1.brief-generate': {
     payload: UserBriefingRequest;

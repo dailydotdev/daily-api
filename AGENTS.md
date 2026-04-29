@@ -43,6 +43,10 @@ The migration generator compares entities against the local database schema. Ens
 
 **After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
 
+**Migration SQL best practices:**
+- **Never use `CONCURRENTLY`** in migrations — TypeORM runs migrations inside a transaction, and `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONCURRENTLY` cannot run inside a transaction.
+- **Always use `IF NOT EXISTS`** for `CREATE INDEX` and **`IF EXISTS`** for `DROP INDEX` to make migrations idempotent and safe to re-run.
+
 **Building & Testing:**
 
 - `pnpm run build` - Compile TypeScript to build directory
@@ -86,6 +90,7 @@ The migration generator compares entities against the local database schema. Ens
 - **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
 - **GraphORM mappings**: Only add entries in `src/graphorm/index.ts` when you need custom mapping/fields/transforms or GraphQL type names differ from TypeORM entity names. For straightforward reads, keep GraphQL type names aligned with entities and use GraphORM without extra config.
 - For GraphQL query resolvers, prefer `graphorm.query`, `graphorm.queryOne`, or `graphorm.queryPaginated` over custom TypeORM fetch/pagination code whenever GraphORM can express the query. Reach for manual TypeORM reads only when GraphORM genuinely cannot support the access pattern.
+- When adding subscriptions for GraphORM-backed types, prefer publishing a payload that already matches the existing GraphQL object shape instead of adding fallback field resolvers that override the normal GraphORM query path. If you must add a field resolver, preserve already-hydrated fields from query results.
 - When a GraphQL field must be nulled based on viewer permissions, define the rule in `src/graphorm/index.ts` as a shared transform/helper (for example `nullIfNotLoggedIn`). If a resolver cannot use GraphORM for the full query, reuse that GraphORM field mapping from the manual path instead of re-implementing the permission rule in a schema field resolver.
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
 - For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.

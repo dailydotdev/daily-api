@@ -17,6 +17,7 @@ import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
 import newNotificationRealTime from './newNotificationV2RealTime';
+import newHighlightRealTime from './newHighlightRealTime';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -84,9 +85,12 @@ import gearClassify from './gearClassify';
 import agenticDigestTweet from './agenticDigestTweet';
 import generateChannelDigest from './generateChannelDigest';
 import generateChannelHighlight from './generateChannelHighlight';
+import majorHighlightTweet from './majorHighlightTweet';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 import userDeletionCleanup from './userDeletionCleanup';
+import { liveRoomStartedWorker } from './liveRoomStarted';
+import { liveRoomEndedWorker } from './liveRoomEnded';
 
 export { Worker } from './worker';
 
@@ -174,7 +178,11 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   agenticDigestTweet,
   generateChannelDigest,
   generateChannelHighlight,
+  majorHighlightTweet,
+  newHighlightRealTime,
   userDeletionCleanup,
+  liveRoomStartedWorker,
+  liveRoomEndedWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

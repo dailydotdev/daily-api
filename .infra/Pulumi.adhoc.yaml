@@ -58,6 +58,9 @@ config:
     enablePubsub: true
     skadiApiOriginV2: http://skadi-boost-api-server.local.svc.cluster.local
     freyjaOrigin: http://freyja
+    flytingInternalKey: a9640756191605a248434925c0b5ec4354dcab444be75200b5a1dc5b216092b9
+    flytingJoinTokenSecret: ca261ba03ee7ea585339b54f3382ab0ad2689fc41810823df3c270e7d436a928
+    flytingOrigin: http://flyting.local.svc.cluster.local:3000
     gcloudProject: local
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
@@ -99,26 +102,26 @@ config:
     brokkrOrigin: http://brokkr-grpc:50051
     mockExternalServices: true
     betterAuthSecret:
-      secure: v1:OMJzrWkQe5M2bCPT:zjmHZhC/lKVS9Wgm+m3kCthxwFwh+Ux9pp1E2g+NnQFpsLkVyCRjKEQY8JGdY0IcTaKmhVw9bjo/gMx9N1G6qsUegCIwnQ==
+      secure: v1:3R8WhnCH1JKVD4Ib:YKBMpLRhj2h8dTd2x9yzzEIKnOCdmKh/+4WDyg7vX3leMv8f/i4xvHNMNSTmcSoVyUnla8Ho7EeA3quHWIjBtWBGqNiz8g==
     betterAuthBaseUrl: https://api.local.fylla.dev
     betterAuthTrustedOrigins: https://app.local.fylla.dev:5002
     betterAuthRedirectUrl: https://sso.local.fylla.dev/api
     googleClientId:
-      secure: v1:vxiz7DL3y7wJC3Xb:U998JBQzsUpSrJUAwshlu68xUvWq5zm6hXZNQ6Jeqd82+fZU5/WJJ4t2ti9tlJgUcvrI0Nz7/0dweGmTLp4is58i1k7d37/ZcNjtTOhO39sqa/9hNjQPsQ==
+      secure: v1:4nZry2eb+dcEzbdj:L6YtYDsy8EqPsPyVoQJFFh8ZK3XFiv1gNgcBvMgJlNsctDTW2jM9ktCMHsST9szQf4Amm/REocEYIrs7VedUPq7CF4vH7fGsB8sMtQ8Bqy6YjwO9NayVEQ==
     googleClientSecret:
-      secure: v1:DyvUCX4JxvjrYwOv:eSsStUriEPV2u895v2k0RROIv6fecftf6ZGmQEZfALLp5q3TzVrQrg==
+      secure: v1:kyEqFW2MNelOSiCR:QgC92nV7smxzNw0kJoFcnHuHahI81U+X5xrTm1vABh57/AtP4uXE3w==
     githubClientId:
-      secure: v1:nTT76ELlqKxR4Auh:BQSLiFpXOZjpJ/lZQxuRxC2RNlf3w4t3VvpMxznldd1lofbS
+      secure: v1:WKpKhF3VixIEIvy7:3+HJbRD29TcY0KxhWWpT0bAJzn/06PbnRytTPTzJUHZi3ciw
     githubClientSecret:
-      secure: v1:GhL76XX0Y/yzoYG8:6kARUQHVOxbIP/WXxH+2IX91ADp650ZrEG7H+6FXuakJuzhDHTpk+q37jUq1hzHzp8xNbNFlud4=
+      secure: v1:6D6K3SEutMHGKT3U:M82Z2UcXGufxV9IsD6qElDb0WhgG0Qpj6+WYtjdeI1JbNcJXkJvo8eBD4dsSmcfmWt5rpFJrE6I=
     appleClientId:
-      secure: v1:pK4ks8kCNPZO/KJc:REutw/UeJumYLJWA8cPy5iL83yaVgOOZh9azOyo7zcyj
+      secure: v1:SA8w7IMsbY43of3X:wIedAoPTEtBkmtvBUUqnX9LwaBbG1mo1/3YM8Bwoejri
     appleClientSecret:
-      secure: v1:8TOrQ25yzgkRxr2C:n6FB51tbRNAl5bujHFjsn6a7kxEWlirmhX4wj/iWGM5BSc7n+8AxQkxhiLhe6xE0aXvfTPMUurfvbRMBHfkzbrJi7sZkMX7ZsseUHZLbyphA6+L3VxwsVvehArNx5iVJ8MzZW/LxsXZ50AtUjuXzLvaJKQtImdU9MLSPKy/EEOClTBSIn0leHJuEuDI4l7uFUN845qb+R6buTvy26jzaBNxTM//zLvf+2LN+iIbCKXsm77NdRT76x+Zr3rBQSnEWMZJjo4SE3eW5PJ30ZD0XJxung1CcErhWtVeHOkOQjGs4p6OGO/5S3NXK+RS65qQnMPoYiYPhkKhcmd/2FJqruzV7J93FGyw5+LUJ/AqPKpdCRNi1gMS5RPg+SG6Q5YiqvcMWiNbKPCsLStL3bZ2DKyvfBJx9XFWWSDcCFfft
+      secure: v1:gISn1tDN5t92en69:Sjyvd7nvea+yfC+sNfr7+RXlRIPGsq5fyCwNbOXPdrKIzvNcsXscYcAKCP5wbICUgijZXGtKkc1QsoIeqDkWLJBw5dXDlPzvqhXOca76OngMUlBuLjordjlQ5o+2jC+CumzhKEfIVM0WfZRKzssK1KF7Mzc5vQChwXqxjJZZ+IQqqZwz6990lzW3ZLgRFY9iIHUssQtvCS/gyx5KaByrszUZi2ymKP90hiHvvtl2Tzpt+ogDzdIpZYQ9XX8kd+MUPu3uidC71gyK+Fm4UbNrZ1AtO+fYdKeKtF3HozLzdmW3cbUxFoZRt6Z/0sdYu4d8cJKCOrgUYQ5rfDqfIUU/IdAczsYbKgdLKPZVBZ7HsNQCNnWQnfwOvILKGh8HwQ8GGQsfG8KZEFNhMgVPdskuvtB+sxTPY+FN0+8AWu0w
     facebookClientId:
-      secure: v1:HK6y83jsUMlifn1s:lVkv/LDrS8XKQDZtux2UgCCDMU+nAq1W2b1PNngYWQ==
+      secure: v1:tv8YYQ0svzb8wBoQ:syeVe2YGXWDovBqjG4ZlPPv/YJ5gG7zl/gw/7g7WYw==
     facebookClientSecret:
-      secure: v1:a/9PRJS0TIBFdMcn:LfxVew6M8ANQHkmK8IAmpnvW/EZ6MKDmH1k2+qihluVS3lYJ740Ui4jvbTZoz55h
+      secure: v1:SBZg3Yfnq3P3HsxB:+p1lRrWwY9qUcojAtZZYcOl4aHhaPd4/Jz/u4Ev3gnwhrkQTP1Qqqq8BkJh0BpKp
   api:k8s:
     namespace: local
   api:temporal:

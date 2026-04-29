@@ -212,7 +212,6 @@ type BootMiddleware = (
 type BootQuery = {
   referrer?: string | string[];
   app_platform?: string | string[];
-  ega?: string | string[];
 };
 
 const getBootQuery = (req: FastifyRequest): BootQuery =>
@@ -659,14 +658,10 @@ const getLocation = async (
   return location;
 };
 
-const isEngagementAdsEnabled = (req: FastifyRequest): boolean =>
-  unwrapArray(getBootQuery(req).ega) === '1';
-
 const getEngagementCreatives = async (
   userId: string,
-  enabled: boolean,
 ): Promise<EngagementCreative[]> => {
-  if (!enabled) {
+  if (!remoteConfig.vars.engagementAdsEnabled) {
     return [];
   }
 
@@ -759,7 +754,7 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
-      getEngagementCreatives(userId, isEngagementAdsEnabled(req)),
+      getEngagementCreatives(userId),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -953,7 +948,7 @@ const anonymousBoot = async (
       getAnonymousFirstVisit(req.trackingId),
       getExperimentation({ userId: req.trackingId, con, ...geo }),
       getAnonymousTheme(req.trackingId),
-      getEngagementCreatives(req.trackingId ?? '', isEngagementAdsEnabled(req)),
+      getEngagementCreatives(req.trackingId ?? ''),
     ]);
 
   // Determine theme: use existing preference or referrer-based default

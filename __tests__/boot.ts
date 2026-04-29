@@ -91,6 +91,7 @@ import {
 import { UserExperienceWork } from '../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceEducation } from '../src/entity/user/experiences/UserExperienceEducation';
 import * as betterAuthModule from '../src/betterAuth';
+import { remoteConfig } from '../src/remoteConfig';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -2275,9 +2276,12 @@ describe('engagement creatives', () => {
 
   afterEach(() => {
     nock.cleanAll();
+    remoteConfig.vars.engagementAdsEnabled = true;
   });
 
-  it('should not fetch engagement creatives when ega param is missing', async () => {
+  it('should not fetch engagement creatives when remote config is disabled', async () => {
+    remoteConfig.vars.engagementAdsEnabled = false;
+
     const scope = nock(process.env.SKADI_ORIGIN)
       .post('/private')
       .reply(200, skadiResponse);
@@ -2292,7 +2296,7 @@ describe('engagement creatives', () => {
     expect(scope.isDone()).toBe(false);
   });
 
-  it('should return engagement creatives when ega=1 for logged in user', async () => {
+  it('should return engagement creatives for logged in user', async () => {
     nock(process.env.SKADI_ORIGIN)
       .post('/private', {
         placement: 'default_engagement',
@@ -2301,7 +2305,7 @@ describe('engagement creatives', () => {
       .reply(200, skadiResponse);
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}?ega=1`)
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
@@ -2309,11 +2313,11 @@ describe('engagement creatives', () => {
     expect(res.body.engagementCreatives).toEqual([expectedCreative]);
   });
 
-  it('should return engagement creatives when ega=1 for anonymous user', async () => {
+  it('should return engagement creatives for anonymous user', async () => {
     nock(process.env.SKADI_ORIGIN).post('/private').reply(200, skadiResponse);
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}?ega=1`)
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .expect(200);
 
@@ -2326,7 +2330,7 @@ describe('engagement creatives', () => {
       .reply(200, { value: { engagement: skadiEngagementPayload } });
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}?ega=1`)
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
@@ -2338,7 +2342,7 @@ describe('engagement creatives', () => {
     nock(process.env.SKADI_ORIGIN).post('/private').reply(200, {});
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}?ega=1`)
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
@@ -2352,7 +2356,7 @@ describe('engagement creatives', () => {
       .reply(500, 'Internal Server Error');
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}?ega=1`)
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
