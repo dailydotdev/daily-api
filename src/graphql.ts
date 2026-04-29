@@ -25,7 +25,6 @@ import * as urlDirective from './directive/url';
 import * as leaderboard from './schema/leaderboard';
 import * as integrations from './schema/integrations';
 import * as contentPreference from './schema/contentPreference';
-import * as prompts from './schema/prompts';
 import * as paddle from './schema/paddle';
 import * as njord from './schema/njord';
 import * as organizations from './schema/organizations';
@@ -88,7 +87,6 @@ export const schema = urlDirective.transformer(
               leaderboard.typeDefs,
               integrations.typeDefs,
               contentPreference.typeDefs,
-              prompts.typeDefs,
               paddle.typeDefs,
               njord.typeDefs,
               organizations.typeDefs,
@@ -134,7 +132,6 @@ export const schema = urlDirective.transformer(
                 leaderboard.resolvers,
                 integrations.resolvers,
                 contentPreference.resolvers,
-                prompts.resolvers,
                 paddle.resolvers,
                 njord.resolvers,
                 organizations.resolvers,

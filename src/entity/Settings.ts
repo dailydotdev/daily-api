@@ -53,7 +53,6 @@ export type SettingsFlags = Partial<{
   browsingContextEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
-  lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
   legacyPostLayoutOptOut: boolean;
   shortcutsMode: ShortcutsMode;
@@ -73,7 +72,6 @@ export type SettingsFlagsPublic = Pick<
   | 'browsingContextEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
-  | 'lastPrompt'
   | 'defaultWriteTab'
   | 'legacyPostLayoutOptOut'
   | 'shortcutsMode'

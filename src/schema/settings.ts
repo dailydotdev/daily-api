@@ -78,7 +78,6 @@ export const typeDefs = /* GraphQL */ `
     clickbaitShieldEnabled: Boolean
     browsingContextEnabled: Boolean
     timezoneMismatchIgnore: String
-    lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
     shortcutsMode: ShortcutsMode
