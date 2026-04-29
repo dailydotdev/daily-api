@@ -4,7 +4,9 @@ import { UserFeedbackCategory } from '@dailydotdev/schema';
 import createOrGetConnection from '../src/db';
 import {
   createMockLogger,
+  expectSuccessfulBackground,
   initializeGraphQLTesting,
+  mockChangeMessage,
   MockContext,
   saveFixtures,
   type GraphQLTestClient,
@@ -36,10 +38,11 @@ import { FastifyInstance } from 'fastify';
 import { createSource } from './fixture/source';
 import { assignIntroQuestsToUser } from '../src/common/quest/intro';
 import { checkQuestProgress } from '../src/common/quest/progress';
-import { checkProfileCompleteQuestProgress } from '../src/common/profile/completion';
 import { UserActionType } from '../src/entity/user/UserAction';
 import { UserExperience } from '../src/entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../src/entity/user/experiences/types';
+import cdcWorker from '../src/workers/cdc/primary';
+import type { ChangeObject } from '../src/types';
 
 const CLAIM_QUEST_REWARD_MUTATION = `
 mutation ClaimQuestReward($userQuestId: ID!) {
@@ -1394,15 +1397,17 @@ describe('intro quests', () => {
     return { introQuestId, introRotationId };
   };
 
-  it('should complete the profile intro quest when profile is fully filled out', async () => {
-    await saveFixtures(con, User, [
-      {
-        id: questUserId,
-        image: 'https://example.com/avatar.png',
-        bio: 'Building things.',
-        experienceLevel: 'MORE_THAN_2_YEARS',
-      },
-    ]);
+  const completeUser = {
+    id: questUserId,
+    image: 'https://example.com/avatar.png',
+    bio: 'Building things.',
+    experienceLevel: 'MORE_THAN_2_YEARS',
+  };
+
+  const seedProfileCompleteFixtures = async (
+    user: Partial<typeof completeUser> = completeUser,
+  ) => {
+    await saveFixtures(con, User, [{ id: questUserId, ...user }]);
     await saveFixtures(con, UserExperience, [
       {
         userId: questUserId,
@@ -1421,11 +1426,67 @@ describe('intro quests', () => {
     ]);
     const { introRotationId } = await seedProfileCompleteIntroQuest();
     await assignIntroQuestsToUser({ con, userId: questUserId });
+    return { introRotationId };
+  };
 
-    await checkProfileCompleteQuestProgress({
-      con: con.manager,
+  it('should complete the profile intro quest when a User update lands at 100%', async () => {
+    const { introRotationId } = await seedProfileCompleteFixtures();
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: completeUser as ChangeObject<User>,
+        before: completeUser as ChangeObject<User>,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
       userId: questUserId,
+      rotationId: introRotationId,
     });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  it('should complete the profile intro quest when a UserExperience insert (e.g. CV import) brings the user to 100%', async () => {
+    await saveFixtures(con, User, [completeUser]);
+    await saveFixtures(con, UserExperience, [
+      {
+        userId: questUserId,
+        title: 'Engineer',
+        startedAt: new Date('2022-01-01'),
+        endedAt: null,
+        type: UserExperienceType.Work,
+      },
+    ]);
+    const { introRotationId } = await seedProfileCompleteIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const insertedEducation = await con.getRepository(UserExperience).save({
+      userId: questUserId,
+      title: 'CS Degree',
+      startedAt: new Date('2018-01-01'),
+      endedAt: new Date('2022-01-01'),
+      type: UserExperienceType.Education,
+    });
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: {
+          id: insertedEducation.id,
+          userId: questUserId,
+          type: UserExperienceType.Education,
+        } as ChangeObject<UserExperience>,
+        table: 'user_experience',
+        op: 'c',
+      }),
+    );
 
     const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
       userId: questUserId,
@@ -1439,21 +1500,26 @@ describe('intro quests', () => {
   });
 
   it('should not progress the profile intro quest when profile is incomplete', async () => {
-    await saveFixtures(con, User, [
-      {
-        id: questUserId,
-        image: 'https://example.com/avatar.png',
-        bio: 'Building things.',
-        experienceLevel: null,
-      },
-    ]);
-    const { introRotationId } = await seedProfileCompleteIntroQuest();
-    await assignIntroQuestsToUser({ con, userId: questUserId });
-
-    await checkProfileCompleteQuestProgress({
-      con: con.manager,
-      userId: questUserId,
+    const { introRotationId } = await seedProfileCompleteFixtures({
+      ...completeUser,
+      experienceLevel: null,
     });
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: {
+          ...completeUser,
+          experienceLevel: null,
+        } as unknown as ChangeObject<User>,
+        before: {
+          ...completeUser,
+          experienceLevel: null,
+        } as unknown as ChangeObject<User>,
+        table: 'user',
+        op: 'u',
+      }),
+    );
 
     const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
       userId: questUserId,

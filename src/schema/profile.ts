@@ -26,7 +26,6 @@ import {
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
-import { checkProfileCompleteQuestProgress } from '../common/profile/completion';
 import { User } from '../entity/user/User';
 import { getGoogleFaviconUrl } from '../common/companyEnrichment';
 
@@ -413,11 +412,6 @@ export const resolvers: IResolvers<unknown, AuthContext> = {
         });
       });
 
-      await checkProfileCompleteQuestProgress({
-        con: ctx.con.manager,
-        userId: ctx.userId,
-      });
-
       return getUserExperience(ctx, info, entity.id, false);
     },
     upsertUserWorkExperience: async (
@@ -452,11 +446,6 @@ export const resolvers: IResolvers<unknown, AuthContext> = {
         await insertOrIgnoreUserExperienceSkills(con, saved.id, toCreate);
 
         return saved;
-      });
-
-      await checkProfileCompleteQuestProgress({
-        con: ctx.con.manager,
-        userId: ctx.userId,
       });
 
       return getUserExperience(ctx, info, entity.id, false);

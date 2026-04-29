@@ -3,9 +3,6 @@ import { User } from '../../entity';
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { queryReadReplica } from '../queryReadReplica';
-import { checkQuestProgress } from '../quest/progress';
-import { QuestEventType } from '../../entity/Quest';
-import { logger } from '../../logger';
 
 export type ProfileCompletion = {
   percentage: number;
@@ -91,42 +88,4 @@ export const calculateProfileCompletion = (
     hasWork,
     hasEducation,
   };
-};
-
-export const checkProfileCompleteQuestProgress = async ({
-  con,
-  userId,
-}: {
-  con: DataSource | EntityManager;
-  userId: string;
-}): Promise<void> => {
-  try {
-    const [user, experienceFlags] = await Promise.all([
-      con.getRepository(User).findOne({
-        where: { id: userId },
-        select: ['image', 'bio', 'experienceLevel'],
-      }),
-      getProfileExperienceFlagsFromManager(
-        con instanceof DataSource ? con.manager : con,
-        userId,
-      ),
-    ]);
-
-    const completion = calculateProfileCompletion(user, experienceFlags);
-    if (completion?.percentage !== 100) {
-      return;
-    }
-
-    await checkQuestProgress({
-      con,
-      logger,
-      userId,
-      eventType: QuestEventType.ProfileComplete,
-    });
-  } catch (err) {
-    logger.error(
-      { err: err instanceof Error ? err.message : String(err), userId },
-      'Failed to track profile complete quest progress',
-    );
-  }
 };
