@@ -1051,6 +1051,7 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
           trending
           summary
           numUpvotes
+          numAwards
           upvoted
           numComments
           bookmarked
@@ -1064,10 +1065,23 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
           }
           author {
             id
+            name
+            image
+            permalink
+            username
+            coresRole
           }
           downvoted
           userState {
             vote
+            awarded
+          }
+          featuredAward {
+            award {
+              name
+              image
+              value
+            }
           }
         }
       }`);
