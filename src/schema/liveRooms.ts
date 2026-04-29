@@ -39,6 +39,7 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    participantCount: Int
     host: User!
   }
 
@@ -171,6 +172,19 @@ const assertJoinAllowedByFlyting = async ({
 };
 
 export const resolvers: IResolvers = {
+  LiveRoom: {
+    participantCount: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<number | null> => {
+      if (room.status !== LiveRoomStatus.Live) {
+        return null;
+      }
+
+      return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
+    },
+  },
   Query: {
     liveRoom: async (
       _,
