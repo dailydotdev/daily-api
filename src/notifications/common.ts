@@ -88,6 +88,7 @@ export enum NotificationType {
   FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
+  MajorHeadlineAdded = 'major_headline_added',
 }
 
 export enum NotificationPreferenceType {
@@ -313,6 +314,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.DigestReady]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.MajorHeadlineAdded]: {
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
 };
