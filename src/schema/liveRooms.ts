@@ -39,6 +39,7 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    participantCount: Int
     host: User!
   }
 
@@ -51,6 +52,7 @@ export const typeDefs = /* GraphQL */ `
   input CreateLiveRoomInput {
     topic: String!
     mode: LiveRoomMode = moderated
+    speakerLimit: Int
   }
 
   extend type Query {
@@ -170,6 +172,19 @@ const assertJoinAllowedByFlyting = async ({
 };
 
 export const resolvers: IResolvers = {
+  LiveRoom: {
+    participantCount: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<number | null> => {
+      if (room.status !== LiveRoomStatus.Live) {
+        return null;
+      }
+
+      return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
+    },
+  },
   Query: {
     liveRoom: async (
       _,
@@ -219,7 +234,13 @@ export const resolvers: IResolvers = {
   Mutation: {
     createLiveRoom: async (
       _,
-      args: { input: { mode: LiveRoomMode; topic: string } },
+      args: {
+        input: {
+          mode: LiveRoomMode;
+          speakerLimit?: number;
+          topic: string;
+        };
+      },
       ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
@@ -237,6 +258,7 @@ export const resolvers: IResolvers = {
         await getFlytingClient().prepareRoom({
           mode: room.mode,
           roomId: room.id,
+          speakerLimit: input.speakerLimit,
         });
       } catch (error) {
         if (shouldDeleteRoomAfterPrepareFailure(error)) {

@@ -28,7 +28,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { notificationV2Fixture } from './fixture/notifications';
-import { addDays, subDays } from 'date-fns';
+import { addDays, subDays, subHours } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import {
@@ -489,6 +489,73 @@ describe('query notifications', () => {
     expect(titles).toContain('visible');
     expect(titles).toContain('past showAt');
     expect(titles).not.toContain('future');
+  });
+
+  it('should return showAt as createdAt for scheduled notifications', async () => {
+    loggedUser = '1';
+    const showAt = subHours(new Date(), 1);
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: subHours(showAt, 2),
+        showAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const edges = res.data.notifications.edges;
+    expect(edges).toHaveLength(1);
+    expect(new Date(edges[0].node.createdAt).getTime()).toBe(showAt.getTime());
+  });
+
+  it('should order notifications by effective timestamp using showAt', async () => {
+    loggedUser = '1';
+    const now = new Date();
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture, title: 'scheduled' },
+      { ...notificationV2Fixture, uniqueKey: '2', title: 'regular' },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: subHours(now, 3),
+        showAt: subHours(now, 1),
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: subHours(now, 2),
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const titles = res.data.notifications.edges.map(
+      (e: { node: { title: string } }) => e.node.title,
+    );
+    expect(titles).toEqual(['scheduled', 'regular']);
+  });
+
+  it('should return original createdAt when showAt is null', async () => {
+    loggedUser = '1';
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const edges = res.data.notifications.edges;
+    expect(edges).toHaveLength(1);
+    expect(new Date(edges[0].node.createdAt).getTime()).toBe(
+      new Date(notificationV2Fixture.createdAt).getTime(),
+    );
   });
 });
 

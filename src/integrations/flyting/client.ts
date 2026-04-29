@@ -28,6 +28,7 @@ export class FlytingClient {
   async prepareRoom(input: {
     mode: LiveRoomMode;
     roomId: string;
+    speakerLimit?: number;
   }): Promise<void> {
     await this.garmr.execute(async () => {
       const response = await retryFetch(
@@ -41,6 +42,7 @@ export class FlytingClient {
           },
           body: JSON.stringify({
             mode: input.mode,
+            speakerLimit: input.speakerLimit,
           }),
         },
       );
@@ -102,6 +104,36 @@ export class FlytingClient {
           headers: {
             'x-flyting-internal-key': this.internalApiKey,
           },
+        },
+      );
+
+      if (response.ok) {
+        return response.json();
+      }
+
+      throw new HttpError(response.url, response.status, await response.text());
+    });
+  }
+
+  async getParticipantCounts(input: { roomIds: string[] }): Promise<{
+    rooms: {
+      roomId: string;
+      participantCount: number | null;
+    }[];
+  }> {
+    return this.garmr.execute(async () => {
+      const response = await retryFetch(
+        `${this.url}/internal/live-rooms/counts`,
+        {
+          ...this.fetchOptions,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-flyting-internal-key': this.internalApiKey,
+          },
+          body: JSON.stringify({
+            roomIds: input.roomIds,
+          }),
         },
       );
 

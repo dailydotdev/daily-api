@@ -4,6 +4,7 @@ import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import type { z } from 'zod';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
+import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
 import { recswipeClient } from '../integrations/recswipe/clients';
 import { HttpError } from '../integrations/retry';
@@ -1805,6 +1806,12 @@ export const typeDefs = /* GraphQL */ `
       saturatedTags: [String!]
       n: Int
     ): OnboardingDiscoverPostsResult! @auth
+
+    """
+    Extract candidate tags from a free-text prompt for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingExtractTags(prompt: String!): OnboardingExtractTagsResult! @auth
   }
 
   type OnboardingTagsResult {
@@ -1827,6 +1834,10 @@ export const typeDefs = /* GraphQL */ `
   type OnboardingDiscoverPostsResult {
     posts: [OnboardingSwipePost!]!
     subPrompts: [String!]!
+  }
+
+  type OnboardingExtractTagsResult {
+    tags: [String!]!
   }
 `;
 
@@ -4356,6 +4367,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'Recswipe discoverPosts request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingExtractTags: async (
+      _,
+      args: z.input<typeof onboardingExtractTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingExtractTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.extractTags(ctx.userId, parsed);
+
+        return { tags: data.tags ?? [] };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe extractTags request failed',
             data: err.response,
             statusCode: err.statusCode,
           });
