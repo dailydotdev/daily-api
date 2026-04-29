@@ -1397,12 +1397,22 @@ describe('intro quests', () => {
     return { introQuestId, introRotationId };
   };
 
-  const completeUser = {
+  const createCompleteUser = () => ({
     id: questUserId,
     image: 'https://example.com/avatar.png',
     bio: 'Building things.',
     experienceLevel: 'MORE_THAN_2_YEARS',
-  };
+  });
+
+  const completeUser = createCompleteUser();
+
+  const toUserChangeObject = (user: Partial<User>): ChangeObject<User> =>
+    ({
+      ...user,
+      flags: JSON.stringify(user.flags ?? {}),
+      notificationFlags: JSON.stringify(user.notificationFlags ?? {}),
+      subscriptionFlags: JSON.stringify(user.subscriptionFlags ?? {}),
+    }) as ChangeObject<User>;
 
   const seedProfileCompleteFixtures = async (
     user: Partial<typeof completeUser> = completeUser,
@@ -1431,12 +1441,13 @@ describe('intro quests', () => {
 
   it('should complete the profile intro quest when a User update lands at 100%', async () => {
     const { introRotationId } = await seedProfileCompleteFixtures();
+    const completeUserChange = toUserChangeObject(createCompleteUser());
 
     await expectSuccessfulBackground(
       cdcWorker,
       mockChangeMessage({
-        after: completeUser as ChangeObject<User>,
-        before: completeUser as ChangeObject<User>,
+        after: completeUserChange,
+        before: completeUserChange,
         table: 'user',
         op: 'u',
       }),
@@ -1454,7 +1465,7 @@ describe('intro quests', () => {
   });
 
   it('should complete the profile intro quest when a UserExperience insert (e.g. CV import) brings the user to 100%', async () => {
-    await saveFixtures(con, User, [completeUser]);
+    await saveFixtures(con, User, [{ ...completeUser }]);
     await saveFixtures(con, UserExperience, [
       {
         userId: questUserId,
@@ -1500,22 +1511,19 @@ describe('intro quests', () => {
   });
 
   it('should not progress the profile intro quest when profile is incomplete', async () => {
-    const { introRotationId } = await seedProfileCompleteFixtures({
-      ...completeUser,
+    const incompleteUser = {
+      ...createCompleteUser(),
       experienceLevel: null,
-    });
+    };
+    const { introRotationId } =
+      await seedProfileCompleteFixtures(incompleteUser);
+    const incompleteUserChange = toUserChangeObject(incompleteUser);
 
     await expectSuccessfulBackground(
       cdcWorker,
       mockChangeMessage({
-        after: {
-          ...completeUser,
-          experienceLevel: null,
-        } as unknown as ChangeObject<User>,
-        before: {
-          ...completeUser,
-          experienceLevel: null,
-        } as unknown as ChangeObject<User>,
+        after: incompleteUserChange,
+        before: incompleteUserChange,
         table: 'user',
         op: 'u',
       }),
