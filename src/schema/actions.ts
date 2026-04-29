@@ -5,6 +5,9 @@ import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
+import { checkQuestProgress } from '../common/quest/progress';
+import { QuestEventType } from '../entity/Quest';
+import { logger } from '../logger';
 
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
@@ -61,6 +64,12 @@ export const insertOrIgnoreAction = (
     .orIgnore()
     .execute();
 
+const userActionTypeToQuestEventType: Partial<
+  Record<UserActionType, QuestEventType>
+> = {
+  [UserActionType.EnableNotification]: QuestEventType.NotificationsEnable,
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     completeAction: async (
@@ -69,6 +78,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await insertOrIgnoreAction(con, userId, type);
+
+      const questEventType = userActionTypeToQuestEventType[type];
+      if (questEventType) {
+        try {
+          await checkQuestProgress({
+            con: con.manager,
+            logger,
+            userId,
+            eventType: questEventType,
+          });
+        } catch (err) {
+          logger.error(
+            { err: err instanceof Error ? err.message : String(err), userId },
+            `Failed to track ${questEventType} quest progress`,
+          );
+        }
+      }
 
       return {
         _: true,

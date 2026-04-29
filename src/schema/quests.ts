@@ -62,11 +62,12 @@ type GQLQuestDashboard = {
   daily: GQLQuestBucket;
   weekly: GQLQuestBucket;
   milestone: GQLUserQuest[];
+  intro: GQLUserQuest[];
 };
 
 type GQLClaimQuestRewardPayload = Pick<
   GQLQuestDashboard,
-  'level' | 'daily' | 'weekly' | 'milestone'
+  'level' | 'daily' | 'weekly' | 'milestone' | 'intro'
 >;
 
 type GQLQuestUpdate = {
@@ -205,6 +206,10 @@ const getCurrentUserQuestsByType = async ({
       }
 
       const userQuest = userQuestByRotationId.get(rotation.id);
+      if (type === QuestType.Intro && !userQuest) {
+        return null;
+      }
+
       const status = userQuest?.status ?? DEFAULT_QUEST_STATUS;
       const locked = rotation.plusOnly && !isPlus;
 
@@ -300,6 +305,7 @@ const getQuestDashboard = async ({
     dailyQuests,
     weeklyQuests,
     milestoneQuests,
+    introQuests,
     streaks,
     latestActiveQuestRotationCreatedAt,
   ] = await Promise.all([
@@ -329,6 +335,13 @@ const getQuestDashboard = async ({
       isPlus,
       now,
     }),
+    getCurrentUserQuestsByType({
+      con,
+      userId,
+      type: QuestType.Intro,
+      isPlus,
+      now,
+    }),
     getQuestStreaks({
       con,
       userId,
@@ -351,6 +364,7 @@ const getQuestDashboard = async ({
     daily: toQuestBucket(dailyQuests),
     weekly: toQuestBucket(weeklyQuests),
     milestone: milestoneQuests,
+    intro: introQuests,
   };
 };
 
@@ -386,7 +400,7 @@ const getClaimQuestRewardPayload = async ({
   isPlus: boolean;
   now: Date;
 }): Promise<GQLClaimQuestRewardPayload> => {
-  const [profile, dailyQuests, weeklyQuests, milestoneQuests] =
+  const [profile, dailyQuests, weeklyQuests, milestoneQuests, introQuests] =
     await Promise.all([
       con.getRepository(UserQuestProfile).findOne({
         where: {
@@ -414,6 +428,13 @@ const getClaimQuestRewardPayload = async ({
         isPlus,
         now,
       }),
+      getCurrentUserQuestsByType({
+        con,
+        userId,
+        type: QuestType.Intro,
+        isPlus,
+        now,
+      }),
     ]);
 
   return {
@@ -421,6 +442,7 @@ const getClaimQuestRewardPayload = async ({
     daily: toQuestBucket(dailyQuests),
     weekly: toQuestBucket(weeklyQuests),
     milestone: milestoneQuests,
+    intro: introQuests,
   };
 };
 
@@ -600,6 +622,7 @@ export const typeDefs = /* GraphQL */ `
     daily
     weekly
     milestone
+    intro
   }
 
   enum QuestStatus {
@@ -661,6 +684,7 @@ export const typeDefs = /* GraphQL */ `
     daily: QuestBucket!
     weekly: QuestBucket!
     milestone: [UserQuest!]!
+    intro: [UserQuest!]!
   }
 
   type ClaimQuestRewardPayload {
@@ -668,6 +692,7 @@ export const typeDefs = /* GraphQL */ `
     daily: QuestBucket!
     weekly: QuestBucket!
     milestone: [UserQuest!]!
+    intro: [UserQuest!]!
   }
 
   type QuestUpdate {
