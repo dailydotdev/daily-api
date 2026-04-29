@@ -1302,6 +1302,10 @@ const obj = new GraphORM({
         )
         .addSelect('un."readAt"'),
     fields: {
+      createdAt: {
+        rawSelect: true,
+        select: () => `COALESCE(un."showAt", un."createdAt")`,
+      },
       avatars: {
         relation: {
           isMany: true,
