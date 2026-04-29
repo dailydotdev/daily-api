@@ -39,7 +39,7 @@ export class AddIntroQuests1777800000000 implements MigrationInterface {
         (
           '${questIds.installExtension}',
           'Install the browser extension',
-          'Pin daily.dev to your browser so the feed is always one click away.',
+          'Make daily.dev your homepage and never miss any updates.',
           'intro',
           'extension_install',
           '{"targetCount": 1}',
@@ -48,7 +48,7 @@ export class AddIntroQuests1777800000000 implements MigrationInterface {
         (
           '${questIds.enableNotifications}',
           'Turn on notifications',
-          'Enable alerts for briefings, replies, and the moments that matter.',
+          'Get notified about the things that matter.',
           'intro',
           'notifications_enable',
           '{"targetCount": 1}',
@@ -57,7 +57,7 @@ export class AddIntroQuests1777800000000 implements MigrationInterface {
         (
           '${questIds.generateBrief}',
           'Generate your first brief',
-          'Spin up a quick daily briefing to preview how your home feed can adapt.',
+          'Try out the presidential brief feature.',
           'intro',
           'brief_generate',
           '{"targetCount": 1}',
@@ -66,7 +66,7 @@ export class AddIntroQuests1777800000000 implements MigrationInterface {
         (
           '${questIds.completeProfile}',
           'Complete your profile',
-          'Add enough context to personalize recommendations and unlock better prompts.',
+          'Complete your profile and increase your visibility.',
           'intro',
           'profile_complete',
           '{"targetCount": 1}',
