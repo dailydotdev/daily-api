@@ -282,6 +282,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  isHackathonParticipant?: boolean;
   notificationFlags: UserNotificationFlags;
   socialLinks: UserSocialLink[];
 }
@@ -603,6 +604,11 @@ export const typeDefs = /* GraphQL */ `
     From when the user is a plus member
     """
     plusMemberSince: DateTime
+
+    """
+    Whether the user has signed up for the daily.dev hackathon
+    """
+    isHackathonParticipant: Boolean
 
     """
     Verified companies for this user
@@ -1552,6 +1558,11 @@ export const typeDefs = /* GraphQL */ `
     Clear users image based on type
     """
     clearImage(presets: [UploadPreset]): EmptyResponse @auth
+
+    """
+    Sign the current user up as a daily.dev hackathon participant
+    """
+    joinHackathon: EmptyResponse @auth
 
     """
     Update user profile information
@@ -3163,6 +3174,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
   },
   Mutation: {
+    joinHackathon: async (
+      _,
+      __,
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await con.getRepository(User).update(
+        { id: userId },
+        {
+          flags: updateFlagsStatement<User>({ hackathonParticipant: true }),
+        },
+      );
+
+      return { _: true };
+    },
     clearImage: async (
       _,
       { presets }: { presets: UploadPreset[] },
