@@ -28,7 +28,7 @@ describe('live room lifecycle workers', () => {
         id: 'f5f3db20-7f40-4dd8-9ac5-0e2a693dad8c',
         hostId: '1',
         topic: 'Lifecycle room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Created,
       },
     ]);
@@ -57,7 +57,7 @@ describe('live room lifecycle workers', () => {
         id: '94ba1d11-9831-4fb2-bda2-c7377f790f36',
         hostId: '1',
         topic: 'Lifecycle room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Live,
         startedAt: new Date('2026-04-23T15:00:00.000Z'),
       },
@@ -87,7 +87,7 @@ describe('live room lifecycle workers', () => {
         id: '4d84f9a2-29ce-4a15-92e0-f3f1f31cb26e',
         hostId: '1',
         topic: 'Lifecycle room',
-        mode: 'debate',
+        mode: 'moderated',
         status: LiveRoomStatus.Created,
       },
     ]);

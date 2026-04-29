@@ -39,6 +39,7 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    participantCount: Int
     host: User!
   }
 
@@ -50,7 +51,8 @@ export const typeDefs = /* GraphQL */ `
 
   input CreateLiveRoomInput {
     topic: String!
-    mode: LiveRoomMode = debate
+    mode: LiveRoomMode = moderated
+    speakerLimit: Int
   }
 
   extend type Query {
@@ -146,7 +148,43 @@ const getJoinParticipantId = (ctx: Context): string => {
   return ctx.trackingId;
 };
 
+const assertJoinAllowedByFlyting = async ({
+  participantId,
+  roomId,
+}: {
+  participantId: string;
+  roomId: string;
+}): Promise<void> => {
+  const eligibility = await getFlytingClient().getJoinEligibility({
+    participantId,
+    roomId,
+  });
+
+  if (eligibility.canJoin) {
+    return;
+  }
+
+  if (eligibility.reason === 'kicked') {
+    throw new ValidationError('You have been removed from this live room');
+  }
+
+  throw new ValidationError('Cannot join this live room');
+};
+
 export const resolvers: IResolvers = {
+  LiveRoom: {
+    participantCount: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<number | null> => {
+      if (room.status !== LiveRoomStatus.Live) {
+        return null;
+      }
+
+      return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
+    },
+  },
   Query: {
     liveRoom: async (
       _,
@@ -196,7 +234,13 @@ export const resolvers: IResolvers = {
   Mutation: {
     createLiveRoom: async (
       _,
-      args: { input: { mode: LiveRoomMode; topic: string } },
+      args: {
+        input: {
+          mode: LiveRoomMode;
+          speakerLimit?: number;
+          topic: string;
+        };
+      },
       ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
@@ -214,6 +258,7 @@ export const resolvers: IResolvers = {
         await getFlytingClient().prepareRoom({
           mode: room.mode,
           roomId: room.id,
+          speakerLimit: input.speakerLimit,
         });
       } catch (error) {
         if (shouldDeleteRoomAfterPrepareFailure(error)) {
@@ -287,11 +332,17 @@ export const resolvers: IResolvers = {
         room.hostId === ctx.userId
           ? LiveRoomParticipantRole.Host
           : LiveRoomParticipantRole.Audience;
+      const participantId = getJoinParticipantId(ctx);
+
+      await assertJoinAllowedByFlyting({
+        participantId,
+        roomId: room.id,
+      });
 
       return createJoinTokenPayload({
         authKind,
         room,
-        participantId: getJoinParticipantId(ctx),
+        participantId,
         role,
       });
     },

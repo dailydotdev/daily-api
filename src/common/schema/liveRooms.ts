@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { enumValues } from './utils';
 
 export enum LiveRoomMode {
-  Debate = 'debate',
+  Moderated = 'moderated',
+  FreeForAll = 'free_for_all',
 }
 
 export enum LiveRoomStatus {
@@ -25,6 +26,11 @@ export const liveRoomModeSchema = z.enum(enumValues(LiveRoomMode), {
   error: 'Invalid live room mode',
 });
 
+export const liveRoomSpeakerLimitSchema = z
+  .number()
+  .int()
+  .positive('Speaker limit must be at least 1');
+
 export const liveRoomStatusSchema = z.enum(enumValues(LiveRoomStatus), {
   error: 'Invalid live room status',
 });
@@ -43,10 +49,24 @@ export const liveRoomLifecycleEventTypeSchema = z.enum(
   },
 );
 
-export const createLiveRoomSchema = z.object({
-  topic: z.string().trim().min(1).max(280),
-  mode: liveRoomModeSchema.default(LiveRoomMode.Debate),
-});
+export const createLiveRoomSchema = z
+  .object({
+    topic: z.string().trim().min(1).max(280),
+    mode: liveRoomModeSchema.default(LiveRoomMode.Moderated),
+    speakerLimit: liveRoomSpeakerLimitSchema.optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (
+      input.mode !== LiveRoomMode.FreeForAll &&
+      input.speakerLimit !== undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['speakerLimit'],
+        message: 'Speaker limit can only be set for free-for-all rooms',
+      });
+    }
+  });
 
 export const liveRoomIdSchema = z.uuid('Live room ID must be a valid UUID');
 
