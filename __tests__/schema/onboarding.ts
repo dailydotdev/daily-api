@@ -17,11 +17,15 @@ import { HttpError } from '../../src/integrations/retry';
 jest.mock('../../src/integrations/recswipe/clients', () => ({
   recswipeClient: {
     discoverPosts: jest.fn(),
+    extractTags: jest.fn(),
   },
 }));
 
 const discoverPostsMock = recswipeClient.discoverPosts as jest.MockedFunction<
   typeof recswipeClient.discoverPosts
+>;
+const extractTagsMock = recswipeClient.extractTags as jest.MockedFunction<
+  typeof recswipeClient.extractTags
 >;
 
 let con: DataSource;
@@ -204,6 +208,84 @@ describe('mutation onboardingDiscoverPosts', () => {
     discoverPostsMock.mockRejectedValueOnce(
       new HttpError(
         'http://recswipe.local:8000/api/discover-posts',
+        500,
+        'boom',
+      ),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { prompt: 'rust' },
+    });
+
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].extensions?.code).toBe('UNEXPECTED');
+  });
+});
+
+describe('mutation onboardingExtractTags', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation OnboardingExtractTags($prompt: String!) {
+      onboardingExtractTags(prompt: $prompt) {
+        tags
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { prompt: 'rust' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should reject input that fails Zod validation', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { prompt: '' } },
+      'ZOD_VALIDATION_ERROR',
+    );
+    expect(extractTagsMock).not.toHaveBeenCalled();
+  });
+
+  it('should forward prompt to recswipe client and return tags', async () => {
+    loggedUser = '1';
+    extractTagsMock.mockResolvedValueOnce({
+      tags: ['rust', 'systems'],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { prompt: 'I like rust and systems programming' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      onboardingExtractTags: { tags: ['rust', 'systems'] },
+    });
+    expect(extractTagsMock).toHaveBeenCalledWith('1', {
+      prompt: 'I like rust and systems programming',
+    });
+  });
+
+  it('should default missing tags array to empty list', async () => {
+    loggedUser = '1';
+    extractTagsMock.mockResolvedValueOnce({
+      tags: undefined as unknown as string[],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { prompt: 'go' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({ onboardingExtractTags: { tags: [] } });
+  });
+
+  it('should surface an UNEXPECTED error when recswipe responds with HttpError', async () => {
+    loggedUser = '1';
+    extractTagsMock.mockRejectedValueOnce(
+      new HttpError(
+        'http://recswipe.local:8000/api/extract-tags',
         500,
         'boom',
       ),
