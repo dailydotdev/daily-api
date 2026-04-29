@@ -17,7 +17,9 @@ import { getFlytingClient } from '../integrations/flyting/client';
 import { AbortError, HttpError } from '../integrations/retry';
 import { Roles } from '../roles';
 
-export type GQLLiveRoom = LiveRoom;
+export type GQLLiveRoom = LiveRoom & {
+  participantCount?: number | null;
+};
 
 type GQLLiveRoomJoinToken = {
   room: LiveRoom;
@@ -200,6 +202,31 @@ const getParticipantCountsByRoomId = async ({
 };
 
 export const resolvers: IResolvers = {
+  LiveRoom: {
+    participantCount: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<number | null> => {
+      if (
+        Object.prototype.hasOwnProperty.call(room, 'participantCount') &&
+        room.participantCount !== undefined
+      ) {
+        return room.participantCount ?? null;
+      }
+
+      if (room.status !== LiveRoomStatus.Live) {
+        return null;
+      }
+
+      const countsByRoomId = await getParticipantCountsByRoomId({
+        ctx,
+        roomIds: [room.id],
+      });
+
+      return countsByRoomId.get(room.id) ?? null;
+    },
+  },
   Query: {
     liveRoom: async (
       _,

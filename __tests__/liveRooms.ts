@@ -70,6 +70,7 @@ describe('live rooms', () => {
           topic
           mode
           status
+          participantCount
           host {
             id
             username
@@ -86,6 +87,7 @@ describe('live rooms', () => {
         topic
         mode
         status
+        participantCount
         host {
           id
           username
@@ -120,6 +122,7 @@ describe('live rooms', () => {
           topic
           mode
           status
+          participantCount
           host {
             id
             username
@@ -135,6 +138,7 @@ describe('live rooms', () => {
         id
         status
         endedAt
+        participantCount
       }
     }
   `;
@@ -185,6 +189,7 @@ describe('live rooms', () => {
         topic: 'GraphQL and SFUs',
         mode: 'moderated',
         status: 'created',
+        participantCount: null,
         host: {
           id: '1',
           username: 'idoshamun',
@@ -248,6 +253,7 @@ describe('live rooms', () => {
       topic: 'Open mic architecture',
       mode: 'free_for_all',
       status: 'created',
+      participantCount: null,
     });
 
     const room = await con.getRepository(LiveRoom).findOneByOrFail({
@@ -485,6 +491,7 @@ describe('live rooms', () => {
         id: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
         topic: 'Token room',
         status: 'created',
+        participantCount: null,
         host: {
           id: '1',
           username: 'idoshamun',
@@ -536,6 +543,19 @@ describe('live rooms', () => {
         participantId: 'tracking-anon-1',
         canJoin: true,
       });
+    const countsScope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['aa4bb4ae-a0af-4310-b1ff-7d6345cb5253'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+            participantCount: 9,
+          },
+        ],
+      });
 
     const res = await client.mutate(JOIN_TOKEN_MUTATION, {
       variables: {
@@ -550,6 +570,7 @@ describe('live rooms', () => {
         id: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
         topic: 'Live room',
         status: 'live',
+        participantCount: 9,
       },
     });
 
@@ -571,6 +592,7 @@ describe('live rooms', () => {
       roomId: 'aa4bb4ae-a0af-4310-b1ff-7d6345cb5253',
     });
     expect(scope.isDone()).toBe(true);
+    expect(countsScope.isDone()).toBe(true);
   });
 
   it('rejects join tokens for ended rooms', async () => {
@@ -700,6 +722,7 @@ describe('live rooms', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.endLiveRoom.status).toBe('ended');
     expect(res.data.endLiveRoom.endedAt).toBeTruthy();
+    expect(res.data.endLiveRoom.participantCount).toBeNull();
     expect(scope.isDone()).toBe(true);
   });
 
@@ -741,6 +764,19 @@ describe('live rooms', () => {
         status: LiveRoomStatus.Live,
       },
     ]);
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['42e45613-c9f8-4823-96cb-ebd6dcbbf4fe'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            roomId: '42e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+            participantCount: 5,
+          },
+        ],
+      });
 
     const res = await client.query(GET_QUERY, {
       variables: {
@@ -755,12 +791,14 @@ describe('live rooms', () => {
         topic: 'Readable room',
         mode: 'moderated',
         status: 'live',
+        participantCount: 5,
         host: {
           id: '2',
           username: 'tsahidaily',
         },
       },
     });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('returns a live room by id for an anonymous caller', async () => {
@@ -776,6 +814,19 @@ describe('live rooms', () => {
         startedAt: new Date('2026-04-23T11:00:00.000Z'),
       },
     ]);
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['52e45613-c9f8-4823-96cb-ebd6dcbbf4fe'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            roomId: '52e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+            participantCount: 4,
+          },
+        ],
+      });
 
     const res = await client.query(GET_QUERY, {
       variables: {
@@ -790,11 +841,13 @@ describe('live rooms', () => {
         topic: 'Public live room',
         mode: 'moderated',
         status: 'live',
+        participantCount: 4,
         host: {
           id: '2',
           username: 'tsahidaily',
         },
       },
     });
+    expect(scope.isDone()).toBe(true);
   });
 });
