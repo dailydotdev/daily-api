@@ -101,6 +101,7 @@ describe('live rooms', () => {
         topic
         mode
         status
+        participantCount
         host {
           id
           username
@@ -371,6 +372,20 @@ describe('live rooms', () => {
       },
     ]);
 
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['cc4f63c0-b26e-44fb-b9f8-4c977b28a123'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            roomId: 'cc4f63c0-b26e-44fb-b9f8-4c977b28a123',
+            participantCount: 7,
+          },
+        ],
+      });
+
     const res = await client.query(ACTIVE_QUERY);
 
     expect(res.errors).toBeFalsy();
@@ -381,6 +396,7 @@ describe('live rooms', () => {
           topic: 'Live room',
           mode: 'moderated',
           status: 'live',
+          participantCount: 7,
           host: {
             id: '2',
             username: 'tsahidaily',
@@ -388,6 +404,48 @@ describe('live rooms', () => {
         },
       ],
     });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('keeps active live rooms visible when the batched count lookup fails', async () => {
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '7c4f63c0-b26e-44fb-b9f8-4c977b28a123',
+        hostId: '2',
+        topic: 'Live room without count',
+        mode: 'moderated',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+        createdAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['7c4f63c0-b26e-44fb-b9f8-4c977b28a123'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(500, { message: 'boom' });
+
+    const res = await client.query(ACTIVE_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      activeLiveRooms: [
+        {
+          id: '7c4f63c0-b26e-44fb-b9f8-4c977b28a123',
+          topic: 'Live room without count',
+          mode: 'moderated',
+          status: 'live',
+          participantCount: null,
+          host: {
+            id: '2',
+            username: 'tsahidaily',
+          },
+        },
+      ],
+    });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('returns a join token for the host role', async () => {

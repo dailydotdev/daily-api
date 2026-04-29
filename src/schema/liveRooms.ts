@@ -39,6 +39,7 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    participantCount: Int
     host: User!
   }
 
@@ -170,6 +171,34 @@ const assertJoinAllowedByFlyting = async ({
   throw new ValidationError('Cannot join this live room');
 };
 
+const getParticipantCountsByRoomId = async ({
+  ctx,
+  roomIds,
+}: {
+  ctx: Context;
+  roomIds: string[];
+}): Promise<Map<string, number | null>> => {
+  if (roomIds.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const response = await getFlytingClient().getParticipantCounts({ roomIds });
+    return new Map(
+      response.rooms.map(({ roomId, participantCount }) => [
+        roomId,
+        participantCount,
+      ]),
+    );
+  } catch (error) {
+    ctx.log.warn(
+      { err: error, roomIds },
+      'Unable to load live room participant counts from flyting',
+    );
+    return new Map();
+  }
+};
+
 export const resolvers: IResolvers = {
   Query: {
     liveRoom: async (
@@ -202,8 +231,8 @@ export const resolvers: IResolvers = {
       __,
       ctx: Context,
       info,
-    ): Promise<GQLLiveRoom[]> =>
-      graphorm.query<GQLLiveRoom>(
+    ): Promise<GQLLiveRoom[]> => {
+      const rooms = await graphorm.query<GQLLiveRoom>(
         ctx,
         info,
         (builder) => {
@@ -215,7 +244,17 @@ export const resolvers: IResolvers = {
           return builder;
         },
         true,
-      ),
+      );
+      const countsByRoomId = await getParticipantCountsByRoomId({
+        ctx,
+        roomIds: rooms.map((room) => room.id),
+      });
+
+      return rooms.map((room) => ({
+        ...room,
+        participantCount: countsByRoomId.get(room.id) ?? null,
+      }));
+    },
   },
   Mutation: {
     createLiveRoom: async (
