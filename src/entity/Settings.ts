@@ -26,6 +26,22 @@ export enum DefaultWriteTab {
   Poll = 'Poll',
 }
 
+export enum NewTabMode {
+  Discover = 'discover',
+  Focus = 'focus',
+}
+
+export type FocusScheduleWindow = {
+  start: number;
+  end: number;
+  enabled: boolean;
+};
+
+export type FocusSchedule = {
+  pauseUntil?: number | null;
+  windows?: Partial<Record<string, FocusScheduleWindow | null>>;
+};
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -39,6 +55,8 @@ export type SettingsFlags = Partial<{
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
   legacyPostLayoutOptOut: boolean;
+  newTabMode: NewTabMode;
+  focusSchedule: FocusSchedule;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -55,6 +73,8 @@ export type SettingsFlagsPublic = Pick<
   | 'lastPrompt'
   | 'defaultWriteTab'
   | 'legacyPostLayoutOptOut'
+  | 'newTabMode'
+  | 'focusSchedule'
 >;
 
 @Entity()
@@ -105,7 +125,11 @@ export class Settings {
   @Column({ default: false })
   optOutQuestSystem: boolean;
 
-  @Column({ default: false })
+  // Companion is opt-in — it requires the broad host permission to inject
+  // a side panel into every article page. Default to off so new users
+  // get a clean feed; the customize sidebar's Widgets toggle is the
+  // canonical entry point to enable it.
+  @Column({ default: true })
   optOutCompanion: boolean;
 
   @Column({ type: 'text', default: SortCommentsBy.OldestFirst })
@@ -150,7 +174,7 @@ export const SETTINGS_DEFAULT = {
   companionExpanded: false,
   autoDismissNotifications: true,
   customLinks: null,
-  optOutCompanion: false,
+  optOutCompanion: true,
   optOutWeeklyGoal: false,
   optOutReadingStreak: false,
   optOutLevelSystem: false,

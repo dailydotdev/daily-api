@@ -14,6 +14,8 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     lastPrompt,
     defaultWriteTab,
     legacyPostLayoutOptOut,
+    newTabMode,
+    focusSchedule,
   } = flags ?? {};
 
   return {
@@ -29,5 +31,7 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     lastPrompt,
     defaultWriteTab,
     legacyPostLayoutOptOut: legacyPostLayoutOptOut ?? false,
+    newTabMode,
+    focusSchedule,
   };
 };

@@ -13,6 +13,8 @@ export enum UserActionType {
   FetchedSmartTitle = 'fetched_smart_title',
   CheckedCoresRole = 'checked_cores_role',
   GeneratedBrief = 'generated_brief',
+  DismissedNewTabCustomizer = 'dismissed_new_tab_customizer',
+  SeenKeepItOverlay = 'seen_keep_it_overlay',
 }
 
 @Entity()

@@ -4,6 +4,7 @@ import {
   CampaignCtaPlacement,
   ChecklistViewState,
   DefaultWriteTab,
+  NewTabMode,
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
@@ -77,6 +78,8 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
+    newTabMode: String
+    focusSchedule: JSONObject
   }
 
   input SettingsFlagsPublicInput {
@@ -92,6 +95,8 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
+    newTabMode: String
+    focusSchedule: JSONObject
   }
 
   """
@@ -420,6 +425,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       if (!!data.flags?.prompt && !result.success) {
         throw new ValidationError('Invalid value for prompt');
+      }
+
+      if (
+        data.flags?.newTabMode &&
+        !Object.values(NewTabMode).includes(data.flags.newTabMode)
+      ) {
+        throw new ValidationError(`Invalid value for 'newTabMode'`);
+      }
+
+      const focusScheduleWindowSchema = z
+        .object({
+          start: z
+            .number()
+            .int()
+            .min(0)
+            .max(24 * 60),
+          end: z
+            .number()
+            .int()
+            .min(0)
+            .max(24 * 60),
+          enabled: z.boolean(),
+        })
+        .nullish();
+      const focusScheduleSchema = z
+        .object({
+          pauseUntil: z.number().int().nullish(),
+          windows: z.record(z.string(), focusScheduleWindowSchema).nullish(),
+        })
+        .nullish();
+      const focusResult = focusScheduleSchema.safeParse(
+        data.flags?.focusSchedule,
+      );
+      if (data.flags?.focusSchedule && !focusResult.success) {
+        throw new ValidationError(`Invalid value for 'focusSchedule'`);
       }
 
       return con.transaction(async (manager): Promise<Settings> => {
