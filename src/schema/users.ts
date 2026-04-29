@@ -7,6 +7,7 @@ import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPre
 import { Feed } from '../entity/Feed';
 import { FeedTag } from '../entity/FeedTag';
 import { getMostReadTags } from './../common/devcard';
+import { checkProfileCompleteQuestProgress } from '../common/profile/completion';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
@@ -3215,6 +3216,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           },
         );
 
+        await checkProfileCompleteQuestProgress({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+        });
+
         return updatedUser;
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
@@ -3381,6 +3387,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             }),
           },
         );
+
+        await checkProfileCompleteQuestProgress({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+        });
 
         return updatedUser;
       } catch (originalError) {
