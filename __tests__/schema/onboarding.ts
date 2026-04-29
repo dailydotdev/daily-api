@@ -284,11 +284,7 @@ describe('mutation onboardingExtractTags', () => {
   it('should surface an UNEXPECTED error when recswipe responds with HttpError', async () => {
     loggedUser = '1';
     extractTagsMock.mockRejectedValueOnce(
-      new HttpError(
-        'http://recswipe.local:8000/api/extract-tags',
-        500,
-        'boom',
-      ),
+      new HttpError('http://recswipe.local:8000/api/extract-tags', 500, 'boom'),
     );
 
     const res = await client.mutate(MUTATION, {
