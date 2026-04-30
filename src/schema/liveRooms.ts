@@ -101,9 +101,24 @@ const assertCanEndRoom = ({
 }: {
   ctx: Context;
   room: LiveRoom;
-}): void => {
+}): Promise<void> => {
   if (room.hostId === ctx.userId || ctx.roles.includes(Roles.Moderator)) {
-    return;
+    return Promise.resolve();
+  }
+
+  if (room.status === LiveRoomStatus.Live) {
+    return getFlytingClient()
+      .getParticipantPrivileges({
+        participantId: getJoinParticipantId(ctx),
+        roomId: room.id,
+      })
+      .then((privileges) => {
+        if (privileges?.hasHostPrivileges) {
+          return;
+        }
+
+        throw new ForbiddenError('Access denied!');
+      });
   }
 
   throw new ForbiddenError('Access denied!');
@@ -283,7 +298,7 @@ export const resolvers: IResolvers = {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
 
-      assertCanEndRoom({ ctx, room });
+      await assertCanEndRoom({ ctx, room });
 
       if (room.status === LiveRoomStatus.Ended) {
         return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {

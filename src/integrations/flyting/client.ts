@@ -115,6 +115,55 @@ export class FlytingClient {
     });
   }
 
+  async getParticipantPrivileges(input: {
+    participantId: string;
+    roomId: string;
+  }): Promise<{
+    canGrantCoHost: boolean;
+    hasHostPrivileges: boolean;
+    isCoHost: boolean;
+    isHost: boolean;
+    participantId: string;
+    roomId: string;
+  } | null> {
+    return this.garmr.execute(async () => {
+      try {
+        const response = await retryFetch(
+          `${this.url}/internal/live-rooms/${encodeURIComponent(
+            input.roomId,
+          )}/participants/${encodeURIComponent(input.participantId)}/privileges`,
+          {
+            ...this.fetchOptions,
+            method: 'GET',
+            headers: {
+              'x-flyting-internal-key': this.internalApiKey,
+            },
+          },
+        );
+
+        if (response.ok) {
+          return response.json();
+        }
+
+        throw new HttpError(
+          response.url,
+          response.status,
+          await response.text(),
+        );
+      } catch (error) {
+        if (
+          error instanceof AbortError &&
+          error.originalError instanceof HttpError &&
+          error.originalError.statusCode === 404
+        ) {
+          return null;
+        }
+
+        throw error;
+      }
+    });
+  }
+
   async getParticipantCounts(input: { roomIds: string[] }): Promise<{
     rooms: {
       roomId: string;

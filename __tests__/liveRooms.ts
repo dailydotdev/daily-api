@@ -805,6 +805,55 @@ describe('live rooms', () => {
     expect(scope.isDone()).toBe(true);
   });
 
+  it('ends a live room for a co-host with live authority', async () => {
+    loggedUser = '2';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'b8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
+        hostId: '1',
+        topic: 'Co-host endable room',
+        mode: 'moderated',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T15:00:00.000Z'),
+      },
+    ]);
+
+    const privilegesScope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/b8c0e8ab-7517-4f08-b44c-5c24d3df2f18/participants/2/privileges',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: 'b8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
+        participantId: '2',
+        isHost: false,
+        isCoHost: true,
+        hasHostPrivileges: true,
+        canGrantCoHost: false,
+      });
+    const endScope = nock(flytingOrigin)
+      .post('/internal/live-rooms/b8c0e8ab-7517-4f08-b44c-5c24d3df2f18/end')
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        room: {
+          roomId: 'b8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
+          status: 'ended',
+        },
+      });
+
+    const res = await client.mutate(END_MUTATION, {
+      variables: {
+        roomId: 'b8c0e8ab-7517-4f08-b44c-5c24d3df2f18',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.endLiveRoom.status).toBe('ended');
+    expect(privilegesScope.isDone()).toBe(true);
+    expect(endScope.isDone()).toBe(true);
+  });
+
   it('rejects ending a room by a non-host', async () => {
     loggedUser = '2';
 
@@ -818,6 +867,20 @@ describe('live rooms', () => {
       },
     ]);
 
+    const privilegesScope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/13f8f8a6-bf26-4e5b-bb46-aef17389db7b/participants/2/privileges',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: '13f8f8a6-bf26-4e5b-bb46-aef17389db7b',
+        participantId: '2',
+        isHost: false,
+        isCoHost: false,
+        hasHostPrivileges: false,
+        canGrantCoHost: false,
+      });
+
     await testMutationErrorCode(
       client,
       {
@@ -829,6 +892,7 @@ describe('live rooms', () => {
       'FORBIDDEN',
       'Access denied!',
     );
+    expect(privilegesScope.isDone()).toBe(true);
   });
 
   it('returns a room by id', async () => {
