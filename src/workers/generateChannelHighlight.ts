@@ -20,7 +20,7 @@ const getHighlightsLockKey = ({
 }): string => `highlights:lock:${scheduledAt}`;
 
 const worker: TypedWorker<'api.v1.generate-highlights'> = {
-  subscription: 'api.generate-highlights',
+  subscription: 'api.generate-highlights-v2',
   handler: async (message, con, logger): Promise<void> => {
     const { scheduledAt } = message.data;
     const logDetails = { scheduledAt, messageId: message.messageId };

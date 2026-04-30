@@ -17,7 +17,7 @@ const streamConcurrency = 10;
 
 export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.highlight-created'> =
   {
-    subscription: 'api.major-headline-added-notification',
+    subscription: 'api.major-headline-added-notification-v2',
     handler: async (data, con) => {
       const { postId, headline, significance } = data;
 

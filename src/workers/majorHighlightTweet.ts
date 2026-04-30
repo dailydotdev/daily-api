@@ -51,7 +51,7 @@ const withMajorHighlightTweetLock = ({
   });
 
 const worker: TypedWorker<'api.v1.highlight-created'> = {
-  subscription: 'api.major-highlight-tweet',
+  subscription: 'api.major-highlight-tweet-v2',
   handler: async ({ data, messageId }, _con, logger): Promise<void> => {
     const { headline, highlightId, postId, significance } = data;
 

@@ -152,7 +152,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.highlight-created',
-    subscription: 'api.new-highlight-real-time',
+    subscription: 'api.new-highlight-real-time-v2',
   },
   {
     topic: 'api.v1.source-privacy-updated',
@@ -317,7 +317,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.highlight-created',
-    subscription: 'api.major-highlight-tweet',
+    subscription: 'api.major-highlight-tweet-v2',
   },
   {
     topic: 'api.v1.source-post-moderation-submitted',
@@ -457,7 +457,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.highlight-created',
-    subscription: 'api.major-headline-added-notification',
+    subscription: 'api.major-headline-added-notification-v2',
   },
   {
     topic: 'gondul.v1.candidate-application-scored',
@@ -528,7 +528,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.generate-highlights',
-    subscription: 'api.generate-highlights',
+    subscription: 'api.generate-highlights-v2',
   },
   {
     topic: 'api.v1.user-deletion-requested',

@@ -6,7 +6,7 @@ import { TypedWorker } from './worker';
 import { IsNull } from 'typeorm';
 
 const worker: TypedWorker<'api.v1.highlight-created'> = {
-  subscription: 'api.new-highlight-real-time',
+  subscription: 'api.new-highlight-real-time-v2',
   handler: async (message, con, logger): Promise<void> => {
     const { highlightId } = message.data;
     const [highlight, placements] = await Promise.all([
