@@ -189,11 +189,11 @@ describe('cleanChannelHighlights cron', () => {
     const remainingHighlights = await con.getRepository(PostHighlight).find({
       order: { postId: 'ASC' },
     });
-    const remainingPlacements = await con.getRepository(PostHighlightChannel).find(
-      {
+    const remainingPlacements = await con
+      .getRepository(PostHighlightChannel)
+      .find({
         order: { highlightId: 'ASC' },
-      },
-    );
+      });
     const runs = await con.getRepository(ChannelHighlightRun).find({
       order: { scheduledAt: 'ASC' },
     });

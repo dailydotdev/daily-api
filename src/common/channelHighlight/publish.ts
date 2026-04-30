@@ -95,9 +95,7 @@ export const replaceHighlights = async ({
         return [];
       }
 
-      return item.channels.map(
-        (channel) => `${savedHighlight.id}:${channel}`,
-      );
+      return item.channels.map((channel) => `${savedHighlight.id}:${channel}`);
     }),
   );
   const retiredPlacements = existingPlacements.filter(

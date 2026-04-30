@@ -36,10 +36,7 @@ export const getHorizonStart = ({
 }: {
   now: Date;
   horizonHours: number;
-}): Date =>
-  new Date(
-    now.getTime() - horizonHours * ONE_HOUR_IN_SECONDS * 1000,
-  );
+}): Date => new Date(now.getTime() - horizonHours * ONE_HOUR_IN_SECONDS * 1000);
 
 export const getDefinitionsHorizonHours = ({
   definitions,

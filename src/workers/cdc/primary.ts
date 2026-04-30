@@ -1,7 +1,4 @@
-import {
-  OpportunityState,
-  OpportunityType,
-} from '@dailydotdev/schema';
+import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,

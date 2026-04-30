@@ -77,16 +77,13 @@ describe('newHighlightRealTime worker', () => {
     });
     const publishSpy = jest.spyOn(redisPubSub, 'publish');
 
-    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
-      worker,
-      {
-        highlightId: highlight.id,
-        postId: 'highlight-post',
-        headline: 'New backend highlight',
-        significance: 0,
-        highlightedAt: highlight.highlightedAt.toISOString(),
-      },
-    );
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(worker, {
+      highlightId: highlight.id,
+      postId: 'highlight-post',
+      headline: 'New backend highlight',
+      significance: 0,
+      highlightedAt: highlight.highlightedAt.toISOString(),
+    });
 
     expect(publishSpy).toHaveBeenCalledTimes(1);
     expect(publishSpy).toHaveBeenCalledWith(

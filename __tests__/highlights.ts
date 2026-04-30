@@ -108,7 +108,9 @@ const saveHighlights = async (
         channel,
         placedAt: highlight.highlightedAt,
         retiredAt:
-          items[index].retiredAt instanceof Date ? items[index].retiredAt : null,
+          items[index].retiredAt instanceof Date
+            ? items[index].retiredAt
+            : null,
       })),
     ),
   );

@@ -140,31 +140,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       ),
     postHighlights: async (_, args: { channel: string }, ctx: Context, info) =>
-      graphorm.query(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder
-            .innerJoin(
-              PostHighlightChannel,
-              'placement',
-              `placement."highlightId" = "${builder.alias}".id`,
-            )
-            .where('placement.channel = :channel', {
-              channel: args.channel,
-            })
-            .andWhere('placement."retiredAt" IS NULL')
-            .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
-            .orderBy('placement."placedAt"', 'DESC');
-          return builder;
-        },
-        true,
-      ).then((items) =>
-        items.map((item) => ({
-          ...(item as Record<string, unknown>),
-          channel: args.channel,
-        })),
-      ),
+      graphorm
+        .query(
+          ctx,
+          info,
+          (builder) => {
+            builder.queryBuilder
+              .innerJoin(
+                PostHighlightChannel,
+                'placement',
+                `placement."highlightId" = "${builder.alias}".id`,
+              )
+              .where('placement.channel = :channel', {
+                channel: args.channel,
+              })
+              .andWhere('placement."retiredAt" IS NULL')
+              .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
+              .orderBy('placement."placedAt"', 'DESC');
+            return builder;
+          },
+          true,
+        )
+        .then((items) =>
+          items.map((item) => ({
+            ...(item as Record<string, unknown>),
+            channel: args.channel,
+          })),
+        ),
     majorHeadlines: async (
       _,
       args: ConnectionArguments,

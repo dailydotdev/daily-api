@@ -36,7 +36,8 @@ const sortDefinitions = (
   definitions: ChannelHighlightDefinition[],
 ): ChannelHighlightDefinition[] =>
   [...definitions].sort(
-    (left, right) => left.order - right.order || left.channel.localeCompare(right.channel),
+    (left, right) =>
+      left.order - right.order || left.channel.localeCompare(right.channel),
   );
 
 const sortHighlights = (items: HighlightItem[]): HighlightItem[] =>
@@ -45,11 +46,7 @@ const sortHighlights = (items: HighlightItem[]): HighlightItem[] =>
       right.highlightedAt.getTime() - left.highlightedAt.getTime(),
   );
 
-const getPostChannels = ({
-  post,
-}: {
-  post?: HighlightPost;
-}): string[] => {
+const getPostChannels = ({ post }: { post?: HighlightPost }): string[] => {
   const channels = (post?.contentMeta as { channels?: unknown } | undefined)
     ?.channels;
 

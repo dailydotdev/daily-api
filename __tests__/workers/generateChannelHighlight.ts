@@ -58,18 +58,20 @@ const saveArticle = async ({
 describe('generateChannelHighlight worker', () => {
   beforeEach(async () => {
     jest.restoreAllMocks();
-    await con.getRepository(Source).save([
-      createSource(
-        'content-source',
-        'Content',
-        'https://daily.dev/content.png',
-      ),
-      createSource(
-        AGENTS_DIGEST_SOURCE,
-        'Agents Digest',
-        'https://daily.dev/agents.png',
-      ),
-    ]);
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          'content-source',
+          'Content',
+          'https://daily.dev/content.png',
+        ),
+        createSource(
+          AGENTS_DIGEST_SOURCE,
+          'Agents Digest',
+          'https://daily.dev/agents.png',
+        ),
+      ]);
   });
 
   afterEach(async () => {
@@ -284,14 +286,16 @@ describe('generateChannelHighlight worker', () => {
       },
     );
 
-    const retiredHighlight = await con.getRepository(PostHighlight).findOneByOrFail(
-      {
+    const retiredHighlight = await con
+      .getRepository(PostHighlight)
+      .findOneByOrFail({
         postId: 'old-1',
-      },
-    );
-    const freshHighlight = await con.getRepository(PostHighlight).findOneByOrFail({
-      postId: 'fresh-2',
-    });
+      });
+    const freshHighlight = await con
+      .getRepository(PostHighlight)
+      .findOneByOrFail({
+        postId: 'fresh-2',
+      });
     const retiredPlacement = await con
       .getRepository(PostHighlightChannel)
       .findOneByOrFail({

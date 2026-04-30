@@ -56,10 +56,7 @@ const worker: TypedWorker<'api.v1.generate-highlights'> = {
         },
       });
     } catch (err) {
-      logger.error(
-        { ...logDetails, err },
-        'Failed to generate highlights',
-      );
+      logger.error({ ...logDetails, err }, 'Failed to generate highlights');
       throw err;
     }
   },
