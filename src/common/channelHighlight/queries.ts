@@ -32,37 +32,54 @@ const HIGHLIGHT_EVALUATION_HISTORY_SECONDS = ONE_WEEK_IN_SECONDS;
 
 export const getHorizonStart = ({
   now,
-  definition,
+  horizonHours,
 }: {
   now: Date;
-  definition: Pick<ChannelHighlightDefinition, 'candidateHorizonHours'>;
+  horizonHours: number;
 }): Date =>
   new Date(
-    now.getTime() -
-      definition.candidateHorizonHours * ONE_HOUR_IN_SECONDS * 1000,
+    now.getTime() - horizonHours * ONE_HOUR_IN_SECONDS * 1000,
+  );
+
+export const getDefinitionsHorizonHours = ({
+  definitions,
+}: {
+  definitions: Pick<ChannelHighlightDefinition, 'candidateHorizonHours'>[];
+}): number =>
+  definitions.reduce(
+    (maxHours, definition) =>
+      Math.max(maxHours, definition.candidateHorizonHours),
+    0,
   );
 
 export const getFetchStart = ({
   now,
-  definition,
+  definitions,
 }: {
   now: Date;
-  definition: Pick<
+  definitions: Pick<
     ChannelHighlightDefinition,
     'candidateHorizonHours' | 'lastFetchedAt'
-  >;
+  >[];
 }): Date => {
+  const horizonHours = getDefinitionsHorizonHours({
+    definitions,
+  });
   const horizonStart = getHorizonStart({
     now,
-    definition,
+    horizonHours,
   });
 
-  if (!definition.lastFetchedAt) {
+  const fetchedAtTimestamps = definitions
+    .map((definition) => definition.lastFetchedAt?.getTime())
+    .filter((timestamp): timestamp is number => typeof timestamp === 'number');
+
+  if (fetchedAtTimestamps.length !== definitions.length) {
     return horizonStart;
   }
 
   const overlapStart = new Date(
-    definition.lastFetchedAt.getTime() - HIGHLIGHT_FETCH_OVERLAP_SECONDS * 1000,
+    Math.min(...fetchedAtTimestamps) - HIGHLIGHT_FETCH_OVERLAP_SECONDS * 1000,
   );
 
   return overlapStart > horizonStart ? overlapStart : horizonStart;
@@ -70,14 +87,11 @@ export const getFetchStart = ({
 
 export const fetchCurrentHighlights = async ({
   con,
-  channel,
 }: {
   con: DataSource;
-  channel: string;
 }): Promise<PostHighlight[]> =>
   con.getRepository(PostHighlight).find({
     where: {
-      channel,
       retiredAt: IsNull(),
     },
     order: {
@@ -90,16 +104,13 @@ export const getEvaluationHistoryStart = ({ now }: { now: Date }): Date =>
 
 export const fetchEvaluationHistoryHighlights = async ({
   con,
-  channel,
   now,
 }: {
   con: DataSource;
-  channel: string;
   now: Date;
 }): Promise<PostHighlight[]> =>
   con.getRepository(PostHighlight).find({
     where: {
-      channel,
       highlightedAt: MoreThanOrEqual(
         getEvaluationHistoryStart({
           now,
@@ -113,17 +124,14 @@ export const fetchEvaluationHistoryHighlights = async ({
 
 export const fetchRetiredHighlightPostIds = async ({
   con,
-  channel,
 }: {
   con: DataSource;
-  channel: string;
 }): Promise<string[]> => {
   const highlights = await con.getRepository(PostHighlight).find({
     select: {
       postId: true,
     },
     where: {
-      channel,
       retiredAt: Not(IsNull()),
     },
   });
@@ -159,13 +167,13 @@ export const fetchPostsByIds = async ({
 
 export const fetchIncrementalPosts = async ({
   con,
-  channel,
+  channels,
   fetchStart,
   horizonStart,
   excludedSourceIds = [],
 }: {
   con: DataSource;
-  channel: string;
+  channels: string[];
   fetchStart: Date;
   horizonStart: Date;
   excludedSourceIds?: string[];
@@ -179,7 +187,23 @@ export const fetchIncrementalPosts = async ({
     .andWhere('post.banned = false')
     .andWhere('post.showOnFeed = true')
     .andWhere('post.sharedPostId IS NULL')
-    .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
+    .andWhere(
+      new Brackets((builder) => {
+        channels.forEach((channel, index) => {
+          const clause = `(post."contentMeta"->'channels') ? :channel${index}`;
+          if (index === 0) {
+            builder.where(clause, {
+              [`channel${index}`]: channel,
+            });
+            return;
+          }
+
+          builder.orWhere(clause, {
+            [`channel${index}`]: channel,
+          });
+        });
+      }),
+    )
     .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
       rejectedCurations: REJECTED_CONTENT_CURATIONS,
     })

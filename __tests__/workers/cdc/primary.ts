@@ -3,7 +3,6 @@ import {
   CandidateStatus,
   OpportunityState,
   OpportunityType,
-  PostHighlightedMessage,
 } from '@dailydotdev/schema';
 import {
   Achievement,
@@ -3226,7 +3225,6 @@ describe('post highlight', () => {
     highlightedAt: 1_770_000_000_000_000,
     headline: 'JavaScript in 2026',
     significance: PostHighlightSignificance.Major,
-    reason: 'Fast ecosystem update',
     retiredAt: null,
     createdAt: 1_770_000_000_000_000,
     updatedAt: 1_770_000_000_000_000,
@@ -3236,7 +3234,7 @@ describe('post highlight', () => {
     jest.clearAllMocks();
   });
 
-  it('should publish highlighted event on create', async () => {
+  it('should not publish highlight events from CDC on create', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -3247,18 +3245,7 @@ describe('post highlight', () => {
       }),
     );
 
-    expectTypedEvent(
-      'api.v1.post-highlighted',
-      new PostHighlightedMessage({
-        highlightId: base.id,
-        channel: base.channel,
-        postId: base.postId,
-        headline: base.headline,
-        significance: base.significance,
-        reason: base.reason ?? undefined,
-        highlightedAt: base.highlightedAt,
-      }),
-    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should not publish highlighted event on update', async () => {

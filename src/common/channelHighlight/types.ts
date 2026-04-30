@@ -1,5 +1,4 @@
 import type { Post } from '../../entity/posts/Post';
-import type { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
 import type { PostHighlightSignificance } from '../../entity/PostHighlight';
 
 export type HighlightPost = Pick<
@@ -53,22 +52,28 @@ export type HighlightCandidate = {
 
 export type CurrentHighlight = {
   id: string;
+  channel: string;
   postId: string;
   highlightedAt: Date;
   headline: string;
   significance: PostHighlightSignificance;
-  reason: string | null;
 };
 
 export type HighlightItem = {
   postId: string;
+  channel: string;
+  channels: string[];
   headline: string;
   highlightedAt: Date;
   significanceLabel: string | null;
-  reason: string | null;
 };
 
-export type GenerateChannelHighlightResult = {
-  run: ChannelHighlightRun;
-  published: boolean;
+export type GenerateHighlightsResult = {
+  createdHighlights: {
+    highlightId: string;
+    postId: string;
+    headline: string;
+    significance: PostHighlightSignificance;
+    highlightedAt: string;
+  }[];
 };

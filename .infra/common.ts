@@ -151,7 +151,7 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
-    topic: 'api.v1.post-highlighted',
+    topic: 'api.v1.highlight-created',
     subscription: 'api.new-highlight-real-time',
   },
   {
@@ -316,7 +316,7 @@ export const workers: Worker[] = [
     subscription: 'api.agentic-digest-tweet',
   },
   {
-    topic: 'api.v1.post-highlighted',
+    topic: 'api.v1.highlight-created',
     subscription: 'api.major-highlight-tweet',
   },
   {
@@ -523,8 +523,8 @@ export const workers: Worker[] = [
     subscription: 'api.generate-channel-digest',
   },
   {
-    topic: 'api.v1.generate-channel-highlight',
-    subscription: 'api.generate-channel-highlight',
+    topic: 'api.v1.generate-highlights',
+    subscription: 'api.generate-highlights',
   },
   {
     topic: 'api.v1.user-deletion-requested',

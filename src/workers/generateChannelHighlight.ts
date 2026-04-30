@@ -1,73 +1,64 @@
 import { ONE_DAY_IN_SECONDS, ONE_MINUTE_IN_SECONDS } from '../common/constants';
-import { getChannelHighlightDefinitionByChannel } from '../common/channelHighlight/definitions';
-import { generateChannelHighlight } from '../common/channelHighlight/generate';
+import { generateHighlights } from '../common/channelHighlight/generate';
+import { triggerTypedEvent } from '../common/typedPubsub';
 import { TypedWorker } from './worker';
 import { withRedisDoneLock } from './withRedisDoneLock';
 
-const CHANNEL_HIGHLIGHT_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
-const CHANNEL_HIGHLIGHT_DONE_TTL_SECONDS = 2 * ONE_DAY_IN_SECONDS;
+const HIGHLIGHTS_LOCK_TTL_SECONDS = 10 * ONE_MINUTE_IN_SECONDS;
+const HIGHLIGHTS_DONE_TTL_SECONDS = 2 * ONE_DAY_IN_SECONDS;
 
-const getChannelHighlightDoneKey = ({
-  channel,
+const getHighlightsDoneKey = ({
   scheduledAt,
 }: {
-  channel: string;
   scheduledAt: string;
-}): string => `channel-highlight:done:${channel}:${scheduledAt}`;
+}): string => `highlights:done:${scheduledAt}`;
 
-const getChannelHighlightLockKey = ({
-  channel,
+const getHighlightsLockKey = ({
   scheduledAt,
 }: {
-  channel: string;
   scheduledAt: string;
-}): string => `channel-highlight:lock:${channel}:${scheduledAt}`;
+}): string => `highlights:lock:${scheduledAt}`;
 
-const worker: TypedWorker<'api.v1.generate-channel-highlight'> = {
-  subscription: 'api.generate-channel-highlight',
+const worker: TypedWorker<'api.v1.generate-highlights'> = {
+  subscription: 'api.generate-highlights',
   handler: async (message, con, logger): Promise<void> => {
-    const { channel, scheduledAt } = message.data;
-    const logDetails = { channel, scheduledAt, messageId: message.messageId };
-    const definition = await getChannelHighlightDefinitionByChannel({
-      con,
-      channel,
-    });
-
-    if (!definition) {
-      logger.error(logDetails, 'Channel highlight definition not found');
-      return;
-    }
-
+    const { scheduledAt } = message.data;
+    const logDetails = { scheduledAt, messageId: message.messageId };
     const now = new Date(scheduledAt);
+
     if (Number.isNaN(now.getTime())) {
-      logger.error(logDetails, 'Channel highlight scheduledAt is invalid');
+      logger.error(logDetails, 'Highlight scheduledAt is invalid');
       return;
     }
 
     try {
       await withRedisDoneLock({
-        doneKey: getChannelHighlightDoneKey({
-          channel,
+        doneKey: getHighlightsDoneKey({
           scheduledAt,
         }),
-        lockKey: getChannelHighlightLockKey({
-          channel,
+        lockKey: getHighlightsLockKey({
           scheduledAt,
         }),
-        lockValue: message.messageId || channel,
-        lockTtlSeconds: CHANNEL_HIGHLIGHT_LOCK_TTL_SECONDS,
-        doneTtlSeconds: CHANNEL_HIGHLIGHT_DONE_TTL_SECONDS,
-        execute: () =>
-          generateChannelHighlight({
+        lockValue: message.messageId || scheduledAt,
+        lockTtlSeconds: HIGHLIGHTS_LOCK_TTL_SECONDS,
+        doneTtlSeconds: HIGHLIGHTS_DONE_TTL_SECONDS,
+        execute: async () => {
+          const { createdHighlights } = await generateHighlights({
             con,
-            definition,
             now,
-          }).then(() => undefined),
+          });
+
+          await Promise.all(
+            createdHighlights.map((highlight) =>
+              triggerTypedEvent(logger, 'api.v1.highlight-created', highlight),
+            ),
+          );
+        },
       });
     } catch (err) {
       logger.error(
         { ...logDetails, err },
-        'Failed to generate channel highlight',
+        'Failed to generate highlights',
       );
       throw err;
     }

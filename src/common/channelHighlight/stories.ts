@@ -191,14 +191,15 @@ export const buildCandidates = ({
 export const toHighlightItem = (
   item: Pick<
     CurrentHighlight,
-    'postId' | 'headline' | 'highlightedAt' | 'significance' | 'reason'
+    'channel' | 'postId' | 'headline' | 'highlightedAt' | 'significance'
   >,
 ): HighlightItem => ({
+  channel: item.channel,
+  channels: [item.channel],
   postId: item.postId,
   headline: item.headline,
   highlightedAt: item.highlightedAt,
   significanceLabel: toPostHighlightSignificanceLabel(item.significance),
-  reason: item.reason,
 });
 
 export const canonicalizeCurrentHighlights = ({
@@ -231,11 +232,12 @@ export const canonicalizeCurrentHighlights = ({
     }
 
     canonicalHighlights.set(canonicalPostId, {
+      channel: highlight.channel,
+      channels: [...highlight.channels],
       postId: canonicalPostId,
       headline: highlight.headline,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
-      reason: highlight.reason,
     });
   }
 
@@ -312,15 +314,17 @@ export const applyPublicShareFallbackToHighlights = ({
 export const toStoredSnapshotItem = (
   item: HighlightItem,
 ): {
+  channel: string;
+  channels: string[];
   postId: string;
   headline: string;
   highlightedAt: string;
   significanceLabel: string | null;
-  reason: string | null;
 } => ({
+  channel: item.channel,
+  channels: item.channels,
   postId: item.postId,
   headline: item.headline,
   highlightedAt: item.highlightedAt.toISOString(),
   significanceLabel: item.significanceLabel,
-  reason: item.reason,
 });

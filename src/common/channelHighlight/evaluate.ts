@@ -20,7 +20,6 @@ export type EvaluatedHighlightItem = {
   postId: string;
   headline: string;
   significanceLabel: string | null;
-  reason: string;
 };
 
 export type EvaluateChannelHighlightsResponse = {
@@ -134,7 +133,6 @@ export const evaluateChannelHighlights = async ({
         postId: item.postId,
         headline: item.headline,
         significanceLabel: toSignificanceLabel(item.significance),
-        reason: item.reason || '',
       };
     }),
   };

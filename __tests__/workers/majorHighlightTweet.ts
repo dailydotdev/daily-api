@@ -20,7 +20,6 @@ const clearMajorHighlightTweetLocks = () =>
 const createEvent = (
   overrides: Partial<{
     highlightId: string;
-    channel: string;
     postId: string;
     headline: string;
     significance: PostHighlightSignificance;
@@ -28,7 +27,6 @@ const createEvent = (
   }> = {},
 ) => ({
   highlightId: 'c',
-  channel: 'ai',
   postId: 'post-id',
   headline: 'Highlight headline',
   significance: PostHighlightSignificance.Breaking,
@@ -80,7 +78,7 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should publish tweet for breaking highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'c',
@@ -95,7 +93,7 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should publish tweet for major highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'c',
@@ -111,7 +109,7 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should vary the prefix within the configured breaking options', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'b',
@@ -128,7 +126,7 @@ describe('majorHighlightTweet worker', () => {
   it('should publish only one tweet for multiple highlights on the same post', async () => {
     const postId = 'post-dedup';
 
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'c',
@@ -137,11 +135,10 @@ describe('majorHighlightTweet worker', () => {
       }),
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'highlight-dedup-2',
-        channel: 'opensource',
         postId,
         headline: 'Second highlight headline',
       }),
@@ -160,11 +157,11 @@ describe('majorHighlightTweet worker', () => {
       headline: 'Retry highlight headline',
     });
 
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       event,
     );
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       event,
     );
@@ -176,7 +173,7 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should skip non-major highlights', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'highlight-routine',
@@ -190,7 +187,7 @@ describe('majorHighlightTweet worker', () => {
   });
 
   it('should publish the full headline without trimming or truncating', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
       createEvent({
         highlightId: 'c',

@@ -1,12 +1,11 @@
 import type { DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
 import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
-import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
 import { UNKNOWN_SOURCE } from '../../entity/Source';
+import { getChannelHighlightDefinitions } from './definitions';
 import { getChannelDigestSourceIds } from '../channelDigest/definitions';
-import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
-import { replaceHighlightsForChannel } from './publish';
+import { replaceHighlights } from './publish';
 import {
   fetchCurrentHighlights,
   fetchEvaluationHistoryHighlights,
@@ -15,7 +14,7 @@ import {
   fetchPublicShareFallbackPostIds,
   fetchRetiredHighlightPostIds,
   fetchRelations,
-  getEvaluationHistoryStart,
+  getDefinitionsHorizonHours,
   getFetchStart,
   getHorizonStart,
   mergePosts,
@@ -26,54 +25,155 @@ import {
   buildCandidates,
   canonicalizeCurrentHighlights,
   toHighlightItem,
-  toStoredSnapshotItem,
 } from './stories';
-import type { GenerateChannelHighlightResult, HighlightItem } from './types';
+import type {
+  GenerateHighlightsResult,
+  HighlightItem,
+  HighlightPost,
+} from './types';
 
-const trimHighlights = ({
-  items,
-  maxItems,
+const sortDefinitions = (
+  definitions: ChannelHighlightDefinition[],
+): ChannelHighlightDefinition[] =>
+  [...definitions].sort(
+    (left, right) => left.order - right.order || left.channel.localeCompare(right.channel),
+  );
+
+const sortHighlights = (items: HighlightItem[]): HighlightItem[] =>
+  [...items].sort(
+    (left, right) =>
+      right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+  );
+
+const getPostChannels = ({
+  post,
 }: {
-  items: HighlightItem[];
-  maxItems: number;
-}): HighlightItem[] =>
-  [...items]
-    .sort(
-      (left, right) =>
-        right.highlightedAt.getTime() - left.highlightedAt.getTime(),
-    )
-    .slice(0, maxItems);
+  post?: HighlightPost;
+}): string[] => {
+  const channels = (post?.contentMeta as { channels?: unknown } | undefined)
+    ?.channels;
 
-// High-level flow:
-// 1. Keep only currently highlighted items that are still inside the horizon.
-// 2. Canonicalize those highlights to collections on the API side.
-// 3. Build new canonical candidate posts from incremental post/relation fetches.
-// 4. Ask the evaluator only about new candidates.
-// 5. Append admitted items, trim FIFO by maxItems, then publish if the surface changed.
-export const generateChannelHighlight = async ({
+  if (!Array.isArray(channels)) {
+    return [];
+  }
+
+  return channels.filter(
+    (channel): channel is string => typeof channel === 'string' && !!channel,
+  );
+};
+
+const toPrimaryChannel = ({
+  channels,
+  definitions,
+}: {
+  channels: string[];
+  definitions: ChannelHighlightDefinition[];
+}): string | null => {
+  if (!channels.length) {
+    return null;
+  }
+
+  const orderByChannel = new Map(
+    definitions.map((definition, index) => [definition.channel, index]),
+  );
+
+  return [...channels].sort((left, right) => {
+    const leftOrder = orderByChannel.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = orderByChannel.get(right) ?? Number.MAX_SAFE_INTEGER;
+
+    return leftOrder - rightOrder || left.localeCompare(right);
+  })[0];
+};
+
+const selectPublishedHighlights = ({
+  definitions,
+  items,
+  postsById,
+  now,
+}: {
+  definitions: ChannelHighlightDefinition[];
+  items: HighlightItem[];
+  postsById: Map<string, HighlightPost>;
+  now: Date;
+}): HighlightItem[] => {
+  const publishedDefinitions = sortDefinitions(
+    definitions.filter((definition) => definition.mode === 'publish'),
+  );
+  const channelsByPostId = new Map<string, string[]>();
+
+  for (const definition of publishedDefinitions) {
+    const horizonStart = getHorizonStart({
+      now,
+      horizonHours: definition.candidateHorizonHours,
+    });
+    const matchedItems = sortHighlights(
+      items.filter((item) => {
+        if (item.highlightedAt < horizonStart) {
+          return false;
+        }
+
+        const post = postsById.get(item.postId);
+        return getPostChannels({ post }).includes(definition.channel);
+      }),
+    ).slice(0, definition.maxItems);
+
+    for (const item of matchedItems) {
+      const channels = channelsByPostId.get(item.postId) || [];
+      if (!channels.includes(definition.channel)) {
+        channels.push(definition.channel);
+        channelsByPostId.set(item.postId, channels);
+      }
+    }
+  }
+
+  return sortHighlights(
+    items
+      .map((item) => {
+        const channels = channelsByPostId.get(item.postId);
+        if (!channels?.length) {
+          return null;
+        }
+
+        const primaryChannel = toPrimaryChannel({
+          channels,
+          definitions: publishedDefinitions,
+        });
+        if (!primaryChannel) {
+          return null;
+        }
+
+        return {
+          ...item,
+          channel: primaryChannel,
+          channels,
+        };
+      })
+      .filter((item): item is HighlightItem => !!item),
+  );
+};
+
+export const generateHighlights = async ({
   con,
-  definition,
   now = new Date(),
 }: {
   con: DataSource;
-  definition: ChannelHighlightDefinition;
   now?: Date;
-}): Promise<GenerateChannelHighlightResult> => {
-  const runRepo = con.getRepository(ChannelHighlightRun);
-  const run = await runRepo.save(
-    runRepo.create({
-      channel: definition.channel,
-      scheduledAt: now,
-      status: 'processing',
-      baselineSnapshot: [],
-      inputSummary: {},
-      internalSnapshot: [],
-      comparison: {},
-      metrics: {},
-    }),
-  );
+}): Promise<GenerateHighlightsResult> => {
+  const definitions = await getChannelHighlightDefinitions({
+    con,
+  });
+  const horizonHours = getDefinitionsHorizonHours({
+    definitions,
+  });
+
+  if (!definitions.length || horizonHours <= 0) {
+    return {
+      createdHighlights: [],
+    };
+  }
 
   try {
+    const channels = definitions.map((definition) => definition.channel);
     const [
       currentHighlights,
       retiredHighlightPostIds,
@@ -82,48 +182,45 @@ export const generateChannelHighlight = async ({
     ] = await Promise.all([
       fetchCurrentHighlights({
         con,
-        channel: definition.channel,
       }),
       fetchRetiredHighlightPostIds({
         con,
-        channel: definition.channel,
       }),
       getChannelDigestSourceIds({
         con,
       }),
       fetchEvaluationHistoryHighlights({
         con,
-        channel: definition.channel,
         now,
       }),
     ]);
     const horizonStart = getHorizonStart({
       now,
-      definition,
+      horizonHours,
     });
     const fetchStart = getFetchStart({
       now,
-      definition,
+      definitions,
     });
-
     const baselineHighlights = currentHighlights.map(toHighlightItem);
     const activeHighlights = baselineHighlights.filter(
       (item) => item.highlightedAt >= horizonStart,
     );
-
     const highlightedPostIds = activeHighlights.map((item) => item.postId);
     const evaluationHistoryPostIds = evaluationHistoryHighlights.map(
       (item) => item.postId,
     );
     const [incrementalPosts, highlightedPosts, evaluationHistoryPosts] =
       await Promise.all([
-        fetchIncrementalPosts({
-          con,
-          channel: definition.channel,
-          fetchStart,
-          horizonStart,
-          excludedSourceIds,
-        }),
+        channels.length
+          ? fetchIncrementalPosts({
+              con,
+              channels,
+              fetchStart,
+              horizonStart,
+              excludedSourceIds,
+            })
+          : Promise.resolve([]),
         fetchPostsByIds({
           con,
           ids: highlightedPostIds,
@@ -157,6 +254,7 @@ export const generateChannelHighlight = async ({
       excludedSourceIds,
     });
     const availablePosts = mergePosts([basePosts, relationPosts]);
+    const postsById = new Map(availablePosts.map((post) => [post.id, post]));
     const inaccessiblePostIds = new Set(
       availablePosts
         .filter((post) => post.sourceId === UNKNOWN_SOURCE)
@@ -201,7 +299,6 @@ export const generateChannelHighlight = async ({
       inaccessiblePostIds,
       fallbackPostIds,
     });
-
     const currentHighlightPostIds = new Set(
       liveHighlights.map((item) => item.postId),
     );
@@ -227,121 +324,69 @@ export const generateChannelHighlight = async ({
         !retiredHighlightPostIdSet.has(candidate.postId) &&
         !retiredEvaluationPostIdSet.has(candidate.postId),
     );
-
     const admittedHighlights =
       newCandidates.length === 0
         ? []
         : (
             await evaluateChannelHighlights({
-              channel: definition.channel,
-              targetAudience:
-                definition.targetAudience.trim() ||
-                `daily.dev readers following ${definition.channel}`,
-              maxItems: definition.maxItems,
+              channel: 'highlights',
+              targetAudience: 'daily.dev readers',
+              maxItems: newCandidates.length,
               currentHighlights: evaluationHighlights,
               newCandidates,
             })
-          ).items.map<HighlightItem>((item) => ({
-            postId: item.postId,
-            headline: item.headline,
-            highlightedAt: now,
-            significanceLabel: item.significanceLabel,
-            reason: item.reason,
-          }));
+          ).items
+            .map<HighlightItem | null>((item) => {
+              const post = postsById.get(item.postId);
+              const itemChannels = getPostChannels({ post });
+              const primaryChannel = toPrimaryChannel({
+                channels: itemChannels,
+                definitions: sortDefinitions(definitions),
+              });
 
-    const internalHighlights = trimHighlights({
-      items: [...liveHighlights, ...admittedHighlights],
-      maxItems: definition.maxItems,
-    });
-    const comparison = compareSnapshots({
-      baseline: baselineHighlights,
-      internal: internalHighlights,
-    });
-    const publish = definition.mode === 'publish' && comparison.changed;
+              if (!primaryChannel) {
+                return null;
+              }
 
-    await con.transaction(async (manager) => {
-      await manager.getRepository(ChannelHighlightDefinition).update(
-        { channel: definition.channel },
-        {
+              return {
+                channel: primaryChannel,
+                channels: [primaryChannel],
+                postId: item.postId,
+                headline: item.headline,
+                highlightedAt: now,
+                significanceLabel: item.significanceLabel,
+              };
+            })
+            .filter((item): item is HighlightItem => !!item);
+    const nextHighlights = selectPublishedHighlights({
+      definitions,
+      items: sortHighlights([...liveHighlights, ...admittedHighlights]),
+      postsById,
+      now,
+    });
+    const createdHighlights = await con.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder()
+        .update(ChannelHighlightDefinition)
+        .set({
           lastFetchedAt: now,
-        },
-      );
+        })
+        .where('"channel" IN (:...channels)', {
+          channels: definitions.map((definition) => definition.channel),
+        })
+        .execute();
 
-      if (publish) {
-        await replaceHighlightsForChannel({
-          manager,
-          channel: definition.channel,
-          items: internalHighlights,
-        });
-      }
-
-      await manager.getRepository(ChannelHighlightRun).update(
-        { id: run.id },
-        {
-          status: 'completed',
-          completedAt: new Date(),
-          baselineSnapshot: baselineHighlights.map(toStoredSnapshotItem),
-          inputSummary: {
-            fetchStart: fetchStart.toISOString(),
-            horizonStart: horizonStart.toISOString(),
-            evaluationHistoryStart: getEvaluationHistoryStart({
-              now,
-            }).toISOString(),
-            excludedSourceIds,
-            currentHighlightPostIds: liveHighlights.map((item) => item.postId),
-            evaluationHighlightPostIds: evaluationHighlights.map(
-              (item) => item.postId,
-            ),
-            retiredEvaluationHighlightPostIds: retiredEvaluationHighlights.map(
-              (item) => item.postId,
-            ),
-            retiredHighlightPostIds,
-            candidatePostIds: newCandidates.map(
-              (candidate) => candidate.postId,
-            ),
-          },
-          internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
-          comparison: {
-            ...comparison,
-            wouldPublish: comparison.changed,
-            published: publish,
-          },
-          metrics: {
-            fetchedPosts: incrementalPosts.length + highlightedPosts.length,
-            relationPosts: relationPosts.length,
-            currentHighlights: baselineHighlights.length,
-            activeHighlights: activeHighlights.length,
-            canonicalizedHighlights: liveHighlights.length,
-            evaluationHighlights: evaluationHighlights.length,
-            retiredEvaluationHighlights: retiredEvaluationHighlights.length,
-            newCandidates: newCandidates.length,
-            admittedHighlights: admittedHighlights.length,
-          },
-        },
-      );
+      return replaceHighlights({
+        manager,
+        items: nextHighlights,
+      });
     });
 
     return {
-      run: await runRepo.findOneByOrFail({
-        id: run.id,
-      }),
-      published: publish,
+      createdHighlights,
     };
   } catch (err) {
-    baseLogger.error(
-      { err, channel: definition.channel },
-      'Failed channel highlight run',
-    );
-    await runRepo.update(
-      { id: run.id },
-      {
-        status: 'failed',
-        completedAt: new Date(),
-        error: {
-          message: err instanceof Error ? err.message : 'Unknown error',
-        },
-      },
-    );
+    baseLogger.error({ err }, 'Failed global highlight run');
     throw err;
   }
 };

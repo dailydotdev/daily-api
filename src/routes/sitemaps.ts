@@ -11,6 +11,7 @@ import {
 } from '../entity';
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
 import { PostHighlight } from '../entity/PostHighlight';
+import { PostHighlightChannel } from '../entity/PostHighlightChannel';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl } from '../common/users';
 import createOrGetConnection from '../db';
@@ -335,12 +336,17 @@ const buildHighlightsSitemapQuery = (
   source
     .createQueryBuilder()
     .select('chd.channel', 'channel')
-    .addSelect('MAX(ph."highlightedAt")', 'lastmod')
+    .addSelect('MAX(phc."placedAt")', 'lastmod')
     .from(ChannelHighlightDefinition, 'chd')
+    .leftJoin(
+      PostHighlightChannel,
+      'phc',
+      'phc.channel = chd.channel AND phc."retiredAt" IS NULL',
+    )
     .leftJoin(
       PostHighlight,
       'ph',
-      'ph.channel = chd.channel AND ph."retiredAt" IS NULL',
+      'ph.id = phc."highlightId" AND ph."retiredAt" IS NULL',
     )
     .where('chd.mode != :disabledMode', { disabledMode: 'disabled' })
     .groupBy('chd.channel')

@@ -32,6 +32,7 @@ import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
 import { PostHighlight } from '../src/entity/PostHighlight';
+import { PostHighlightChannel } from '../src/entity/PostHighlightChannel';
 let app: FastifyInstance;
 let con: DataSource;
 const previousSitemapLimit = process.env.SITEMAP_LIMIT;
@@ -530,7 +531,7 @@ describe('GET /sitemaps/highlights.xml', () => {
         order: 0,
       },
     ]);
-    await con.getRepository(PostHighlight).save([
+    const highlights = await con.getRepository(PostHighlight).save([
       {
         postId: 'p1',
         channel: 'career',
@@ -543,17 +544,27 @@ describe('GET /sitemaps/highlights.xml', () => {
         highlightedAt: new Date('2026-04-12T09:00:00.000Z'),
         headline: 'Career latest',
       },
+    ]);
+    await con.getRepository(PostHighlightChannel).save([
       {
-        postId: 'p1',
-        channel: 'backend',
-        highlightedAt: new Date('2026-04-09T08:00:00.000Z'),
-        headline: 'Backend live',
+        highlightId: highlights[0].id,
+        channel: 'career',
+        placedAt: new Date('2026-04-10T10:00:00.000Z'),
       },
       {
-        postId: 'p4',
+        highlightId: highlights[0].id,
         channel: 'backend',
-        highlightedAt: new Date('2026-04-13T08:00:00.000Z'),
-        headline: 'Backend retired',
+        placedAt: new Date('2026-04-09T08:00:00.000Z'),
+      },
+      {
+        highlightId: highlights[1].id,
+        channel: 'career',
+        placedAt: new Date('2026-04-12T09:00:00.000Z'),
+      },
+      {
+        highlightId: highlights[1].id,
+        channel: 'backend',
+        placedAt: new Date('2026-04-13T08:00:00.000Z'),
         retiredAt: new Date('2026-04-13T08:30:00.000Z'),
       },
     ]);

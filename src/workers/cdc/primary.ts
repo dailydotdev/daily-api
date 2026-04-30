@@ -1,7 +1,6 @@
 import {
   OpportunityState,
   OpportunityType,
-  PostHighlightedMessage,
 } from '@dailydotdev/schema';
 import {
   Alerts,
@@ -48,7 +47,6 @@ import {
   UserStreak,
   UserTopReader,
   Feedback,
-  PostHighlight,
 } from '../../entity';
 import { BookmarkList } from '../../entity/BookmarkList';
 import { HotTake } from '../../entity/user/HotTake';
@@ -2461,33 +2459,6 @@ const onFeedbackChange = async (
   }
 };
 
-const onPostHighlightChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<PostHighlight>,
-) => {
-  if (data.payload.op !== 'c' || !data.payload.after) {
-    return;
-  }
-
-  const { id, channel, postId, headline, significance, reason, highlightedAt } =
-    data.payload.after;
-
-  await triggerTypedEvent(
-    logger,
-    'api.v1.post-highlighted',
-    new PostHighlightedMessage({
-      highlightId: id,
-      channel,
-      postId,
-      headline,
-      significance,
-      reason: reason ?? undefined,
-      highlightedAt,
-    }),
-  );
-};
-
 const onHotTakeChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2756,9 +2727,6 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
-          break;
-        case getTableName(con, PostHighlight):
-          await onPostHighlightChange(con, logger, data);
           break;
         case getTableName(con, HotTake):
           await onHotTakeChange(con, logger, data);

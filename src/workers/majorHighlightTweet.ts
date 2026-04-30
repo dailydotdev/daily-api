@@ -1,4 +1,3 @@
-import { PostHighlightedMessage } from '@dailydotdev/schema';
 import { ONE_DAY_IN_SECONDS, ONE_MINUTE_IN_SECONDS } from '../common/constants';
 import { PostHighlightSignificance } from '../entity/PostHighlight';
 import { getTwitterClient } from '../integrations/twitter/clients';
@@ -51,9 +50,8 @@ const withMajorHighlightTweetLock = ({
     execute,
   });
 
-const worker: TypedWorker<'api.v1.post-highlighted'> = {
+const worker: TypedWorker<'api.v1.highlight-created'> = {
   subscription: 'api.major-highlight-tweet',
-  parseMessage: (message) => PostHighlightedMessage.fromBinary(message.data),
   handler: async ({ data, messageId }, _con, logger): Promise<void> => {
     const { headline, highlightId, postId, significance } = data;
 

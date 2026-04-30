@@ -5,6 +5,7 @@ import { expectSuccessfulCron } from '../helpers';
 import { crons } from '../../src/cron/index';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
 import { PostHighlight } from '../../src/entity/PostHighlight';
+import { PostHighlightChannel } from '../../src/entity/PostHighlightChannel';
 import { ArticlePost, Source } from '../../src/entity';
 import { PostType } from '../../src/entity/posts/Post';
 import { createSource } from '../fixture/source';
@@ -93,7 +94,8 @@ describe('cleanChannelHighlights cron', () => {
 
   afterEach(async () => {
     await con.getRepository(ChannelHighlightRun).clear();
-    await con.getRepository(PostHighlight).clear();
+    await con.getRepository(PostHighlightChannel).clear();
+    await con.createQueryBuilder().delete().from(PostHighlight).execute();
     await con
       .createQueryBuilder()
       .delete()
@@ -114,7 +116,7 @@ describe('cleanChannelHighlights cron', () => {
   });
 
   it('should delete retired highlights older than 30 days and expired runs', async () => {
-    await con.getRepository(PostHighlight).save([
+    const highlights = await con.getRepository(PostHighlight).save([
       {
         channel: 'vibes',
         postId: 'active-highlight',
@@ -134,6 +136,26 @@ describe('cleanChannelHighlights cron', () => {
         postId: 'recently-retired-highlight',
         highlightedAt: new Date('2026-01-03T10:00:00.000Z'),
         headline: 'Recently retired headline',
+        retiredAt: sub(new Date(), { days: 1 }),
+      },
+    ]);
+    await con.getRepository(PostHighlightChannel).save([
+      {
+        highlightId: highlights[0].id,
+        channel: 'vibes',
+        placedAt: highlights[0].highlightedAt,
+        retiredAt: null,
+      },
+      {
+        highlightId: highlights[1].id,
+        channel: 'vibes',
+        placedAt: highlights[1].highlightedAt,
+        retiredAt: new Date('2026-01-02T10:00:00.000Z'),
+      },
+      {
+        highlightId: highlights[2].id,
+        channel: 'vibes',
+        placedAt: highlights[2].highlightedAt,
         retiredAt: sub(new Date(), { days: 1 }),
       },
     ]);
@@ -164,14 +186,19 @@ describe('cleanChannelHighlights cron', () => {
 
     await expectSuccessfulCron(cleanChannelHighlights);
 
-    const highlights = await con.getRepository(PostHighlight).find({
+    const remainingHighlights = await con.getRepository(PostHighlight).find({
       order: { postId: 'ASC' },
     });
+    const remainingPlacements = await con.getRepository(PostHighlightChannel).find(
+      {
+        order: { highlightId: 'ASC' },
+      },
+    );
     const runs = await con.getRepository(ChannelHighlightRun).find({
       order: { scheduledAt: 'ASC' },
     });
 
-    expect(highlights).toEqual([
+    expect(remainingHighlights).toEqual([
       expect.objectContaining({
         postId: 'active-highlight',
       }),
@@ -179,6 +206,7 @@ describe('cleanChannelHighlights cron', () => {
         postId: 'recently-retired-highlight',
       }),
     ]);
+    expect(remainingPlacements).toHaveLength(2);
     expect(runs).toHaveLength(1);
     expect(runs[0].completedAt).not.toBeNull();
   });

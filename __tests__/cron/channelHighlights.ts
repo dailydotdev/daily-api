@@ -1,6 +1,5 @@
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import * as typedPubsub from '../../src/common/typedPubsub';
 import channelHighlights from '../../src/cron/channelHighlights';
 import { crons } from '../../src/cron/index';
@@ -14,7 +13,6 @@ beforeAll(async () => {
 describe('channelHighlights cron', () => {
   afterEach(async () => {
     jest.restoreAllMocks();
-    await con.getRepository(ChannelHighlightDefinition).clear();
   });
 
   it('should be registered', () => {
@@ -25,31 +23,10 @@ describe('channelHighlights cron', () => {
     expect(registeredCron).toBeDefined();
   });
 
-  it('should enqueue active highlight definitions', async () => {
+  it('should enqueue a global highlight generation run', async () => {
     const triggerTypedEventSpy = jest
       .spyOn(typedPubsub, 'triggerTypedEvent')
       .mockResolvedValue();
-
-    await con.getRepository(ChannelHighlightDefinition).save([
-      {
-        channel: 'backend',
-        mode: 'shadow',
-        candidateHorizonHours: 72,
-        maxItems: 10,
-      },
-      {
-        channel: 'vibes',
-        mode: 'shadow',
-        candidateHorizonHours: 72,
-        maxItems: 10,
-      },
-      {
-        channel: 'disabled',
-        mode: 'disabled',
-        candidateHorizonHours: 72,
-        maxItems: 10,
-      },
-    ]);
 
     const startedAt = Date.now();
     await channelHighlights.handler(con, {} as never, {} as never);
@@ -58,17 +35,8 @@ describe('channelHighlights cron', () => {
     expect(triggerTypedEventSpy.mock.calls).toEqual([
       [
         {},
-        'api.v1.generate-channel-highlight',
+        'api.v1.generate-highlights',
         {
-          channel: 'backend',
-          scheduledAt: expect.any(String),
-        },
-      ],
-      [
-        {},
-        'api.v1.generate-channel-highlight',
-        {
-          channel: 'vibes',
           scheduledAt: expect.any(String),
         },
       ],
@@ -79,8 +47,5 @@ describe('channelHighlights cron', () => {
     );
     expect(scheduledAt).toBeGreaterThanOrEqual(startedAt);
     expect(scheduledAt).toBeLessThanOrEqual(completedAt);
-    expect(triggerTypedEventSpy.mock.calls[0][2].scheduledAt).toBe(
-      triggerTypedEventSpy.mock.calls[1][2].scheduledAt,
-    );
   });
 });

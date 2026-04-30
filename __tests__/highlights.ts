@@ -16,6 +16,7 @@ import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../src/entity/PostHighlight';
+import { PostHighlightChannel } from '../src/entity/PostHighlightChannel';
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 
@@ -87,11 +88,40 @@ const createTestPosts = async () => {
   ]);
 };
 
+const saveHighlights = async (
+  items: Array<
+    Partial<PostHighlight> & {
+      postId: string;
+      channel: string;
+      highlightedAt: Date;
+      headline: string;
+      channels?: string[];
+    }
+  >,
+) => {
+  const highlights = await con.getRepository(PostHighlight).save(items);
+
+  await con.getRepository(PostHighlightChannel).save(
+    highlights.flatMap((highlight, index) =>
+      (items[index].channels || [items[index].channel]).map((channel) => ({
+        highlightId: highlight.id,
+        channel,
+        placedAt: highlight.highlightedAt,
+        retiredAt:
+          items[index].retiredAt instanceof Date ? items[index].retiredAt : null,
+      })),
+    ),
+  );
+
+  return highlights;
+};
+
 beforeEach(async () => {
   jest.resetAllMocks();
   await con.getRepository(ChannelDigest).clear();
   await con.getRepository(ChannelHighlightDefinition).clear();
-  await con.getRepository(PostHighlight).clear();
+  await con.getRepository(PostHighlightChannel).clear();
+  await con.createQueryBuilder().delete().from(PostHighlight).execute();
   await con.getRepository(ArticlePost).delete(['h1', 'h2', 'h3', 'h4']);
   await con
     .getRepository(Source)
@@ -233,7 +263,7 @@ describe('query postHighlights', () => {
 
   it('should return highlights ordered by highlightedAt desc', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveHighlights([
       {
         postId: 'h2',
         channel: 'happening-now',
@@ -277,7 +307,7 @@ describe('query postHighlights', () => {
 
   it('should filter by channel', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveHighlights([
       {
         postId: 'h1',
         channel: 'happening-now',
@@ -307,7 +337,7 @@ describe('query postHighlights', () => {
 
   it('should hide retired highlights', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveHighlights([
       {
         postId: 'h1',
         channel: 'happening-now',
@@ -339,16 +369,9 @@ describe('query postHighlights', () => {
 });
 
 describe('query majorHeadlines', () => {
-  it('should return only breaking and major headlines deduplicated by postId', async () => {
+  it('should return only live breaking and major canonical highlights', async () => {
     await createTestPosts();
     await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'agentic',
-        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
-        headline: 'Major agentic headline',
-        significance: PostHighlightSignificance.Major,
-      },
       {
         postId: 'h1',
         channel: 'vibes',

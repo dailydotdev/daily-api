@@ -1,16 +1,18 @@
 import type { HighlightItem } from './types';
 
 const toItemSignature = (item: {
+  channel: string;
+  channels: string[];
   postId: string;
   headline: string;
   significanceLabel: string | null;
-  reason: string | null;
 }): string =>
   [
+    item.channel,
+    item.channels.join(','),
     item.postId,
     item.headline,
     item.significanceLabel || '',
-    item.reason || '',
   ].join('|');
 
 export const compareSnapshots = ({

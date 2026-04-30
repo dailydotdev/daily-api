@@ -14,6 +14,7 @@ import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../entity/PostHighlight';
+import { PostHighlightChannel } from '../entity/PostHighlightChannel';
 import type { GQLSource } from './sources';
 
 type GQLChannelDigestConfiguration = {
@@ -108,28 +109,18 @@ const getMajorHeadlinesPage = (args: ConnectionArguments): OffsetPage => ({
   offset: getOffsetWithDefault(args.after, -1) + 1,
 });
 
-const addMajorHeadlineFilter = <T extends PostHighlight>(
-  builder: SelectQueryBuilder<T>,
-): SelectQueryBuilder<T> =>
+const addMajorHeadlineFilter = <T extends PostHighlight>({
+  builder,
+  alias,
+}: {
+  builder: SelectQueryBuilder<T>;
+  alias: string;
+}): SelectQueryBuilder<T> =>
   builder
-    .where('highlight.significance IN (:...significances)', {
+    .where(`${alias}.significance IN (:...significances)`, {
       significances: majorHeadlineSignificances,
     })
-    .andWhere('highlight."retiredAt" IS NULL');
-
-const getDedupedMajorHeadlinesQuery = (
-  queryBuilder: SelectQueryBuilder<PostHighlight>,
-) =>
-  addMajorHeadlineFilter(
-    queryBuilder
-      .subQuery()
-      .select('highlight.id', 'id')
-      .from(PostHighlight, 'highlight'),
-  )
-    .distinctOn(['highlight.postId'])
-    .orderBy('highlight.postId', 'ASC')
-    .addOrderBy('highlight.highlightedAt', 'DESC')
-    .addOrderBy('highlight.id', 'DESC');
+    .andWhere(`${alias}."retiredAt" IS NULL`);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -154,14 +145,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         info,
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."channel" = :channel`, {
+            .innerJoin(
+              PostHighlightChannel,
+              'placement',
+              `placement."highlightId" = "${builder.alias}".id`,
+            )
+            .where('placement.channel = :channel', {
               channel: args.channel,
             })
+            .andWhere('placement."retiredAt" IS NULL')
             .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
-            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
+            .orderBy('placement."placedAt"', 'DESC');
           return builder;
         },
         true,
+      ).then((items) =>
+        items.map((item) => ({
+          ...(item as Record<string, unknown>),
+          channel: args.channel,
+        })),
       ),
     majorHeadlines: async (
       _,
@@ -178,17 +180,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (nodeSize) => nodeSize >= page.limit,
         (_, index) => offsetToCursor(page.offset + index),
         (builder) => {
-          const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(
-            builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
-          );
-
-          builder.queryBuilder
-            .innerJoin(
-              `(${dedupedIdsQuery.getQuery()})`,
-              'deduped',
-              `deduped.id = ${builder.alias}.id`,
-            )
-            .setParameters(dedupedIdsQuery.getParameters())
+          addMajorHeadlineFilter({
+            builder: builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
+            alias: builder.alias,
+          })
             .orderBy(`${builder.alias}."highlightedAt"`, 'DESC')
             .addOrderBy(`${builder.alias}."id"`, 'DESC')
             .offset(page.offset)

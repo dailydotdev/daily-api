@@ -1,8 +1,8 @@
 import { DataSource } from 'typeorm';
-import { PostHighlightedMessage } from '@dailydotdev/schema';
 import createOrGetConnection from '../../src/db';
 import { NEW_HIGHLIGHT_CHANNEL } from '../../src/common/highlights';
 import { ArticlePost, PostHighlight, Source } from '../../src/entity';
+import { PostHighlightChannel } from '../../src/entity/PostHighlightChannel';
 import { PostType } from '../../src/entity/posts/Post';
 import { SourceType } from '../../src/entity/Source';
 import { redisPubSub } from '../../src/redis';
@@ -32,7 +32,8 @@ describe('newHighlightRealTime worker', () => {
   });
 
   afterEach(async () => {
-    await con.getRepository(PostHighlight).clear();
+    await con.getRepository(PostHighlightChannel).clear();
+    await con.createQueryBuilder().delete().from(PostHighlight).execute();
     await con.getRepository(ArticlePost).delete(['highlight-post']);
     await con.getRepository(Source).delete(['highlight-source']);
   });
@@ -69,13 +70,22 @@ describe('newHighlightRealTime worker', () => {
       highlightedAt: new Date('2026-04-26T10:05:00.000Z'),
       headline: 'New backend highlight',
     });
+    await con.getRepository(PostHighlightChannel).save({
+      highlightId: highlight.id,
+      channel: 'backend',
+      placedAt: highlight.highlightedAt,
+    });
     const publishSpy = jest.spyOn(redisPubSub, 'publish');
 
-    await expectSuccessfulTypedBackground<'api.v1.post-highlighted'>(
+    await expectSuccessfulTypedBackground<'api.v1.highlight-created'>(
       worker,
-      new PostHighlightedMessage({
+      {
         highlightId: highlight.id,
-      }),
+        postId: 'highlight-post',
+        headline: 'New backend highlight',
+        significance: 0,
+        highlightedAt: highlight.highlightedAt.toISOString(),
+      },
     );
 
     expect(publishSpy).toHaveBeenCalledTimes(1);
