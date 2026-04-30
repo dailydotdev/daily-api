@@ -9,6 +9,9 @@ import type {
   ExtractTagsResponse,
   RawDiscoverPostsRequest,
   RawExtractTagsRequest,
+  RawRecommendTagsRequest,
+  RecommendTagsParams,
+  RecommendTagsResponse,
 } from './types';
 
 export class RecswipeClient {
@@ -76,6 +79,32 @@ export class RecswipeClient {
 
     return this.garmr.execute(() =>
       retryFetchParse<ExtractTagsResponse>(`${this.url}/api/extract-tags`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userId ? { 'X-User-Id': userId } : {}),
+        },
+      }),
+    );
+  }
+
+  recommendTags(
+    userId: string | undefined,
+    params: RecommendTagsParams,
+  ): Promise<RecommendTagsResponse> {
+    if (!this.url) {
+      throw new Error('Missing RECSWIPE_ORIGIN');
+    }
+
+    const body: RawRecommendTagsRequest = {
+      selected_tags: params.selectedTags,
+      n: params.n ?? 20,
+    };
+
+    return this.garmr.execute(() =>
+      retryFetchParse<RecommendTagsResponse>(`${this.url}/api/recommend-tags`, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(body),

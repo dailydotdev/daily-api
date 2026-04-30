@@ -6,6 +6,7 @@ import type { z } from 'zod';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
 import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { onboardingRecommendTagsInputSchema } from '../common/schema/onboardingRecommendTags';
 import { recswipeClient } from '../integrations/recswipe/clients';
 import { HttpError } from '../integrations/retry';
 import { ServiceError } from '../errors';
@@ -1823,6 +1824,15 @@ export const typeDefs = /* GraphQL */ `
     Stateless proxy to the recswipe service.
     """
     onboardingExtractTags(prompt: String!): OnboardingExtractTagsResult! @auth
+
+    """
+    Recommend related tags from a set of selected tags for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingRecommendTags(
+      selectedTags: [String!]!
+      n: Int
+    ): OnboardingRecommendTagsResult! @auth
   }
 
   type OnboardingTagsResult {
@@ -1848,6 +1858,10 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OnboardingExtractTagsResult {
+    tags: [String!]!
+  }
+
+  type OnboardingRecommendTagsResult {
     tags: [String!]!
   }
 `;
@@ -4415,6 +4429,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'Recswipe extractTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingRecommendTags: async (
+      _,
+      args: z.input<typeof onboardingRecommendTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingRecommendTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.recommendTags(ctx.userId, parsed);
+
+        return {
+          tags: (data.recommended_tags ?? []).map((t) => t.tag),
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe recommendTags request failed',
             data: err.response,
             statusCode: err.statusCode,
           });

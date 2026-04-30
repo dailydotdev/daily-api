@@ -43,3 +43,22 @@ export type RawExtractTagsRequest = {
 export type ExtractTagsResponse = {
   tags: string[];
 };
+
+export type RecommendTagsParams = {
+  selectedTags: string[];
+  n?: number;
+};
+
+export type RawRecommendTagsRequest = {
+  selected_tags: string[];
+  n: number;
+};
+
+export type RecommendedTagRaw = {
+  tag: string;
+  score: number;
+};
+
+export type RecommendTagsResponse = {
+  recommended_tags: RecommendedTagRaw[];
+};

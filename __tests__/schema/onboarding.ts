@@ -18,6 +18,7 @@ jest.mock('../../src/integrations/recswipe/clients', () => ({
   recswipeClient: {
     discoverPosts: jest.fn(),
     extractTags: jest.fn(),
+    recommendTags: jest.fn(),
   },
 }));
 
@@ -26,6 +27,9 @@ const discoverPostsMock = recswipeClient.discoverPosts as jest.MockedFunction<
 >;
 const extractTagsMock = recswipeClient.extractTags as jest.MockedFunction<
   typeof recswipeClient.extractTags
+>;
+const recommendTagsMock = recswipeClient.recommendTags as jest.MockedFunction<
+  typeof recswipeClient.recommendTags
 >;
 
 let con: DataSource;
@@ -289,6 +293,91 @@ describe('mutation onboardingExtractTags', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: { prompt: 'rust' },
+    });
+
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].extensions?.code).toBe('UNEXPECTED');
+  });
+});
+
+describe('mutation onboardingRecommendTags', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation OnboardingRecommendTags($selectedTags: [String!]!, $n: Int) {
+      onboardingRecommendTags(selectedTags: $selectedTags, n: $n) {
+        tags
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { selectedTags: ['rust'] } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should reject empty selectedTags via Zod', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { selectedTags: [] } },
+      'ZOD_VALIDATION_ERROR',
+    );
+    expect(recommendTagsMock).not.toHaveBeenCalled();
+  });
+
+  it('should forward args and flatten recommended_tags to tag names', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [
+        { tag: 'rust', score: 0.9 },
+        { tag: 'systems', score: 0.7 },
+      ],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { selectedTags: ['rust'], n: 5 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      onboardingRecommendTags: { tags: ['rust', 'systems'] },
+    });
+    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
+      selectedTags: ['rust'],
+      n: 5,
+    });
+  });
+
+  it('should default missing recommended_tags array to empty list', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: undefined as unknown as {
+        tag: string;
+        score: number;
+      }[],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { selectedTags: ['rust'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({ onboardingRecommendTags: { tags: [] } });
+  });
+
+  it('should surface an UNEXPECTED error when recswipe responds with HttpError', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockRejectedValueOnce(
+      new HttpError(
+        'http://recswipe.local:8000/api/recommend-tags',
+        500,
+        'boom',
+      ),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { selectedTags: ['rust'] },
     });
 
     expect(res.errors?.length).toBeGreaterThan(0);
