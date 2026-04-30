@@ -4,7 +4,9 @@ import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import type { z } from 'zod';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
+import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { onboardingRecommendTagsInputSchema } from '../common/schema/onboardingRecommendTags';
 import { recswipeClient } from '../integrations/recswipe/clients';
 import { HttpError } from '../integrations/retry';
 import { ServiceError } from '../errors';
@@ -281,6 +283,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  isHackathonParticipant?: boolean;
   notificationFlags: UserNotificationFlags;
   socialLinks: UserSocialLink[];
 }
@@ -602,6 +605,11 @@ export const typeDefs = /* GraphQL */ `
     From when the user is a plus member
     """
     plusMemberSince: DateTime
+
+    """
+    Whether the user has signed up for the daily.dev hackathon
+    """
+    isHackathonParticipant: Boolean
 
     """
     Verified companies for this user
@@ -1553,6 +1561,11 @@ export const typeDefs = /* GraphQL */ `
     clearImage(presets: [UploadPreset]): EmptyResponse @auth
 
     """
+    Sign the current user up as a daily.dev hackathon participant
+    """
+    joinHackathon: EmptyResponse @auth
+
+    """
     Update user profile information
     """
     updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
@@ -1805,6 +1818,21 @@ export const typeDefs = /* GraphQL */ `
       saturatedTags: [String!]
       n: Int
     ): OnboardingDiscoverPostsResult! @auth
+
+    """
+    Extract candidate tags from a free-text prompt for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingExtractTags(prompt: String!): OnboardingExtractTagsResult! @auth
+
+    """
+    Recommend related tags from a set of selected tags for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingRecommendTags(
+      selectedTags: [String!]!
+      n: Int
+    ): OnboardingRecommendTagsResult! @auth
   }
 
   type OnboardingTagsResult {
@@ -1827,6 +1855,14 @@ export const typeDefs = /* GraphQL */ `
   type OnboardingDiscoverPostsResult {
     posts: [OnboardingSwipePost!]!
     subPrompts: [String!]!
+  }
+
+  type OnboardingExtractTagsResult {
+    tags: [String!]!
+  }
+
+  type OnboardingRecommendTagsResult {
+    tags: [String!]!
   }
 `;
 
@@ -3152,6 +3188,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
   },
   Mutation: {
+    joinHackathon: async (
+      _,
+      __,
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await con.getRepository(User).update(
+        { id: userId },
+        {
+          flags: updateFlagsStatement<User>({ hackathonParticipant: true }),
+        },
+      );
+
+      return { _: true };
+    },
     clearImage: async (
       _,
       { presets }: { presets: UploadPreset[] },
@@ -4356,6 +4406,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'Recswipe discoverPosts request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingExtractTags: async (
+      _,
+      args: z.input<typeof onboardingExtractTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingExtractTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.extractTags(ctx.userId, parsed);
+
+        return { tags: data.tags ?? [] };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe extractTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingRecommendTags: async (
+      _,
+      args: z.input<typeof onboardingRecommendTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingRecommendTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.recommendTags(ctx.userId, parsed);
+
+        return {
+          tags: (data.recommended_tags ?? []).map((t) => t.tag),
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe recommendTags request failed',
             data: err.response,
             statusCode: err.statusCode,
           });

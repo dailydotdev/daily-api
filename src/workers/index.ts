@@ -82,7 +82,6 @@ import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import gearClassify from './gearClassify';
-import agenticDigestTweet from './agenticDigestTweet';
 import generateChannelDigest from './generateChannelDigest';
 import generateChannelHighlight from './generateChannelHighlight';
 import majorHighlightTweet from './majorHighlightTweet';
@@ -175,7 +174,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackClassify,
   feedbackUpdatedSlack,
   gearClassify,
-  agenticDigestTweet,
   generateChannelDigest,
   generateChannelHighlight,
   majorHighlightTweet,

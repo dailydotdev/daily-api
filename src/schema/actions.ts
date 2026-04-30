@@ -5,6 +5,8 @@ import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
+import { QuestEventType } from '../entity/Quest';
+import { logger } from '../logger';
 
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
@@ -61,6 +63,44 @@ export const insertOrIgnoreAction = (
     .orIgnore()
     .execute();
 
+const userActionTypeToQuestEventType: Partial<
+  Record<UserActionType, QuestEventType>
+> = {
+  [UserActionType.EnableNotification]: QuestEventType.NotificationsEnable,
+};
+
+const maybeTrackQuestProgress = async ({
+  con,
+  userId,
+  type,
+}: {
+  con: DataSource;
+  userId: string;
+  type: UserActionType;
+}): Promise<void> => {
+  const questEventType = userActionTypeToQuestEventType[type];
+  if (!questEventType) {
+    return;
+  }
+
+  try {
+    // Avoid loading quest progress side effects during TypeORM CLI entity discovery.
+    const { checkQuestProgress } = await import('../common/quest/progress');
+
+    await checkQuestProgress({
+      con: con.manager,
+      logger,
+      userId,
+      eventType: questEventType,
+    });
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      `Failed to track ${questEventType} quest progress`,
+    );
+  }
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     completeAction: async (
@@ -69,6 +109,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await insertOrIgnoreAction(con, userId, type);
+      await maybeTrackQuestProgress({ con, userId, type });
 
       return {
         _: true,

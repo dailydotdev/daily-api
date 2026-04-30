@@ -30,6 +30,7 @@ import {
 import { addClaimableItemsToUser } from './entity/user/utils';
 import { claimAnonOpportunities } from './common/opportunity/user';
 import { triggerTypedEvent } from './common/typedPubsub';
+import { assignIntroQuestsToUser } from './common/quest/intro';
 
 const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -611,6 +612,21 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                     userId: user.id,
                   },
                   'Failed to add claimable items for new BA user',
+                );
+              }
+
+              try {
+                await assignIntroQuestsToUser({
+                  con: AppDataSource.manager,
+                  userId: user.id,
+                });
+              } catch (err) {
+                logger.error(
+                  {
+                    err: err instanceof Error ? err.message : String(err),
+                    userId: user.id,
+                  },
+                  'Failed to assign intro quests for new BA user',
                 );
               }
 

@@ -251,6 +251,13 @@ const checkProfileCompletionAchievement = async (
       user.id,
       AchievementEventType.ProfileComplete,
     );
+
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: user.id,
+      eventType: QuestEventType.ProfileComplete,
+    });
   }
 };
 

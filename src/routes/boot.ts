@@ -87,6 +87,8 @@ import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
+import { checkQuestProgress } from '../common/quest/progress';
+import { QuestEventType } from '../entity/Quest';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
 import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
@@ -248,6 +250,12 @@ const updateLastExtensionUse = async ({
     return;
   }
 
+  const priorUser = await con.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['flags'],
+  });
+  const isFirstEverExtensionBoot = !priorUser?.flags?.lastExtensionUse;
+
   await con.getRepository(User).update(
     { id: userId },
     {
@@ -257,6 +265,22 @@ const updateLastExtensionUse = async ({
       inc: () => 'inc + 1',
     },
   );
+
+  if (isFirstEverExtensionBoot) {
+    try {
+      await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.ExtensionInstall,
+      });
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err), userId },
+        'Failed to track extension install quest progress',
+      );
+    }
+  }
 };
 
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {

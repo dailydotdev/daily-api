@@ -40,6 +40,7 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationMajorHeadlineContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -241,6 +242,8 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
+  major_headline_added: (ctx: NotificationMajorHeadlineContext) =>
+    `<b>${ctx.headline}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -756,4 +759,14 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.metadataChangedAt?.toString());
   },
+  major_headline_added: (
+    builder: NotificationBuilder,
+    ctx: NotificationMajorHeadlineContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .description(ctx.headline)
+      .avatarSource(ctx.source)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .uniqueKey(ctx.post.id),
 };

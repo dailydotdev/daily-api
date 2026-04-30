@@ -3,7 +3,10 @@ import { DataSource } from 'typeorm';
 import { UserFeedbackCategory } from '@dailydotdev/schema';
 import createOrGetConnection from '../src/db';
 import {
+  createMockLogger,
+  expectSuccessfulBackground,
   initializeGraphQLTesting,
+  mockChangeMessage,
   MockContext,
   saveFixtures,
   type GraphQLTestClient,
@@ -33,6 +36,13 @@ import appFunc from '../src';
 import type { Context } from '../src/Context';
 import { FastifyInstance } from 'fastify';
 import { createSource } from './fixture/source';
+import { assignIntroQuestsToUser } from '../src/common/quest/intro';
+import { checkQuestProgress } from '../src/common/quest/progress';
+import { UserActionType } from '../src/entity/user/UserAction';
+import { UserExperience } from '../src/entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../src/entity/user/experiences/types';
+import cdcWorker from '../src/workers/cdc/primary';
+import type { ChangeObject } from '../src/types';
 
 const CLAIM_QUEST_REWARD_MUTATION = `
 mutation ClaimQuestReward($userQuestId: ID!) {
@@ -1023,6 +1033,510 @@ describe('quest progress hooks', () => {
     expect(userQuest).toMatchObject({
       progress: 1,
       status: UserQuestStatus.Completed,
+    });
+  });
+});
+
+describe('intro quests', () => {
+  const seedIntroQuests = async () => {
+    const introQuestId = randomUUID();
+    const introRotationId = randomUUID();
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    await saveFixtures(con, Quest, [
+      {
+        id: introQuestId,
+        name: 'Install the browser extension',
+        description:
+          'Pin daily.dev to your browser so the feed is always one click away.',
+        type: QuestType.Intro,
+        eventType: QuestEventType.ExtensionInstall,
+        criteria: {
+          targetCount: 1,
+        },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestReward, [
+      {
+        id: randomUUID(),
+        questId: introQuestId,
+        type: QuestRewardType.XP,
+        amount: 10,
+        metadata: {},
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: introRotationId,
+        questId: introQuestId,
+        type: QuestType.Intro,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date('2026-03-25T00:00:00.000Z'),
+        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+      },
+    ]);
+
+    return { introQuestId, introRotationId };
+  };
+
+  it('should insert one UserQuest per active intro rotation', async () => {
+    const { introRotationId } = await seedIntroQuests();
+
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const userQuests = await con.getRepository(UserQuest).find({
+      where: { userId: questUserId },
+    });
+
+    expect(userQuests).toHaveLength(1);
+    expect(userQuests[0]).toMatchObject({
+      rotationId: introRotationId,
+      userId: questUserId,
+      progress: 0,
+      status: UserQuestStatus.InProgress,
+      completedAt: null,
+      claimedAt: null,
+    });
+  });
+
+  it('should be idempotent on repeat calls', async () => {
+    await seedIntroQuests();
+
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const userQuests = await con.getRepository(UserQuest).find({
+      where: { userId: questUserId },
+    });
+
+    expect(userQuests).toHaveLength(1);
+  });
+
+  it('should skip rotations outside the active period', async () => {
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    const futureQuestId = randomUUID();
+    const futureRotationId = randomUUID();
+
+    await saveFixtures(con, Quest, [
+      {
+        id: futureQuestId,
+        name: 'Future intro',
+        description: 'Not yet active',
+        type: QuestType.Intro,
+        eventType: QuestEventType.ExtensionInstall,
+        criteria: { targetCount: 1 },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: futureRotationId,
+        questId: futureQuestId,
+        type: QuestType.Intro,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date('9999-01-01T00:00:00.000Z'),
+        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+      },
+    ]);
+
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const userQuests = await con.getRepository(UserQuest).find({
+      where: { userId: questUserId },
+    });
+
+    expect(userQuests).toHaveLength(0);
+  });
+
+  it('should expose intro quests in questDashboard', async () => {
+    loggedUser = questUserId;
+    const { introQuestId, introRotationId } = await seedIntroQuests();
+
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const res = await client.query(`
+      query QuestDashboard {
+        questDashboard {
+          intro {
+            rotationId
+            progress
+            status
+            quest {
+              id
+              name
+              type
+            }
+          }
+        }
+      }
+    `);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.intro).toEqual([
+      {
+        rotationId: introRotationId,
+        progress: 0,
+        status: UserQuestStatus.InProgress,
+        quest: {
+          id: introQuestId,
+          name: 'Install the browser extension',
+          type: QuestType.Intro,
+        },
+      },
+    ]);
+  });
+
+  it('should return an empty intro array for users with no intro UserQuests', async () => {
+    loggedUser = questUserId;
+    await seedIntroQuests();
+    await saveFixtures(con, User, [{ id: questUserId }]);
+
+    const res = await client.query(`
+      query QuestDashboard {
+        questDashboard {
+          intro {
+            rotationId
+          }
+        }
+      }
+    `);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.questDashboard.intro).toEqual([]);
+  });
+
+  const seedBriefIntroQuest = async () => {
+    const introQuestId = randomUUID();
+    const introRotationId = randomUUID();
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    await saveFixtures(con, Quest, [
+      {
+        id: introQuestId,
+        name: 'Generate your first brief',
+        description: 'Spin up a quick daily briefing.',
+        type: QuestType.Intro,
+        eventType: QuestEventType.BriefGenerate,
+        criteria: { targetCount: 1 },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: introRotationId,
+        questId: introQuestId,
+        type: QuestType.Intro,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date('2026-03-25T00:00:00.000Z'),
+        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+      },
+    ]);
+
+    return { introQuestId, introRotationId };
+  };
+
+  it('should complete an existing intro UserQuest when its event fires', async () => {
+    const { introRotationId } = await seedBriefIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const didUpdate = await checkQuestProgress({
+      con: con.manager,
+      logger: createMockLogger(),
+      userId: questUserId,
+      eventType: QuestEventType.BriefGenerate,
+    });
+
+    expect(didUpdate).toBe(true);
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+    expect(userQuest.completedAt).not.toBeNull();
+  });
+
+  it('should not create a UserQuest for users without one when an intro event fires', async () => {
+    await seedBriefIntroQuest();
+
+    const didUpdate = await checkQuestProgress({
+      con: con.manager,
+      logger: createMockLogger(),
+      userId: questUserId,
+      eventType: QuestEventType.BriefGenerate,
+    });
+
+    expect(didUpdate).toBe(false);
+
+    const userQuests = await con.getRepository(UserQuest).find({
+      where: { userId: questUserId },
+    });
+
+    expect(userQuests).toHaveLength(0);
+  });
+
+  it('should be a no-op once the intro quest is completed', async () => {
+    const { introRotationId } = await seedBriefIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    await checkQuestProgress({
+      con: con.manager,
+      logger: createMockLogger(),
+      userId: questUserId,
+      eventType: QuestEventType.BriefGenerate,
+    });
+
+    const didUpdate = await checkQuestProgress({
+      con: con.manager,
+      logger: createMockLogger(),
+      userId: questUserId,
+      eventType: QuestEventType.BriefGenerate,
+    });
+
+    expect(didUpdate).toBe(false);
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest.progress).toBe(1);
+  });
+
+  const seedNotificationsIntroQuest = async () => {
+    const introQuestId = randomUUID();
+    const introRotationId = randomUUID();
+
+    await saveFixtures(con, User, [{ id: questUserId }]);
+    await saveFixtures(con, Quest, [
+      {
+        id: introQuestId,
+        name: 'Turn on notifications',
+        description: 'Enable alerts.',
+        type: QuestType.Intro,
+        eventType: QuestEventType.NotificationsEnable,
+        criteria: { targetCount: 1 },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: introRotationId,
+        questId: introQuestId,
+        type: QuestType.Intro,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date('2026-03-25T00:00:00.000Z'),
+        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+      },
+    ]);
+
+    return { introQuestId, introRotationId };
+  };
+
+  it('should complete the notifications intro quest via completeAction', async () => {
+    loggedUser = questUserId;
+    const { introRotationId } = await seedNotificationsIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const res = await client.mutate(
+      `mutation CompleteAction($type: String!) {
+        completeAction(type: $type) { _ }
+      }`,
+      { variables: { type: UserActionType.EnableNotification } },
+    );
+
+    expect(res.errors).toBeUndefined();
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  const seedProfileCompleteIntroQuest = async () => {
+    const introQuestId = randomUUID();
+    const introRotationId = randomUUID();
+
+    await saveFixtures(con, Quest, [
+      {
+        id: introQuestId,
+        name: 'Complete your profile',
+        description: 'Add enough context.',
+        type: QuestType.Intro,
+        eventType: QuestEventType.ProfileComplete,
+        criteria: { targetCount: 1 },
+        active: true,
+      },
+    ]);
+    await saveFixtures(con, QuestRotation, [
+      {
+        id: introRotationId,
+        questId: introQuestId,
+        type: QuestType.Intro,
+        plusOnly: false,
+        slot: 1,
+        periodStart: new Date('2026-03-25T00:00:00.000Z'),
+        periodEnd: new Date('9999-12-31T23:59:59.000Z'),
+      },
+    ]);
+
+    return { introQuestId, introRotationId };
+  };
+
+  const createCompleteUser = () => ({
+    id: questUserId,
+    image: 'https://example.com/avatar.png',
+    bio: 'Building things.',
+    experienceLevel: 'MORE_THAN_2_YEARS',
+  });
+
+  const completeUser = createCompleteUser();
+
+  const toUserChangeObject = (user: Partial<User>): ChangeObject<User> =>
+    ({
+      ...user,
+      flags: JSON.stringify(user.flags ?? {}),
+      notificationFlags: JSON.stringify(user.notificationFlags ?? {}),
+      subscriptionFlags: JSON.stringify(user.subscriptionFlags ?? {}),
+    }) as ChangeObject<User>;
+
+  const seedProfileCompleteFixtures = async (
+    user: Partial<typeof completeUser> = completeUser,
+  ) => {
+    await saveFixtures(con, User, [{ id: questUserId, ...user }]);
+    await saveFixtures(con, UserExperience, [
+      {
+        userId: questUserId,
+        title: 'Engineer',
+        startedAt: new Date('2022-01-01'),
+        endedAt: null,
+        type: UserExperienceType.Work,
+      },
+      {
+        userId: questUserId,
+        title: 'CS Degree',
+        startedAt: new Date('2018-01-01'),
+        endedAt: new Date('2022-01-01'),
+        type: UserExperienceType.Education,
+      },
+    ]);
+    const { introRotationId } = await seedProfileCompleteIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+    return { introRotationId };
+  };
+
+  it('should complete the profile intro quest when a User update lands at 100%', async () => {
+    const { introRotationId } = await seedProfileCompleteFixtures();
+    const completeUserChange = toUserChangeObject(createCompleteUser());
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: completeUserChange,
+        before: completeUserChange,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  it('should complete the profile intro quest when a UserExperience insert (e.g. CV import) brings the user to 100%', async () => {
+    await saveFixtures(con, User, [{ ...completeUser }]);
+    await saveFixtures(con, UserExperience, [
+      {
+        userId: questUserId,
+        title: 'Engineer',
+        startedAt: new Date('2022-01-01'),
+        endedAt: null,
+        type: UserExperienceType.Work,
+      },
+    ]);
+    const { introRotationId } = await seedProfileCompleteIntroQuest();
+    await assignIntroQuestsToUser({ con, userId: questUserId });
+
+    const insertedEducation = await con.getRepository(UserExperience).save({
+      userId: questUserId,
+      title: 'CS Degree',
+      startedAt: new Date('2018-01-01'),
+      endedAt: new Date('2022-01-01'),
+      type: UserExperienceType.Education,
+    });
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: {
+          id: insertedEducation.id,
+          userId: questUserId,
+          type: UserExperienceType.Education,
+        } as ChangeObject<UserExperience>,
+        table: 'user_experience',
+        op: 'c',
+      }),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 1,
+      status: UserQuestStatus.Completed,
+    });
+  });
+
+  it('should not progress the profile intro quest when profile is incomplete', async () => {
+    const incompleteUser = {
+      ...createCompleteUser(),
+      experienceLevel: null,
+    };
+    const { introRotationId } =
+      await seedProfileCompleteFixtures(incompleteUser);
+    const incompleteUserChange = toUserChangeObject(incompleteUser);
+
+    await expectSuccessfulBackground(
+      cdcWorker,
+      mockChangeMessage({
+        after: incompleteUserChange,
+        before: incompleteUserChange,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+
+    const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+      userId: questUserId,
+      rotationId: introRotationId,
+    });
+
+    expect(userQuest).toMatchObject({
+      progress: 0,
+      status: UserQuestStatus.InProgress,
     });
   });
 });

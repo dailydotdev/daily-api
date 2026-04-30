@@ -223,6 +223,11 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementImage: string;
 };
 
+export type NotificationMajorHeadlineContext = NotificationPostContext & {
+  headline: string;
+  significance: number;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
