@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { Feature, FeatureType, FeatureValue } from '../src/entity/Feature';
 import { LiveRoom } from '../src/entity/LiveRoom';
 import { StorageKey, StorageTopic } from '../src/config';
 import {
@@ -65,6 +66,14 @@ beforeEach(async () => {
 });
 
 describe('live rooms', () => {
+  const grantStandupAccess = async (userId: string): Promise<void> => {
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Standup,
+      userId,
+      value: FeatureValue.Allow,
+    });
+  };
+
   const CREATE_MUTATION = /* GraphQL */ `
     mutation CreateLiveRoom($input: CreateLiveRoomInput!) {
       createLiveRoom(input: $input) {
@@ -163,8 +172,32 @@ describe('live rooms', () => {
       'UNAUTHENTICATED',
     ));
 
+  it('requires standup feature access to create a live room', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: CREATE_MUTATION,
+        variables: {
+          input: {
+            topic: 'A room topic',
+            mode: 'moderated',
+          },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+
+    expect(
+      await con.getRepository(LiveRoom).findOneBy({ topic: 'A room topic' }),
+    ).toBeNull();
+  });
+
   it('creates a live room and prepares it in flyting', async () => {
     loggedUser = '1';
+    await grantStandupAccess(loggedUser);
 
     let preparePath = '';
     const scope = nock(flytingOrigin)
@@ -234,6 +267,7 @@ describe('live rooms', () => {
 
   it('creates a free-for-all live room and forwards its mode to flyting', async () => {
     loggedUser = '1';
+    await grantStandupAccess(loggedUser);
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
@@ -294,6 +328,7 @@ describe('live rooms', () => {
 
   it('keeps the durable room when prepare fails ambiguously', async () => {
     loggedUser = '1';
+    await grantStandupAccess(loggedUser);
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
@@ -325,6 +360,7 @@ describe('live rooms', () => {
 
   it('removes the durable room when prepare fails definitively', async () => {
     loggedUser = '1';
+    await grantStandupAccess(loggedUser);
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {

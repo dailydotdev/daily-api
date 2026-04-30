@@ -11,6 +11,7 @@ import {
   LiveRoomStatus,
 } from '../common/schema/liveRooms';
 import { NotFoundError } from '../errors';
+import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { LiveRoom } from '../entity/LiveRoom';
 import graphorm from '../graphorm';
 import { getFlytingClient } from '../integrations/flyting/client';
@@ -103,6 +104,26 @@ const assertCanEndRoom = ({
   room: LiveRoom;
 }): void => {
   if (room.hostId === ctx.userId || ctx.roles.includes(Roles.Moderator)) {
+    return;
+  }
+
+  throw new ForbiddenError('Access denied!');
+};
+
+const assertCanCreateRoom = async ({
+  ctx,
+}: {
+  ctx: Context;
+}): Promise<void> => {
+  const hasStandupAccess = await ctx.con.getRepository(Feature).exists({
+    where: {
+      userId: ctx.userId,
+      feature: FeatureType.Standup,
+      value: FeatureValue.Allow,
+    },
+  });
+
+  if (hasStandupAccess) {
     return;
   }
 
@@ -244,6 +265,7 @@ export const resolvers: IResolvers = {
       ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
+      await assertCanCreateRoom({ ctx });
       const roomRepo = ctx.con.getRepository(LiveRoom);
       const room = await roomRepo.save(
         roomRepo.create({
