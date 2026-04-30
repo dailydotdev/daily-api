@@ -33,6 +33,7 @@ import {
 import { PollOption } from '../src/entity/polls/PollOption';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
+import { Persona } from '../src/entity/Persona';
 import { FastifyInstance } from 'fastify';
 import {
   feedFields,
@@ -2806,6 +2807,69 @@ describe('query tagsCategories', () => {
     const res = await client.query(QUERY);
 
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query onboardingPersonas', () => {
+  const QUERY = `{
+    onboardingPersonas {
+      id
+      title
+      emoji
+      tags
+    }
+  }`;
+
+  it('should return personas ordered by sortOrder', async () => {
+    await saveFixtures(con, Persona, [
+      {
+        id: 'beta',
+        title: 'Beta Persona',
+        emoji: '🅱️',
+        tags: ['javascript', 'react'],
+        sortOrder: 2,
+      },
+      {
+        id: 'alpha',
+        title: 'Alpha Persona',
+        emoji: '🅰️',
+        tags: ['python', 'golang'],
+        sortOrder: 1,
+      },
+      {
+        id: 'gamma',
+        title: 'Gamma Persona',
+        emoji: '🅶',
+        tags: ['rust'],
+        sortOrder: 3,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      onboardingPersonas: [
+        {
+          id: 'alpha',
+          title: 'Alpha Persona',
+          emoji: '🅰️',
+          tags: ['python', 'golang'],
+        },
+        {
+          id: 'beta',
+          title: 'Beta Persona',
+          emoji: '🅱️',
+          tags: ['javascript', 'react'],
+        },
+        {
+          id: 'gamma',
+          title: 'Gamma Persona',
+          emoji: '🅶',
+          tags: ['rust'],
+        },
+      ],
+    });
   });
 });
 
