@@ -39,6 +39,7 @@ module.exports = {
           transform: {
             legacyDecorator: true,
             decoratorMetadata: true,
+            useDefineForClassFields: false,
           },
         },
         module: {
