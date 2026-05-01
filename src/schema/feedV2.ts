@@ -315,7 +315,6 @@ export const feedV2QueryResolver: IFieldResolver<
               .where(`${builder.alias}.id IN (:...ids)`, {
                 ids: highlightIds,
               })
-              .andWhere(`${builder.alias}."retiredAt" IS NULL`)
               .limit(highlightIds.length);
             return builder;
           },
