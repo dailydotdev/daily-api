@@ -10,7 +10,6 @@ process.env.NODE_OPTIONS = [
 
 /** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   setupFilesAfterEnv: ['./__tests__/setup.ts'],
   globalTeardown: './__tests__/teardown.ts',
@@ -28,12 +27,23 @@ module.exports = {
   workerIdleMemoryLimit: '2048MB',
   transform: {
     '^.+\\.tsx?$': [
-      'ts-jest',
+      '@swc/jest',
       {
-        // do not report type checking errors when running tests
-        // those are visible on build and inside code editor
-        diagnostics: {
-          exclude: ['**'],
+        sourceMaps: true,
+        jsc: {
+          target: 'es2019',
+          parser: {
+            syntax: 'typescript',
+            decorators: true,
+          },
+          transform: {
+            legacyDecorator: true,
+            decoratorMetadata: true,
+          },
+        },
+        module: {
+          type: 'commonjs',
+          lazy: true,
         },
       },
     ],

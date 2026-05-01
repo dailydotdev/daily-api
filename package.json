@@ -163,6 +163,7 @@
     "@faker-js/faker": "^9.8.0",
     "@fastify/static": "^9.0.0",
     "@swc/core": "^1.15.8",
+    "@swc/jest": "^0.2.39",
     "@types/express": "^5.0.6",
     "@types/humanize-duration": "^3.27.4",
     "@types/jest": "^29.5.14",
