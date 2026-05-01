@@ -8,6 +8,7 @@ const REQUIRED_REGULAR_QUESTS: Record<QuestType, number> = {
   [QuestType.Daily]: 2,
   [QuestType.Weekly]: 1,
   [QuestType.Milestone]: 0,
+  [QuestType.Intro]: 0,
 };
 
 const REQUIRED_PLUS_QUESTS = 1;

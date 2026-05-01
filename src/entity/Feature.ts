@@ -5,6 +5,7 @@ export enum FeatureType {
   Team = 'team',
   Squad = 'squad',
   Search = 'search',
+  Standup = 'standup',
 }
 
 export enum FeatureValue {

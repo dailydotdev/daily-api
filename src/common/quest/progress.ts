@@ -16,6 +16,7 @@ import { syncMilestoneQuestProgress } from './milestone';
 type QuestTarget = {
   rotationId: string;
   targetCount: number;
+  type: QuestType;
 };
 
 type QuestProgressUpdateResult = {
@@ -58,7 +59,7 @@ const getQuestTargetsByEventType = async ({
 }): Promise<QuestTarget[]> => {
   const rotations = await con.getRepository(QuestRotation).find({
     where: {
-      type: In([QuestType.Daily, QuestType.Weekly]),
+      type: In([QuestType.Daily, QuestType.Weekly, QuestType.Intro]),
       periodStart: LessThanOrEqual(now),
       periodEnd: MoreThan(now),
     },
@@ -97,6 +98,7 @@ const getQuestTargetsByEventType = async ({
       questTargets.push({
         rotationId,
         targetCount,
+        type: quest.type,
       });
     }
   }
@@ -316,6 +318,10 @@ export const checkQuestProgress = async ({
       if (updateExistingResult.didUpdate) {
         didUpdate = true;
         didCompleteQuest = didCompleteQuest || updateExistingResult.didComplete;
+        continue;
+      }
+
+      if (target.type === QuestType.Intro) {
         continue;
       }
 

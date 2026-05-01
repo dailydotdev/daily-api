@@ -312,10 +312,6 @@ export const workers: Worker[] = [
     subscription: 'api.post-added-user-notification',
   },
   {
-    topic: 'api.v1.post-visible',
-    subscription: 'api.agentic-digest-tweet',
-  },
-  {
     topic: 'api.v1.post-highlighted',
     subscription: 'api.major-highlight-tweet',
   },
@@ -454,6 +450,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.candidate-accepted-opportunity',
     subscription: 'api.recruiter-new-candidate-notification',
+  },
+  {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.major-headline-added-notification',
   },
   {
     topic: 'gondul.v1.candidate-application-scored',

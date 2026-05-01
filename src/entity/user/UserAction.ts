@@ -13,6 +13,7 @@ export enum UserActionType {
   FetchedSmartTitle = 'fetched_smart_title',
   CheckedCoresRole = 'checked_cores_role',
   GeneratedBrief = 'generated_brief',
+  DismissedMajorHeadlinesAlertsBanner = 'dismissed_major_headlines_alerts_banner',
 }
 
 @Entity()

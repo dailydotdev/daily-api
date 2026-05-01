@@ -1154,6 +1154,51 @@ describe('streak recover query', () => {
   });
 });
 
+describe('joinHackathon mutation', () => {
+  const MUTATION = `
+    mutation JoinHackathon {
+      joinHackathon {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: {} },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should set hackathonParticipant flag on the user', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, { variables: {} });
+
+    expect(res.errors).toBeFalsy();
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.flags?.hackathonParticipant).toBe(true);
+  });
+
+  it('should be idempotent and preserve other flags', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { flags: { trustScore: 1 } });
+
+    const first = await client.mutate(MUTATION, { variables: {} });
+    const second = await client.mutate(MUTATION, { variables: {} });
+
+    expect(first.errors).toBeFalsy();
+    expect(second.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.flags?.hackathonParticipant).toBe(true);
+    expect(user?.flags?.trustScore).toBe(1);
+  });
+});
+
 describe('clearImage mutation', () => {
   const MUTATION = `
     mutation ClearUserImage($presets: [UploadPreset]!) {

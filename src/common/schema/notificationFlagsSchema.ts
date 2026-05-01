@@ -55,4 +55,5 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.RecruiterExternalPayment]: notificationPreferenceSchema,
   [NotificationType.AchievementUnlocked]: notificationPreferenceSchema,
   [NotificationType.DigestReady]: notificationPreferenceSchema,
+  [NotificationType.MajorHeadlineAdded]: notificationPreferenceSchema,
 });

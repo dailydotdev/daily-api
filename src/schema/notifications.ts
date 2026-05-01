@@ -377,12 +377,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .andWhere(`un."userId" = :user`, { user: ctx.userId })
             .andWhere(`un."public" = true`)
             .andWhere(`(un."showAt" IS NULL OR un."showAt" <= NOW())`)
-            .addOrderBy(`un."createdAt"`, 'DESC');
+            .addOrderBy(`COALESCE(un."showAt", un."createdAt")`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
+              `COALESCE(un."showAt", un."createdAt") < :timestamp`,
               { timestamp: page.timestamp },
             );
           }

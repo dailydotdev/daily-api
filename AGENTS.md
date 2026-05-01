@@ -43,6 +43,10 @@ The migration generator compares entities against the local database schema. Ens
 
 **After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
 
+**Migration SQL best practices:**
+- **Never use `CONCURRENTLY`** in migrations — TypeORM runs migrations inside a transaction, and `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONCURRENTLY` cannot run inside a transaction.
+- **Always use `IF NOT EXISTS`** for `CREATE INDEX` and **`IF EXISTS`** for `DROP INDEX` to make migrations idempotent and safe to re-run.
+
 **Building & Testing:**
 
 - `pnpm run build` - Compile TypeScript to build directory

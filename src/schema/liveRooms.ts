@@ -11,6 +11,7 @@ import {
   LiveRoomStatus,
 } from '../common/schema/liveRooms';
 import { NotFoundError } from '../errors';
+import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { LiveRoom } from '../entity/LiveRoom';
 import graphorm from '../graphorm';
 import { getFlytingClient } from '../integrations/flyting/client';
@@ -39,6 +40,7 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    participantCount: Int
     host: User!
   }
 
@@ -100,8 +102,43 @@ const assertCanEndRoom = ({
 }: {
   ctx: Context;
   room: LiveRoom;
-}): void => {
+}): Promise<void> => {
   if (room.hostId === ctx.userId || ctx.roles.includes(Roles.Moderator)) {
+    return Promise.resolve();
+  }
+
+  if (room.status === LiveRoomStatus.Live) {
+    return getFlytingClient()
+      .getParticipantPrivileges({
+        participantId: getJoinParticipantId(ctx),
+        roomId: room.id,
+      })
+      .then((privileges) => {
+        if (privileges?.hasHostPrivileges) {
+          return;
+        }
+
+        throw new ForbiddenError('Access denied!');
+      });
+  }
+
+  throw new ForbiddenError('Access denied!');
+};
+
+const assertCanCreateRoom = async ({
+  ctx,
+}: {
+  ctx: Context;
+}): Promise<void> => {
+  const hasStandupAccess = await ctx.con.getRepository(Feature).exists({
+    where: {
+      userId: ctx.userId,
+      feature: FeatureType.Standup,
+      value: FeatureValue.Allow,
+    },
+  });
+
+  if (hasStandupAccess) {
     return;
   }
 
@@ -171,6 +208,19 @@ const assertJoinAllowedByFlyting = async ({
 };
 
 export const resolvers: IResolvers = {
+  LiveRoom: {
+    participantCount: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<number | null> => {
+      if (room.status !== LiveRoomStatus.Live) {
+        return null;
+      }
+
+      return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
+    },
+  },
   Query: {
     liveRoom: async (
       _,
@@ -230,6 +280,7 @@ export const resolvers: IResolvers = {
       ctx: Context,
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
+      await assertCanCreateRoom({ ctx });
       const roomRepo = ctx.con.getRepository(LiveRoom);
       const room = await roomRepo.save(
         roomRepo.create({
@@ -269,7 +320,7 @@ export const resolvers: IResolvers = {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
 
-      assertCanEndRoom({ ctx, room });
+      await assertCanEndRoom({ ctx, room });
 
       if (room.status === LiveRoomStatus.Ended) {
         return graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
