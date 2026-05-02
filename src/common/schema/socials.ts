@@ -126,6 +126,7 @@ const PLATFORM_DOMAINS: Record<string, string> = {
   'bitbucket.org': 'bitbucket',
   'kaggle.com': 'kaggle',
   'medium.com': 'medium',
+  'substack.com': 'substack',
 };
 
 /**
@@ -243,6 +244,9 @@ export function extractHandleFromUrl(
         return pathname.replace(/^\/profile\//, '') || null;
       case 'medium':
         // https://medium.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'substack':
+        // https://substack.com/@username
         return pathname.replace(/^\/@?/, '') || null;
       case 'mastodon':
         // Full URL is stored for mastodon
