@@ -556,7 +556,7 @@ const claimQuestReward = async ({
   }
 
   if (userQuest.status === UserQuestStatus.Claimed || userQuest.claimedAt) {
-    throw new ValidationError('Quest reward was already claimed');
+    throw new ValidationError('This quest reward has already been claimed.');
   }
 
   if (userQuest.status !== UserQuestStatus.Completed) {

@@ -192,7 +192,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         await repo.update(devCard.id, { background: backgroundImage });
       } else if (url) {
         if (!isValidHttpUrl(url)) {
-          throw new ValidationError('Invalid url');
+          throw new ValidationError('Invalid URL');
         }
         await repo.update(devCard.id, { background: url });
       }

@@ -2372,7 +2372,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       );
       if (!res[0]) {
-        throw new ForbiddenError('user not found');
+        throw new ForbiddenError('User not found');
       }
       return res[0];
     },

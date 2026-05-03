@@ -248,7 +248,7 @@ describe('collectionUpdated worker', () => {
     expect(notification).toMatchObject({
       type: 'collection_updated',
       icon: 'Bell',
-      title: '<b>My collection</b> collection has been updated',
+      title: 'The <b>My collection</b> collection has been updated',
       description: null,
       targetUrl: 'http://localhost:5002/posts/cup1',
       public: true,

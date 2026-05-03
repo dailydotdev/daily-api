@@ -128,7 +128,7 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `<b>${ctx.post.title}</b> collection has been updated`,
+    `The <b>${ctx.post.title}</b> collection has been updated`,
   dev_card_unlocked: () => 'Your DevCard is ready to generate',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
     `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
@@ -203,14 +203,14 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New job match waiting for you`,
+  new_opportunity_match: () => `A new job match is waiting for you`,
   rematched_opportunity: () =>
     `You've been re-matched based on updated job requirements`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post reached ${formatMetricValue(ctx.analytics.impressions)} impressions`;
   },
   poll_result: (ctx: NotificationPostContext) =>
-    `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
+    `<b>The poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>

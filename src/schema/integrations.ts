@@ -399,7 +399,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           existingUserIntegration &&
           existingUserIntegration.userId !== slackIntegration.userId
         ) {
-          throw new ConflictError('source already connected to a channel');
+          throw new ConflictError(
+            'This source is already connected to a channel.',
+          );
         }
       }
 
@@ -418,7 +420,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           throw new Error(channelResult.error);
         }
       } catch {
-        throw new ValidationError('invalid channel');
+        throw new ValidationError('Invalid channel');
       }
 
       const record: Partial<UserSourceIntegrationSlack> = {
