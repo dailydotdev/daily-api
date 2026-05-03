@@ -43,6 +43,12 @@ export class LiveRoom {
   @Column({ type: 'text' })
   topic: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionHtml: string | null;
+
   @Column({ type: 'text' })
   mode: z.infer<typeof liveRoomModeSchema>;
 
@@ -54,4 +60,7 @@ export class LiveRoom {
 
   @Column({ type: 'timestamptz', nullable: true })
   endedAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledStart: Date | null;
 }

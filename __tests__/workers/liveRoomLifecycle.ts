@@ -1,6 +1,9 @@
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { LiveRoom } from '../../src/entity/LiveRoom';
+import { LiveRoomSubscription } from '../../src/entity/LiveRoomSubscription';
+import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { User } from '../../src/entity/user/User';
 import {
   LiveRoomLifecycleEventType,
@@ -10,14 +13,23 @@ import { saveFixtures, expectSuccessfulTypedBackground } from '../helpers';
 import { usersFixture } from '../fixture/user';
 import { liveRoomStartedWorker } from '../../src/workers/liveRoomStarted';
 import { liveRoomEndedWorker } from '../../src/workers/liveRoomEnded';
+import nock from 'nock';
+import { NotificationType } from '../../src/notifications/common';
+
+const flytingOrigin = 'http://flyting.test';
+const flytingInternalKey = 'flyting-internal-key';
 
 let con: DataSource;
 
 beforeAll(async () => {
+  process.env.COMMENTS_PREFIX = 'http://localhost:5002';
+  process.env.FLYTING_INTERNAL_KEY = flytingInternalKey;
+  process.env.FLYTING_ORIGIN = flytingOrigin;
   con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
+  nock.cleanAll();
   await saveFixtures(con, User, usersFixture);
 });
 
@@ -50,6 +62,131 @@ describe('live room lifecycle workers', () => {
     expect(room.status).toBe(LiveRoomStatus.Live);
     expect(room.startedAt?.toISOString()).toBe('2026-04-23T15:00:00.000Z');
   });
+
+  it('notifies disconnected subscribers and hard deletes room subscriptions when the room starts', async () => {
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        hostId: '1',
+        topic: 'Scheduled lobby',
+        mode: 'moderated',
+        status: LiveRoomStatus.Created,
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+      },
+    ]);
+    await saveFixtures(con, LiveRoomSubscription, [
+      {
+        roomId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        userId: '2',
+      },
+      {
+        roomId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        userId: '3',
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/7250df5f-f9e0-4b47-898a-fbb975695e83/connected-users',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        userIds: ['3'],
+      });
+
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
+      liveRoomStartedWorker,
+      {
+        eventId: '9e56ed30-440f-40ef-bb0b-59e8d871a30a',
+        roomId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        occurredAt: '2026-05-05T15:01:00.000Z',
+        type: LiveRoomLifecycleEventType.RoomStarted,
+      },
+    );
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneByOrFail({
+        referenceId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+        referenceType: 'live_room',
+        type: NotificationType.LiveRoomStarted,
+      });
+    expect(notification.targetUrl).toBe(
+      'http://localhost:5002/live/7250df5f-f9e0-4b47-898a-fbb975695e83',
+    );
+
+    const userNotifications = await con.getRepository(UserNotification).findBy({
+      notificationId: notification.id,
+    });
+    expect(userNotifications.map(({ userId }) => userId)).toEqual(['2']);
+    expect(
+      await con.getRepository(LiveRoomSubscription).countBy({
+        roomId: '7250df5f-f9e0-4b47-898a-fbb975695e83',
+      }),
+    ).toBe(0);
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('still marks the room live when connected user lookup fails', async () => {
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+        hostId: '1',
+        topic: 'Lookup failure lobby',
+        mode: 'moderated',
+        status: LiveRoomStatus.Created,
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+      },
+    ]);
+    await saveFixtures(con, LiveRoomSubscription, [
+      {
+        roomId: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+        userId: '2',
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/82ed4745-7c98-47be-a393-bc639bc6fb13/connected-users',
+      )
+      .times(6)
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(500, { message: 'boom' });
+
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
+      liveRoomStartedWorker,
+      {
+        eventId: '2781c769-4f0b-4461-a4fd-e77af54e75cb',
+        roomId: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+        occurredAt: '2026-05-05T15:01:00.000Z',
+        type: LiveRoomLifecycleEventType.RoomStarted,
+      },
+    );
+
+    const room = await con.getRepository(LiveRoom).findOneByOrFail({
+      id: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+    });
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneByOrFail({
+        referenceId: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+        referenceType: 'live_room',
+        type: NotificationType.LiveRoomStarted,
+      });
+    const userNotifications = await con.getRepository(UserNotification).findBy({
+      notificationId: notification.id,
+    });
+
+    expect(room.status).toBe(LiveRoomStatus.Live);
+    expect(userNotifications.map(({ userId }) => userId)).toEqual(['2']);
+    expect(
+      await con.getRepository(LiveRoomSubscription).countBy({
+        roomId: '82ed4745-7c98-47be-a393-bc639bc6fb13',
+      }),
+    ).toBe(0);
+    expect(scope.isDone()).toBe(true);
+  }, 10000);
 
   it('marks a room ended when an ended event arrives', async () => {
     await saveFixtures(con, LiveRoom, [

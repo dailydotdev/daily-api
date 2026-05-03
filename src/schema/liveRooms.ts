@@ -1,8 +1,15 @@
 import type { IResolvers } from '@graphql-tools/utils';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import type { GraphQLResolveInfo } from 'graphql';
 import type { Context } from '../Context';
 import { toGQLEnum } from '../common';
 import { createLiveRoomJoinToken } from '../common/liveRoom/token';
+import {
+  deleteContentEmbedsByParent,
+  MAX_LIVE_ROOM_CONTENT_EMBEDS,
+  replaceContentEmbeds,
+} from '../common/contentEmbeds';
+import { renderMarkdown } from '../common/markdown';
 import {
   createLiveRoomSchema,
   LiveRoomMode,
@@ -10,9 +17,11 @@ import {
   liveRoomIdInputSchema,
   LiveRoomStatus,
 } from '../common/schema/liveRooms';
+import { ContentEmbed, ContentEmbedParentType } from '../entity/ContentEmbed';
 import { NotFoundError } from '../errors';
 import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { LiveRoom } from '../entity/LiveRoom';
+import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import graphorm from '../graphorm';
 import { getFlytingClient } from '../integrations/flyting/client';
 import { AbortError, HttpError } from '../integrations/retry';
@@ -40,6 +49,11 @@ export const typeDefs = /* GraphQL */ `
     status: LiveRoomStatus!
     startedAt: DateTime
     endedAt: DateTime
+    scheduledStart: DateTime
+    description: String
+    descriptionHtml: String
+    subscribed: Boolean!
+    contentEmbeds: [ContentEmbed!]!
     participantCount: Int
     host: User!
   }
@@ -54,6 +68,8 @@ export const typeDefs = /* GraphQL */ `
     topic: String!
     mode: LiveRoomMode = moderated
     speakerLimit: Int
+    scheduledStart: DateTime
+    description: String
   }
 
   extend type Query {
@@ -65,6 +81,8 @@ export const typeDefs = /* GraphQL */ `
     createLiveRoom(input: CreateLiveRoomInput!): LiveRoomJoinToken! @auth
     endLiveRoom(roomId: ID!): LiveRoom! @auth
     liveRoomJoinToken(roomId: ID!): LiveRoomJoinToken!
+    subscribeToLiveRoom(roomId: ID!): LiveRoom! @auth
+    unsubscribeFromLiveRoom(roomId: ID!): LiveRoom! @auth
   }
 `;
 
@@ -150,11 +168,13 @@ const createJoinTokenPayload = async ({
   room,
   participantId,
   role,
+  userId,
 }: {
   authKind: 'anonymous' | 'authenticated';
   room: LiveRoom;
   participantId: string;
   role: LiveRoomParticipantRole;
+  userId?: string | null;
 }): Promise<GQLLiveRoomJoinToken> => {
   const secret = process.env.FLYTING_JOIN_TOKEN_SECRET;
   if (!secret) {
@@ -167,6 +187,7 @@ const createJoinTokenPayload = async ({
     role,
     roomId: room.id,
     secret,
+    userId: authKind === 'authenticated' ? (userId ?? undefined) : undefined,
   });
 
   return {
@@ -207,6 +228,24 @@ const assertJoinAllowedByFlyting = async ({
   throw new ValidationError('Cannot join this live room');
 };
 
+const assertCanSubscribeToRoom = (room: LiveRoom): void => {
+  if (room.status !== LiveRoomStatus.Created || !room.scheduledStart) {
+    throw new ValidationError('Cannot subscribe to this live room');
+  }
+};
+
+const queryLiveRoomById = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  roomId: string,
+): Promise<GQLLiveRoom> =>
+  graphorm.queryOneOrFail<GQLLiveRoom>(ctx, info, (builder) => {
+    builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+      id: roomId,
+    });
+    return builder;
+  });
+
 export const resolvers: IResolvers = {
   LiveRoom: {
     participantCount: async (
@@ -220,6 +259,30 @@ export const resolvers: IResolvers = {
 
       return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
     },
+    subscribed: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<boolean> => {
+      if (!ctx.userId) {
+        return false;
+      }
+
+      return ctx.con.getRepository(LiveRoomSubscription).existsBy({
+        roomId: room.id,
+        userId: ctx.userId,
+      });
+    },
+    contentEmbeds: async (room: GQLLiveRoom, _, ctx: Context) =>
+      ctx.con.getRepository(ContentEmbed).find({
+        where: {
+          parentId: room.id,
+          parentType: ContentEmbedParentType.LiveRoom,
+        },
+        order: {
+          sortOrder: 'ASC',
+        },
+      }),
   },
   Query: {
     liveRoom: async (
@@ -272,8 +335,10 @@ export const resolvers: IResolvers = {
       _,
       args: {
         input: {
+          description?: string | null;
           mode: LiveRoomMode;
           speakerLimit?: number;
+          scheduledStart?: string | null;
           topic: string;
         };
       },
@@ -281,15 +346,33 @@ export const resolvers: IResolvers = {
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
       await assertCanCreateRoom({ ctx });
+      const description = input.description || null;
+      const renderedDescription = description
+        ? renderMarkdown(description)
+        : null;
       const roomRepo = ctx.con.getRepository(LiveRoom);
       const room = await roomRepo.save(
         roomRepo.create({
+          description,
+          descriptionHtml: renderedDescription?.contentHtml ?? null,
           hostId: ctx.userId,
           mode: input.mode,
+          scheduledStart: input.scheduledStart ?? null,
           topic: input.topic,
           status: LiveRoomStatus.Created,
         }),
       );
+
+      if (description) {
+        await replaceContentEmbeds({
+          con: ctx.con,
+          parentType: ContentEmbedParentType.LiveRoom,
+          parentId: room.id,
+          content: description,
+          tokens: renderedDescription?.tokens,
+          limit: MAX_LIVE_ROOM_CONTENT_EMBEDS,
+        });
+      }
 
       try {
         await getFlytingClient().prepareRoom({
@@ -299,7 +382,14 @@ export const resolvers: IResolvers = {
         });
       } catch (error) {
         if (shouldDeleteRoomAfterPrepareFailure(error)) {
-          await roomRepo.delete({ id: room.id });
+          await ctx.con.transaction(async (manager) => {
+            await deleteContentEmbedsByParent({
+              con: manager,
+              parentType: ContentEmbedParentType.LiveRoom,
+              parentIds: [room.id],
+            });
+            await manager.getRepository(LiveRoom).delete({ id: room.id });
+          });
         }
         throw error;
       }
@@ -309,6 +399,7 @@ export const resolvers: IResolvers = {
         room,
         participantId: getJoinParticipantId(ctx),
         role: LiveRoomParticipantRole.Host,
+        userId: ctx.userId,
       });
     },
     endLiveRoom: async (
@@ -381,7 +472,47 @@ export const resolvers: IResolvers = {
         room,
         participantId,
         role,
+        userId: ctx.userId,
       });
+    },
+    subscribeToLiveRoom: async (
+      _,
+      args: { roomId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLLiveRoom> => {
+      const input = liveRoomIdInputSchema.parse(args);
+      const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
+      assertCanSubscribeToRoom(room);
+
+      await ctx.con
+        .getRepository(LiveRoomSubscription)
+        .createQueryBuilder()
+        .insert()
+        .values({
+          roomId: room.id,
+          userId: ctx.userId,
+        })
+        .orIgnore()
+        .execute();
+
+      return queryLiveRoomById(ctx, info, room.id);
+    },
+    unsubscribeFromLiveRoom: async (
+      _,
+      args: { roomId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLLiveRoom> => {
+      const input = liveRoomIdInputSchema.parse(args);
+      const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
+
+      await ctx.con.getRepository(LiveRoomSubscription).delete({
+        roomId: room.id,
+        userId: ctx.userId,
+      });
+
+      return queryLiveRoomById(ctx, info, room.id);
     },
   },
 };

@@ -56,4 +56,5 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.AchievementUnlocked]: notificationPreferenceSchema,
   [NotificationType.DigestReady]: notificationPreferenceSchema,
   [NotificationType.MajorHeadlineAdded]: notificationPreferenceSchema,
+  [NotificationType.LiveRoomStarted]: notificationPreferenceSchema,
 });

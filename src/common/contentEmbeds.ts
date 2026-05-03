@@ -11,6 +11,7 @@ import { markdown } from './markdown';
 
 export const MAX_POST_CONTENT_EMBEDS = 10;
 export const MAX_COMMENT_CONTENT_EMBEDS = 3;
+export const MAX_LIVE_ROOM_CONTENT_EMBEDS = 10;
 
 const DLY_TO_REDIRECT_LIMIT = 5;
 const DLY_TO_RESOLVE_TIMEOUT_MS = 1500;

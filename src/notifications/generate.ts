@@ -41,6 +41,7 @@ import {
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
   type NotificationMajorHeadlineContext,
+  type NotificationLiveRoomContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -244,6 +245,8 @@ export const notificationTitleMap: Record<
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
   major_headline_added: (ctx: NotificationMajorHeadlineContext) =>
     `<b>${ctx.headline}</b>`,
+  live_room_started: (ctx: NotificationLiveRoomContext) =>
+    `<b>${ctx.room.topic}</b> is live`,
 };
 
 export const generateNotificationMap: Record<
@@ -769,4 +772,13 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost)
       .uniqueKey(ctx.post.id),
+  live_room_started: (
+    builder: NotificationBuilder,
+    ctx: NotificationLiveRoomContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceLiveRoom(ctx.room.id)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/live/${ctx.room.id}`)
+      .uniqueKey(ctx.room.id),
 };

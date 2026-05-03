@@ -2481,6 +2481,22 @@ const obj = new GraphORM({
       endedAt: {
         transform: transformDate,
       },
+      scheduledStart: {
+        transform: transformDate,
+      },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."parentType" = :embedLiveRoomParent`, {
+                embedLiveRoomParent: ContentEmbedParentType.LiveRoom,
+              }),
+        },
+      },
       host: {
         relation: {
           isMany: false,

@@ -193,6 +193,32 @@ export class FlytingClient {
       throw new HttpError(response.url, response.status, await response.text());
     });
   }
+
+  async getConnectedUsers(input: { roomId: string }): Promise<{
+    roomId: string;
+    userIds: string[];
+  }> {
+    return this.garmr.execute(async () => {
+      const response = await retryFetch(
+        `${this.url}/internal/live-rooms/${encodeURIComponent(
+          input.roomId,
+        )}/connected-users`,
+        {
+          ...this.fetchOptions,
+          method: 'GET',
+          headers: {
+            'x-flyting-internal-key': this.internalApiKey,
+          },
+        },
+      );
+
+      if (response.ok) {
+        return response.json();
+      }
+
+      throw new HttpError(response.url, response.status, await response.text());
+    });
+  }
 }
 
 const garmrFlytingService = new GarmrService({
