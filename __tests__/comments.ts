@@ -22,6 +22,7 @@ import {
   SourceType,
   User,
 } from '../src/entity';
+import { ContentEmbed } from '../src/entity/ContentEmbed';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -967,6 +968,98 @@ describe('mutation commentOnPost', () => {
     expect(post.comments).toEqual(6);
   });
 
+  it('should extract standalone post links as content embeds', async () => {
+    loggedUser = '1';
+    const firstUrl = 'http://localhost:5002/posts/p2';
+    const secondUrl = 'http://localhost:5002/posts/p3';
+    const secondLink = `[related](${secondUrl})`;
+    const content = `check these\n\n${firstUrl}\n\n${secondLink}`;
+    const mutation = `
+      mutation CommentOnPost($postId: ID!, $content: String!) {
+        commentOnPost(postId: $postId, content: $content) {
+          id
+          contentEmbeds {
+            url
+            referenceType
+            referenceId
+            sortOrder
+            startOffset
+            endOffset
+            post {
+              id
+              title
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(mutation, {
+      variables: { postId: 'p1', content },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentOnPost.contentEmbeds).toEqual([
+      {
+        url: firstUrl,
+        referenceType: 'post',
+        referenceId: 'p2',
+        sortOrder: 0,
+        startOffset: content.indexOf(firstUrl),
+        endOffset: content.indexOf(firstUrl) + firstUrl.length,
+        post: {
+          id: 'p2',
+          title: 'P2',
+        },
+      },
+      {
+        url: secondUrl,
+        referenceType: 'post',
+        referenceId: 'p3',
+        sortOrder: 1,
+        startOffset: content.indexOf('[related]'),
+        endOffset: content.indexOf(secondLink) + secondLink.length,
+        post: {
+          id: 'p3',
+          title: 'P3',
+        },
+      },
+    ]);
+  });
+
+  it('should extract inline markdown post links as content embeds', async () => {
+    loggedUser = '1';
+    const url = 'http://localhost:5002/posts/p2';
+    const link = `[${url}](${url})`;
+    const content = `hello world ${link}`;
+    const mutation = `
+      mutation CommentOnPost($postId: ID!, $content: String!) {
+        commentOnPost(postId: $postId, content: $content) {
+          contentEmbeds {
+            url
+            referenceId
+            startOffset
+            endOffset
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(mutation, {
+      variables: { postId: 'p1', content },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentOnPost.contentEmbeds).toEqual([
+      {
+        url,
+        referenceId: 'p2',
+        startOffset: content.indexOf(link),
+        endOffset: content.indexOf(link) + link.length,
+      },
+    ]);
+  });
+
   it('should comment markdown on a post with user mention', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
@@ -1463,6 +1556,30 @@ describe('mutation deleteComment', () => {
     );
   });
 
+  it('should delete comment content embeds', async () => {
+    loggedUser = '1';
+    const editMutation = `
+      mutation EditComment($id: ID!, $content: String!) {
+        editComment(id: $id, content: $content) {
+          id
+        }
+      }
+    `;
+
+    await client.mutate(editMutation, {
+      variables: {
+        id: 'c2',
+        content: 'http://localhost:5002/posts/p2',
+      },
+    });
+    expect(await con.getRepository(ContentEmbed).count()).toEqual(1);
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'c2' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(await con.getRepository(ContentEmbed).count()).toEqual(0);
+  });
+
   it('should delete a comment and its children', async () => {
     loggedUser = '1';
     const before = await con.getRepository(Comment).findBy({ postId: 'p1' });
@@ -1610,6 +1727,35 @@ describe('mutation editComment', () => {
       lastUpdatedAt: expect.any(String),
       content: 'Edit',
     });
+  });
+
+  it('should replace content embeds when editing a comment', async () => {
+    loggedUser = '1';
+    const linkedContent = 'http://localhost:5002/posts/p2';
+    const mutation = `
+      mutation EditComment($id: ID!, $content: String!) {
+        editComment(id: $id, content: $content) {
+          id
+          contentEmbeds {
+            referenceId
+          }
+        }
+      }
+    `;
+
+    const linked = await client.mutate(mutation, {
+      variables: { id: 'c2', content: linkedContent },
+    });
+    expect(linked.errors).toBeFalsy();
+    expect(linked.data.editComment.contentEmbeds).toEqual([
+      { referenceId: 'p2' },
+    ]);
+
+    const unlinked = await client.mutate(mutation, {
+      variables: { id: 'c2', content: 'Edit' },
+    });
+    expect(unlinked.errors).toBeFalsy();
+    expect(unlinked.data.editComment.contentEmbeds).toEqual([]);
   });
 
   describe('vordr', () => {

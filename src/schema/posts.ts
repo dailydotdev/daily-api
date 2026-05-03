@@ -111,7 +111,12 @@ import {
 } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
-import { markdown, saveMentions } from '../common/markdown';
+import { renderMarkdown, saveMentions } from '../common/markdown';
+import {
+  MAX_POST_CONTENT_EMBEDS,
+  replaceContentEmbeds,
+} from '../common/contentEmbeds';
+import { ContentEmbed, ContentEmbedParentType } from '../entity/ContentEmbed';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
@@ -209,6 +214,7 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+  contentEmbeds?: ContentEmbed[];
   downvoted?: boolean;
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
@@ -777,6 +783,11 @@ export const typeDefs = /* GraphQL */ `
     contentHtml: String
 
     """
+    Embeds extracted from standalone links in the post body.
+    """
+    contentEmbeds: [ContentEmbed!]!
+
+    """
     Whether the user downvoted this post
     """
     downvoted: Boolean
@@ -926,6 +937,17 @@ export const typeDefs = /* GraphQL */ `
     The original query in case of a search operation
     """
     query: String
+  }
+
+  type ContentEmbed {
+    id: ID!
+    referenceType: String!
+    referenceId: String!
+    url: String!
+    sortOrder: Int!
+    startOffset: Int!
+    endOffset: Int!
+    post: Post
   }
 
   type LinkPreview {
@@ -2588,7 +2610,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
-        await deletePost({ con: ctx.con, id, userId: ctx.userId });
+        await ctx.con.transaction(async (manager) => {
+          await deletePost({ con: manager, id, userId: ctx.userId });
+        });
         return { _: true };
       }
 
@@ -2792,7 +2816,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             post.sourceId,
           );
           updated.content = content;
-          updated.contentHtml = markdown.render(content, { mentions });
+          const { contentHtml, tokens } = renderMarkdown(content, { mentions });
+          updated.contentHtml = contentHtml;
           await saveMentions(
             manager,
             post.id,
@@ -2800,6 +2825,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             mentions,
             PostMention,
           );
+          await replaceContentEmbeds({
+            con: manager,
+            parentType: ContentEmbedParentType.Post,
+            parentId: post.id,
+            content,
+            tokens,
+            limit: MAX_POST_CONTENT_EMBEDS,
+          });
         }
 
         if (post.type === PostType.Welcome) {

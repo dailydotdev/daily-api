@@ -68,6 +68,10 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentEmbedParentType,
+  ContentEmbedReferenceType,
+} from '../entity/ContentEmbed';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { UserExperienceType } from '../entity/user/experiences/types';
@@ -586,6 +590,19 @@ const obj = new GraphORM({
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."parentType" = :embedPostParent`, {
+                embedPostParent: ContentEmbedParentType.Post,
+              }),
+        },
+      },
       clickbaitTitleDetected: {
         transform: (_, ctx: Context, parent): boolean => {
           const typedParent = parent as {
@@ -1063,11 +1080,43 @@ const obj = new GraphORM({
       createdAt: { transform: transformDate },
     },
   },
+  ContentEmbed: {
+    requiredColumns: ['id', 'referenceId', 'referenceType'],
+    fields: {
+      post: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."id" = "${parentAlias}"."referenceId"`)
+              .andWhere(`"${parentAlias}"."referenceType" = :embedReference`, {
+                embedReference: ContentEmbedReferenceType.Post,
+              })
+              .andWhere(`"${childAlias}"."deleted" = false`)
+              .andWhere(`"${childAlias}"."visible" = true`)
+              .andWhere(`"${childAlias}"."private" = false`),
+        },
+      },
+    },
+  },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
     fields: {
       createdAt: { transform: transformDate },
       lastUpdatedAt: { transform: transformDate },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."parentType" = :embedCommentParent`, {
+                embedCommentParent: ContentEmbedParentType.Comment,
+              }),
+        },
+      },
       upvoted: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
