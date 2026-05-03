@@ -19,6 +19,9 @@ import {
   BookmarkList,
   clearPostTranslations,
   Comment,
+  ContentEmbed,
+  ContentEmbedParentType,
+  ContentEmbedReferenceType,
   Feed,
   FeedType,
   FreeformPost,
@@ -2048,6 +2051,38 @@ describe('mutation deletePost', () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
     await verifyPostDeleted('p1', loggedUser);
+  });
+
+  it('should delete owned and referenced content embeds', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    await con.getRepository(ContentEmbed).save([
+      {
+        parentType: ContentEmbedParentType.Post,
+        parentId: 'p1',
+        referenceType: ContentEmbedReferenceType.Post,
+        referenceId: 'p2',
+        url: 'http://localhost:5002/posts/p2',
+        sortOrder: 0,
+        startOffset: 0,
+        endOffset: 31,
+      },
+      {
+        parentType: ContentEmbedParentType.Post,
+        parentId: 'p2',
+        referenceType: ContentEmbedReferenceType.Post,
+        referenceId: 'p1',
+        url: 'http://localhost:5002/posts/p1',
+        sortOrder: 0,
+        startOffset: 0,
+        endOffset: 31,
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(await con.getRepository(ContentEmbed).count()).toEqual(0);
   });
 
   it('should do nothing if post is already deleted', async () => {
@@ -5354,6 +5389,135 @@ describe('mutation createFreeformPost', () => {
     expect(res.data.createFreeformPost.contentHtml).toMatchSnapshot();
   });
 
+  it('should extract standalone post links as content embeds', async () => {
+    loggedUser = '1';
+    const content = 'http://localhost:5002/posts/p2';
+    const mutation = /* GraphQL */ `
+      mutation CreateFreeformPost(
+        $sourceId: ID!
+        $title: String!
+        $content: String!
+      ) {
+        createFreeformPost(
+          sourceId: $sourceId
+          title: $title
+          content: $content
+        ) {
+          id
+          contentEmbeds {
+            url
+            referenceType
+            referenceId
+            sortOrder
+            startOffset
+            endOffset
+            post {
+              id
+              title
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(mutation, {
+      variables: { ...params, content },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.contentEmbeds).toEqual([
+      {
+        url: content,
+        referenceType: 'post',
+        referenceId: 'p2',
+        sortOrder: 0,
+        startOffset: 0,
+        endOffset: content.length,
+        post: {
+          id: 'p2',
+          title: 'P2',
+        },
+      },
+    ]);
+  });
+
+  it('should resolve dly.to links as content embeds', async () => {
+    loggedUser = '1';
+    const content = 'https://dly.to/post2';
+    nock('https://dly.to')
+      .head('/post2')
+      .reply(302, undefined, { location: 'http://localhost:5002/posts/p2' });
+    const mutation = /* GraphQL */ `
+      mutation CreateFreeformPost(
+        $sourceId: ID!
+        $title: String!
+        $content: String!
+      ) {
+        createFreeformPost(
+          sourceId: $sourceId
+          title: $title
+          content: $content
+        ) {
+          id
+          contentEmbeds {
+            url
+            referenceType
+            referenceId
+            post {
+              id
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(mutation, {
+      variables: { ...params, content },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.contentEmbeds).toEqual([
+      {
+        url: content,
+        referenceType: 'post',
+        referenceId: 'p2',
+        post: {
+          id: 'p2',
+        },
+      },
+    ]);
+  });
+
+  it('should not extract private post links as content embeds', async () => {
+    loggedUser = '1';
+    const content = 'http://localhost:5002/posts/p6';
+    const mutation = /* GraphQL */ `
+      mutation CreateFreeformPost(
+        $sourceId: ID!
+        $title: String!
+        $content: String!
+      ) {
+        createFreeformPost(
+          sourceId: $sourceId
+          title: $title
+          content: $content
+        ) {
+          id
+          contentEmbeds {
+            referenceId
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(mutation, {
+      variables: { ...params, content },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.contentEmbeds).toEqual([]);
+  });
+
   it('should increment source total posts', async () => {
     loggedUser = '1';
     const sourceId = 'a';
@@ -6777,6 +6941,33 @@ describe('mutation editPost', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.editPost.contentHtml).toMatchSnapshot();
+  });
+
+  it('should replace content embeds when editing a post', async () => {
+    loggedUser = '1';
+    const linkedContent = 'http://localhost:5002/posts/p2';
+    const mutation = /* GraphQL */ `
+      mutation EditPost($id: ID!, $content: String) {
+        editPost(id: $id, content: $content) {
+          id
+          contentEmbeds {
+            referenceId
+          }
+        }
+      }
+    `;
+
+    const linked = await client.mutate(mutation, {
+      variables: { id: 'p1', content: linkedContent },
+    });
+    expect(linked.errors).toBeFalsy();
+    expect(linked.data.editPost.contentEmbeds).toEqual([{ referenceId: 'p2' }]);
+
+    const unlinked = await client.mutate(mutation, {
+      variables: { id: 'p1', content: 'Updated content' },
+    });
+    expect(unlinked.errors).toBeFalsy();
+    expect(unlinked.data.editPost.contentEmbeds).toEqual([]);
   });
 
   it('should allow mention as part of the content', async () => {

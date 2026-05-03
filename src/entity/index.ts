@@ -55,3 +55,4 @@ export * from './ChannelHighlightDefinition';
 export * from './ChannelHighlightRun';
 export * from './Archive';
 export * from './ArchiveItem';
+export * from './ContentEmbed';
