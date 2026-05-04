@@ -2617,7 +2617,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       if (feed.id === ctx.userId) {
-        throw new ForbiddenError("You don't have access to this feed.");
+        throw new ForbiddenError("You can not delete your main feed.");
       }
 
       await feedRepo.delete({
