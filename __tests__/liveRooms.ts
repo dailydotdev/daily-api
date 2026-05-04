@@ -867,6 +867,68 @@ describe('live rooms', () => {
     expect(countsScope.isDone()).toBe(true);
   });
 
+  it('returns an anonymous join token for a scheduled lobby using trackingId identity', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'ab4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Scheduled lobby',
+        mode: 'moderated',
+        status: LiveRoomStatus.Created,
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .get(
+        '/internal/live-rooms/ab4bb4ae-a0af-4310-b1ff-7d6345cb5253/participants/tracking-anon-1/join-eligibility',
+      )
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        roomId: 'ab4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        participantId: 'tracking-anon-1',
+        canJoin: true,
+      });
+
+    const res = await client.mutate(JOIN_TOKEN_MUTATION, {
+      variables: {
+        roomId: 'ab4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.liveRoomJoinToken).toMatchObject({
+      role: 'audience',
+      room: {
+        id: 'ab4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        topic: 'Scheduled lobby',
+        status: 'created',
+        participantCount: null,
+      },
+    });
+
+    const verified = jwt.verify(
+      res.data.liveRoomJoinToken.token,
+      'flyting-join-secret',
+      {
+        algorithms: ['HS256'],
+        audience: 'flyting',
+        issuer: 'daily-api',
+      },
+    );
+
+    expect(verified).toMatchObject({
+      authKind: 'anonymous',
+      iat: expect.any(Number),
+      participantId: 'tracking-anon-1',
+      role: 'audience',
+      roomId: 'ab4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+    });
+    expect(scope.isDone()).toBe(true);
+  });
+
   it('rejects join tokens for ended rooms', async () => {
     loggedUser = '1';
 
@@ -894,7 +956,7 @@ describe('live rooms', () => {
     );
   });
 
-  it('rejects anonymous join tokens for rooms that are not live yet', async () => {
+  it('rejects anonymous join tokens for unscheduled rooms that are not live yet', async () => {
     loggedTrackingId = 'tracking-anon-1';
 
     await saveFixtures(con, LiveRoom, [
@@ -916,7 +978,7 @@ describe('live rooms', () => {
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
-      'Anonymous viewers can only join when the room is live',
+      'Anonymous viewers can only join live rooms or scheduled lobbies',
     );
   });
 
@@ -1231,5 +1293,41 @@ describe('live rooms', () => {
       },
     });
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('returns a scheduled lobby by id for an anonymous caller', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '53e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        hostId: '2',
+        topic: 'Public scheduled lobby',
+        mode: 'moderated',
+        status: LiveRoomStatus.Created,
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(GET_QUERY, {
+      variables: {
+        id: '53e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      liveRoom: {
+        id: '53e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        topic: 'Public scheduled lobby',
+        mode: 'moderated',
+        status: 'created',
+        participantCount: null,
+        host: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
+    });
   });
 });
