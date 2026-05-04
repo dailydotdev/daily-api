@@ -92,6 +92,10 @@ const pushHeadingFnMap: Partial<
     const match = title.match(/<b>([^<]+)<\/b>/);
     return match ? `${match[1]} commented` : 'New comment';
   },
+  [NotificationType.LiveRoomStarted]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} is live` : 'Room is live';
+  },
 };
 
 const getPushHeading = (type: string, title?: string): string => {

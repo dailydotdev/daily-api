@@ -246,7 +246,7 @@ export const notificationTitleMap: Record<
   major_headline_added: (ctx: NotificationMajorHeadlineContext) =>
     `<b>${ctx.headline}</b>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
-    `<b>${ctx.room.topic}</b> is live`,
+    `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
 };
 
 export const generateNotificationMap: Record<

@@ -113,6 +113,9 @@ describe('live room lifecycle workers', () => {
         referenceType: 'live_room',
         type: NotificationType.LiveRoomStarted,
       });
+    expect(notification.title).toBe(
+      '<b>Ido</b> is live: <b>Scheduled lobby</b>',
+    );
     expect(notification.targetUrl).toBe(
       'http://localhost:5002/standups/7250df5f-f9e0-4b47-898a-fbb975695e83',
     );
