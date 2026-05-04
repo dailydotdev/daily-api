@@ -341,26 +341,23 @@ const resolveDigestFeedConfigName = async ({
   feature: PersonalizedDigestFeatureConfig;
   logger: FastifyBaseLogger;
 }): Promise<FeedConfigName> => {
-  if (feature.feedConfig !== FeedConfigName.DigestCsV1) {
-    return feature.feedConfig as FeedConfigName;
-  }
-
   try {
     const profile = await personalizedDigestSnotraClient.getUserProfile({
       user_id: personalizedDigest.userId,
       providers: { personalise: {} },
     });
 
-    return profile.personalise.state === PersonaliseState.NonPersonalised
-      ? FeedConfigName.DigestCsV1
-      : FeedConfigName.DigestV2;
+    if (profile.personalise.state === PersonaliseState.NonPersonalised) {
+      return FeedConfigName.DigestCsV1;
+    }
   } catch (err) {
     logger.error(
       { err, personalizedDigest },
-      'failed to fetch snotra user profile for digest, falling back to digest_v2',
+      'failed to fetch snotra user profile for digest',
     );
-    return FeedConfigName.DigestV2;
   }
+
+  return feature.feedConfig as FeedConfigName;
 };
 
 export type DigestEmailPayloadResult = {
