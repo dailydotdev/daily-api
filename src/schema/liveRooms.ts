@@ -236,6 +236,10 @@ const assertCanSubscribeToRoom = (room: LiveRoom): void => {
   }
 };
 
+const isAnonymousJoinableRoom = (room: LiveRoom): boolean =>
+  room.status === LiveRoomStatus.Live ||
+  (room.status === LiveRoomStatus.Created && !!room.scheduledStart);
+
 const queryLiveRoomById = (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -286,9 +290,10 @@ export const resolvers: IResolvers = {
           });
           if (!ctx.userId) {
             builder.queryBuilder.andWhere(
-              `"${builder.alias}"."status" = :status`,
+              `("${builder.alias}"."status" = :liveStatus OR ("${builder.alias}"."status" = :createdStatus AND "${builder.alias}"."scheduledStart" IS NOT NULL))`,
               {
-                status: LiveRoomStatus.Live,
+                createdStatus: LiveRoomStatus.Created,
+                liveStatus: LiveRoomStatus.Live,
               },
             );
           }
@@ -437,9 +442,9 @@ export const resolvers: IResolvers = {
       }
 
       const authKind = ctx.userId ? 'authenticated' : 'anonymous';
-      if (authKind === 'anonymous' && room.status !== LiveRoomStatus.Live) {
+      if (authKind === 'anonymous' && !isAnonymousJoinableRoom(room)) {
         throw new ValidationError(
-          'Anonymous viewers can only join when the room is live',
+          'Anonymous viewers can only join live rooms or scheduled lobbies',
         );
       }
 
