@@ -779,6 +779,7 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Bell)
       .referenceLiveRoom(ctx.room.id)
-      .targetUrl(`${process.env.COMMENTS_PREFIX}/live/${ctx.room.id}`)
+      .avatarUser(ctx.host)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/standups/${ctx.room.id}`)
       .uniqueKey(ctx.room.id),
 };

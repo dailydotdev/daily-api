@@ -231,6 +231,7 @@ export type NotificationMajorHeadlineContext = NotificationPostContext & {
 };
 
 export type NotificationLiveRoomContext = NotificationBaseContext & {
+  host: Reference<User>;
   room: Reference<LiveRoom>;
 };
 

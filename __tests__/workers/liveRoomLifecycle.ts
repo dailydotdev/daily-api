@@ -3,6 +3,7 @@ import createOrGetConnection from '../../src/db';
 import { LiveRoom } from '../../src/entity/LiveRoom';
 import { LiveRoomSubscription } from '../../src/entity/LiveRoomSubscription';
 import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
+import { NotificationAvatarV2 } from '../../src/entity/notifications/NotificationAvatarV2';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { User } from '../../src/entity/user/User';
 import {
@@ -113,8 +114,17 @@ describe('live room lifecycle workers', () => {
         type: NotificationType.LiveRoomStarted,
       });
     expect(notification.targetUrl).toBe(
-      'http://localhost:5002/live/7250df5f-f9e0-4b47-898a-fbb975695e83',
+      'http://localhost:5002/standups/7250df5f-f9e0-4b47-898a-fbb975695e83',
     );
+    const avatars = await con.getRepository(NotificationAvatarV2).findBy({
+      id: notification.avatars[0],
+    });
+    expect(avatars).toMatchObject([
+      {
+        referenceId: '1',
+        type: 'user',
+      },
+    ]);
 
     const userNotifications = await con.getRepository(UserNotification).findBy({
       notificationId: notification.id,

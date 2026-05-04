@@ -3,6 +3,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { Context } from '../Context';
 import { toGQLEnum } from '../common';
+import { GQLEmptyResponse } from './common';
 import { createLiveRoomJoinToken } from '../common/liveRoom/token';
 import {
   deleteContentEmbedsByParent,
@@ -17,7 +18,7 @@ import {
   liveRoomIdInputSchema,
   LiveRoomStatus,
 } from '../common/schema/liveRooms';
-import { ContentEmbed, ContentEmbedParentType } from '../entity/ContentEmbed';
+import { ContentEmbedParentType } from '../entity/ContentEmbed';
 import { NotFoundError } from '../errors';
 import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { LiveRoom } from '../entity/LiveRoom';
@@ -81,8 +82,8 @@ export const typeDefs = /* GraphQL */ `
     createLiveRoom(input: CreateLiveRoomInput!): LiveRoomJoinToken! @auth
     endLiveRoom(roomId: ID!): LiveRoom! @auth
     liveRoomJoinToken(roomId: ID!): LiveRoomJoinToken!
-    subscribeToLiveRoom(roomId: ID!): LiveRoom! @auth
-    unsubscribeFromLiveRoom(roomId: ID!): LiveRoom! @auth
+    subscribeToLiveRoom(roomId: ID!): EmptyResponse! @auth
+    unsubscribeFromLiveRoom(roomId: ID!): EmptyResponse! @auth
   }
 `;
 
@@ -248,6 +249,14 @@ const queryLiveRoomById = (
   });
 
 export const resolvers: IResolvers = {
+  LiveRoomJoinToken: {
+    room: (
+      payload: GQLLiveRoomJoinToken,
+      _,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLLiveRoom> => queryLiveRoomById(ctx, info, payload.room.id),
+  },
   LiveRoom: {
     participantCount: async (
       room: GQLLiveRoom,
@@ -260,30 +269,6 @@ export const resolvers: IResolvers = {
 
       return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
     },
-    subscribed: async (
-      room: GQLLiveRoom,
-      _,
-      ctx: Context,
-    ): Promise<boolean> => {
-      if (!ctx.userId) {
-        return false;
-      }
-
-      return ctx.con.getRepository(LiveRoomSubscription).existsBy({
-        roomId: room.id,
-        userId: ctx.userId,
-      });
-    },
-    contentEmbeds: async (room: GQLLiveRoom, _, ctx: Context) =>
-      ctx.con.getRepository(ContentEmbed).find({
-        where: {
-          parentId: room.id,
-          parentType: ContentEmbedParentType.LiveRoom,
-        },
-        order: {
-          sortOrder: 'ASC',
-        },
-      }),
   },
   Query: {
     liveRoom: async (
@@ -478,8 +463,7 @@ export const resolvers: IResolvers = {
       _,
       args: { roomId: string },
       ctx: Context,
-      info,
-    ): Promise<GQLLiveRoom> => {
+    ): Promise<GQLEmptyResponse> => {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
       assertCanSubscribeToRoom(room);
@@ -495,14 +479,13 @@ export const resolvers: IResolvers = {
         .orIgnore()
         .execute();
 
-      return queryLiveRoomById(ctx, info, room.id);
+      return { _: true };
     },
     unsubscribeFromLiveRoom: async (
       _,
       args: { roomId: string },
       ctx: Context,
-      info,
-    ): Promise<GQLLiveRoom> => {
+    ): Promise<GQLEmptyResponse> => {
       const input = liveRoomIdInputSchema.parse(args);
       const room = await getRoomOrThrow({ roomId: input.roomId, ctx });
 
@@ -511,7 +494,7 @@ export const resolvers: IResolvers = {
         userId: ctx.userId,
       });
 
-      return queryLiveRoomById(ctx, info, room.id);
+      return { _: true };
     },
   },
 };

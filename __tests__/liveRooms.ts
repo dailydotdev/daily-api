@@ -144,6 +144,15 @@ describe('live rooms', () => {
     }
   `;
 
+  const SUBSCRIBED_QUERY = /* GraphQL */ `
+    query LiveRoomSubscribed($id: ID!) {
+      liveRoom(id: $id) {
+        id
+        subscribed
+      }
+    }
+  `;
+
   const JOIN_TOKEN_MUTATION = /* GraphQL */ `
     mutation LiveRoomJoinToken($roomId: ID!) {
       liveRoomJoinToken(roomId: $roomId) {
@@ -178,8 +187,7 @@ describe('live rooms', () => {
   const SUBSCRIBE_MUTATION = /* GraphQL */ `
     mutation SubscribeToLiveRoom($roomId: ID!) {
       subscribeToLiveRoom(roomId: $roomId) {
-        id
-        subscribed
+        _
       }
     }
   `;
@@ -187,8 +195,7 @@ describe('live rooms', () => {
   const UNSUBSCRIBE_MUTATION = /* GraphQL */ `
     mutation UnsubscribeFromLiveRoom($roomId: ID!) {
       unsubscribeFromLiveRoom(roomId: $roomId) {
-        id
-        subscribed
+        _
       }
     }
   `;
@@ -749,7 +756,13 @@ describe('live rooms', () => {
       },
     });
     expect(subscribed.errors).toBeFalsy();
-    expect(subscribed.data.subscribeToLiveRoom.subscribed).toBe(true);
+    expect(subscribed.data.subscribeToLiveRoom._).toBe(true);
+    const subscribedRoom = await client.query(SUBSCRIBED_QUERY, {
+      variables: {
+        id: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(subscribedRoom.data.liveRoom.subscribed).toBe(true);
     expect(
       await con.getRepository(LiveRoomSubscription).countBy({
         roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
@@ -763,7 +776,13 @@ describe('live rooms', () => {
       },
     });
     expect(unsubscribed.errors).toBeFalsy();
-    expect(unsubscribed.data.unsubscribeFromLiveRoom.subscribed).toBe(false);
+    expect(unsubscribed.data.unsubscribeFromLiveRoom._).toBe(true);
+    const unsubscribedRoom = await client.query(SUBSCRIBED_QUERY, {
+      variables: {
+        id: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(unsubscribedRoom.data.liveRoom.subscribed).toBe(false);
     expect(
       await con.getRepository(LiveRoomSubscription).countBy({
         roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
