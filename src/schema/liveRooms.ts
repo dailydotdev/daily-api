@@ -438,7 +438,9 @@ export const resolvers: IResolvers = {
 
       const authKind = ctx.userId ? 'authenticated' : 'anonymous';
       if (authKind === 'anonymous' && room.status !== LiveRoomStatus.Live) {
-        throw new ValidationError('Anonymous viewers can only join live rooms');
+        throw new ValidationError(
+          'Anonymous viewers can only join when the room is live',
+        );
       }
 
       const role =
