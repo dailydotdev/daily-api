@@ -242,20 +242,13 @@ export const syncMilestoneQuestProgress = async ({
     const currentValue = currentValueByEventType.get(quest.eventType) ?? 0;
     const targetCount = toSafeTargetCount(quest.criteria?.targetCount);
     const existingUserQuest = existingQuestByRotationId.get(rotation.id);
-    const terminalProgress =
-      existingUserQuest?.status === UserQuestStatus.Completed ||
+    const isClaimed =
       existingUserQuest?.status === UserQuestStatus.Claimed ||
-      !!existingUserQuest?.completedAt ||
-      !!existingUserQuest?.claimedAt
-        ? targetCount
-        : 0;
+      !!existingUserQuest?.claimedAt;
+    const claimedFloor = isClaimed ? targetCount : 0;
     const nextProgress = Math.min(
       targetCount,
-      Math.max(
-        terminalProgress,
-        toSafeProgress(existingUserQuest?.progress ?? 0),
-        toSafeProgress(currentValue),
-      ),
+      Math.max(claimedFloor, toSafeProgress(currentValue)),
     );
     const isCompleted = nextProgress >= targetCount;
     const nextStatus =
@@ -264,8 +257,9 @@ export const syncMilestoneQuestProgress = async ({
         : isCompleted
           ? UserQuestStatus.Completed
           : UserQuestStatus.InProgress;
-    const nextCompletedAt =
-      existingUserQuest?.completedAt ?? (isCompleted ? now : null);
+    const nextCompletedAt = isCompleted
+      ? (existingUserQuest?.completedAt ?? now)
+      : null;
 
     if (existingUserQuest) {
       const shouldUpdate =

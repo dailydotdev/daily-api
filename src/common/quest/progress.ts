@@ -46,7 +46,7 @@ const toSafeTargetCount = (targetCount?: number): number =>
   Math.max(1, Math.floor(targetCount ?? 1));
 
 const toSafeIncrement = (incrementBy: number): number =>
-  Math.max(0, Math.floor(incrementBy));
+  Math.trunc(incrementBy);
 
 const getQuestTargetsByEventType = async ({
   con,
@@ -280,7 +280,7 @@ export const checkQuestProgress = async ({
   now?: Date;
 }): Promise<boolean> => {
   const safeIncrement = toSafeIncrement(incrementBy);
-  if (!safeIncrement) {
+  if (safeIncrement === 0) {
     return false;
   }
 
@@ -322,6 +322,10 @@ export const checkQuestProgress = async ({
       }
 
       if (target.type === QuestType.Intro) {
+        continue;
+      }
+
+      if (safeIncrement < 0) {
         continue;
       }
 

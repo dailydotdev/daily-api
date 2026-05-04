@@ -689,4 +689,300 @@ describe('checkQuestProgress', () => {
 
     expect(logger.error).toHaveBeenCalled();
   });
+
+  describe('negative increments (reverse actions)', () => {
+    const seedDailyUpvoteQuest = async (now: Date) => {
+      const periodStart = new Date(now.getTime() - 60 * 60 * 1000);
+      const periodEnd = new Date(now.getTime() + 60 * 60 * 1000);
+
+      await saveFixtures(con, Quest, [
+        {
+          id: questIds[0],
+          name: 'Daily upvotes',
+          description: 'Upvote 5 posts',
+          type: QuestType.Daily,
+          eventType: QuestEventType.PostUpvote,
+          criteria: { targetCount: 5 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: rotationIds[0],
+          questId: questIds[0],
+          type: QuestType.Daily,
+          plusOnly: false,
+          slot: 1,
+          periodStart,
+          periodEnd,
+        },
+      ]);
+    };
+
+    it('should decrement an in-progress quest', async () => {
+      const now = new Date();
+      const logger = createMockLogger();
+      await seedDailyUpvoteQuest(now);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[0],
+          userId,
+          progress: 3,
+          status: UserQuestStatus.InProgress,
+        },
+      ]);
+
+      const didUpdate = await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.PostUpvote,
+        incrementBy: -1,
+        now,
+      });
+
+      expect(didUpdate).toBe(true);
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(2);
+      expect(userQuest.status).toBe(UserQuestStatus.InProgress);
+    });
+
+    it('should clamp progress to 0 on decrement', async () => {
+      const now = new Date();
+      const logger = createMockLogger();
+      await seedDailyUpvoteQuest(now);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[0],
+          userId,
+          progress: 0,
+          status: UserQuestStatus.InProgress,
+        },
+      ]);
+
+      await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.PostUpvote,
+        incrementBy: -3,
+        now,
+      });
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(0);
+      expect(userQuest.status).toBe(UserQuestStatus.InProgress);
+    });
+
+    it('should not decrement completed quests (terminal protection)', async () => {
+      const now = new Date();
+      const logger = createMockLogger();
+      await seedDailyUpvoteQuest(now);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[0],
+          userId,
+          progress: 5,
+          status: UserQuestStatus.Completed,
+          completedAt: now,
+        },
+      ]);
+
+      const didUpdate = await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.PostUpvote,
+        incrementBy: -1,
+        now,
+      });
+
+      expect(didUpdate).toBe(false);
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(5);
+      expect(userQuest.status).toBe(UserQuestStatus.Completed);
+    });
+
+    it('should not decrement claimed quests', async () => {
+      const now = new Date();
+      const logger = createMockLogger();
+      await seedDailyUpvoteQuest(now);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[0],
+          userId,
+          progress: 5,
+          status: UserQuestStatus.Claimed,
+          completedAt: now,
+          claimedAt: now,
+        },
+      ]);
+
+      const didUpdate = await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.PostUpvote,
+        incrementBy: -1,
+        now,
+      });
+
+      expect(didUpdate).toBe(false);
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(5);
+      expect(userQuest.status).toBe(UserQuestStatus.Claimed);
+    });
+
+    it('should not insert a new UserQuest row on decrement', async () => {
+      const now = new Date();
+      const logger = createMockLogger();
+      await seedDailyUpvoteQuest(now);
+
+      const didUpdate = await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.PostUpvote,
+        incrementBy: -1,
+        now,
+      });
+
+      expect(didUpdate).toBe(false);
+
+      const userQuests = await con.getRepository(UserQuest).find({
+        where: { userId, rotationId: rotationIds[0] },
+      });
+      expect(userQuests).toHaveLength(0);
+    });
+
+    it('milestone progress tracks current value when not claimed', async () => {
+      const now = new Date();
+      const milestonePeriodStart = new Date('2026-03-25T00:00:00.000Z');
+      const milestonePeriodEnd = new Date('9999-12-31T23:59:59.000Z');
+
+      await saveFixtures(con, Quest, [
+        {
+          id: questIds[3],
+          name: 'Bring a friend',
+          description: 'Refer 5 users',
+          type: QuestType.Milestone,
+          eventType: QuestEventType.ReferralCount,
+          criteria: { targetCount: 5 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: rotationIds[3],
+          questId: questIds[3],
+          type: QuestType.Milestone,
+          plusOnly: false,
+          slot: 1,
+          periodStart: milestonePeriodStart,
+          periodEnd: milestonePeriodEnd,
+        },
+      ]);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[3],
+          userId,
+          progress: 4,
+          status: UserQuestStatus.InProgress,
+        },
+      ]);
+
+      const didUpdate = await syncMilestoneQuestProgress({
+        con,
+        userId,
+        eventType: QuestEventType.ReferralCount,
+        now,
+      });
+
+      expect(didUpdate).toBe(true);
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(0);
+      expect(userQuest.status).toBe(UserQuestStatus.InProgress);
+    });
+
+    it('milestone progress stays pinned for claimed quests', async () => {
+      const now = new Date();
+      const milestonePeriodStart = new Date('2026-03-25T00:00:00.000Z');
+      const milestonePeriodEnd = new Date('9999-12-31T23:59:59.000Z');
+
+      await saveFixtures(con, Quest, [
+        {
+          id: questIds[3],
+          name: 'Bring a friend',
+          description: 'Refer 5 users',
+          type: QuestType.Milestone,
+          eventType: QuestEventType.ReferralCount,
+          criteria: { targetCount: 5 },
+          active: true,
+        },
+      ]);
+
+      await saveFixtures(con, QuestRotation, [
+        {
+          id: rotationIds[3],
+          questId: questIds[3],
+          type: QuestType.Milestone,
+          plusOnly: false,
+          slot: 1,
+          periodStart: milestonePeriodStart,
+          periodEnd: milestonePeriodEnd,
+        },
+      ]);
+
+      await saveFixtures(con, UserQuest, [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          rotationId: rotationIds[3],
+          userId,
+          progress: 5,
+          status: UserQuestStatus.Claimed,
+          completedAt: now,
+          claimedAt: now,
+        },
+      ]);
+
+      await syncMilestoneQuestProgress({
+        con,
+        userId,
+        eventType: QuestEventType.ReferralCount,
+        now,
+      });
+
+      const userQuest = await con.getRepository(UserQuest).findOneByOrFail({
+        id: '88888888-8888-4888-8888-888888888888',
+      });
+      expect(userQuest.progress).toBe(5);
+      expect(userQuest.status).toBe(UserQuestStatus.Claimed);
+    });
+  });
 });
