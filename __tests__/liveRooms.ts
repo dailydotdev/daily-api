@@ -759,7 +759,7 @@ describe('live rooms', () => {
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
-      'Anonymous viewers can only join live rooms',
+      'Anonymous viewers can only join when the room is live',
     );
   });
 
