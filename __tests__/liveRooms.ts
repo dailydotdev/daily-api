@@ -725,7 +725,6 @@ describe('live rooms', () => {
       participantId: '1',
       role: 'host',
       roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
-      userId: '1',
     });
     expect(scope.isDone()).toBe(true);
   });

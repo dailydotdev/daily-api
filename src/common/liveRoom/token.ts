@@ -13,7 +13,6 @@ export const createLiveRoomJoinToken = async (input: {
   role: LiveRoomParticipantRole;
   authKind?: 'authenticated' | 'anonymous';
   roomId: string;
-  userId?: string;
   audience?: string;
   expiresInSeconds?: number;
   issuer?: string;
@@ -30,7 +29,6 @@ export const createLiveRoomJoinToken = async (input: {
       role: input.role,
       authKind: input.authKind ?? 'authenticated',
       roomId: input.roomId,
-      userId: input.userId,
     },
     input.secret,
     {

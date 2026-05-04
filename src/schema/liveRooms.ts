@@ -168,13 +168,11 @@ const createJoinTokenPayload = async ({
   room,
   participantId,
   role,
-  userId,
 }: {
   authKind: 'anonymous' | 'authenticated';
   room: LiveRoom;
   participantId: string;
   role: LiveRoomParticipantRole;
-  userId?: string | null;
 }): Promise<GQLLiveRoomJoinToken> => {
   const secret = process.env.FLYTING_JOIN_TOKEN_SECRET;
   if (!secret) {
@@ -187,7 +185,6 @@ const createJoinTokenPayload = async ({
     role,
     roomId: room.id,
     secret,
-    userId: authKind === 'authenticated' ? (userId ?? undefined) : undefined,
   });
 
   return {
@@ -198,6 +195,10 @@ const createJoinTokenPayload = async ({
 };
 
 const getJoinParticipantId = (ctx: Context): string => {
+  if (ctx.userId) {
+    return ctx.userId;
+  }
+
   if (!ctx.trackingId) {
     throw new ValidationError('Tracking ID is required to join a live room');
   }
@@ -399,7 +400,6 @@ export const resolvers: IResolvers = {
         room,
         participantId: getJoinParticipantId(ctx),
         role: LiveRoomParticipantRole.Host,
-        userId: ctx.userId,
       });
     },
     endLiveRoom: async (
@@ -472,7 +472,6 @@ export const resolvers: IResolvers = {
         room,
         participantId,
         role,
-        userId: ctx.userId,
       });
     },
     subscribeToLiveRoom: async (
