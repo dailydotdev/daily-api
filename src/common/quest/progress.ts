@@ -179,7 +179,7 @@ const updateExistingUserQuestProgress = async ({
   now: Date;
 }): Promise<QuestProgressUpdateResult> => {
   const boundedProgressExpression =
-    'least(:targetCount, greatest(0, "progress") + :safeIncrement)';
+    'least(:targetCount, greatest(0, "progress" + :safeIncrement))';
 
   const updateResult = await con
     .createQueryBuilder()
