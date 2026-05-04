@@ -9,6 +9,7 @@ import {
 export enum ContentEmbedParentType {
   Post = 'post',
   Comment = 'comment',
+  LiveRoom = 'live_room',
 }
 
 export enum ContentEmbedReferenceType {

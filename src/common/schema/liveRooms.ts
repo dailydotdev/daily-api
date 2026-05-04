@@ -52,8 +52,10 @@ export const liveRoomLifecycleEventTypeSchema = z.enum(
 export const createLiveRoomSchema = z
   .object({
     topic: z.string().trim().min(1).max(280),
+    description: z.string().trim().max(20_000).optional().nullable(),
     mode: liveRoomModeSchema.default(LiveRoomMode.Moderated),
     speakerLimit: liveRoomSpeakerLimitSchema.optional(),
+    scheduledStart: z.coerce.date().optional().nullable(),
   })
   .superRefine((input, ctx) => {
     if (

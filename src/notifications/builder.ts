@@ -241,6 +241,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceLiveRoom(roomId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: roomId,
+      referenceType: 'live_room',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }

@@ -74,6 +74,7 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SourcePostSubmitted]: 'Post pending review',
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
   [NotificationType.MajorHeadlineAdded]: 'Happening now',
+  [NotificationType.LiveRoomStarted]: 'Room is live',
 };
 
 const pushHeadingFnMap: Partial<
@@ -90,6 +91,10 @@ const pushHeadingFnMap: Partial<
   [NotificationType.ArticleNewComment]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);
     return match ? `${match[1]} commented` : 'New comment';
+  },
+  [NotificationType.LiveRoomStarted]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} is live` : 'Room is live';
   },
 };
 

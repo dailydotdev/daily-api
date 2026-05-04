@@ -89,6 +89,7 @@ export enum NotificationType {
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
   MajorHeadlineAdded = 'major_headline_added',
+  LiveRoomStarted = 'live_room_started',
 }
 
 export enum NotificationPreferenceType {
@@ -318,7 +319,11 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.MajorHeadlineAdded]: {
     email: NotificationPreferenceStatus.Muted,
-    inApp: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.LiveRoomStarted]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
   },
 };
 

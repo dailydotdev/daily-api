@@ -3,7 +3,14 @@ import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Feature, FeatureType, FeatureValue } from '../src/entity/Feature';
+import {
+  ContentEmbed,
+  ContentEmbedParentType,
+} from '../src/entity/ContentEmbed';
 import { LiveRoom } from '../src/entity/LiveRoom';
+import { LiveRoomSubscription } from '../src/entity/LiveRoomSubscription';
+import { Post } from '../src/entity/posts/Post';
+import { Source } from '../src/entity/Source';
 import { StorageKey, StorageTopic } from '../src/config';
 import {
   disposeGraphQLTesting,
@@ -18,6 +25,8 @@ import { usersFixture } from './fixture/user';
 import { User } from '../src/entity/user/User';
 import { LiveRoomStatus } from '../src/common/schema/liveRooms';
 import { deleteKeysByPattern } from '../src/redis';
+import { postsFixture } from './fixture/post';
+import { sourcesFixture } from './fixture/source';
 
 const flytingOrigin = 'http://flyting.test';
 const flytingInternalKey = 'flyting-internal-key';
@@ -85,6 +94,15 @@ describe('live rooms', () => {
           mode
           status
           participantCount
+          scheduledStart
+          description
+          descriptionHtml
+          subscribed
+          contentEmbeds {
+            referenceId
+            url
+            sortOrder
+          }
           host {
             id
             username
@@ -126,6 +144,15 @@ describe('live rooms', () => {
     }
   `;
 
+  const SUBSCRIBED_QUERY = /* GraphQL */ `
+    query LiveRoomSubscribed($id: ID!) {
+      liveRoom(id: $id) {
+        id
+        subscribed
+      }
+    }
+  `;
+
   const JOIN_TOKEN_MUTATION = /* GraphQL */ `
     mutation LiveRoomJoinToken($roomId: ID!) {
       liveRoomJoinToken(roomId: $roomId) {
@@ -153,6 +180,22 @@ describe('live rooms', () => {
         status
         endedAt
         participantCount
+      }
+    }
+  `;
+
+  const SUBSCRIBE_MUTATION = /* GraphQL */ `
+    mutation SubscribeToLiveRoom($roomId: ID!) {
+      subscribeToLiveRoom(roomId: $roomId) {
+        _
+      }
+    }
+  `;
+
+  const UNSUBSCRIBE_MUTATION = /* GraphQL */ `
+    mutation UnsubscribeFromLiveRoom($roomId: ID!) {
+      unsubscribeFromLiveRoom(roomId: $roomId) {
+        _
       }
     }
   `;
@@ -358,9 +401,61 @@ describe('live rooms', () => {
     expect(rooms).toHaveLength(1);
   }, 10000);
 
+  it('creates a scheduled lobby with markdown description and post embeds', async () => {
+    loggedUser = '1';
+    await grantStandupAccess(loggedUser);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, [postsFixture[0]]);
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'moderated',
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, { room: { roomId: 'ignored' } });
+
+    const res = await client.mutate(CREATE_MUTATION, {
+      variables: {
+        input: {
+          topic: 'Scheduled GraphQL and SFUs',
+          mode: 'moderated',
+          scheduledStart: '2026-05-05T15:00:00.000Z',
+          description:
+            'Review [this post](http://localhost:5002/posts/p1) before we start.',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createLiveRoom.room).toMatchObject({
+      scheduledStart: '2026-05-05T15:00:00.000Z',
+      description:
+        'Review [this post](http://localhost:5002/posts/p1) before we start.',
+      descriptionHtml:
+        '<p>Review <a href="http://localhost:5002/posts/p1" target="_blank" rel="noopener nofollow">this post</a> before we start.</p>\n',
+      contentEmbeds: [
+        {
+          referenceId: 'p1',
+          url: 'http://localhost:5002/posts/p1',
+          sortOrder: 0,
+        },
+      ],
+    });
+
+    const roomId = res.data.createLiveRoom.room.id;
+    const embeds = await con.getRepository(ContentEmbed).findBy({
+      parentId: roomId,
+      parentType: ContentEmbedParentType.LiveRoom,
+    });
+    expect(embeds).toHaveLength(1);
+    expect(scope.isDone()).toBe(true);
+  }, 10000);
+
   it('removes the durable room when prepare fails definitively', async () => {
     loggedUser = '1';
     await grantStandupAccess(loggedUser);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, [postsFixture[0]]);
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
@@ -374,6 +469,8 @@ describe('live rooms', () => {
         input: {
           topic: 'Invalid prepare',
           mode: 'moderated',
+          description:
+            'Review [this post](http://localhost:5002/posts/p1) before we start.',
         },
       },
     });
@@ -387,6 +484,11 @@ describe('live rooms', () => {
 
     expect(scope.isDone()).toBe(true);
     expect(rooms).toHaveLength(0);
+    expect(
+      await con.getRepository(ContentEmbed).countBy({
+        parentType: ContentEmbedParentType.LiveRoom,
+      }),
+    ).toBe(0);
   });
 
   it('returns only live rooms', async () => {
@@ -632,6 +734,61 @@ describe('live rooms', () => {
       roomId: 'f44bb4ae-a0af-4310-b1ff-7d6345cb5253',
     });
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('subscribes and unsubscribes from scheduled lobby notifications', async () => {
+    loggedUser = '2';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Scheduled room',
+        mode: 'moderated',
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+        status: LiveRoomStatus.Created,
+      },
+    ]);
+
+    const subscribed = await client.mutate(SUBSCRIBE_MUTATION, {
+      variables: {
+        roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(subscribed.errors).toBeFalsy();
+    expect(subscribed.data.subscribeToLiveRoom._).toBe(true);
+    const subscribedRoom = await client.query(SUBSCRIBED_QUERY, {
+      variables: {
+        id: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(subscribedRoom.data.liveRoom.subscribed).toBe(true);
+    expect(
+      await con.getRepository(LiveRoomSubscription).countBy({
+        roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        userId: '2',
+      }),
+    ).toBe(1);
+
+    const unsubscribed = await client.mutate(UNSUBSCRIBE_MUTATION, {
+      variables: {
+        roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(unsubscribed.errors).toBeFalsy();
+    expect(unsubscribed.data.unsubscribeFromLiveRoom._).toBe(true);
+    const unsubscribedRoom = await client.query(SUBSCRIBED_QUERY, {
+      variables: {
+        id: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+      },
+    });
+    expect(unsubscribedRoom.data.liveRoom.subscribed).toBe(false);
+    expect(
+      await con.getRepository(LiveRoomSubscription).countBy({
+        roomId: 'cd4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        userId: '2',
+      }),
+    ).toBe(0);
   });
 
   it('returns an anonymous join token for a live room using trackingId identity', async () => {

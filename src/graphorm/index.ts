@@ -72,6 +72,7 @@ import {
   ContentEmbedParentType,
   ContentEmbedReferenceType,
 } from '../entity/ContentEmbed';
+import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { UserExperienceType } from '../entity/user/experiences/types';
@@ -2480,6 +2481,40 @@ const obj = new GraphORM({
       },
       endedAt: {
         transform: transformDate,
+      },
+      scheduledStart: {
+        transform: transformDate,
+      },
+      subscribed: {
+        select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
+          if (!ctx.userId) {
+            return 'FALSE';
+          }
+
+          const query = qb
+            .select('1')
+            .from(LiveRoomSubscription, 'lrs')
+            .where(`lrs."roomId" = ${alias}.id`)
+            .andWhere(`lrs."userId" = :liveRoomSubscriptionUserId`, {
+              liveRoomSubscriptionUserId: ctx.userId,
+            })
+            .limit(1);
+
+          return `EXISTS${query.getQuery()}`;
+        },
+      },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"::text`)
+              .andWhere(`"${childAlias}"."parentType" = :embedLiveRoomParent`, {
+                embedLiveRoomParent: ContentEmbedParentType.LiveRoom,
+              }),
+        },
       },
       host: {
         relation: {
