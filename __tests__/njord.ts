@@ -184,6 +184,17 @@ describe('award user mutation', () => {
         balance: { amount: expect.any(Number) },
       },
     });
+
+    const { transactionId } = res.data.award;
+    const transaction = await con.getRepository(UserTransaction).findOneOrFail({
+      where: { id: transactionId },
+    });
+
+    expect(transaction.referenceType).toEqual(UserTransactionType.User);
+    expect(transaction.referenceId).toEqual('t-awum-2');
+    expect(transaction.senderId).toEqual('t-awum-1');
+    expect(transaction.receiverId).toEqual('t-awum-2');
+    expect(transaction.status).toEqual(UserTransactionStatus.Success);
   });
 
   it('should not award when user does not have access to cores', async () => {

@@ -46,6 +46,9 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
+import { personalizedDigestSnotraClient } from '../../src/common/personalizedDigest';
+import { PersonaliseState } from '../../src/integrations/snotra/types';
+import { FeedConfigName } from '../../src/integrations/feed/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -1189,6 +1192,79 @@ describe('personalizedDigestEmail worker', () => {
     expect(nockBody).toMatchSnapshot({
       date_from: expect.any(String),
       date_to: expect.any(String),
+    });
+  });
+
+  describe('digest cold start', () => {
+    const passthroughConfig = {
+      templateId: '48',
+      maxPosts: 5,
+      feedConfig: 'passthrough_config',
+    };
+
+    it('should use digest_cs_v1 when snotra reports user is non_personalised', async () => {
+      const spy = jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockResolvedValue({
+          personalise: { state: PersonaliseState.NonPersonalised },
+        });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+        config: passthroughConfig,
+      });
+
+      expect(spy).toHaveBeenCalledWith({
+        user_id: '1',
+        providers: { personalise: {} },
+      });
+      expect(nockBody.feed_config_name).toBe(FeedConfigName.DigestCsV1);
+    });
+
+    it('should passthrough feature.feedConfig when snotra reports any state other than non_personalised', async () => {
+      jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockResolvedValue({
+          personalise: { state: PersonaliseState.Personalised },
+        });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+        config: passthroughConfig,
+      });
+
+      expect(nockBody.feed_config_name).toBe('passthrough_config');
+    });
+
+    it('should passthrough feature.feedConfig when snotra call fails', async () => {
+      jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockRejectedValue(new Error('snotra down'));
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+        config: passthroughConfig,
+      });
+
+      expect(nockBody.feed_config_name).toBe('passthrough_config');
     });
   });
 

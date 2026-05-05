@@ -3,12 +3,17 @@ import createOrGetConnection from '../../src/db';
 import { ChannelDigest } from '../../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
-import { AGENTS_DIGEST_SOURCE } from '../../src/entity/Source';
+import { AGENTS_DIGEST_SOURCE, UNKNOWN_SOURCE } from '../../src/entity/Source';
 import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../../src/entity/PostHighlight';
-import { ArticlePost, CollectionPost, Source } from '../../src/entity';
+import {
+  ArticlePost,
+  CollectionPost,
+  SharePost,
+  Source,
+} from '../../src/entity';
 import {
   PostRelation,
   PostRelationType,
@@ -100,6 +105,41 @@ const saveCollection = async ({
     contentMeta: {
       channels: [channel],
     },
+  });
+
+const saveShare = async ({
+  id,
+  sharedPostId,
+  createdAt,
+  sourceId = 'content-source',
+  title = 'Shared story',
+  upvotes = 0,
+  private: isPrivate = false,
+}: {
+  id: string;
+  sharedPostId: string;
+  createdAt: Date;
+  sourceId?: string;
+  title?: string;
+  upvotes?: number;
+  private?: boolean;
+}) =>
+  con.getRepository(SharePost).save({
+    id,
+    shortId: id,
+    title,
+    sourceId,
+    sharedPostId,
+    createdAt,
+    metadataChangedAt: createdAt,
+    statsUpdatedAt: createdAt,
+    visible: true,
+    deleted: false,
+    banned: false,
+    private: isPrivate,
+    showOnFeed: true,
+    upvotes,
+    type: PostType.Share,
   });
 
 describe('generateChannelHighlight worker', () => {
@@ -456,6 +496,82 @@ describe('generateChannelHighlight worker', () => {
     expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
   });
 
+  it('should send recent retired highlights to the evaluator while excluding resurfaced stories', async () => {
+    const now = new Date('2026-03-03T12:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveCollection({
+      id: 'collection-1',
+      title: 'Collection story',
+      createdAt: new Date('2026-03-03T11:50:00.000Z'),
+    });
+    await saveArticle({
+      id: 'retired-child',
+      title: 'Retired child story',
+      createdAt: new Date('2026-03-03T11:20:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-child',
+      title: 'Fresh child story',
+      createdAt: new Date('2026-03-03T11:55:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-stand-1',
+      title: 'Fresh standalone story',
+      createdAt: new Date('2026-03-03T11:58:00.000Z'),
+    });
+    await con.getRepository(PostRelation).save([
+      {
+        postId: 'collection-1',
+        relatedPostId: 'retired-child',
+        type: PostRelationType.Collection,
+      },
+      {
+        postId: 'collection-1',
+        relatedPostId: 'fresh-child',
+        type: PostRelationType.Collection,
+      },
+    ]);
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'retired-child',
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Retired child headline',
+      significance: PostHighlightSignificance.Notable,
+      retiredAt: new Date('2026-03-03T11:40:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'collection-1',
+        headline: 'Retired child headline',
+      }),
+    ]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-stand-1',
+        title: 'Fresh standalone story',
+      }),
+    ]);
+  });
+
   it('should ignore posts from channel digest sources for highlights', async () => {
     const now = new Date('2026-03-03T11:50:00.000Z');
     await con
@@ -473,8 +589,6 @@ describe('generateChannelHighlight worker', () => {
       channel: 'vibes',
       targetAudience: 'Digest readers',
       frequency: 'daily',
-      includeSentiment: false,
-      sentimentGroupIds: [],
       enabled: true,
     });
     await con.getRepository(ChannelHighlightDefinition).save({
@@ -641,6 +755,196 @@ describe('generateChannelHighlight worker', () => {
         postId: 'fresh-1',
         title: 'Fresh candidate',
         relatedItemsCount: 1,
+      }),
+    ]);
+  });
+
+  it('should replace unknown-source candidates with the most upvoted public share before evaluation', async () => {
+    const now = new Date('2026-03-03T12:40:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await con
+      .getRepository(Source)
+      .save(
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+          undefined,
+          true,
+        ),
+      );
+    await saveArticle({
+      id: 'unk-orig-1',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Unknown source story',
+      createdAt: new Date('2026-03-03T12:20:00.000Z'),
+    });
+    await saveShare({
+      id: 'pub-share-1',
+      sharedPostId: 'unk-orig-1',
+      createdAt: new Date('2026-03-03T12:26:00.000Z'),
+      upvotes: 25,
+    });
+    await saveShare({
+      id: 'pub-share-2',
+      sharedPostId: 'unk-orig-1',
+      createdAt: new Date('2026-03-03T12:25:00.000Z'),
+      upvotes: 50,
+    });
+    await saveShare({
+      id: 'priv-share1',
+      sharedPostId: 'unk-orig-1',
+      createdAt: new Date('2026-03-03T12:27:00.000Z'),
+      upvotes: 100,
+      private: true,
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockImplementation(async ({ newCandidates }) => ({
+        items: [
+          {
+            postId: newCandidates[0].postId,
+            headline: 'Shared headline',
+            significanceLabel: 'breaking',
+            reason: 'test',
+          },
+        ],
+      }));
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'pub-share-2',
+        title: 'Unknown source story',
+      }),
+    ]);
+
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'pub-share-2',
+        headline: 'Shared headline',
+        significance: PostHighlightSignificance.Breaking,
+        reason: 'test',
+      }),
+    ]);
+  });
+
+  it('should skip unknown-source candidates when no public share exists', async () => {
+    const now = new Date('2026-03-03T12:41:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await con
+      .getRepository(Source)
+      .save(
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+          undefined,
+          true,
+        ),
+      );
+    await saveArticle({
+      id: 'unk-orig-2',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Unknown source story 2',
+      createdAt: new Date('2026-03-03T12:21:00.000Z'),
+    });
+    await saveShare({
+      id: 'priv-share2',
+      sharedPostId: 'unk-orig-2',
+      createdAt: new Date('2026-03-03T12:28:00.000Z'),
+      upvotes: 100,
+      private: true,
+    });
+
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).not.toHaveBeenCalled();
+
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveHighlights).toEqual([]);
+  });
+
+  it('should exclude posts refreshed only by stats updates from incremental candidates', async () => {
+    const now = new Date('2026-03-03T12:45:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+      lastFetchedAt: new Date('2026-03-03T12:20:00.000Z'),
+    });
+    await saveArticle({
+      id: 'stats-only-1',
+      title: 'Stats only refresh',
+      createdAt: new Date('2026-03-02T12:00:00.000Z'),
+      metadataChangedAt: new Date('2026-03-02T12:00:00.000Z'),
+      statsUpdatedAt: new Date('2026-03-03T12:40:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh candidate',
+      createdAt: new Date('2026-03-03T12:30:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'fresh-1',
+            headline: 'Fresh headline',
+            significanceLabel: 'notable',
+            reason: 'test',
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        title: 'Fresh candidate',
       }),
     ]);
   });

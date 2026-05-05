@@ -7,6 +7,8 @@ import {
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
+  ShortcutsAppearance,
+  ShortcutsMode,
 } from '../entity';
 import { isValidHttpUrl, toGQLEnum, updateFlagsStatement } from '../common';
 import { ValidationError } from 'apollo-server-errors';
@@ -64,6 +66,8 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(ChecklistViewState, 'ChecklistViewState')}
   ${toGQLEnum(DefaultWriteTab, 'DefaultWriteTab')}
+  ${toGQLEnum(ShortcutsMode, 'ShortcutsMode')}
+  ${toGQLEnum(ShortcutsAppearance, 'ShortcutsAppearance')}
 
   type SettingsFlagsPublic {
     sidebarSquadExpanded: Boolean
@@ -72,9 +76,15 @@ export const typeDefs = /* GraphQL */ `
     sidebarResourcesExpanded: Boolean
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
+    browsingContextEnabled: Boolean
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
+    legacyPostLayoutOptOut: Boolean
+    shortcutsMode: ShortcutsMode
+    shortcutsAppearance: ShortcutsAppearance
+    showShortcutsOnWebapp: Boolean
+    shortcutMeta: JSONObject
   }
 
   input SettingsFlagsPublicInput {
@@ -84,10 +94,16 @@ export const typeDefs = /* GraphQL */ `
     sidebarResourcesExpanded: Boolean
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
+    browsingContextEnabled: Boolean
     prompt: JSONObject
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
+    legacyPostLayoutOptOut: Boolean
+    shortcutsMode: String
+    shortcutsAppearance: String
+    showShortcutsOnWebapp: Boolean
+    shortcutMeta: JSONObject
   }
 
   """
@@ -411,11 +427,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new ValidationError(`Invalid value for 'defaultWriteTab'`);
       }
 
+      if (
+        data?.flags?.shortcutsMode &&
+        !Object.values(ShortcutsMode).includes(data.flags.shortcutsMode)
+      ) {
+        throw new ValidationError(`Invalid value for 'shortcutsMode'`);
+      }
+
+      if (
+        data?.flags?.shortcutsAppearance &&
+        !Object.values(ShortcutsAppearance).includes(
+          data.flags.shortcutsAppearance,
+        )
+      ) {
+        throw new ValidationError(`Invalid value for 'shortcutsAppearance'`);
+      }
+
       const promptSchema = z.record(z.string(), z.boolean());
       const result = promptSchema.safeParse(data.flags?.prompt);
 
       if (!!data.flags?.prompt && !result.success) {
         throw new ValidationError('Invalid value for prompt');
+      }
+
+      const shortcutMetaSchema = z.record(
+        z.string(),
+        z.object({
+          name: z.string().optional(),
+          iconUrl: z.string().optional(),
+          color: z.string().optional(),
+        }),
+      );
+      const metaResult = shortcutMetaSchema.safeParse(data.flags?.shortcutMeta);
+
+      if (!!data.flags?.shortcutMeta && !metaResult.success) {
+        throw new ValidationError('Invalid value for shortcutMeta');
       }
 
       return con.transaction(async (manager): Promise<Settings> => {

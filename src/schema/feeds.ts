@@ -13,6 +13,7 @@ import {
   UserPost,
 } from '../entity';
 import { Category } from '../entity/Category';
+import { Persona } from '../entity/Persona';
 import { GraphQLResolveInfo } from 'graphql';
 
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
@@ -41,6 +42,7 @@ import {
 import { In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  connectionFromNodes,
   CursorPage,
   feedCursorPageGenerator,
   GQLEmptyResponse,
@@ -58,11 +60,10 @@ import {
   FeedGenerator,
   feedGenerators,
   FeedPreferencesConfigGenerator,
-  FeedResponse,
+  getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
-  versionToFeedGenerator,
-  versionToTimeFeedGenerator,
 } from '../integrations/feed';
+import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -87,8 +88,26 @@ import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { briefingPostIdsMaxItems } from '../common/brief';
+import {
+  emptyFeedV2Connection,
+  feedV2QueryResolver,
+  feedV2Resolvers,
+  feedV2TypeDefs,
+  type FeedV2Args,
+  getFeedV2AllowedPostTypes,
+  getFeedV2FieldTree,
+  getForYouFeedGenerator,
+  toFeedV2PostConnection,
+} from './feedV2';
 
 interface GQLTagsCategory {
+  id: string;
+  emoji: string;
+  title: string;
+  tags: string[];
+}
+
+interface GQLPersona {
   id: string;
   emoji: string;
   title: string;
@@ -144,6 +163,13 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     emoji: String
     title: String!
+    tags: [String]!
+  }
+
+  type Persona {
+    id: String!
+    title: String!
+    emoji: String!
     tags: [String]!
   }
 
@@ -309,6 +335,8 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  ${feedV2TypeDefs}
+
   extend type Query {
     """
     Get an ad-hoc feed based on sources and tags filters
@@ -394,6 +422,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Deprecated, no longer in use. Kept for backwards compatibility.
+      """
+      noAi: Boolean = false
     ): PostConnection! @auth
 
     """
@@ -857,6 +890,11 @@ export const typeDefs = /* GraphQL */ `
     tagsCategories: [TagsCategory]!
 
     """
+    Get persona presets for onboarding tag selection
+    """
+    onboardingPersonas: [Persona]! @cacheControl(maxAge: 600)
+
+    """
     Get the list of advanced settings
     """
     advancedSettings: [AdvancedSettings]!
@@ -1148,6 +1186,10 @@ interface FeedPage extends Page {
   score?: number;
 }
 
+type FeedVersionArgs = Pick<FeedArgs, 'ranking'> & {
+  version: number;
+};
+
 const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage, unknown> = {
   connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
     const cursor = getCursorFromAfter(after || undefined);
@@ -1203,6 +1245,36 @@ const applyFeedPaging = (
   }
   return newBuilder;
 };
+
+const shouldUseFeedGenerator = ({ version }: FeedVersionArgs) => {
+  return version >= 2;
+};
+
+const getConfiguredFeedId = (
+  ctx: Pick<Context, 'userId'>,
+  args: Pick<ConfiguredFeedArgs, 'feedId'> | Pick<FeedV2Args, 'feedId'>,
+): string | undefined => args.feedId || ctx.userId;
+
+const getConfiguredFeedQueryParams = (
+  ctx: Context,
+  args: Pick<ConfiguredFeedArgs, 'feedId'> | Pick<FeedV2Args, 'feedId'>,
+) => feedToFilters(ctx.con, getConfiguredFeedId(ctx, args), ctx.userId);
+
+const buildConfiguredFeedQuery = (
+  ctx: Context,
+  args: Pick<ConfiguredFeedArgs, 'feedId' | 'unreadOnly'> | FeedV2Args,
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+  queryParams: AnonymousFeedFilters | undefined,
+) =>
+  configuredFeedBuilder(
+    ctx,
+    getConfiguredFeedId(ctx, args),
+    args.unreadOnly,
+    builder,
+    alias,
+    queryParams,
+  );
 
 interface UpvotedPage extends Page {
   timestamp?: Date;
@@ -1372,28 +1444,85 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
       builder,
       alias,
       queryParams: AnonymousFeedFilters | undefined,
-    ) => {
-      const feedId = args.feedId || ctx.userId;
-
-      return configuredFeedBuilder(
-        ctx,
-        feedId,
-        args.unreadOnly,
-        builder,
-        alias,
-        queryParams,
-      );
-    },
+    ) => buildConfiguredFeedQuery(ctx, args, builder, alias, queryParams),
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx, args) => {
-        const feedId = args.feedId || ctx.userId;
-        return feedToFilters(ctx.con, feedId, ctx.userId);
-      },
+      fetchQueryParams: (ctx, args) => getConfiguredFeedQueryParams(ctx, args),
       allowPrivatePosts: false,
     },
   );
+
+const feedResolverV2Local: IFieldResolver<
+  unknown,
+  AuthContext,
+  FeedV2Args
+> = async (source, args, ctx, info) => {
+  const postFieldTree = getFeedV2FieldTree(info, 'FeedPostItem', 'post');
+  const allowedPostTypes = getFeedV2AllowedPostTypes(args.supportedTypes);
+
+  if ((args.supportedTypes && !allowedPostTypes?.length) || !postFieldTree) {
+    return emptyFeedV2Connection(args);
+  }
+
+  const page = feedPageGenerator.connArgsToPage(args);
+  const queryParams = await getConfiguredFeedQueryParams(ctx, args);
+  const supportedTypes = allowedPostTypes?.filter((type) => {
+    return queryParams.excludeTypes
+      ? !queryParams.excludeTypes.includes(type)
+      : true;
+  });
+  const sourceTypes = queryParams.excludeSourceTypes?.length
+    ? baseFeedConfig.source_types?.filter(
+        (type) => !queryParams.excludeSourceTypes?.includes(type),
+      ) || []
+    : [];
+
+  const nodes = await graphorm.queryResolveTree<GQLPost>(
+    ctx,
+    postFieldTree,
+    (builder) => {
+      builder.queryBuilder = applyFeedWhere(
+        ctx,
+        applyFeedPaging(
+          ctx,
+          args,
+          page,
+          buildConfiguredFeedQuery(
+            ctx,
+            args,
+            builder.queryBuilder,
+            builder.alias,
+            queryParams,
+          ),
+          builder.alias,
+        ),
+        builder.alias,
+        supportedTypes || ['article'],
+        true,
+        true,
+        false,
+        true,
+        true,
+        sourceTypes,
+      );
+      return builder;
+    },
+    true,
+  );
+
+  return toFeedV2PostConnection(
+    connectionFromNodes(
+      args,
+      nodes,
+      undefined,
+      page,
+      feedPageGenerator,
+      undefined,
+      queryParams,
+    ),
+  );
+};
 
 const feedResolverCursor = feedResolver<
   unknown,
@@ -1404,7 +1533,7 @@ const feedResolverCursor = feedResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams!.data.map(([postId]) => postId as string),
+      getFeedResponsePostIds(queryParams!),
       builder,
       alias,
     ),
@@ -1453,7 +1582,7 @@ const channelFeedResolver = feedResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams!.data.map(([postId]) => postId as string),
+      getFeedResponsePostIds(queryParams!),
       builder,
       alias,
     ),
@@ -1541,23 +1670,15 @@ const postRepostsFeedResolver = feedResolver(
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      if (shouldUseFeedGenerator(args)) {
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: feedGenerators['popular']!,
-          },
-          ctx,
-          info,
-        );
-      }
-      if (args.version >= 2 && args.ranking === Ranking.TIME) {
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: feedGenerators['time']!,
+            generator:
+              args.ranking === Ranking.TIME
+                ? feedGenerators['time']!
+                : feedGenerators['popular']!,
           },
           ctx,
           info,
@@ -1565,24 +1686,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
-    feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+    feed: async (source, args: ConfiguredFeedArgs, ctx: AuthContext, info) => {
+      if (shouldUseFeedGenerator(args)) {
         return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
-            generator: versionToFeedGenerator(args.version),
-          },
-          ctx,
-          info,
-        );
-      }
-      if (args.version >= 2 && args.ranking === Ranking.TIME) {
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: versionToTimeFeedGenerator(args.version),
+            generator: getForYouFeedGenerator(args),
           },
           ctx,
           info,
@@ -1590,6 +1700,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return feedResolverV1(source, args, ctx, info);
     },
+    feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
+      shouldUseFeedGenerator(args)
+        ? feedV2QueryResolver(source, args, ctx, info)
+        : feedResolverV2Local(source, args, ctx, info),
     followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
       return feedResolverCursor(
         source,
@@ -2042,7 +2156,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                 ctx,
                 fixedIdsFeedBuilder(
                   ctx,
-                  res.data.map(([postId]) => postId as string),
+                  getFeedResponsePostIds(res),
                   builder.queryBuilder,
                   builder.alias,
                 ),
@@ -2084,6 +2198,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
+    onboardingPersonas: (_, __, ctx): Promise<GQLPersona[]> =>
+      ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
       args: ConnectionArguments,
@@ -2501,7 +2617,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       if (feed.id === ctx.userId) {
-        throw new ForbiddenError('Forbidden');
+        throw new ForbiddenError('You can not delete your main feed.');
       }
 
       await feedRepo.delete({
@@ -2512,4 +2628,5 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return { _: true };
     },
   },
+  ...feedV2Resolvers,
 };

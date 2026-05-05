@@ -594,7 +594,6 @@ export enum LogoutReason {
   IncomleteOnboarding = 'incomplete onboarding',
   ManualLogout = 'manual logout',
   UserDeleted = 'user deleted',
-  KratosSessionAlreadyAvailable = 'kratos session already available',
 }
 
 export const getAbsoluteDifferenceInDays: typeof differenceInDays = (

@@ -51,6 +51,7 @@ export enum UserTransactionType {
   SquadBoost = 'squad_boost',
   Post = 'post',
   Comment = 'comment',
+  User = 'user',
   BriefGeneration = 'brief_generation',
 }
 

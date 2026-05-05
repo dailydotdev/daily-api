@@ -36,6 +36,9 @@ import { ViewEntity, ViewColumn, Index } from 'typeorm';
   'keywordY',
   'probability',
 ])
+@Index('UQ_tagRecommendation_keywordX_keywordY', ['keywordX', 'keywordY'], {
+  unique: true,
+})
 export class TagRecommendation {
   @ViewColumn()
   keywordX: string;

@@ -26,6 +26,23 @@ export enum DefaultWriteTab {
   Poll = 'Poll',
 }
 
+export enum ShortcutsMode {
+  Auto = 'auto',
+  Manual = 'manual',
+}
+
+export enum ShortcutsAppearance {
+  Tile = 'tile',
+  Icon = 'icon',
+  Chip = 'chip',
+}
+
+export type ShortcutMeta = {
+  name?: string;
+  iconUrl?: string;
+  color?: string;
+};
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -33,10 +50,16 @@ export type SettingsFlags = Partial<{
   sidebarResourcesExpanded: boolean;
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
+  browsingContextEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
+  legacyPostLayoutOptOut: boolean;
+  shortcutsMode: ShortcutsMode;
+  shortcutsAppearance: ShortcutsAppearance;
+  showShortcutsOnWebapp: boolean;
+  shortcutMeta: Record<string, ShortcutMeta>;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -47,10 +70,16 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarResourcesExpanded'
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
+  | 'browsingContextEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'
   | 'defaultWriteTab'
+  | 'legacyPostLayoutOptOut'
+  | 'shortcutsMode'
+  | 'shortcutsAppearance'
+  | 'showShortcutsOnWebapp'
+  | 'shortcutMeta'
 >;
 
 @Entity()

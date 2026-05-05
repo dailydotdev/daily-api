@@ -705,6 +705,7 @@ export const anonymousFeedBuilder = (
       whereNotTags(filters.blockedTags!, builder, alias),
     );
   }
+
   return newBuilder;
 };
 

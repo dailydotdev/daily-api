@@ -137,6 +137,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
+  major_headline_added: '',
+  live_room_started: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1291,6 +1293,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
   },
+  major_headline_added: async () => {
+    return null;
+  },
+  live_room_started: async () => {
+    return null;
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
@@ -1324,11 +1332,13 @@ const worker: Worker = {
       return;
     }
 
-    const stream = await streamNotificationUsers(
+    // email service (customer.io) handles its own delivery scheduling via send_at
+    const stream = await streamNotificationUsers({
       con,
-      notification.id,
-      NotificationChannel.Email,
-    );
+      id: notification.id,
+      channel: NotificationChannel.Email,
+      disableShowAtFilter: true,
+    });
     try {
       await processStreamInBatches(
         stream,

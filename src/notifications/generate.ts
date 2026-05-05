@@ -40,6 +40,8 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationMajorHeadlineContext,
+  type NotificationLiveRoomContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -127,7 +129,7 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `<b>${ctx.post.title}</b> collection has been updated`,
+    `The <b>${ctx.post.title}</b> collection has been updated`,
   dev_card_unlocked: () => 'Your DevCard is ready to generate',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
     `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
@@ -202,14 +204,14 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New job match waiting for you`,
+  new_opportunity_match: () => `A new job match is waiting for you`,
   rematched_opportunity: () =>
     `You've been re-matched based on updated job requirements`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post reached ${formatMetricValue(ctx.analytics.impressions)} impressions`;
   },
   poll_result: (ctx: NotificationPostContext) =>
-    `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
+    `<b>The poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
@@ -241,6 +243,10 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
+  major_headline_added: (ctx: NotificationMajorHeadlineContext) =>
+    `<b>${ctx.headline}</b>`,
+  live_room_started: (ctx: NotificationLiveRoomContext) =>
+    `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -607,9 +613,7 @@ export const generateNotificationMap: Record<
       .description(
         `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
       )
-      .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      ),
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/jobs/${ctx.opportunityId}`),
   post_analytics: (
     builder: NotificationBuilder,
     ctx: NotificationPostAnalyticsContext,
@@ -673,7 +677,7 @@ export const generateNotificationMap: Record<
       .referenceOpportunity(ctx.opportunityId)
       .avatarUser(ctx.candidate)
       .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
+        `${process.env.COMMENTS_PREFIX}/recruiter/${ctx.opportunityId}/matches`,
       )
       .uniqueKey(ctx.candidate.id);
   },
@@ -684,9 +688,7 @@ export const generateNotificationMap: Record<
     return builder
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx.opportunityId)
-      .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      );
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/jobs/${ctx.opportunityId}`);
   },
   experience_company_enriched: (
     builder: NotificationBuilder,
@@ -708,7 +710,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx.opportunityId)
       .targetUrl(
-        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
+        `${process.env.COMMENTS_PREFIX}/recruiter/${ctx.opportunityId}/prepare`,
       );
   },
   feedback_resolved: (
@@ -760,4 +762,24 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.metadataChangedAt?.toString());
   },
+  major_headline_added: (
+    builder: NotificationBuilder,
+    ctx: NotificationMajorHeadlineContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .description(ctx.headline)
+      .avatarSource(ctx.source)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .uniqueKey(ctx.post.id),
+  live_room_started: (
+    builder: NotificationBuilder,
+    ctx: NotificationLiveRoomContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceLiveRoom(ctx.room.id)
+      .avatarUser(ctx.host)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/standups/${ctx.room.id}`)
+      .uniqueKey(ctx.room.id),
 };

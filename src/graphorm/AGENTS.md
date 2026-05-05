@@ -426,6 +426,8 @@ requiredColumns: [
 ]
 ```
 
+Keep `requiredColumns` minimal. Add only the columns needed for transforms, custom relations, or permission logic. Do not mirror every commonly requested GraphQL field into `requiredColumns`, because that hides real dependencies and widens queries unnecessarily.
+
 ### 4. Use Pagination for Large Datasets
 
 Always paginate lists to avoid fetching too much data:
@@ -518,4 +520,3 @@ requiredColumns: [
 - [TypeORM Query Builder Documentation](https://typeorm.io/select-query-builder)
 - [PostgreSQL JSON Functions](https://www.postgresql.org/docs/current/functions-json.html)
 - [GraphQL Resolve Info](https://graphql.org/graphql-js/type/#graphqlobjecttype)
-

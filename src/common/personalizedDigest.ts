@@ -24,14 +24,20 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
-import { baseFeedConfig, BriefingType } from '../integrations/feed';
-import { FeedConfigName } from '../integrations/feed';
+import {
+  baseFeedConfig,
+  BriefingType,
+  FeedConfigName,
+  getFeedResponsePostIds,
+} from '../integrations/feed';
 import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
 import { SkadiAd, skadiPersonalizedDigestClient } from '../integrations/skadi';
 import { NotificationType } from '../notifications/common';
+import { SnotraClient } from '../integrations/snotra/clients';
+import { PersonaliseState } from '../integrations/snotra/types';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -247,8 +253,8 @@ const personalizedDigestFeedClient = new FeedClient(
         minimumRps: 1,
       },
       limits: {
-        maxRequests: 150,
-        queuedRequests: 100,
+        maxRequests: 300,
+        queuedRequests: 1000,
       },
       retryOpts: {
         maxAttempts: 0,
@@ -278,6 +284,81 @@ const personalizedDigestFeedClient = new FeedClient(
     }),
   },
 );
+
+export const personalizedDigestSnotraClient = new SnotraClient(
+  process.env.SNOTRA_USER_API_ORIGIN as string,
+  {
+    fetchOptions: {
+      timeout: 10 * 1000,
+    },
+    garmr: new GarmrService({
+      service: 'snotra-client-digest',
+      breakerOpts: {
+        halfOpenAfter: 5 * 1000,
+        threshold: 0.1,
+        duration: 10 * 1000,
+        minimumRps: 1,
+      },
+      limits: {
+        maxRequests: 300,
+        queuedRequests: 1000,
+      },
+      retryOpts: {
+        maxAttempts: 1,
+      },
+      events: {
+        onBreak: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrBreak?.add(1, {
+            service: meta.service,
+          });
+        },
+        onHalfOpen: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrHalfOpen?.add(1, {
+            service: meta.service,
+          });
+        },
+        onReset: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrReset?.add(1, {
+            service: meta.service,
+          });
+        },
+        onRetry: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrRetry?.add(1, {
+            service: meta.service,
+          });
+        },
+      },
+    }),
+  },
+);
+
+const resolveDigestFeedConfigName = async ({
+  personalizedDigest,
+  feature,
+  logger,
+}: {
+  personalizedDigest: UserPersonalizedDigest;
+  feature: PersonalizedDigestFeatureConfig;
+  logger: FastifyBaseLogger;
+}): Promise<FeedConfigName> => {
+  try {
+    const profile = await personalizedDigestSnotraClient.getUserProfile({
+      user_id: personalizedDigest.userId,
+      providers: { personalise: {} },
+    });
+
+    if (profile.personalise.state === PersonaliseState.NonPersonalised) {
+      return FeedConfigName.DigestCsV1;
+    }
+  } catch (err) {
+    logger.error(
+      { err, personalizedDigest },
+      'failed to fetch snotra user profile for digest',
+    );
+  }
+
+  return feature.feedConfig as FeedConfigName;
+};
 
 export type DigestEmailPayloadResult = {
   emailPayload: SendEmailRequestWithTemplate;
@@ -315,6 +396,12 @@ export const getPersonalizedDigestEmailPayload = async ({
     );
   });
 
+  const feedConfigName = await resolveDigestFeedConfigName({
+    personalizedDigest,
+    feature,
+    logger,
+  });
+
   const feedConfigPayload = {
     user_id: personalizedDigest.userId,
     total_posts: feature.maxPosts,
@@ -323,7 +410,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     allowed_tags: feedConfig.includeTags,
     blocked_tags: feedConfig.blockedTags,
     blocked_sources: feedConfig.excludeSources,
-    feed_config_name: feature.feedConfig as FeedConfigName,
+    feed_config_name: feedConfigName,
     source_types:
       baseFeedConfig.source_types?.filter(
         (el) => !feedConfig.excludeSourceTypes?.includes(el),
@@ -343,7 +430,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     async ({ queryRunner }) => {
       return fixedIdsFeedBuilder(
         {},
-        feedResponse.data.map(([postId]) => postId),
+        getFeedResponsePostIds(feedResponse),
         queryRunner.manager
           .createQueryBuilder(Post, 'p')
           .select(
@@ -410,7 +497,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     adProps,
   });
 
-  const postIds = feedResponse.data.map(([postId]) => postId);
+  const postIds = getFeedResponsePostIds(feedResponse);
   const sourceIds = [...new Set(posts.map((p) => p.sourceId))];
 
   return {

@@ -9,6 +9,7 @@ import { queryReadReplica } from './common/queryReadReplica';
 import type { FindOneOptions } from 'typeorm';
 import { getRedisObject } from './redis';
 import { generateStorageKey, StorageKey, StorageTopic } from './config';
+import { getLiveRoomParticipantCounts } from './common/liveRoom/participantCount';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -36,8 +37,9 @@ export class DataLoaderService {
     loadFn: (params: K) => Promise<V | null> | V;
     cacheKeyFn: (key: K) => string;
   }): DataLoader<K, V> {
-    if (!this.loaders[type]) {
-      const batchLoadFn: BatchLoadFn<K, V> = async (keys) => {
+    return this.getBatchLoader({
+      type,
+      batchLoadFn: async (keys) => {
         const results = await Promise.allSettled(keys.map(loadFn));
 
         return results.map((result) => {
@@ -47,11 +49,26 @@ export class DataLoaderService {
 
           return result.value;
         });
-      };
+      },
+      cacheKeyFn,
+    });
+  }
 
+  protected getBatchLoader<K, V>({
+    type,
+    batchLoadFn,
+    cacheKeyFn,
+    maxBatchSize = 30,
+  }: {
+    type: string;
+    batchLoadFn: BatchLoadFn<K, V>;
+    cacheKeyFn: (key: K) => string;
+    maxBatchSize?: number;
+  }): DataLoader<K, V> {
+    if (!this.loaders[type]) {
       this.loaders[type] = new DataLoader(batchLoadFn, {
         cacheKeyFn,
-        maxBatchSize: 30,
+        maxBatchSize,
         name: `${DataLoaderService.name}.${type}`,
       });
     }
@@ -218,6 +235,22 @@ export class DataLoaderService {
         });
       },
       cacheKeyFn: ({ userId, select }) => defaultCacheKeyFn({ userId, select }),
+    });
+  }
+
+  get liveRoomParticipantCount() {
+    return this.getBatchLoader<string, number | null>({
+      type: 'liveRoomParticipantCount',
+      batchLoadFn: async (roomIds) => {
+        const countsByRoomId = await getLiveRoomParticipantCounts({
+          ctx: this.ctx,
+          roomIds: [...roomIds],
+        });
+
+        return roomIds.map((roomId) => countsByRoomId.get(roomId) ?? null);
+      },
+      cacheKeyFn: defaultCacheKeyFn,
+      maxBatchSize: 100,
     });
   }
 }

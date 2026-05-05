@@ -16,6 +16,9 @@ import {
 } from 'date-fns';
 import {
   authorizeRequest,
+  createGarmrMock,
+  createMockBragiPipelinesTransport,
+  createMockBragiPipelinesNotFoundTransport,
   createMockNjordTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -58,6 +61,7 @@ import {
   UserTopReader,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../src/entity';
 import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
 import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
@@ -131,12 +135,7 @@ import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
-import {
-  UserTransaction,
-  UserTransactionProcessor,
-  UserTransactionStatus,
-} from '../src/entity/user/UserTransaction';
-import { DeletedUser } from '../src/entity/user/DeletedUser';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
 import { randomUUID } from 'crypto';
 import {
   ClaimableItem,
@@ -151,9 +150,14 @@ import { createClient } from '@connectrpc/connect';
 import {
   Credits,
   EntityType,
+  ExtractedProfileTag,
+  OnboardingProfileTagsResponse,
   OpportunityState,
   OpportunityType,
+  Pipelines,
 } from '@dailydotdev/schema';
+import * as bragiClients from '../src/integrations/bragi/clients';
+import type { ServiceClient } from '../src/types';
 import { Organization } from '../src/entity';
 import { Opportunity } from '../src/entity/opportunities/Opportunity';
 import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
@@ -215,6 +219,18 @@ jest.mock('../src/cio', () => ({
   syncNotificationFlagsToCio: jest.fn(),
 }));
 
+const mockSetPassword = jest.fn();
+const mockBetterAuthHandler = jest.fn(async () => new Response('{}'));
+jest.mock('../src/betterAuth', () => ({
+  ...(jest.requireActual('../src/betterAuth') as Record<string, unknown>),
+  getBetterAuth: () => ({
+    handler: mockBetterAuthHandler,
+    api: {
+      setPassword: mockSetPassword,
+    },
+  }),
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
@@ -234,6 +250,18 @@ beforeAll(async () => {
 });
 
 const now = new Date();
+
+const createUnknownSourceArticlePost = (
+  id: string,
+  title: string,
+): Partial<ArticlePost> => ({
+  id,
+  title,
+  shortId: id,
+  url: `http://${id}.com`,
+  sourceId: UNKNOWN_SOURCE,
+  visible: true,
+});
 
 beforeEach(async () => {
   loggedUser = null;
@@ -456,12 +484,6 @@ const additionalKeywords: Partial<Keyword>[] = [
   { value: 'devops', occurrences: 760, status: 'allow' },
   { value: 'javascript', occurrences: 980, status: 'allow' },
 ];
-
-const mockLogout = () => {
-  nock(process.env.KRATOS_ORIGIN)
-    .get('/self-service/logout/browser')
-    .reply(200, {});
-};
 
 afterAll(() => disposeGraphQLTesting(state));
 
@@ -1129,6 +1151,51 @@ describe('streak recover query', () => {
     expect(data.streakRecover.regularCost).toBe(
       StreakRestoreCoresPrice.Regular,
     );
+  });
+});
+
+describe('joinHackathon mutation', () => {
+  const MUTATION = `
+    mutation JoinHackathon {
+      joinHackathon {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: {} },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should set hackathonParticipant flag on the user', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, { variables: {} });
+
+    expect(res.errors).toBeFalsy();
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.flags?.hackathonParticipant).toBe(true);
+  });
+
+  it('should be idempotent and preserve other flags', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { flags: { trustScore: 1 } });
+
+    const first = await client.mutate(MUTATION, { variables: {} });
+    const second = await client.mutate(MUTATION, { variables: {} });
+
+    expect(first.errors).toBeFalsy();
+    expect(second.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.flags?.hackathonParticipant).toBe(true);
+    expect(user?.flags?.trustScore).toBe(1);
   });
 });
 
@@ -3407,6 +3474,36 @@ describe('query readHistory', () => {
     expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
   });
 
+  it("should return user's reading history without posts from unknown source", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+
+    await con
+      .getRepository(ArticlePost)
+      .save(
+        createUnknownSourceArticlePost('p-unk-read', 'Unknown source post'),
+      );
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p-unk-read',
+        timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges).toHaveLength(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
+  });
+
   it("should return user's reading history with the banned posts", async () => {
     loggedUser = '1';
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
@@ -3677,6 +3774,32 @@ describe('query search reading history', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return reading history search feed without unknown source posts', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(ArticlePost)
+      .save(
+        createUnknownSourceArticlePost('p-unk-search', 'Unknown search result'),
+      );
+
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        timestamp: subDays(now, 1),
+        postId: 'p-unk-search',
+      },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p1' },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Unknown' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges).toEqual([]);
   });
 });
 
@@ -4508,59 +4631,8 @@ describe('mutation deleteUser', () => {
 
     await client.mutate(MUTATION);
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(4);
-
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
-  });
-
-  it('should delete author ID from post', async () => {
-    loggedUser = '1';
-
-    await client.mutate(MUTATION);
-
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.authorId).toEqual(null);
-  });
-
-  it('should delete digest posts on user deletion', async () => {
-    loggedUser = '1';
-
-    await con.getRepository(Source).save({
-      id: '1',
-      name: 'User Source',
-      image: 'https://daily.dev/1.jpg',
-      handle: 'user1',
-      active: true,
-      private: false,
-    });
-
-    await con.getRepository(Post).save({
-      id: 'pdigest1',
-      shortId: 'spdigest1',
-      title: 'Digest Post',
-      sourceId: '1',
-      authorId: '1',
-      type: PostType.Digest,
-      createdAt: new Date(),
-    });
-
-    await client.mutate(MUTATION);
-
-    const deletedDigest = await con
-      .getRepository(Post)
-      .findOneBy({ id: 'pdigest1' });
-    expect(deletedDigest).toBeNull();
-  });
-
-  it('should delete scout ID from post', async () => {
-    loggedUser = '1';
-
-    await client.mutate(MUTATION);
-
-    const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
-    expect(post.authorId).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should cancel paddle subscription for user', async () => {
@@ -4580,7 +4652,7 @@ describe('mutation deleteUser', () => {
 
     expect(cancelSubscription).toHaveBeenCalledWith({ subscriptionId: '123' });
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should not call cancel subscription for gifted subscription', async () => {
@@ -4601,7 +4673,7 @@ describe('mutation deleteUser', () => {
 
     expect(cancelSubscription).not.toHaveBeenCalled();
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   describe('when user has a storekit subscription', () => {
@@ -4670,10 +4742,10 @@ describe('mutation deleteUser', () => {
       const userOne = await con
         .getRepository(User)
         .findOneBy({ id: 'sk-del-user-0' });
-      expect(userOne).toEqual(null);
+      expect(userOne?.flags).toMatchObject({ inDeletion: true });
     });
 
-    it('should delete user if storekit subscription is expired', async () => {
+    it('should mark user for deletion if storekit subscription is expired', async () => {
       loggedUser = 'sk-del-user-0';
 
       await con.getRepository(User).update(
@@ -4693,130 +4765,20 @@ describe('mutation deleteUser', () => {
       const userOne = await con
         .getRepository(User)
         .findOneBy({ id: 'sk-del-user-0' });
-      expect(userOne).toEqual(null);
+      expect(userOne?.flags).toMatchObject({ inDeletion: true });
     });
   });
 
-  it('should set user transactions to ghost', async () => {
-    loggedUser = '1';
-
-    const userTransactions = await con.getRepository(UserTransaction).save([
-      {
-        id: '962c880f-7523-426c-b02f-e5695e94d77f',
-        processor: UserTransactionProcessor.Njord,
-        receiverId: '1',
-        status: UserTransactionStatus.Success,
-        productId: null,
-        senderId: '2',
-        fee: 0,
-        value: 100,
-        valueIncFees: 100,
-      },
-      {
-        id: '4f2e8ff9-4489-466b-9296-87630839fdac',
-        processor: UserTransactionProcessor.Njord,
-        receiverId: '2',
-        status: UserTransactionStatus.Success,
-        productId: null,
-        senderId: '1',
-        fee: 0,
-        value: 100,
-        valueIncFees: 100,
-      },
-    ]);
-
-    await client.mutate(MUTATION);
-
-    const transactions = await con.getRepository(UserTransaction).findBy({
-      id: In(userTransactions.map((t) => t.id)),
-    });
-
-    expect(transactions.length).toEqual(2);
-    expect(
-      transactions.find((t) => t.id === '962c880f-7523-426c-b02f-e5695e94d77f')!
-        .receiverId,
-    ).toEqual(ghostUser.id);
-    expect(
-      transactions.find((t) => t.id === '4f2e8ff9-4489-466b-9296-87630839fdac')!
-        .senderId,
-    ).toEqual(ghostUser.id);
-  });
-
-  it('should soft delete user', async () => {
+  it('should mark user for deletion', async () => {
     loggedUser = '1';
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
-
     expect(user).not.toBeNull();
 
     await client.mutate(MUTATION);
 
-    const deletedUser = await con
-      .getRepository(DeletedUser)
-      .findOneBy({ id: '1' });
-    expect(deletedUser).not.toBeNull();
-  });
-
-  describe('deleting user resume', () => {
-    it('should delete user resume if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-    });
-
-    it('should handle case when user has no resume', async () => {
-      loggedUser = '1';
-
-      // Mock that the resume file doesn't exist
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        loggedUser,
-      );
-
-      // User should still be deleted
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne).toEqual(null);
-    });
-  });
-
-  describe('deleting user employment agreement', () => {
-    it('should delete user employment agreement if it exists', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify we requested delete action for every extension supported
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-    });
-
-    it('should handle case when user has no employment agreement', async () => {
-      loggedUser = '1';
-
-      await client.mutate(MUTATION);
-
-      // Verify the function was called but no error was thrown
-      expect(deleteFileFromBucket).toHaveBeenCalledWith(
-        expect.any(Bucket),
-        'employment-agreement/1',
-      );
-
-      // User should still be deleted
-      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-      expect(userOne).toEqual(null);
-    });
+    const markedUser = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(markedUser?.flags).toMatchObject({ inDeletion: true });
   });
 
   describe('opportunity and organization cleanup', () => {
@@ -4881,16 +4843,22 @@ describe('POST /v1/users/logout', () => {
   const BASE_PATH = '/v1/users/logout';
 
   it('should logout and clear cookies', async () => {
-    mockLogout();
     const res = await authorizeRequest(request(app.server).post(BASE_PATH))
       .set('User-Agent', TEST_UA)
-      .set('Cookie', 'da3=1;da2=1')
+      .set(
+        'Cookie',
+        'da3=1;da2=1;dast=1;ory_kratos_session=legacy;ory_kratos_continuity=legacy',
+      )
       .expect(204);
 
     const cookies = setCookieParser.parse(res, { map: true });
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+    expect(cookies.dast.value).toBeFalsy();
+    expect(cookies.ory_kratos_session.value).toBeFalsy();
+    expect(cookies.ory_kratos_continuity.value).toBeFalsy();
+    expect(mockBetterAuthHandler).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -4906,54 +4874,28 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should delete user from database', async () => {
-    mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(4);
-
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+    expect(userOne?.flags).toMatchObject({ inDeletion: true });
   });
 
   it('should clear cookies', async () => {
-    mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
-      .set('Cookie', 'da3=1;da2=1')
+      .set(
+        'Cookie',
+        'da3=1;da2=1;dast=1;ory_kratos_session=legacy;ory_kratos_continuity=legacy',
+      )
       .expect(204);
 
     const cookies = setCookieParser.parse(res, { map: true });
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
-  });
-
-  it('clears invitedBy from associated features', async () => {
-    await con.getRepository(Feature).insert({
-      feature: FeatureType.Search,
-      userId: '2',
-      value: FeatureValue.Allow,
-      invitedById: '1',
-    });
-
-    mockLogout();
-    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
-
-    const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
-    expect(feature.invitedById).toBeNull();
-  });
-
-  it('removes associated invite records', async () => {
-    await con.getRepository(Invite).insert({
-      userId: '1',
-      campaign: InviteCampaignType.Search,
-    });
-
-    mockLogout();
-    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
-
-    expect(await con.getRepository(Invite).count()).toEqual(0);
+    expect(cookies.dast.value).toBeFalsy();
+    expect(cookies.ory_kratos_session.value).toBeFalsy();
+    expect(cookies.ory_kratos_continuity.value).toBeFalsy();
   });
 });
 
@@ -8148,5 +8090,344 @@ describe('query userPostsAnalyticsHistory', () => {
       impressions: 150,
       impressionsAds: 50,
     });
+  });
+});
+
+describe('mutation setPassword', () => {
+  const MUTATION = `
+    mutation SetPassword($newPassword: String!) {
+      setPassword(newPassword: $newPassword) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { newPassword: 'newPassword123!' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should set password via better auth api', async () => {
+    loggedUser = '1';
+    mockSetPassword.mockResolvedValueOnce({ status: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { newPassword: 'newPassword123!' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(mockSetPassword).toHaveBeenCalledWith({
+      body: { newPassword: 'newPassword123!' },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('should propagate error when better auth api fails', async () => {
+    loggedUser = '1';
+    mockSetPassword.mockRejectedValueOnce(new Error('Password too weak'));
+
+    const res = await client.mutate(MUTATION, {
+      variables: { newPassword: 'weak' },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].message).toBe('Password too weak');
+  });
+});
+
+describe('githubProfileTags mutation', () => {
+  const GITHUB_PROFILE_TAGS_MUTATION = `
+    mutation {
+      githubProfileTags {
+        includeTags
+      }
+    }
+  `;
+
+  const seedGitHubAccount = async (userId: string) => {
+    await con.query(
+      `INSERT INTO ba_account (id, "accountId", "providerId", "userId", "accessToken", scope, "createdAt", "updatedAt")
+       VALUES ($1, $2, 'github', $3, $4, 'user:email', NOW(), NOW())`,
+      [`ba-${userId}`, `gh-${userId}`, userId, 'gho_test_token_123'],
+    );
+  };
+
+  beforeEach(async () => {
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    await saveFixtures(con, Keyword, keywordsFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesTransport()),
+        garmr: createGarmrMock(),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return extracted tags for user with GitHub account', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    const res = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.githubProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'rust', 'golang']),
+    );
+  });
+
+  it('should return error when no GitHub account linked', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'NOT_FOUND',
+      'No GitHub account linked',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should propagate bragi NotFound error', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: GITHUB_PROFILE_TAGS_MUTATION },
+      'NOT_FOUND',
+      'GitHub profile tags not found',
+    );
+  });
+
+  it('should return saved tags on repeated call without calling bragi', async () => {
+    loggedUser = '1';
+    await seedGitHubAccount('1');
+
+    const first = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+    expect(first.errors).toBeFalsy();
+
+    const spy = jest.fn();
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          gitHubProfileTags: spy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const second = await client.mutate(GITHUB_PROFILE_TAGS_MUTATION);
+    expect(second.errors).toBeFalsy();
+    expect(second.data.githubProfileTags.includeTags).toEqual(
+      first.data.githubProfileTags.includeTags,
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('onboardingProfileTags mutation', () => {
+  const ONBOARDING_PROFILE_TAGS_MUTATION = `
+    mutation OnboardingProfileTags($prompt: String!) {
+      onboardingProfileTags(prompt: $prompt) {
+        includeTags
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    await saveFixtures(con, Keyword, keywordsFixture);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesTransport()),
+        garmr: createGarmrMock(),
+      }),
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return extracted tags from prompt', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I love Python and machine learning' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.onboardingProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'fullstack']),
+    );
+  });
+
+  it('should return error for empty prompt', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: '' },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'I love coding' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return saved tags on repeated call without calling bragi', async () => {
+    loggedUser = '1';
+
+    const first = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I love Python and machine learning' },
+    });
+    expect(first.errors).toBeFalsy();
+
+    const spy = jest.fn();
+    jest.restoreAllMocks();
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          onboardingProfileTags: spy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const second = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'different prompt' },
+    });
+    expect(second.errors).toBeFalsy();
+    expect(second.data.onboardingProfileTags.includeTags).toEqual(
+      first.data.onboardingProfileTags.includeTags,
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('should pass tag vocabulary to bragi', async () => {
+    loggedUser = '1';
+
+    jest.restoreAllMocks();
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+    const bragiSpy = jest.fn().mockResolvedValue(
+      new OnboardingProfileTagsResponse({
+        id: 'mock-id',
+        extractedTags: [
+          new ExtractedProfileTag({ name: 'webdev', confidence: 0.9 }),
+          new ExtractedProfileTag({ name: 'rust', confidence: 0.7 }),
+        ],
+      }),
+    );
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          onboardingProfileTags: bragiSpy,
+        } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    const res = await client.mutate(ONBOARDING_PROFILE_TAGS_MUTATION, {
+      variables: { prompt: 'I like web development and rust' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.onboardingProfileTags.includeTags).toEqual(
+      expect.arrayContaining(['webdev', 'rust']),
+    );
+    expect(bragiSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onboardingPrompt: 'I like web development and rust',
+        tagVocabulary: expect.arrayContaining(['webdev', 'rust', 'golang']),
+      }),
+    );
+  });
+
+  it('should propagate bragi NotFound error', async () => {
+    loggedUser = '1';
+
+    jest.restoreAllMocks();
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'I love coding' },
+      },
+      'NOT_FOUND',
+      'Onboarding profile tags not found',
+    );
+  });
+
+  it('should return error for prompt exceeding max length', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: ONBOARDING_PROFILE_TAGS_MUTATION,
+        variables: { prompt: 'a'.repeat(2001) },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
   });
 });

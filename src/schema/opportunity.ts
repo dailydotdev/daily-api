@@ -309,6 +309,7 @@ export const typeDefs = /* GraphQL */ `
     plan: String
     showSlack: Boolean
     showFeedback: Boolean
+    parseErrorUserMessage: String
   }
 
   """
@@ -1303,7 +1304,9 @@ async function handleOpportunityScreeningQuestionsUpdate(
     });
 
   if (hasQuestionsFromOtherOpportunity) {
-    throw new ConflictError('Not allowed to edit some questions!');
+    throw new ConflictError(
+      "You're not allowed to edit some of these questions.",
+    );
   }
 
   await entityManager.getRepository(QuestionScreening).delete({
@@ -3037,7 +3040,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       if (opportunity.state !== OpportunityState.LIVE) {
-        throw new ConflictError('Can not apply to this opportunity');
+        throw new ConflictError('Cannot apply to this opportunity');
       }
 
       await ctx.con.getRepository(OpportunityMatch).insert(

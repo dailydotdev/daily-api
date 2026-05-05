@@ -107,6 +107,21 @@ describe('detectPlatformFromUrl', () => {
     expect(result).toBe('medium');
   });
 
+  it('should detect substack.com', () => {
+    expect(detectPlatformFromUrl('https://substack.com/@devnp2007')).toBe(
+      'substack',
+    );
+    expect(detectPlatformFromUrl('https://www.substack.com/@user')).toBe(
+      'substack',
+    );
+  });
+
+  it('should NOT detect substack.com as mastodon', () => {
+    // Substack URLs have /@ pattern but should NOT be detected as Mastodon
+    const result = detectPlatformFromUrl('https://substack.com/@devnp2007');
+    expect(result).toBe('substack');
+  });
+
   it('should return null for unknown domains', () => {
     expect(detectPlatformFromUrl('https://example.com/profile')).toBeNull();
     expect(detectPlatformFromUrl('https://mysite.io/about')).toBeNull();
@@ -123,6 +138,12 @@ describe('extractHandleFromUrl', () => {
     expect(extractHandleFromUrl('https://medium.com/@testuser', 'medium')).toBe(
       'testuser',
     );
+  });
+
+  it('should extract handle from substack URL', () => {
+    expect(
+      extractHandleFromUrl('https://substack.com/@devnp2007', 'substack'),
+    ).toBe('devnp2007');
   });
 
   it('should extract handle from twitter URL', () => {

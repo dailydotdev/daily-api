@@ -105,7 +105,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
       const text = await response.text();
 
       if (!response.ok) {
-        throw new Error(text || 'An error occured starting the campaign');
+        throw new Error(text || 'An error occurred starting the campaign');
       }
 
       if (!text) {
@@ -140,7 +140,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
       const text = await response.text();
 
       if (!response.ok) {
-        throw new Error(text || 'An error occured starting the campaign');
+        throw new Error(text || 'An error occurred starting the campaign');
       }
 
       const { error, budget } = JSON.parse(text) as CancelPostCampaignResponse;

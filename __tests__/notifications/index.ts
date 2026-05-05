@@ -1290,7 +1290,9 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('opportunity');
     expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
-    expect(actual.notification.title).toEqual('New job match waiting for you');
+    expect(actual.notification.title).toEqual(
+      'A new job match is waiting for you',
+    );
     expect(actual.notification.description).toEqual(
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
@@ -2203,7 +2205,7 @@ describe('poll result notifications', () => {
       },
     ]);
     expect(actual.notification.title).toEqual(
-      '<b>Poll you voted on has ended!</b> See the results for: <b>What is your favorite programming language?</b>',
+      '<b>The poll you voted on has ended!</b> See the results for: <b>What is your favorite programming language?</b>',
     );
   });
 
@@ -2407,7 +2409,7 @@ describe('recruiter_new_candidate notifications', () => {
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.uniqueKey).toEqual(candidate.id);
     expect(actual.notification.targetUrl).toEqual(
-      `http://localhost:5002/opportunity/${opportunityId}/matches`,
+      `http://localhost:5002/recruiter/${opportunityId}/matches`,
     );
     expect(actual.avatars).toEqual([
       {

@@ -464,6 +464,91 @@ describe('mutation updateUserSettings', () => {
       ChecklistViewState.Open,
     );
   });
+
+  it('should round-trip shortcuts flags', async () => {
+    loggedUser = '1';
+
+    const SHORTCUTS_MUTATION = `
+      mutation UpdateUserSettings($data: UpdateSettingsInput!) {
+        updateUserSettings(data: $data) {
+          customLinks
+          flags {
+            shortcutsMode
+            shortcutsAppearance
+            showShortcutsOnWebapp
+            shortcutMeta
+          }
+        }
+      }`;
+
+    const res = await client.mutate(SHORTCUTS_MUTATION, {
+      variables: {
+        data: {
+          customLinks: ['https://daily.dev'],
+          flags: {
+            shortcutsMode: 'auto',
+            shortcutsAppearance: 'chip',
+            showShortcutsOnWebapp: true,
+            shortcutMeta: {
+              'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+            },
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings).toEqual({
+      customLinks: ['https://daily.dev'],
+      flags: {
+        shortcutsMode: 'auto',
+        shortcutsAppearance: 'chip',
+        showShortcutsOnWebapp: true,
+        shortcutMeta: {
+          'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+        },
+      },
+    });
+
+    const persisted = await con
+      .getRepository(Settings)
+      .findOneOrFail({ where: { userId: '1' } });
+    expect(persisted.flags).toMatchObject({
+      shortcutsMode: 'auto',
+      shortcutsAppearance: 'chip',
+      showShortcutsOnWebapp: true,
+      shortcutMeta: {
+        'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+      },
+    });
+  });
+
+  it('should reject invalid shortcutsMode', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { flags: { shortcutsMode: 'bogus' } } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should reject malformed shortcutMeta', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: {
+            flags: { shortcutMeta: { 'https://x.com': 'not-an-object' } },
+          },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 });
 
 describe('mutation setBookmarksSharing', () => {

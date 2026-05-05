@@ -1,4 +1,5 @@
 import { DataSource, EntityManager, In, Not } from 'typeorm';
+import type { Token } from 'markdown-it';
 import {
   ArticlePost,
   Comment,
@@ -25,7 +26,12 @@ import {
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
-import { findMarkdownTag, markdown, saveMentions } from './markdown';
+import {
+  findMarkdownTag,
+  markdown,
+  renderMarkdown,
+  saveMentions,
+} from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 // @ts-expect-error - no types
@@ -66,6 +72,8 @@ import { pollCreationSchema } from './schema/polls';
 import { generateDeduplicationKey } from '../entity/posts/hooks';
 import { z } from 'zod';
 import { canPostToSquad } from '../schema/sources';
+import { MAX_POST_CONTENT_EMBEDS, replaceContentEmbeds } from './contentEmbeds';
+import { ContentEmbedParentType } from '../entity/ContentEmbed';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -269,11 +277,12 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-interface CreateFreeformPostArgs {
+type CreateFreeformPostArgs = {
   con: DataSource | EntityManager;
   ctx?: AuthContext;
   args: CreatePost;
-}
+  contentTokens?: Token[];
+};
 
 interface CreatePollPostArgs {
   con: DataSource | EntityManager;
@@ -357,6 +366,7 @@ export const insertFreeformPost = async ({
   con,
   args,
   ctx,
+  contentTokens,
 }: CreateFreeformPostArgs) => {
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: args.sourceId,
@@ -383,7 +393,20 @@ export const insertFreeformPost = async ({
     req: ctx?.req,
   });
 
-  return con.getRepository(FreeformPost).save(createdPost);
+  const savedPost = await con.getRepository(FreeformPost).save(createdPost);
+
+  if (savedPost.content) {
+    await replaceContentEmbeds({
+      con,
+      parentType: ContentEmbedParentType.Post,
+      parentId: savedPost.id,
+      content: savedPost.content,
+      tokens: contentTokens,
+      limit: MAX_POST_CONTENT_EMBEDS,
+    });
+  }
+
+  return savedPost;
 };
 
 export interface CreateSourcePostModeration
@@ -1425,7 +1448,7 @@ export const createFreeformPost = async (
 
   await con.transaction(async (manager) => {
     const mentions = await getMentions(manager, content, userId, sourceId);
-    const contentHtml = markdown.render(content, { mentions });
+    const { contentHtml, tokens } = renderMarkdown(content, { mentions });
     const params: CreatePost = {
       id,
       title,
@@ -1445,7 +1468,12 @@ export const createFreeformPost = async (
       params.image = coverImageUrl;
     }
 
-    await insertFreeformPost({ con: manager, ctx, args: params });
+    await insertFreeformPost({
+      con: manager,
+      ctx,
+      args: params,
+      contentTokens: tokens,
+    });
     await saveMentions(manager, id, userId, mentions, PostMention);
   });
 

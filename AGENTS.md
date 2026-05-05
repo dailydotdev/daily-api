@@ -43,6 +43,10 @@ The migration generator compares entities against the local database schema. Ens
 
 **After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
 
+**Migration SQL best practices:**
+- **Never use `CONCURRENTLY`** in migrations — TypeORM runs migrations inside a transaction, and `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONCURRENTLY` cannot run inside a transaction.
+- **Always use `IF NOT EXISTS`** for `CREATE INDEX` and **`IF EXISTS`** for `DROP INDEX` to make migrations idempotent and safe to re-run.
+
 **Building & Testing:**
 
 - `pnpm run build` - Compile TypeScript to build directory
@@ -86,7 +90,11 @@ The migration generator compares entities against the local database schema. Ens
 - **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
 - **GraphORM mappings**: Only add entries in `src/graphorm/index.ts` when you need custom mapping/fields/transforms or GraphQL type names differ from TypeORM entity names. For straightforward reads, keep GraphQL type names aligned with entities and use GraphORM without extra config.
 - For GraphQL query resolvers, prefer `graphorm.query`, `graphorm.queryOne`, or `graphorm.queryPaginated` over custom TypeORM fetch/pagination code whenever GraphORM can express the query. Reach for manual TypeORM reads only when GraphORM genuinely cannot support the access pattern.
+- When adding subscriptions for GraphORM-backed types, prefer publishing a payload that already matches the existing GraphQL object shape instead of adding fallback field resolvers that override the normal GraphORM query path. If you must add a field resolver, preserve already-hydrated fields from query results.
+- When a GraphQL field must be nulled based on viewer permissions, define the rule in `src/graphorm/index.ts` as a shared transform/helper (for example `nullIfNotLoggedIn`). If a resolver cannot use GraphORM for the full query, reuse that GraphORM field mapping from the manual path instead of re-implementing the permission rule in a schema field resolver.
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
+- For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.
+- For post-based sitemaps, keep ordering consistent across sitemap types: use oldest-first ordering with a deterministic tie-breaker (`createdAt`, then `id`) unless there is a documented reason not to.
 
 **Data Layer:**
 
@@ -112,6 +120,7 @@ The migration generator compares entities against the local database schema. Ens
   - `z.literal([...])` in Zod 4.x supports arrays and validates that the value matches one of the array elements
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
+- For TypeScript string enums used in Zod schemas, derive the tuple from the shared helper in `src/common/schema/utils.ts` instead of duplicating arrays or hand-written type guards. Keep the enum as the single source of truth.
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
 - **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
 - **Never create wrapper types around `@dailydotdev/schema` classes** (e.g., `UserBriefingRequest & { extraField }`) — if a field exists in the proto, use it directly. If it doesn't exist yet, update the schema package first.
@@ -573,6 +582,7 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 - **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
+- For materialization/backfill jobs, make the cron rerunnable and idempotent. Prefer a deterministic unique key plus an atomic per-scope write step so retries can safely continue after partial progress without leaving half-written rows.
 
 **Using queryReadReplica Helper:**
 
@@ -594,6 +604,11 @@ The migration generator compares entities against the local database schema. Ens
 
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
 - In tests, refresh the materialized view before assertions; do not recreate the materialized view definition inside test files.
+
+**Immutable Materialized Tables:**
+
+- For immutable or period-closed materialized data, prefer the smallest persisted schema that supports lookup and joins. Avoid `updatedAt`, `generatedAt`, counters, or snapshot columns unless there is a concrete read-path need for them.
+- For archive/materialization tables keyed by business dimensions, keep a surrogate `id` for relations but also enforce the real unique business key in the database.
 
 **State Checking Patterns:**
 

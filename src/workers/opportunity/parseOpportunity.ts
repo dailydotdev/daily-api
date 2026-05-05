@@ -7,6 +7,7 @@ import {
   createOpportunityFromParsedData,
 } from '../../common/opportunity/parse';
 import { updateFlagsStatement } from '../../common';
+import { ParseOpportunityError } from '../../errors';
 import { deleteBlobFromGCS } from '../../common/googleCloud';
 import z from 'zod';
 import { performance } from 'perf_hooks';
@@ -167,6 +168,9 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
+      const parseError =
+        error instanceof z.ZodError ? z.prettifyError(error) : errorMessage;
+
       await con
         .getRepository(OpportunityJob)
         .createQueryBuilder()
@@ -178,10 +182,9 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
         .setParameter(
           'flagsJson',
           JSON.stringify({
-            parseError:
-              error instanceof z.ZodError
-                ? z.prettifyError(error)
-                : errorMessage,
+            parseError,
+            parseErrorUserMessage:
+              error instanceof ParseOpportunityError ? errorMessage : undefined,
           }),
         )
         .execute();

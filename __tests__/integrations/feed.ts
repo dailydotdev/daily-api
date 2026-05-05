@@ -66,12 +66,12 @@ const rawFeedResponse = {
 };
 const feedResponse: FeedResponse = {
   data: [
-    ['1', '{"p":"a"}'],
-    ['2', '{"p":"b"}'],
-    ['3', '{"p":"c"}'],
-    ['4', null],
-    ['5', null],
-    ['6', null],
+    { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+    { type: 'post', id: '2', feedMeta: '{"p":"b"}' },
+    { type: 'post', id: '3', feedMeta: '{"p":"c"}' },
+    { type: 'post', id: '4', feedMeta: null },
+    { type: 'post', id: '5', feedMeta: null },
+    { type: 'post', id: '6', feedMeta: null },
   ],
 };
 
@@ -126,12 +126,67 @@ describe('FeedClient', () => {
     });
     expect(feed).toEqual({
       data: [
-        ['1', '{"p":"a","mab":{"test":"da"}}'],
-        ['2', '{"p":"b","mab":{"test":"da"}}'],
-        ['3', '{"p":"c","mab":{"test":"da"}}'],
-        ['4', '{"mab":{"test":"da"}}'],
-        ['5', '{"mab":{"test":"da"}}'],
-        ['6', '{"mab":{"test":"da"}}'],
+        {
+          type: 'post',
+          id: '1',
+          feedMeta: '{"p":"a","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '2',
+          feedMeta: '{"p":"b","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '3',
+          feedMeta: '{"p":"c","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '4',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '5',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '6',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+      ],
+    });
+  });
+
+  it('should preserve highlight items from the feed service response', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, {
+        data: [
+          { post_id: '1', metadata: { p: 'a' } },
+          {
+            type: 'highlight',
+            post_id: '',
+            highlight_ids: ['h1', 'h2'],
+            metadata: { p: 'highlight' },
+          },
+        ],
+      });
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+
+    expect(feed).toEqual({
+      data: [
+        { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+        {
+          type: 'highlight',
+          highlightIds: ['h1', 'h2'],
+          feedMeta: '{"p":"highlight"}',
+        },
       ],
     });
   });
@@ -176,8 +231,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
       staleCursor: true,
@@ -201,8 +256,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
     };
@@ -543,6 +598,43 @@ describe('FeedPreferencesConfigGenerator', () => {
           'milestone',
           'hot_take',
         ],
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
+    });
+  });
+
+  it('should exclude social posts when the default content type is opt-in', async () => {
+    await con.getRepository(FeedAdvancedSettings).delete({
+      feedId: '1',
+      advancedSettingsId: 4,
+    });
+    await con
+      .getRepository(AdvancedSettings)
+      .update({ id: 4 }, { defaultEnabledState: false });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includePostTypes: true,
+      },
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual).toEqual({
+      config: {
+        allowed_post_types: postTypes.filter(
+          (x) => x !== PostType.VideoYouTube && x !== PostType.SocialTwitter,
+        ),
         feed_config_name: FeedConfigName.Personalise,
         fresh_page_size: '1',
         offset: 3,
@@ -940,7 +1032,7 @@ describe('versionToTimeFeedGenerator', () => {
       offset: 0,
     });
 
-    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedNaV1);
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.ForYouByDate);
     expect(capturedBody.order_by).toBe(FeedOrderBy.Date);
     expect(capturedBody.disable_engagement_filter).toBe(true);
   });

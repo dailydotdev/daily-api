@@ -245,6 +245,70 @@ export const canonicalizeCurrentHighlights = ({
   );
 };
 
+const applyPublicShareFallback = <T extends { postId: string }>({
+  items,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  items: T[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): T[] => {
+  const mappedItems = new Map<string, T>();
+
+  for (const item of items) {
+    const fallbackPostId = fallbackPostIds.get(item.postId);
+    if (!fallbackPostId && inaccessiblePostIds.has(item.postId)) {
+      continue;
+    }
+
+    const postId = fallbackPostId || item.postId;
+    if (mappedItems.has(postId)) {
+      continue;
+    }
+
+    mappedItems.set(postId, {
+      ...item,
+      postId,
+    });
+  }
+
+  return [...mappedItems.values()];
+};
+
+export const applyPublicShareFallbackToCandidates = ({
+  candidates,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  candidates: HighlightCandidate[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): HighlightCandidate[] =>
+  applyPublicShareFallback({
+    items: candidates,
+    inaccessiblePostIds,
+    fallbackPostIds,
+  }).sort(compareCandidates);
+
+export const applyPublicShareFallbackToHighlights = ({
+  highlights,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  highlights: HighlightItem[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): HighlightItem[] =>
+  applyPublicShareFallback({
+    items: highlights,
+    inaccessiblePostIds,
+    fallbackPostIds,
+  }).sort(
+    (left, right) =>
+      right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+  );
+
 export const toStoredSnapshotItem = (
   item: HighlightItem,
 ): {

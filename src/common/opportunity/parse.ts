@@ -12,6 +12,7 @@ import {
 
 import { getBufferFromStream } from '../utils';
 import { ValidationError } from 'apollo-server-errors';
+import { ParseOpportunityError } from '../../errors';
 import { garmScraperService } from '../scraper';
 import { acceptedOpportunityFileTypes } from '../../types';
 import { getBrokkrClient } from '../brokkr';
@@ -209,6 +210,12 @@ export async function parseOpportunityWithBrokkr({
   });
 
   logger.info(result, 'brokkrParseOpportunityResponse');
+
+  const generalError = result.errors?.find((e) => e.field === 'general');
+
+  if (generalError) {
+    throw new ParseOpportunityError(generalError.message);
+  }
 
   // Sanitize Brokkr response - filter out invalid locations
   const sanitizedOpportunity = {

@@ -15,6 +15,7 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.PostMention]: notificationPreferenceSchema,
   [NotificationType.CommentMention]: notificationPreferenceSchema,
   [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
+  [NotificationType.UserFollow]: notificationPreferenceSchema,
   [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
   [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
   [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
@@ -54,4 +55,6 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.RecruiterExternalPayment]: notificationPreferenceSchema,
   [NotificationType.AchievementUnlocked]: notificationPreferenceSchema,
   [NotificationType.DigestReady]: notificationPreferenceSchema,
+  [NotificationType.MajorHeadlineAdded]: notificationPreferenceSchema,
+  [NotificationType.LiveRoomStarted]: notificationPreferenceSchema,
 });

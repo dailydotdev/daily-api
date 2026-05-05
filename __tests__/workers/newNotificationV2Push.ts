@@ -108,6 +108,7 @@ it('should send push notifications to all users', async () => {
     expect.arrayContaining(['1', '2']),
     notif,
     avatars[1],
+    undefined,
   );
 });
 
@@ -119,7 +120,12 @@ it('should send push notifications to disconnected users only', async () => {
       public: true,
     },
   });
-  expect(sendPushNotification).toHaveBeenCalledWith(['2'], notif, avatars[1]);
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    ['2'],
+    notif,
+    avatars[1],
+    undefined,
+  );
 });
 
 it('should not send follow push notification if the user prefers not to receive them', async () => {
@@ -159,6 +165,105 @@ it('should not send follow push notification if the user prefers not to receive 
     },
   });
   expect(sendPushNotification).toHaveBeenCalledTimes(0);
+});
+
+it('should send push notification with sendAfter when showAt is set', async () => {
+  const showAt = new Date(Date.now() + 60_000);
+  await con
+    .getRepository(UserNotification)
+    .update({ notificationId: notif.id }, { showAt });
+
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notif.id,
+      public: true,
+    },
+  });
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    expect.arrayContaining(['1', '2']),
+    notif,
+    avatars[1],
+    showAt,
+  );
+});
+
+it('should group push notifications by different showAt values', async () => {
+  const showAt1 = new Date(Date.now() + 60_000);
+  const showAt2 = new Date(Date.now() + 120_000);
+  await con
+    .getRepository(UserNotification)
+    .update({ notificationId: notif.id, userId: '1' }, { showAt: showAt1 });
+  await con
+    .getRepository(UserNotification)
+    .update({ notificationId: notif.id, userId: '2' }, { showAt: showAt2 });
+
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notif.id,
+      public: true,
+    },
+  });
+  expect(sendPushNotification).toHaveBeenCalledTimes(2);
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    ['1'],
+    notif,
+    avatars[1],
+    showAt1,
+  );
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    ['2'],
+    notif,
+    avatars[1],
+    showAt2,
+  );
+});
+
+it('should group users with same showAt into one push call', async () => {
+  const showAt = new Date(Date.now() + 60_000);
+  await con
+    .getRepository(UserNotification)
+    .update({ notificationId: notif.id }, { showAt });
+
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notif.id,
+      public: true,
+    },
+  });
+  expect(sendPushNotification).toHaveBeenCalledTimes(1);
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    expect.arrayContaining(['1', '2']),
+    notif,
+    avatars[1],
+    showAt,
+  );
+});
+
+it('should separate users with and without showAt into different push calls', async () => {
+  const showAt = new Date(Date.now() + 60_000);
+  await con
+    .getRepository(UserNotification)
+    .update({ notificationId: notif.id, userId: '1' }, { showAt });
+
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notif.id,
+      public: true,
+    },
+  });
+  expect(sendPushNotification).toHaveBeenCalledTimes(2);
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    ['1'],
+    notif,
+    avatars[1],
+    showAt,
+  );
+  expect(sendPushNotification).toHaveBeenCalledWith(
+    ['2'],
+    notif,
+    avatars[1],
+    undefined,
+  );
 });
 
 it('should not send award push notification if the user prefers not to receive them', async () => {

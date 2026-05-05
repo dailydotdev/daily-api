@@ -16,6 +16,7 @@ import {
   SquadSource,
   type Organization,
   type Campaign,
+  type LiveRoom,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -221,6 +222,17 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementName: string;
   achievementDescription: string;
   achievementImage: string;
+};
+
+export type NotificationMajorHeadlineContext = NotificationPostContext & {
+  headline: string;
+  channel: string;
+  significance: number;
+};
+
+export type NotificationLiveRoomContext = NotificationBaseContext & {
+  host: Reference<User>;
+  room: Reference<LiveRoom>;
 };
 
 declare module 'fs' {

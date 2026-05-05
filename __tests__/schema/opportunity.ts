@@ -3073,7 +3073,7 @@ describe('mutation opportunityApply', () => {
         },
       },
       'CONFLICT',
-      'Can not apply to this opportunity',
+      'Cannot apply to this opportunity',
     );
   });
 

@@ -1,11 +1,19 @@
-import { Brackets, In, IsNull, Not, type DataSource } from 'typeorm';
-import { ONE_HOUR_IN_SECONDS } from '../constants';
+import {
+  Brackets,
+  In,
+  IsNull,
+  MoreThanOrEqual,
+  Not,
+  type DataSource,
+} from 'typeorm';
+import { ONE_HOUR_IN_SECONDS, ONE_WEEK_IN_SECONDS } from '../constants';
 import { PostHighlight } from '../../entity/PostHighlight';
 import { Post } from '../../entity/posts/Post';
 import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
+import { SharePost } from '../../entity/posts/SharePost';
 import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import type { HighlightPost } from './types';
 
@@ -20,6 +28,7 @@ const REJECTED_CONTENT_CURATIONS = [
 ];
 
 const HIGHLIGHT_FETCH_OVERLAP_SECONDS = 10 * 60;
+const HIGHLIGHT_EVALUATION_HISTORY_SECONDS = ONE_WEEK_IN_SECONDS;
 
 export const getHorizonStart = ({
   now,
@@ -70,6 +79,32 @@ export const fetchCurrentHighlights = async ({
     where: {
       channel,
       retiredAt: IsNull(),
+    },
+    order: {
+      highlightedAt: 'DESC',
+    },
+  });
+
+export const getEvaluationHistoryStart = ({ now }: { now: Date }): Date =>
+  new Date(now.getTime() - HIGHLIGHT_EVALUATION_HISTORY_SECONDS * 1000);
+
+export const fetchEvaluationHistoryHighlights = async ({
+  con,
+  channel,
+  now,
+}: {
+  con: DataSource;
+  channel: string;
+  now: Date;
+}): Promise<PostHighlight[]> =>
+  con.getRepository(PostHighlight).find({
+    where: {
+      channel,
+      highlightedAt: MoreThanOrEqual(
+        getEvaluationHistoryStart({
+          now,
+        }),
+      ),
     },
     order: {
       highlightedAt: 'DESC',
@@ -158,8 +193,7 @@ export const fetchIncrementalPosts = async ({
       new Brackets((builder) => {
         builder
           .where('post.createdAt >= :fetchStart', { fetchStart })
-          .orWhere('post.metadataChangedAt >= :fetchStart', { fetchStart })
-          .orWhere('post.statsUpdatedAt >= :fetchStart', { fetchStart });
+          .orWhere('post.metadataChangedAt >= :fetchStart', { fetchStart });
       }),
     )
     .getMany() as unknown as Promise<HighlightPost[]>;
@@ -189,6 +223,53 @@ export const fetchRelations = async ({
       }),
     )
     .getMany();
+};
+
+export const fetchPublicShareFallbackPostIds = async ({
+  con,
+  sharedPostIds,
+  excludedSourceIds = [],
+}: {
+  con: DataSource;
+  sharedPostIds: string[];
+  excludedSourceIds?: string[];
+}): Promise<Map<string, string>> => {
+  if (!sharedPostIds.length) {
+    return new Map();
+  }
+
+  const shares = await con
+    .getRepository(SharePost)
+    .createQueryBuilder('post')
+    .where('post."sharedPostId" IN (:...sharedPostIds)', {
+      sharedPostIds,
+    })
+    .andWhere('post.visible = true')
+    .andWhere('post.deleted = false')
+    .andWhere('post.banned = false')
+    .andWhere('post.private = false')
+    .andWhere('post.showOnFeed = true')
+    .andWhere(
+      excludedSourceIds.length
+        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
+        : '1=1',
+      { excludedSourceIds },
+    )
+    .orderBy('post.upvotes', 'DESC')
+    .addOrderBy('post."createdAt"', 'DESC')
+    .addOrderBy('post.id', 'DESC')
+    .getMany();
+  const fallbackPostIds = new Map<string, string>();
+
+  for (const share of shares) {
+    if (fallbackPostIds.has(share.sharedPostId)) {
+      continue;
+    }
+
+    fallbackPostIds.set(share.sharedPostId, share.id);
+  }
+
+  return fallbackPostIds;
 };
 
 export const mergePosts = (groups: HighlightPost[][]): HighlightPost[] => {

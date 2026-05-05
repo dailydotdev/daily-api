@@ -12,6 +12,7 @@ export const getChannelHighlightDefinitions = async ({
       mode: Not('disabled'),
     },
     order: {
+      order: 'ASC',
       channel: 'ASC',
     },
   });

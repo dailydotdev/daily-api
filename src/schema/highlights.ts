@@ -6,14 +6,51 @@ import {
 } from 'graphql-relay';
 import type { SelectQueryBuilder } from 'typeorm';
 import { BaseContext, Context } from '../Context';
+import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
+import { redisPubSub } from '../redis';
 import type { OffsetPage } from './common';
 import {
   PostHighlight,
   PostHighlightSignificance,
 } from '../entity/PostHighlight';
+import type { GQLSource } from './sources';
+
+type GQLChannelDigestConfiguration = {
+  frequency: string;
+  source?: GQLSource | null;
+};
+
+type GQLChannelConfiguration = {
+  channel: string;
+  displayName: string;
+  digest?: GQLChannelDigestConfiguration | null;
+};
+
+type GQLSubscribedPostHighlight = Pick<
+  PostHighlight,
+  | 'id'
+  | 'post'
+  | 'postId'
+  | 'channel'
+  | 'highlightedAt'
+  | 'headline'
+  | 'createdAt'
+  | 'updatedAt'
+>;
 
 export const typeDefs = /* GraphQL */ `
+  type ChannelDigestConfiguration {
+    frequency: String!
+    source: Source
+  }
+
+  type ChannelConfiguration {
+    channel: String!
+    displayName: String!
+    digest: ChannelDigestConfiguration
+  }
+
   type PostHighlight {
     id: ID!
     post: Post!
@@ -36,6 +73,11 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get highlight-backed channel configuration with digest metadata
+    """
+    channelConfigurations: [ChannelConfiguration!]!
+
+    """
     Get highlights for a channel, ordered by recency
     """
     postHighlights(channel: String!): [PostHighlight!]!
@@ -44,6 +86,10 @@ export const typeDefs = /* GraphQL */ `
     Get major headlines across all channels, deduplicated by post and ordered by recency
     """
     majorHeadlines(first: Int, after: String): PostHighlightConnection!
+  }
+
+  extend type Subscription {
+    newHighlight: PostHighlight! @auth
   }
 `;
 
@@ -87,6 +133,21 @@ const getDedupedMajorHeadlinesQuery = (
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
+    channelConfigurations: async (_, __, ctx: Context, info) =>
+      graphorm.query<GQLChannelConfiguration>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."mode" != :disabledMode`, {
+              disabledMode: 'disabled',
+            })
+            .orderBy(`"${builder.alias}"."order"`, 'ASC')
+            .addOrderBy(`"${builder.alias}"."channel"`, 'ASC');
+          return builder;
+        },
+        true,
+      ),
     postHighlights: async (_, args: { channel: string }, ctx: Context, info) =>
       graphorm.query(
         ctx,
@@ -138,6 +199,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (nodes) => nodes.slice(0, page.limit - 1),
         true,
       );
+    },
+  },
+  Subscription: {
+    newHighlight: {
+      subscribe: async (): Promise<
+        AsyncIterable<{ newHighlight: GQLSubscribedPostHighlight }>
+      > => {
+        const iterator = redisPubSub.asyncIterator<GQLSubscribedPostHighlight>(
+          NEW_HIGHLIGHT_CHANNEL,
+        );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return { done: false, value: { newHighlight: value } };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
 };

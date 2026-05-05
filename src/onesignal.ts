@@ -73,6 +73,8 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SourcePostRejected]: 'Post review',
   [NotificationType.SourcePostSubmitted]: 'Post pending review',
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
+  [NotificationType.MajorHeadlineAdded]: 'Happening now',
+  [NotificationType.LiveRoomStarted]: 'Room is live',
 };
 
 const pushHeadingFnMap: Partial<
@@ -89,6 +91,10 @@ const pushHeadingFnMap: Partial<
   [NotificationType.ArticleNewComment]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);
     return match ? `${match[1]} commented` : 'New comment';
+  },
+  [NotificationType.LiveRoomStarted]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} is live` : 'Room is live';
   },
 };
 
@@ -136,6 +142,7 @@ export async function sendPushNotification(
     targetUrl,
   }: Pick<NotificationV2, 'id' | 'title' | 'type' | 'targetUrl'>,
   avatar?: Pick<NotificationAvatarV2, 'image'>,
+  sendAfter?: Date,
 ): Promise<void> {
   if (!appId || !apiKey) return;
 
@@ -145,6 +152,9 @@ export async function sendPushNotification(
   push.data = { notificationId: id };
   if (avatar) {
     push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
+  }
+  if (sendAfter) {
+    push.send_after = sendAfter.toISOString();
   }
   await client.createNotification(push);
 }

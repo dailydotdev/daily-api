@@ -37,6 +37,7 @@ import {
 import {
   markdown,
   mentionSpecialCharacters,
+  renderMarkdown,
   saveMentions,
 } from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
@@ -54,6 +55,12 @@ import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { GQLProduct } from './njord';
+import {
+  deleteContentEmbedsByParent,
+  MAX_COMMENT_CONTENT_EMBEDS,
+  replaceContentEmbeds,
+} from '../common/contentEmbeds';
+import { ContentEmbedParentType } from '../entity/ContentEmbed';
 
 export interface GQLComment {
   id: string;
@@ -70,6 +77,7 @@ export interface GQLComment {
   userState?: GQLUserComment;
   fromAward: boolean;
   award?: GQLProduct;
+  contentEmbeds?: unknown[];
 }
 
 interface GQLMentionUserArgs {
@@ -131,6 +139,11 @@ export const typeDefs = /* GraphQL */ `
     HTML Parsed content of the comment
     """
     contentHtml: String!
+
+    """
+    Embeds extracted from standalone links in the comment body.
+    """
+    contentEmbeds: [ContentEmbed!]!
 
     """
     Time when comment was created
@@ -609,7 +622,7 @@ export const saveComment = async (
     comment.userId,
     sourceId,
   );
-  const contentHtml = markdown.render(comment.content, { mentions });
+  const { contentHtml, tokens } = renderMarkdown(comment.content, { mentions });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
   await saveMentions(
@@ -619,6 +632,14 @@ export const saveComment = async (
     mentions,
     CommentMention,
   );
+  await replaceContentEmbeds({
+    con,
+    parentType: ContentEmbedParentType.Comment,
+    parentId: savedComment.id,
+    content: savedComment.content,
+    tokens,
+    limit: MAX_COMMENT_CONTENT_EMBEDS,
+  });
 
   return savedComment;
 };
@@ -1184,9 +1205,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
-        const comment = await ctx.con.getRepository(Comment).findOneOrFail({
+        const comment = await repo.findOneOrFail({
           where: { id },
           relations: ['post'],
+        });
+        const childComments = await repo.find({
+          select: ['id'],
+          where: { parentId: id },
         });
         const post = await comment.post;
         if (
@@ -1200,6 +1225,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
         }
+        await deleteContentEmbedsByParent({
+          con: entityManager,
+          parentType: ContentEmbedParentType.Comment,
+          parentIds: [
+            comment.id,
+            ...childComments.map((childComment) => childComment.id),
+          ],
+        });
         await repo.delete({ id: comment.id });
       });
       return { _: true };

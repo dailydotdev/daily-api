@@ -2,6 +2,7 @@ import {
   baseFeedConfig,
   DynamicConfig,
   FeedConfigGenerator,
+  FeedConfigGeneratorResult,
   FeedConfigName,
   FeedResponse,
   FeedVersion,
@@ -45,6 +46,23 @@ export class FeedGenerator {
       this.feedId ?? userId!,
       config,
       extraMetadata,
+    );
+  }
+
+  withConfigTransform(
+    transform: (
+      result: FeedConfigGeneratorResult,
+    ) => FeedConfigGeneratorResult | Promise<FeedConfigGeneratorResult>,
+  ): FeedGenerator {
+    const baseConfig = this.config;
+
+    return new FeedGenerator(
+      this.client,
+      {
+        generate: async (ctx, opts) =>
+          transform(await baseConfig.generate(ctx, opts)),
+      },
+      this.feedId,
     );
   }
 }
@@ -120,7 +138,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
       new FeedPreferencesConfigGenerator(
         {
           ...baseFeedConfig,
-          feed_config_name: FeedConfigName.Popular,
+          feed_config_name: FeedConfigName.ForYouByDate,
           min_day_range: 14,
           allowed_content_curations: [
             'news',
@@ -179,7 +197,7 @@ export const versionToTimeFeedGenerator = (_version: number): FeedGenerator => {
     new FeedPreferencesConfigGenerator(
       {
         ...baseFeedConfig,
-        feed_config_name: FeedConfigName.CustomFeedNaV1,
+        feed_config_name: FeedConfigName.ForYouByDate,
         order_by: FeedOrderBy.Date,
         disable_engagement_filter: true,
       },

@@ -7,11 +7,14 @@ import {
 import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
-import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
-import { GQLUser, getMarketingCta } from '../schema/users';
+import {
+  GQLUser,
+  getMarketingCta,
+  getMarketingCtaVariants,
+} from '../schema/users';
 import { extractHandleFromUrl } from '../common/schema/socials';
 import {
   Alerts,
@@ -60,8 +63,7 @@ import {
   updateFlagsStatement,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
-import { createBetterAuthSessionFromKratos } from '../betterAuthSession';
-import { cookies, setCookie, setRawCookie } from '../cookies';
+import { clearAuthentication, cookies, setCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
@@ -69,7 +71,6 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import {
   ExperimentAllocationClient,
-  features as gbFeatures,
   getEncryptedFeatures,
   getUserGrowthBookInstance,
 } from '../growthbook';
@@ -86,6 +87,8 @@ import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
+import { checkQuestProgress } from '../common/quest/progress';
+import { QuestEventType } from '../entity/Quest';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
 import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
@@ -96,6 +99,11 @@ import {
 } from '../common/profile/completion';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
+import { asyncRetry } from '../integrations/retry';
+import {
+  skadiEngagementClient,
+  type EngagementCreative,
+} from '../integrations/skadi';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -150,6 +158,7 @@ export type BaseBoot = {
   squads: BootSquadSource[];
   exp?: Experimentation;
   geo: Geo;
+  engagementCreatives?: EngagementCreative[];
 };
 
 export type BootUserReferral = Partial<{
@@ -181,6 +190,7 @@ export type LoggedInBoot = BaseBoot & {
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
+  marketingCtaVariants: string[];
 };
 
 export type FunnelLoggedInUser = GQLUser & {
@@ -240,6 +250,12 @@ const updateLastExtensionUse = async ({
     return;
   }
 
+  const priorUser = await con.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['flags'],
+  });
+  const isFirstEverExtensionBoot = !priorUser?.flags?.lastExtensionUse;
+
   await con.getRepository(User).update(
     { id: userId },
     {
@@ -249,6 +265,22 @@ const updateLastExtensionUse = async ({
       inc: () => 'inc + 1',
     },
   );
+
+  if (isFirstEverExtensionBoot) {
+    try {
+      await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.ExtensionInstall,
+      });
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err), userId },
+        'Failed to track extension install quest progress',
+      );
+    }
+  }
 };
 
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
@@ -401,23 +433,13 @@ const handleNonExistentUser = async (
   req: FastifyRequest,
   res: FastifyReply,
   middleware?: BootMiddleware,
-  authStrategy?: string,
 ): Promise<AnonymousBoot> => {
   req.log.info(
     { userId: req.userId },
     'could not find the logged user in the api',
   );
   await clearAuthentication(req, res, 'user not found');
-  return anonymousBoot(
-    con,
-    req,
-    res,
-    middleware,
-    false,
-    undefined,
-    undefined,
-    authStrategy,
-  );
+  return anonymousBoot(con, req, res, middleware);
 };
 
 const setAuthCookie = async (
@@ -636,6 +658,35 @@ const getLocation = async (
   return location;
 };
 
+const getEngagementCreatives = async (
+  userId: string,
+): Promise<EngagementCreative[]> => {
+  if (!remoteConfig.vars.engagementAdsEnabled) {
+    return [];
+  }
+
+  try {
+    const response = await skadiEngagementClient.getAd('default_engagement', {
+      USERID: userId,
+    });
+
+    if (!response.value?.engagement || !response.generation_id) {
+      return [];
+    }
+
+    return [
+      {
+        ...response.value.engagement,
+        gen_id: response.generation_id,
+      },
+    ];
+  } catch (error) {
+    logger.error({ userId, err: error }, 'failed to fetch engagement ad');
+
+    return [];
+  }
+};
+
 const loggedInBoot = async ({
   con,
   req,
@@ -643,7 +694,6 @@ const loggedInBoot = async ({
   refreshToken,
   middleware,
   userId,
-  authStrategy,
 }: {
   con: DataSource;
   req: FastifyRequest;
@@ -651,7 +701,6 @@ const loggedInBoot = async ({
   refreshToken: boolean;
   middleware?: BootMiddleware;
   userId: string;
-  authStrategy?: string;
 }): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async (span) => {
     span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
@@ -664,9 +713,8 @@ const loggedInBoot = async ({
       visit,
       roles,
       extra,
-      [alerts, settings, marketingCta],
+      [alerts, settings, marketingCta, user, marketingCtaVariants],
       [
-        user,
         squads,
         lastBanner,
         exp,
@@ -678,7 +726,7 @@ const loggedInBoot = async ({
       balance,
       clickbaitTries,
       anonymousTheme,
-      hasBetterAuthAccount,
+      engagementCreatives,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -688,11 +736,12 @@ const loggedInBoot = async ({
           getAlerts(queryRunner, userId),
           getSettings(queryRunner, userId),
           getMarketingCta(queryRunner, log, userId),
+          getUser(queryRunner, userId),
+          getMarketingCtaVariants(queryRunner, userId),
         ]);
       }),
       queryReadReplica(con, async ({ queryRunner }) => {
         return Promise.all([
-          getUser(queryRunner, userId),
           getSquads(queryRunner, userId),
           getAndUpdateLastBannerRedis(queryRunner),
           getExperimentation({ userId, con: queryRunner, ...geo }),
@@ -705,20 +754,13 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
-      authStrategy && authStrategy !== 'betterauth'
-        ? con
-            .query(`SELECT 1 FROM ba_account WHERE "userId" = $1 LIMIT 1`, [
-              userId,
-            ])
-            .then((rows) => rows.length > 0)
-            .catch(() => false)
-        : Promise.resolve(false),
+      getEngagementCreatives(userId),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
 
-    if (!user) {
-      return handleNonExistentUser(con, req, res, middleware, authStrategy);
+    if (!user || user.flags?.inDeletion) {
+      return handleNonExistentUser(con, req, res, middleware);
     }
 
     // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
@@ -733,10 +775,6 @@ const loggedInBoot = async ({
 
     if (isPlus) {
       exp.a.plus = 1;
-    }
-
-    if (authStrategy) {
-      exp.a.authStrategy = hasBetterAuthAccount ? 'betterauth' : authStrategy;
     }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
@@ -828,8 +866,10 @@ const loggedInBoot = async ({
       accessToken,
       exp,
       marketingCta,
+      marketingCtaVariants,
       feeds,
       geo,
+      engagementCreatives,
       ...extra,
     } as LoggedInBoot;
   });
@@ -898,26 +938,23 @@ const anonymousBoot = async (
   shouldVerify = false,
   email?: string,
   referrer?: string,
-  authStrategy?: string,
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
-  const [visit, extra, firstVisit, exp, existingTheme] = await Promise.all([
-    visitSection(req, res),
-    middleware ? middleware(con, req, res) : {},
-    getAnonymousFirstVisit(req.trackingId),
-    getExperimentation({ userId: req.trackingId, con, ...geo }),
-    getAnonymousTheme(req.trackingId),
-  ]);
+  const [visit, extra, firstVisit, exp, existingTheme, engagementCreatives] =
+    await Promise.all([
+      visitSection(req, res),
+      middleware ? middleware(con, req, res) : {},
+      getAnonymousFirstVisit(req.trackingId),
+      getExperimentation({ userId: req.trackingId, con, ...geo }),
+      getAnonymousTheme(req.trackingId),
+      getEngagementCreatives(req.trackingId ?? ''),
+    ]);
 
   // Determine theme: use existing preference or referrer-based default
   const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
   if (!existingTheme && req.trackingId) {
     await setAnonymousTheme(req.trackingId, theme);
-  }
-
-  if (authStrategy) {
-    exp.a.authStrategy = authStrategy;
   }
 
   return {
@@ -942,6 +979,7 @@ const anonymousBoot = async (
     squads: [],
     exp,
     geo,
+    engagementCreatives,
     ...extra,
   };
 };
@@ -953,179 +991,78 @@ export const getBootData = async (
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const referrer = getBootReferrer(req);
-
-  const baForceCookie = req.cookies[cookies.baForce.key];
-  const trackingIdForGb = req.userId || req.trackingId || '';
-  const gb = getUserGrowthBookInstance(trackingIdForGb, {
-    allocationClient,
-  });
-  const authStrategy = baForceCookie
-    ? 'betterauth'
-    : gb.getFeatureValue(
-        gbFeatures.authStrategy.id,
-        gbFeatures.authStrategy.defaultValue,
-      );
-
-  const setForceBACookie = (data: AnonymousBoot | LoggedInBoot) => {
-    if (data.exp?.a?.authStrategy === 'betterauth') {
-      setCookie(req, res, 'baForce', '1');
-    }
-    return data;
-  };
+  const shouldRefreshJwt =
+    !req.accessToken?.expiresIn ||
+    differenceInMinutes(req.accessToken.expiresIn, new Date()) <= 3;
 
   const baSessionCookie = req.cookies[cookies.authSession.key];
   if (baSessionCookie) {
-    if (authStrategy === 'betterauth') {
-      try {
-        const session = (await getBetterAuth().api.getSession({
-          headers: fromNodeHeaders(
-            req.headers as Record<string, string | string[] | undefined>,
-          ),
-        })) as BetterAuthSession | null;
+    let sessionInvalid = false;
+    try {
+      const session = (await asyncRetry(
+        () =>
+          getBetterAuth().api.getSession({
+            headers: fromNodeHeaders(
+              req.headers as Record<string, string | string[] | undefined>,
+            ),
+          }),
+        { retries: 3 },
+      )) as BetterAuthSession | null;
 
-        if (session) {
-          req.userId = session.user.id;
-          req.trackingId = req.userId;
-          setTrackingId(req, res, req.trackingId);
-          const jwtValid =
-            req.accessToken?.expiresIn &&
-            differenceInMinutes(req.accessToken.expiresIn, new Date()) > 3;
-          return setForceBACookie(
-            await loggedInBoot({
-              con,
-              req,
-              res,
-              refreshToken: !jwtValid,
-              middleware,
-              userId: req.userId,
-              authStrategy,
-            }),
-          );
+      if (session) {
+        const cookieKey = cookies.authSession.key;
+        const rawToken = req.cookies[cookieKey];
+        if (rawToken) {
+          const sessionExpiresAt = session.session.expiresAt.getTime();
+          const cookieExpiresAt =
+            Date.now() + (cookies.authSession.opts.maxAge ?? 0) * 1000;
+          if (sessionExpiresAt !== cookieExpiresAt) {
+            setCookie(req, res, 'authSession', rawToken, {
+              expires: session.session.expiresAt,
+            });
+          }
         }
 
-        req.log.warn('BetterAuth getSession returned null');
-      } catch (error) {
-        req.log.error(
-          { err: error instanceof Error ? error.message : String(error) },
-          'BetterAuth session validation failed',
-        );
-      }
-      req.log.warn(
-        { authStrategy },
-        'BetterAuth session cookie present but validation failed',
-      );
-      setCookie(req, res, 'authSession', undefined);
-    } else {
-      req.log.warn(
-        { authStrategy },
-        'BetterAuth session cookie present but auth_strategy is not betterauth',
-      );
-      setCookie(req, res, 'authSession', undefined);
-    }
-  }
-
-  if (
-    req.userId &&
-    req.accessToken?.expiresIn &&
-    differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
-  ) {
-    if (authStrategy === 'betterauth' && !baSessionCookie) {
-      await createBetterAuthSessionFromKratos({
-        req,
-        res,
-        userId: req.userId,
-      });
-    }
-    return setForceBACookie(
-      await loggedInBoot({
-        con,
-        req,
-        res,
-        refreshToken: false,
-        middleware,
-        userId: req.userId,
-        authStrategy,
-      }),
-    );
-  }
-
-  const whoami = await dispatchWhoami(req);
-  if (whoami.valid) {
-    if (whoami.cookie) {
-      setRawCookie(res, whoami.cookie);
-    }
-    if (whoami.verified === false) {
-      return setForceBACookie(
-        await anonymousBoot(
+        req.userId = session.user.id;
+        req.trackingId = req.userId;
+        setTrackingId(req, res, req.trackingId);
+        return loggedInBoot({
           con,
           req,
           res,
+          refreshToken: shouldRefreshJwt,
           middleware,
-          true,
-          whoami?.email,
-          referrer,
-          authStrategy,
-        ),
+          userId: req.userId,
+        });
+      }
+
+      req.log.warn('BetterAuth getSession returned null');
+      sessionInvalid = true;
+    } catch (error) {
+      req.log.error(
+        { err: error instanceof Error ? error.message : String(error) },
+        'BetterAuth session validation failed',
       );
     }
-    if (req.userId !== whoami.userId) {
-      // Migrate theme from anonymous trackingId to new userId before overwriting
-      const oldTrackingId = req.trackingId;
-      if (oldTrackingId && oldTrackingId !== whoami.userId) {
-        const anonymousTheme = await getAnonymousTheme(oldTrackingId);
-        if (anonymousTheme) {
-          await setAnonymousTheme(whoami.userId, anonymousTheme);
-        }
-      }
-      req.userId = whoami.userId;
-      req.trackingId = req.userId;
-      setTrackingId(req, res, req.trackingId);
+
+    if (sessionInvalid) {
+      req.log.warn('BetterAuth session cookie present but session invalid');
+      setCookie(req, res, 'authSession', undefined);
     }
-    if (authStrategy === 'betterauth') {
-      await createBetterAuthSessionFromKratos({
-        req,
-        res,
-        userId: whoami.userId,
-      });
-    }
-    return setForceBACookie(
-      await loggedInBoot({
-        con,
-        req,
-        res,
-        refreshToken: true,
-        middleware,
-        userId: req.userId,
-        authStrategy,
-      }),
-    );
-  } else if (req.cookies[cookies.kratos.key]) {
-    await clearAuthentication(req, res, 'invalid cookie');
-    return setForceBACookie(
-      await anonymousBoot(
-        con,
-        req,
-        res,
-        middleware,
-        false,
-        undefined,
-        referrer,
-        authStrategy,
-      ),
-    );
   }
-  return setForceBACookie(
-    await anonymousBoot(
+
+  if (req.userId && req.accessToken?.expiresIn) {
+    return loggedInBoot({
       con,
       req,
       res,
+      refreshToken: shouldRefreshJwt,
       middleware,
-      false,
-      undefined,
-      referrer,
-      authStrategy,
-    ),
-  );
+      userId: req.userId,
+    });
+  }
+
+  return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
 };
 
 const COMPANION_QUERY = parse(`query Post($url: String) {
@@ -1270,7 +1207,7 @@ const getFunnelLoggedInData = async (
 ): Promise<FunnelLoggedInUser | null> => {
   const { userId } = req;
   if (userId) {
-    const user = await queryReadReplica(con, ({ queryRunner }) =>
+    const user = await queryDataSource(con, ({ queryRunner }) =>
       getUser(queryRunner, userId),
     );
     if (user) {
