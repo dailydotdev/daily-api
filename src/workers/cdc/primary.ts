@@ -557,6 +557,34 @@ const onPostVoteChange = async (
             });
           }
         }
+      } else if (
+        data.payload.before!.vote === UserVote.Up &&
+        data.payload.after!.vote !== UserVote.Up
+      ) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.before!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+            incrementBy: -1,
+          });
+          if (post.authorId) {
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+              incrementBy: -1,
+            });
+          }
+        }
       }
       break;
     case 'd':
@@ -570,6 +598,32 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (data.payload.before!.vote === UserVote.Up) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.before!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+            incrementBy: -1,
+          });
+          if (post.authorId) {
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+              incrementBy: -1,
+            });
+          }
+        }
+      }
       break;
   }
 
@@ -682,6 +736,32 @@ const onCommentVoteChange = async (
             eventType: QuestEventType.UpvoteReceived,
           });
         }
+      } else if (
+        data.payload.before!.vote === UserVote.Up &&
+        data.payload.after!.vote !== UserVote.Up
+      ) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.before!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+            incrementBy: -1,
+          });
+        }
       }
       break;
     case 'd':
@@ -695,6 +775,30 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (data.payload.before!.vote === UserVote.Up) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.before!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+            incrementBy: -1,
+          });
+        }
+      }
       break;
   }
 };
@@ -761,6 +865,13 @@ const onCommentChange = async (
     }
   } else if (data.payload.op === 'd') {
     await notifyCommentDeleted(logger, data.payload.before!);
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.before!.userId,
+      eventType: QuestEventType.CommentCreate,
+      incrementBy: -1,
+    });
   }
 };
 
@@ -1867,6 +1978,14 @@ const onBookmarkChange = async (
       userId: data.payload.after!.userId,
       eventType: QuestEventType.BookmarkPost,
     });
+  } else if (data.payload.op === 'd') {
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.before!.userId,
+      eventType: QuestEventType.BookmarkPost,
+      incrementBy: -1,
+    });
   }
 };
 
@@ -1925,6 +2044,38 @@ const onContentPreferenceChange = async (
             logger,
             userId: contentPreferenceUser.referenceId,
             eventType: QuestEventType.FollowerGain,
+          });
+        }
+        break;
+      }
+      default:
+        return;
+    }
+  } else if (data.payload.op === 'd') {
+    switch (data.payload.before?.type) {
+      case ContentPreferenceType.User: {
+        const contentPreferenceUser = data.payload
+          .before as ChangeObject<ContentPreferenceUser>;
+
+        if (
+          [
+            ContentPreferenceStatus.Follow,
+            ContentPreferenceStatus.Subscribed,
+          ].includes(contentPreferenceUser.status)
+        ) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.userId,
+            eventType: QuestEventType.UserFollow,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.referenceId,
+            eventType: QuestEventType.FollowerGain,
+            incrementBy: -1,
           });
         }
         break;
