@@ -5443,10 +5443,10 @@ describe('mutation createFreeformPost', () => {
 
   it('should resolve dly.to links as content embeds', async () => {
     loggedUser = '1';
-    const content = 'https://dly.to/post2';
-    nock('https://dly.to')
-      .head('/post2')
-      .reply(302, undefined, { location: 'http://localhost:5002/posts/p2' });
+    const content = 'https://dly.to/lT26is7oC0k';
+    nock('https://dly.to').get('/lT26is7oC0k').reply(302, undefined, {
+      location: 'http://localhost:5002/posts/p2?userid=1&cid=share_post',
+    });
     const mutation = /* GraphQL */ `
       mutation CreateFreeformPost(
         $sourceId: ID!
