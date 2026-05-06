@@ -5,13 +5,11 @@ import {
   LiveRoomStatus,
   liveRoomLifecycleEventSchema,
 } from '../common/schema/liveRooms';
-import { getFlytingClient } from '../integrations/flyting/client';
 import { generateAndStoreNotificationsV2 } from '../notifications';
 import { NotificationType } from '../notifications/common';
 import type { NotificationLiveRoomContext } from '../notifications/types';
 import { TypedWorker } from './worker';
 import type { DataSource, EntityManager } from 'typeorm';
-import type { FastifyBaseLogger } from 'fastify';
 
 const markLiveRoomStarted = async ({
   con,
@@ -31,46 +29,24 @@ const markLiveRoomStarted = async ({
   );
 };
 
-const loadDisconnectedSubscriberIds = async ({
+const loadSubscriberIds = async ({
   con,
-  logger,
   roomId,
 }: {
   con: DataSource;
-  logger: FastifyBaseLogger;
   roomId: string;
 }): Promise<{ subscriberIds: string[]; subscriptionCount: number }> => {
   const subscriptions = await con.getRepository(LiveRoomSubscription).findBy({
     roomId,
   });
-  const connectedUserIds = new Set<string>();
-
-  if (subscriptions.length) {
-    try {
-      const connected = await getFlytingClient().getConnectedUsers({
-        roomId,
-      });
-
-      for (const userId of connected.userIds) {
-        connectedUserIds.add(userId);
-      }
-    } catch (err) {
-      logger.warn(
-        { err, roomId },
-        'Failed to fetch connected live room users; notifying all subscribers',
-      );
-    }
-  }
 
   return {
-    subscriberIds: subscriptions
-      .map(({ userId }) => userId)
-      .filter((userId) => !connectedUserIds.has(userId)),
+    subscriberIds: subscriptions.map(({ userId }) => userId),
     subscriptionCount: subscriptions.length,
   };
 };
 
-const notifyDisconnectedSubscribers = async ({
+const notifySubscribers = async ({
   manager,
   room,
   userIds,
@@ -102,22 +78,18 @@ const notifyDisconnectedSubscribers = async ({
 
 const notifyLiveRoomStartedSubscribers = async ({
   con,
-  logger,
   room,
 }: {
   con: DataSource;
-  logger: FastifyBaseLogger;
   room: LiveRoom;
 }): Promise<void> => {
-  const { subscriberIds, subscriptionCount } =
-    await loadDisconnectedSubscriberIds({
-      con,
-      logger,
-      roomId: room.id,
-    });
+  const { subscriberIds, subscriptionCount } = await loadSubscriberIds({
+    con,
+    roomId: room.id,
+  });
 
   await con.transaction(async (manager) => {
-    await notifyDisconnectedSubscribers({
+    await notifySubscribers({
       manager,
       room,
       userIds: subscriberIds,
@@ -156,6 +128,6 @@ export const liveRoomStartedWorker: TypedWorker<'flyting.v1.room-started'> = {
       room,
     });
 
-    await notifyLiveRoomStartedSubscribers({ con, logger, room });
+    await notifyLiveRoomStartedSubscribers({ con, room });
   },
 };
