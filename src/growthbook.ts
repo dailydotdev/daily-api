@@ -106,6 +106,7 @@ export class Feature<T extends JSONValue> {
 const digestFeatureBaseConfig = {
   templateId: '48',
   feedConfig: 'digest',
+  coldStartFeedConfig: 'digest_cs_v1',
   maxPosts: 5,
   longTextLimit: 150,
   newUserSendType: UserPersonalizedDigestSendType.weekly,

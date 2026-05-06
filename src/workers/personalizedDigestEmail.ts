@@ -2,6 +2,7 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
+  resolveDigestPersonaliseState,
   sendEmail,
   triggerTypedEvent,
 } from '../common';
@@ -106,6 +107,11 @@ const digestTypeToFunctionMap: Record<
     const defaultValue =
       featureInstance.defaultValue as PersonalizedDigestFeatureConfig;
 
+    const personaliseState = await resolveDigestPersonaliseState({
+      personalizedDigest,
+      logger,
+    });
+
     if (config) {
       featureValue = config;
     } else {
@@ -113,6 +119,9 @@ const digestTypeToFunctionMap: Record<
         enableDevMode: process.env.NODE_ENV !== 'production',
         subscribeToChanges: false,
         allocationClient,
+        attributes: personaliseState
+          ? { snotra_personalise_state: personaliseState }
+          : undefined,
       });
 
       featureValue = growthbookClient.getFeatureValue(
@@ -136,6 +145,7 @@ const digestTypeToFunctionMap: Record<
       currentDate,
       previousSendDate,
       feature: digestFeature,
+      personaliseState,
     });
 
     if (!result) {

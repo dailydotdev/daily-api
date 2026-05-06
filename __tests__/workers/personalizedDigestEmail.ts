@@ -28,7 +28,11 @@ import {
 } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
-import { ExperimentAllocationClient, features } from '../../src/growthbook';
+import {
+  ExperimentAllocationClient,
+  features,
+  getUserGrowthBookInstance,
+} from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 import {
   sendReadingReminderPush,
@@ -48,7 +52,6 @@ import {
 } from '../../src/notifications/common';
 import { personalizedDigestSnotraClient } from '../../src/common/personalizedDigest';
 import { PersonaliseState } from '../../src/integrations/snotra/types';
-import { FeedConfigName } from '../../src/integrations/feed/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -72,30 +75,53 @@ jest.mock('../../src/integrations/analytics', () => ({
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
   loadFeatures: jest.fn(),
-  getUserGrowthBookInstance: (
-    _userId: string,
-    { allocationClient }: { allocationClient: ExperimentAllocationClient },
-  ) => {
-    return {
-      loadFeatures: jest.fn(),
-      getFeatures: jest.fn(),
-      getFeatureValue: (featureId: string) => {
-        if (allocationClient) {
-          allocationClient.push({
-            event_timestamp: new Date(),
-            user_id: _userId,
-            experiment_id: featureId,
-            variation_id: '0',
-          });
-        }
+  getUserGrowthBookInstance: jest.fn(
+    (
+      _userId: string,
+      { allocationClient }: { allocationClient: ExperimentAllocationClient },
+    ) => {
+      return {
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: (featureId: string) => {
+          if (allocationClient) {
+            allocationClient.push({
+              event_timestamp: new Date(),
+              user_id: _userId,
+              experiment_id: featureId,
+              variation_id: '0',
+            });
+          }
 
-        return Object.values(features).find(
-          (feature) => feature.id === featureId,
-        )?.defaultValue;
-      },
-    };
-  },
+          return Object.values(features).find(
+            (feature) => feature.id === featureId,
+          )?.defaultValue;
+        },
+      };
+    },
+  ),
 }));
+
+const defaultGrowthbookImpl = (
+  _userId: string,
+  { allocationClient }: { allocationClient: ExperimentAllocationClient },
+) => ({
+  loadFeatures: jest.fn(),
+  getFeatures: jest.fn(),
+  getFeatureValue: (featureId: string) => {
+    if (allocationClient) {
+      allocationClient.push({
+        event_timestamp: new Date(),
+        user_id: _userId,
+        experiment_id: featureId,
+        variation_id: '0',
+      });
+    }
+
+    return Object.values(features).find((feature) => feature.id === featureId)
+      ?.defaultValue;
+  },
+});
 
 jest.mock('../../src/common/typedPubsub', () => ({
   ...(jest.requireActual('../../src/common/typedPubsub') as Record<
@@ -115,7 +141,16 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.restoreAllMocks();
   jest.resetAllMocks();
+  (getUserGrowthBookInstance as jest.Mock).mockImplementation(
+    defaultGrowthbookImpl,
+  );
+  jest
+    .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+    .mockResolvedValue({
+      personalise: { state: PersonaliseState.Personalised },
+    });
   nock.cleanAll();
   nockBody = {};
 
@@ -1196,18 +1231,23 @@ describe('personalizedDigestEmail worker', () => {
   });
 
   describe('digest cold start', () => {
-    const passthroughConfig = {
-      templateId: '48',
-      maxPosts: 5,
-      feedConfig: 'passthrough_config',
-    };
-
-    it('should use digest_cs_v1 when snotra reports user is non_personalised', async () => {
-      const spy = jest
+    it('should use feature.coldStartFeedConfig when snotra reports user is non_personalised', async () => {
+      const snotraSpy = jest
         .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
         .mockResolvedValue({
           personalise: { state: PersonaliseState.NonPersonalised },
         });
+
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
 
       const personalizedDigest = await con
         .getRepository(UserPersonalizedDigest)
@@ -1217,23 +1257,41 @@ describe('personalizedDigestEmail worker', () => {
         personalizedDigest,
         ...getDates(personalizedDigest!, Date.now()),
         emailBatchId: 'test-email-batch-id',
-        config: passthroughConfig,
       });
 
-      expect(spy).toHaveBeenCalledWith({
+      expect(snotraSpy).toHaveBeenCalledWith({
         user_id: '1',
         providers: { personalise: {} },
       });
-      expect(nockBody.feed_config_name).toBe(FeedConfigName.DigestCsV1);
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          attributes: {
+            snotra_personalise_state: PersonaliseState.NonPersonalised,
+          },
+        }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_cold_start');
     });
 
-    it('should passthrough feature.feedConfig when snotra reports any state other than non_personalised', async () => {
+    it('should use feature.feedConfig when snotra reports user is personalised', async () => {
       jest
         .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
         .mockResolvedValue({
           personalise: { state: PersonaliseState.Personalised },
         });
 
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
+
       const personalizedDigest = await con
         .getRepository(UserPersonalizedDigest)
         .findOneBy({ userId: '1' });
@@ -1242,17 +1300,35 @@ describe('personalizedDigestEmail worker', () => {
         personalizedDigest,
         ...getDates(personalizedDigest!, Date.now()),
         emailBatchId: 'test-email-batch-id',
-        config: passthroughConfig,
       });
 
-      expect(nockBody.feed_config_name).toBe('passthrough_config');
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          attributes: {
+            snotra_personalise_state: PersonaliseState.Personalised,
+          },
+        }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_personalised');
     });
 
-    it('should passthrough feature.feedConfig when snotra call fails', async () => {
+    it('should omit attribute and use feature.feedConfig when snotra call fails', async () => {
       jest
         .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
         .mockRejectedValue(new Error('snotra down'));
 
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
+
       const personalizedDigest = await con
         .getRepository(UserPersonalizedDigest)
         .findOneBy({ userId: '1' });
@@ -1261,10 +1337,13 @@ describe('personalizedDigestEmail worker', () => {
         personalizedDigest,
         ...getDates(personalizedDigest!, Date.now()),
         emailBatchId: 'test-email-batch-id',
-        config: passthroughConfig,
       });
 
-      expect(nockBody.feed_config_name).toBe('passthrough_config');
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ attributes: undefined }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_personalised');
     });
   });
 
