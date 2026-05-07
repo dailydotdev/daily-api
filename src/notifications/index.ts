@@ -120,6 +120,37 @@ async function upsertAttachments(
   );
 }
 
+const getExistingNotification = async (
+  entityManager: EntityManager,
+  notification: NotificationBundleV2['notification'],
+): Promise<NotificationV2> => {
+  const query = entityManager
+    .getRepository(NotificationV2)
+    .createQueryBuilder('notification')
+    .where('notification.type = :type', { type: notification.type })
+    .andWhere('notification."uniqueKey" = :uniqueKey', {
+      uniqueKey: notification.uniqueKey ?? '0',
+    });
+
+  if (notification.referenceId) {
+    query.andWhere('notification."referenceId" = :referenceId', {
+      referenceId: notification.referenceId,
+    });
+  } else {
+    query.andWhere('notification."referenceId" IS NULL');
+  }
+
+  if (notification.referenceType) {
+    query.andWhere('notification."referenceType" = :referenceType', {
+      referenceType: notification.referenceType,
+    });
+  } else {
+    query.andWhere('notification."referenceType" IS NULL');
+  }
+
+  return query.getOneOrFail();
+};
+
 export async function storeNotificationBundleV2(
   entityManager: EntityManager,
   bundle: NotificationBundleV2,
@@ -143,11 +174,9 @@ export async function storeNotificationBundleV2(
     .orIgnore()
     .execute();
 
-  if (!generatedMaps?.[0]?.id) {
-    return [];
-  }
-
-  const notification = generatedMaps[0] as NotificationV2;
+  const notification = generatedMaps?.[0]?.id
+    ? (generatedMaps[0] as NotificationV2)
+    : await getExistingNotification(entityManager, bundle.notification);
   const uniqueKey = generateUserNotificationUniqueKey({
     ...notification,
     dedupKey,
@@ -198,7 +227,7 @@ export async function storeNotificationBundleV2(
     await entityManager.query(
       `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "showAt", "public")
        ${query}
-       ON CONFLICT ("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       params,
     );
   }
