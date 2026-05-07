@@ -16,7 +16,6 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
-  isOneValidEmoji,
   Ranking,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -462,8 +461,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
-      const isValidIcon = !icon || isOneValidEmoji(icon);
-      if (!isValidIcon || !name.length) {
+      if (!name.length) {
         throw new ValidationError(BookmarkErrorMessage.INVALID_ICON_OR_NAME);
       }
       const maxFoldersCount = ctx.isPlus

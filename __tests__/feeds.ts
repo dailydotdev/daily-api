@@ -4589,19 +4589,20 @@ describe('mutation createFeed', () => {
     });
   });
 
-  it('should throw error when feed is created with invalid icon', async () => {
+  it('should accept any emoji as icon', async () => {
     loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          name: 'Cool feed',
-          icon: '😈',
-        },
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        name: 'Cool feed',
+        icon: '😈',
       },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    });
+
+    expect(res.data).toMatchObject({
+      createFeed: {
+        flags: { icon: '😈' },
+      },
+    });
   });
 
   it('should not create a new feed when name is missing', async () => {
@@ -4803,19 +4804,24 @@ describe('mutation updateFeed', () => {
     });
   });
 
-  it('should throw error when feed is updated with invalid icon', async () => {
+  it('should accept any emoji as icon when updating', async () => {
     loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          name: 'Cool feed',
-          icon: '💼',
-        },
+    isPlus = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+        name: 'Cool feed',
+        icon: '💼',
       },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    });
+
+    expect(res.data).toMatchObject({
+      updateFeed: {
+        id: 'cf1',
+        flags: { icon: '💼' },
+      },
+    });
   });
 
   it('should not update the feed when feedId is missing', async () => {
