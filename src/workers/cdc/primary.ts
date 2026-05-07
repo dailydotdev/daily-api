@@ -1656,6 +1656,23 @@ const onMarketingCtaChange = async (
   }
 };
 
+const onUserMarketingCtaChange = async (
+  data: ChangeMessage<UserMarketingCta>,
+) => {
+  if (data.payload.op !== 'd') {
+    return;
+  }
+
+  const userId = data.payload.before?.userId;
+  if (!userId) {
+    return;
+  }
+
+  await deleteRedisKey(
+    generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+  );
+};
+
 const onSquadPublicRequestChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2872,6 +2889,9 @@ const worker: Worker = {
           break;
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
+          break;
+        case getTableName(con, UserMarketingCta):
+          await onUserMarketingCtaChange(data);
           break;
         case getTableName(con, UserStreak):
           await onUserStreakChange(con, logger, data);
