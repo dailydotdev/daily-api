@@ -124,7 +124,7 @@ describe('POST /public/v1/bookmarks/lists', () => {
     const { body } = await request(state.app.server)
       .post('/public/v1/bookmarks/lists')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'New List', icon: '🚀' }) // Must use valid emoji from VALID_FOLDER_EMOJIS
+      .send({ name: 'New List', icon: '🚀' })
       .expect(200);
 
     expect(body.data).toMatchObject({
