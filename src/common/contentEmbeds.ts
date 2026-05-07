@@ -106,7 +106,7 @@ const fetchRedirectLocation = async (url: URL): Promise<string | undefined> => {
 
   try {
     const response = await fetch(url.toString(), {
-      method: 'HEAD',
+      method: 'GET',
       redirect: 'manual',
       signal: controller.signal,
     });

@@ -332,32 +332,40 @@ export const personalizedDigestSnotraClient = new SnotraClient(
   },
 );
 
-const resolveDigestFeedConfigName = async ({
+export const resolveDigestPersonaliseState = async ({
   personalizedDigest,
-  feature,
   logger,
 }: {
   personalizedDigest: UserPersonalizedDigest;
-  feature: PersonalizedDigestFeatureConfig;
   logger: FastifyBaseLogger;
-}): Promise<FeedConfigName> => {
+}): Promise<PersonaliseState | undefined> => {
   try {
     const profile = await personalizedDigestSnotraClient.getUserProfile({
       user_id: personalizedDigest.userId,
       providers: { personalise: {} },
     });
-
-    if (profile.personalise.state === PersonaliseState.NonPersonalised) {
-      return FeedConfigName.DigestCsV1;
-    }
+    return profile.personalise.state;
   } catch (err) {
     logger.error(
       { err, personalizedDigest },
       'failed to fetch snotra user profile for digest',
     );
+    return undefined;
   }
+};
 
-  return feature.feedConfig as FeedConfigName;
+const resolveDigestFeedConfigName = ({
+  feature,
+  personaliseState,
+}: {
+  feature: PersonalizedDigestFeatureConfig;
+  personaliseState?: PersonaliseState;
+}): FeedConfigName => {
+  if (personaliseState === PersonaliseState.NonPersonalised) {
+    return feature.coldStartFeedConfig as FeedConfigName;
+  } else {
+    return feature.feedConfig as FeedConfigName;
+  }
 };
 
 export type DigestEmailPayloadResult = {
@@ -377,6 +385,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate,
   previousSendDate,
   feature,
+  personaliseState,
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
@@ -387,6 +396,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate: Date;
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
+  personaliseState?: PersonaliseState;
 }): Promise<DigestEmailPayloadResult | undefined> => {
   const feedConfig = await queryReadReplica(con, ({ queryRunner }) => {
     return feedToFilters(
@@ -396,10 +406,9 @@ export const getPersonalizedDigestEmailPayload = async ({
     );
   });
 
-  const feedConfigName = await resolveDigestFeedConfigName({
-    personalizedDigest,
+  const feedConfigName = resolveDigestFeedConfigName({
     feature,
-    logger,
+    personaliseState,
   });
 
   const feedConfigPayload = {

@@ -8,6 +8,7 @@ import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
 import {
+  fetchCollectionMembership,
   fetchCurrentHighlights,
   fetchEvaluationHistoryHighlights,
   fetchIncrementalPosts,
@@ -228,7 +229,7 @@ export const generateChannelHighlight = async ({
         !retiredEvaluationPostIdSet.has(candidate.postId),
     );
 
-    const admittedHighlights =
+    const evaluatedHighlights =
       newCandidates.length === 0
         ? []
         : (
@@ -248,6 +249,14 @@ export const generateChannelHighlight = async ({
             significanceLabel: item.significanceLabel,
             reason: item.reason,
           }));
+
+    const admittedHighlights = await dropAdmissionsRacingCollections({
+      con,
+      admitted: evaluatedHighlights,
+      fallbackPostIds,
+      currentHighlightPostIds,
+      retiredHighlightPostIds: new Set(retiredHighlightPostIds),
+    });
 
     const internalHighlights = trimHighlights({
       items: [...liveHighlights, ...admittedHighlights],
@@ -344,4 +353,57 @@ export const generateChannelHighlight = async ({
     );
     throw err;
   }
+};
+
+// Bragi can admit a candidate that's already part of a previously-highlighted
+// collection when the collection's regeneration job inserts the post_relation
+// row after fetchRelations has run. Re-fetch membership now and drop any
+// admitted item whose collection (or any sibling) is already live or retired.
+const dropAdmissionsRacingCollections = async ({
+  con,
+  admitted,
+  fallbackPostIds,
+  currentHighlightPostIds,
+  retiredHighlightPostIds,
+}: {
+  con: DataSource;
+  admitted: HighlightItem[];
+  fallbackPostIds: Map<string, string>;
+  currentHighlightPostIds: Set<string>;
+  retiredHighlightPostIds: Set<string>;
+}): Promise<HighlightItem[]> => {
+  if (!admitted.length) return admitted;
+
+  const shareToUnderlying = new Map(
+    [...fallbackPostIds].map(([underlying, share]) => [share, underlying]),
+  );
+  const underlyingId = (postId: string) =>
+    shareToUnderlying.get(postId) ?? postId;
+
+  const { collectionByChild, childrenByCollection } =
+    await fetchCollectionMembership({
+      con,
+      postIds: [...new Set(admitted.map((item) => underlyingId(item.postId)))],
+    });
+  if (!collectionByChild.size) return admitted;
+
+  const isCovered = (postId: string): boolean => {
+    const aliased = fallbackPostIds.get(postId) ?? postId;
+    return (
+      currentHighlightPostIds.has(postId) ||
+      retiredHighlightPostIds.has(postId) ||
+      currentHighlightPostIds.has(aliased) ||
+      retiredHighlightPostIds.has(aliased)
+    );
+  };
+
+  return admitted.filter((item) => {
+    const collectionId = collectionByChild.get(underlyingId(item.postId));
+    if (!collectionId) return true;
+    const members = [
+      collectionId,
+      ...(childrenByCollection.get(collectionId) ?? []),
+    ];
+    return !members.some(isCovered);
+  });
 };
