@@ -126,6 +126,66 @@ describe('live room lifecycle workers', () => {
     ).toBe(0);
   });
 
+  it('adds user notifications when the room notification already exists', async () => {
+    const roomId = '38bf0f69-942f-412f-bd4e-a64b08b0b66e';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: roomId,
+        hostId: '1',
+        topic: 'Existing notification lobby',
+        mode: 'moderated',
+        status: LiveRoomStatus.Created,
+        scheduledStart: new Date('2026-05-05T15:00:00.000Z'),
+      },
+    ]);
+    await saveFixtures(con, NotificationV2, [
+      {
+        type: NotificationType.LiveRoomStarted,
+        icon: 'bell',
+        title: '<b>Ido</b> is live: <b>Existing notification lobby</b>',
+        targetUrl: `http://localhost:5002/standups/${roomId}`,
+        referenceId: roomId,
+        referenceType: 'live_room',
+        uniqueKey: roomId,
+        avatars: [],
+        attachments: [],
+      },
+    ]);
+    await saveFixtures(con, LiveRoomSubscription, [
+      {
+        roomId,
+        userId: '2',
+      },
+    ]);
+
+    await expectSuccessfulTypedBackground<'flyting.v1.room-started'>(
+      liveRoomStartedWorker,
+      {
+        eventId: '955f8422-87eb-4e91-8b32-4a13cf2d481d',
+        roomId,
+        occurredAt: '2026-05-05T15:01:00.000Z',
+        type: LiveRoomLifecycleEventType.RoomStarted,
+      },
+    );
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneByOrFail({
+        referenceId: roomId,
+        referenceType: 'live_room',
+        type: NotificationType.LiveRoomStarted,
+      });
+    const userNotifications = await con.getRepository(UserNotification).findBy({
+      notificationId: notification.id,
+    });
+
+    expect(userNotifications.map(({ userId }) => userId)).toEqual(['2']);
+    expect(
+      await con.getRepository(LiveRoomSubscription).countBy({ roomId }),
+    ).toBe(0);
+  });
+
   it('marks a room ended when an ended event arrives', async () => {
     await saveFixtures(con, LiveRoom, [
       {
