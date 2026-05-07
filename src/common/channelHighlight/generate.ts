@@ -8,6 +8,7 @@ import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
 import { replaceHighlightsForChannel } from './publish';
 import {
+  fetchCollectionMembership,
   fetchCurrentHighlights,
   fetchEvaluationHistoryHighlights,
   fetchIncrementalPosts,
@@ -25,6 +26,7 @@ import {
   applyPublicShareFallbackToHighlights,
   buildCandidates,
   canonicalizeCurrentHighlights,
+  dropAdmittedHighlightsAlreadyCovered,
   toHighlightItem,
   toStoredSnapshotItem,
 } from './stories';
@@ -228,7 +230,7 @@ export const generateChannelHighlight = async ({
         !retiredEvaluationPostIdSet.has(candidate.postId),
     );
 
-    const admittedHighlights =
+    const evaluatedHighlights =
       newCandidates.length === 0
         ? []
         : (
@@ -248,6 +250,31 @@ export const generateChannelHighlight = async ({
             significanceLabel: item.significanceLabel,
             reason: item.reason,
           }));
+
+    const shareToUnderlying = new Map<string, string>();
+    for (const [underlying, share] of fallbackPostIds) {
+      shareToUnderlying.set(share, underlying);
+    }
+    const admittedUnderlyingIds = [
+      ...new Set(
+        evaluatedHighlights.map(
+          (item) => shareToUnderlying.get(item.postId) ?? item.postId,
+        ),
+      ),
+    ];
+    const { collectionByChild, childrenByCollection } =
+      await fetchCollectionMembership({
+        con,
+        postIds: admittedUnderlyingIds,
+      });
+    const admittedHighlights = dropAdmittedHighlightsAlreadyCovered({
+      admittedHighlights: evaluatedHighlights,
+      fallbackPostIds,
+      currentHighlightPostIds,
+      retiredHighlightPostIds: new Set(retiredHighlightPostIds),
+      collectionByChild,
+      childrenByCollection,
+    });
 
     const internalHighlights = trimHighlights({
       items: [...liveHighlights, ...admittedHighlights],
