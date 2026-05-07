@@ -572,6 +572,105 @@ describe('generateChannelHighlight worker', () => {
     ]);
   });
 
+  it('should drop admitted candidates that race with collection regeneration', async () => {
+    const now = new Date('2026-03-15T12:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveCollection({
+      id: 'collection-cve',
+      title: 'CVE collection',
+      createdAt: new Date('2026-02-15T10:00:00.000Z'),
+    });
+    // Old child highlighted >14 days ago (outside eval window) and retired.
+    // It is in retiredHighlightPostIds (kept forever) but not in any
+    // share-fallback / canonicalization path.
+    await saveArticle({
+      id: 'old-child',
+      title: 'Original CVE writeup',
+      createdAt: new Date('2026-02-15T10:00:00.000Z'),
+    });
+    await con.getRepository(PostRelation).save({
+      postId: 'collection-cve',
+      relatedPostId: 'old-child',
+      type: PostRelationType.Collection,
+    });
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'old-child',
+      highlightedAt: new Date('2026-02-15T10:30:00.000Z'),
+      headline: 'Original CVE headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'first run',
+      retiredAt: new Date('2026-02-15T20:00:00.000Z'),
+    });
+    // Brand-new child article. Its relation to the collection is created
+    // *after* fetchRelations runs (simulated below) — exactly the race
+    // observed in production for collection NB1YEYCZ6 on 2026-05-06.
+    await saveArticle({
+      id: 'new-child',
+      title: 'New video on the same CVE',
+      createdAt: new Date('2026-03-15T11:55:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockImplementation(async () => {
+        await con.getRepository(PostRelation).save({
+          postId: 'collection-cve',
+          relatedPostId: 'new-child',
+          type: PostRelationType.Collection,
+        });
+        return {
+          items: [
+            {
+              postId: 'new-child',
+              headline: 'Same CVE, different child',
+              significanceLabel: 'major',
+              reason: 'test',
+            },
+          ],
+        };
+      });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    // The candidate reached the evaluator (the race-affected fetchRelations
+    // sees no collection-cve relation for new-child yet).
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({ postId: 'new-child' }),
+    ]);
+
+    // The admit-time guard re-fetches relations and drops the duplicate.
+    const liveHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveHighlights).toHaveLength(0);
+
+    const allHighlightsForNewChild = await con
+      .getRepository(PostHighlight)
+      .find({
+        where: { channel: 'vibes', postId: 'new-child' },
+      });
+    expect(allHighlightsForNewChild).toHaveLength(0);
+
+    const retiredHighlights = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', postId: 'old-child' },
+    });
+    expect(retiredHighlights).toHaveLength(1);
+    expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
+  });
+
   it('should ignore posts from channel digest sources for highlights', async () => {
     const now = new Date('2026-03-03T11:50:00.000Z');
     await con

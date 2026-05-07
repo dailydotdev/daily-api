@@ -28,7 +28,7 @@ const REJECTED_CONTENT_CURATIONS = [
 ];
 
 const HIGHLIGHT_FETCH_OVERLAP_SECONDS = 10 * 60;
-const HIGHLIGHT_EVALUATION_HISTORY_SECONDS = ONE_WEEK_IN_SECONDS;
+const HIGHLIGHT_EVALUATION_HISTORY_SECONDS = 2 * ONE_WEEK_IN_SECONDS;
 
 export const getHorizonStart = ({
   now,
@@ -270,6 +270,59 @@ export const fetchPublicShareFallbackPostIds = async ({
   }
 
   return fallbackPostIds;
+};
+
+export const fetchCollectionMembership = async ({
+  con,
+  postIds,
+}: {
+  con: DataSource;
+  postIds: string[];
+}): Promise<{
+  collectionByChild: Map<string, string>;
+  childrenByCollection: Map<string, string[]>;
+}> => {
+  const collectionByChild = new Map<string, string>();
+  const childrenByCollection = new Map<string, string[]>();
+
+  if (!postIds.length) {
+    return { collectionByChild, childrenByCollection };
+  }
+
+  const directRelations = await con
+    .getRepository(PostRelation)
+    .createQueryBuilder('relation')
+    .where('relation.type = :type', {
+      type: PostRelationType.Collection,
+    })
+    .andWhere('relation.relatedPostId IN (:...postIds)', { postIds })
+    .getMany();
+
+  for (const relation of directRelations) {
+    collectionByChild.set(relation.relatedPostId, relation.postId);
+  }
+
+  const collectionIds = [...new Set(collectionByChild.values())];
+  if (!collectionIds.length) {
+    return { collectionByChild, childrenByCollection };
+  }
+
+  const siblingRelations = await con
+    .getRepository(PostRelation)
+    .createQueryBuilder('relation')
+    .where('relation.type = :type', {
+      type: PostRelationType.Collection,
+    })
+    .andWhere('relation.postId IN (:...collectionIds)', { collectionIds })
+    .getMany();
+
+  for (const relation of siblingRelations) {
+    const children = childrenByCollection.get(relation.postId) || [];
+    children.push(relation.relatedPostId);
+    childrenByCollection.set(relation.postId, children);
+  }
+
+  return { collectionByChild, childrenByCollection };
 };
 
 export const mergePosts = (groups: HighlightPost[][]): HighlightPost[] => {
