@@ -3,6 +3,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import type { z } from 'zod';
+import { guessWhoQuizStepInputSchema } from '../common/schema/guessWhoQuizStep';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
 import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
@@ -1833,6 +1834,15 @@ export const typeDefs = /* GraphQL */ `
       selectedTags: [String!]!
       n: Int
     ): OnboardingRecommendTagsResult! @auth
+
+    """
+    Send the current Guess Who quiz Q&A history to bragi. Returns either the
+    next clarifying question or the final persona (with tags extracted from the
+    persona description via recswipe). Stateless — caller resends history each
+    turn.
+    """
+    guessWhoQuizStep(history: [GuessWhoQuizQAInput!]!): GuessWhoQuizStepResult!
+      @auth
   }
 
   type OnboardingTagsResult {
@@ -1863,6 +1873,27 @@ export const typeDefs = /* GraphQL */ `
 
   type OnboardingRecommendTagsResult {
     tags: [String!]!
+  }
+
+  input GuessWhoQuizQAInput {
+    question: String!
+    answer: String!
+  }
+
+  type GuessWhoQuizQuestion {
+    question: String!
+    options: [String!]!
+  }
+
+  type GuessWhoQuizPersona {
+    name: String!
+    description: String!
+    tags: [String!]!
+  }
+
+  type GuessWhoQuizStepResult {
+    nextQuestion: GuessWhoQuizQuestion
+    finalPersona: GuessWhoQuizPersona
   }
 `;
 
@@ -4454,6 +4485,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'Recswipe recommendTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    guessWhoQuizStep: async (
+      _,
+      args: z.input<typeof guessWhoQuizStepInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = guessWhoQuizStepInputSchema.parse(args);
+
+      try {
+        const client = getBragiClient();
+        const bragiResp = await client.garmr.execute(() =>
+          client.instance.guessWhoQuiz({
+            history: parsed.history,
+            application: 'webapp',
+          }),
+        );
+
+        const { result } = bragiResp;
+        if (result.case === 'nextQuestion') {
+          return {
+            nextQuestion: {
+              question: result.value.question,
+              options: [...result.value.options],
+            },
+            finalPersona: null,
+          };
+        }
+        if (result.case === 'finalPersona') {
+          const persona = result.value;
+          const tagData = await recswipeClient.extractTags(ctx.userId, {
+            prompt: persona.description,
+          });
+          return {
+            nextQuestion: null,
+            finalPersona: {
+              name: persona.name,
+              description: persona.description,
+              tags: tagData.tags ?? [],
+            },
+          };
+        }
+        throw new ServiceError({
+          message:
+            'Bragi guessWhoQuiz returned neither nextQuestion nor finalPersona',
+          statusCode: 502,
+        });
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'guessWhoQuizStep request failed',
             data: err.response,
             statusCode: err.statusCode,
           });
