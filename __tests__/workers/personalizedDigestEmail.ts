@@ -1267,6 +1267,7 @@ describe('personalizedDigestEmail worker', () => {
         '1',
         expect.objectContaining({
           attributes: {
+            plus: 0,
             snotra_personalise_state: PersonaliseState.NonPersonalised,
           },
         }),
@@ -1306,6 +1307,7 @@ describe('personalizedDigestEmail worker', () => {
         '1',
         expect.objectContaining({
           attributes: {
+            plus: 0,
             snotra_personalise_state: PersonaliseState.Personalised,
           },
         }),
@@ -1313,7 +1315,7 @@ describe('personalizedDigestEmail worker', () => {
       expect(nockBody.feed_config_name).toBe('feed_for_personalised');
     });
 
-    it('should omit attribute and use feature.feedConfig when snotra call fails', async () => {
+    it('should omit snotra_personalise_state attribute and use feature.feedConfig when snotra call fails', async () => {
       jest
         .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
         .mockRejectedValue(new Error('snotra down'));
@@ -1341,7 +1343,9 @@ describe('personalizedDigestEmail worker', () => {
 
       expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
         '1',
-        expect.objectContaining({ attributes: undefined }),
+        expect.objectContaining({
+          attributes: { plus: 0 },
+        }),
       );
       expect(nockBody.feed_config_name).toBe('feed_for_personalised');
     });

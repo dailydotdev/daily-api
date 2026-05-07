@@ -41,6 +41,7 @@ import { BriefingModel } from '../integrations/feed/types';
 import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { upsertDigestPost } from '../common/digest';
+import { isPlusMember } from '../paddle';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -112,6 +113,14 @@ const digestTypeToFunctionMap: Record<
       logger,
     });
 
+    const attributes: Record<string, unknown> = {
+      plus: isPlusMember(user.subscriptionFlags?.cycle) ? 1 : 0,
+    };
+
+    if (personaliseState) {
+      attributes.snotra_personalise_state = personaliseState;
+    }
+
     if (config) {
       featureValue = config;
     } else {
@@ -119,9 +128,7 @@ const digestTypeToFunctionMap: Record<
         enableDevMode: process.env.NODE_ENV !== 'production',
         subscribeToChanges: false,
         allocationClient,
-        attributes: personaliseState
-          ? { snotra_personalise_state: personaliseState }
-          : undefined,
+        attributes,
       });
 
       featureValue = growthbookClient.getFeatureValue(
