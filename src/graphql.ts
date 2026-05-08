@@ -46,6 +46,7 @@ import * as quests from './schema/quests';
 import * as highlights from './schema/highlights';
 import * as archive from './schema/archive';
 import * as liveRooms from './schema/liveRooms';
+import * as spotlight from './schema/spotlight';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -109,6 +110,7 @@ export const schema = urlDirective.transformer(
               highlights.typeDefs,
               liveRooms.typeDefs,
               archive.typeDefs,
+              spotlight.typeDefs,
             ],
             resolvers: traceResolvers(
               merge(
@@ -155,6 +157,7 @@ export const schema = urlDirective.transformer(
                 highlights.resolvers,
                 liveRooms.resolvers,
                 archive.resolvers,
+                spotlight.resolvers,
               ),
             ),
           }),
