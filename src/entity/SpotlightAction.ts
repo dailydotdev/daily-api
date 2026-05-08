@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 
 export enum SpotlightActionGroup {
+  Navigate = 'Navigate',
   Create = 'Create',
   Settings = 'Settings',
   Actions = 'Actions',
@@ -52,6 +53,9 @@ export class SpotlightAction {
 
   @Column({ type: 'text', nullable: true })
   shortcut: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  quickKey: string | null;
 
   @Column({ type: 'boolean', default: false })
   requiresAuth: boolean;

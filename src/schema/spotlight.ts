@@ -20,6 +20,7 @@ export const typeDefs = /* GraphQL */ `
     icon: String!
     keywords: [String!]!
     shortcut: String
+    quickKey: String
     requiresAuth: Boolean
     requiresPlus: Boolean
     platforms: [String!]

@@ -13,6 +13,7 @@ export class SpotlightAction1778200000000 implements MigrationInterface {
         "icon" text NOT NULL,
         "keywords" text[] NOT NULL DEFAULT '{}',
         "shortcut" text,
+        "quickKey" text,
         "requiresAuth" boolean NOT NULL DEFAULT false,
         "requiresPlus" boolean NOT NULL DEFAULT false,
         "platforms" text[],
