@@ -676,15 +676,19 @@
     "active": true
   },
   {
-    "id": "settings-toggle-insane",
+    "id": "settings-toggle-layout",
     "group": "Settings",
-    "title": "Toggle insane mode",
-    "subtitle": null,
-    "icon": "MagicIcon",
+    "title": "Toggle feed layout",
+    "subtitle": "Switch between list and grid",
+    "icon": "CardLayoutIcon",
     "keywords": [
-      "insane",
+      "layout",
+      "list",
+      "grid",
+      "cards",
+      "view",
       "density",
-      "compact"
+      "insane"
     ],
     "shortcut": null,
     "quickKey": null,
@@ -696,29 +700,6 @@
       "key": "insaneMode"
     },
     "priority": 40,
-    "active": true
-  },
-  {
-    "id": "actions-history",
-    "group": "Actions",
-    "title": "Reading history",
-    "subtitle": null,
-    "icon": "EyeIcon",
-    "keywords": [
-      "history",
-      "read",
-      "recent"
-    ],
-    "shortcut": null,
-    "quickKey": null,
-    "requiresAuth": true,
-    "requiresPlus": false,
-    "platforms": null,
-    "kind": "OpenModal",
-    "payload": {
-      "modal": "ReadingHistory"
-    },
-    "priority": 20,
     "active": true
   },
   {
@@ -838,30 +819,6 @@
       "modal": "Feedback"
     },
     "priority": 20,
-    "active": true
-  },
-  {
-    "id": "help-community",
-    "group": "Help",
-    "title": "Join the community",
-    "subtitle": null,
-    "icon": "DiscordIcon",
-    "keywords": [
-      "community",
-      "discord",
-      "chat"
-    ],
-    "shortcut": null,
-    "quickKey": null,
-    "requiresAuth": false,
-    "requiresPlus": false,
-    "platforms": null,
-    "kind": "OpenUrl",
-    "payload": {
-      "url": "https://daily.dev/discord",
-      "external": true
-    },
-    "priority": 30,
     "active": true
   },
   {
