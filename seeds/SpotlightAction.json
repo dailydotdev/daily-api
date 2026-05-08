@@ -573,9 +573,9 @@
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
-    "kind": "OpenModal",
+    "kind": "Navigate",
     "payload": {
-      "modal": "CreateSharedPost"
+      "path": "/squads/create"
     },
     "priority": 10,
     "active": true
