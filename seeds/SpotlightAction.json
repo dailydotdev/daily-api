@@ -4,15 +4,20 @@
     "group": "Navigate",
     "title": "Go to your profile",
     "subtitle": null,
-    "icon": "User",
-    "keywords": ["me", "account"],
+    "icon": "UserIcon",
+    "keywords": [
+      "me",
+      "account"
+    ],
     "shortcut": null,
     "quickKey": "me",
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/${username}" },
+    "payload": {
+      "path": "/${username}"
+    },
     "priority": 5,
     "active": true
   },
@@ -21,15 +26,21 @@
     "group": "Navigate",
     "title": "Go to For you",
     "subtitle": "Your personalized feed",
-    "icon": "Home",
-    "keywords": ["home", "feed", "main"],
+    "icon": "HomeIcon",
+    "keywords": [
+      "home",
+      "feed",
+      "main"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/" },
+    "payload": {
+      "path": "/"
+    },
     "priority": 10,
     "active": true
   },
@@ -38,15 +49,19 @@
     "group": "Navigate",
     "title": "Go to My feed",
     "subtitle": null,
-    "icon": "Home",
-    "keywords": ["personal"],
+    "icon": "HomeIcon",
+    "keywords": [
+      "personal"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/my-feed" },
+    "payload": {
+      "path": "/my-feed"
+    },
     "priority": 20,
     "active": true
   },
@@ -55,7 +70,7 @@
     "group": "Navigate",
     "title": "Go to Following",
     "subtitle": null,
-    "icon": "User",
+    "icon": "UserIcon",
     "keywords": [],
     "shortcut": null,
     "quickKey": null,
@@ -63,7 +78,9 @@
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/following" },
+    "payload": {
+      "path": "/following"
+    },
     "priority": 30,
     "active": true
   },
@@ -72,15 +89,20 @@
     "group": "Navigate",
     "title": "Go to Popular",
     "subtitle": null,
-    "icon": "Hot",
-    "keywords": ["explore", "trending"],
+    "icon": "HotIcon",
+    "keywords": [
+      "explore",
+      "trending"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/posts" },
+    "payload": {
+      "path": "/posts"
+    },
     "priority": 40,
     "active": true
   },
@@ -89,15 +111,20 @@
     "group": "Navigate",
     "title": "Go to Latest",
     "subtitle": null,
-    "icon": "Timer",
-    "keywords": ["recent", "new"],
+    "icon": "TimerIcon",
+    "keywords": [
+      "recent",
+      "new"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/posts/latest" },
+    "payload": {
+      "path": "/posts/latest"
+    },
     "priority": 50,
     "active": true
   },
@@ -106,7 +133,7 @@
     "group": "Navigate",
     "title": "Go to Most upvoted",
     "subtitle": null,
-    "icon": "Upvote",
+    "icon": "UpvoteIcon",
     "keywords": [],
     "shortcut": null,
     "quickKey": null,
@@ -114,7 +141,9 @@
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/posts/upvoted" },
+    "payload": {
+      "path": "/posts/upvoted"
+    },
     "priority": 60,
     "active": true
   },
@@ -123,15 +152,20 @@
     "group": "Navigate",
     "title": "Go to Discussions",
     "subtitle": null,
-    "icon": "Hot",
-    "keywords": ["discussions", "comments"],
+    "icon": "HotIcon",
+    "keywords": [
+      "discussions",
+      "comments"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/discussed" },
+    "payload": {
+      "path": "/discussed"
+    },
     "priority": 70,
     "active": true
   },
@@ -140,15 +174,19 @@
     "group": "Navigate",
     "title": "Go to Bookmarks",
     "subtitle": null,
-    "icon": "Bookmark",
-    "keywords": ["saved"],
+    "icon": "BookmarkIcon",
+    "keywords": [
+      "saved"
+    ],
     "shortcut": null,
     "quickKey": "gb",
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/bookmarks" },
+    "payload": {
+      "path": "/bookmarks"
+    },
     "priority": 80,
     "active": true
   },
@@ -157,7 +195,7 @@
     "group": "Navigate",
     "title": "Go to Read later",
     "subtitle": null,
-    "icon": "Bookmark",
+    "icon": "BookmarkIcon",
     "keywords": [],
     "shortcut": null,
     "quickKey": null,
@@ -165,7 +203,9 @@
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/bookmarks/later" },
+    "payload": {
+      "path": "/bookmarks/later"
+    },
     "priority": 90,
     "active": true
   },
@@ -174,15 +214,20 @@
     "group": "Navigate",
     "title": "Go to History",
     "subtitle": null,
-    "icon": "Eye",
-    "keywords": ["reading history", "visited"],
+    "icon": "EyeIcon",
+    "keywords": [
+      "reading history",
+      "visited"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/history" },
+    "payload": {
+      "path": "/history"
+    },
     "priority": 100,
     "active": true
   },
@@ -191,15 +236,20 @@
     "group": "Navigate",
     "title": "Go to Notifications",
     "subtitle": null,
-    "icon": "Bell",
-    "keywords": ["activity", "inbox"],
+    "icon": "BellIcon",
+    "keywords": [
+      "activity",
+      "inbox"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/notifications" },
+    "payload": {
+      "path": "/notifications"
+    },
     "priority": 110,
     "active": true
   },
@@ -208,15 +258,20 @@
     "group": "Navigate",
     "title": "Go to Highlights",
     "subtitle": null,
-    "icon": "Hot",
-    "keywords": ["headlines", "happening now"],
+    "icon": "HotIcon",
+    "keywords": [
+      "headlines",
+      "happening now"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/highlights" },
+    "payload": {
+      "path": "/highlights"
+    },
     "priority": 120,
     "active": true
   },
@@ -225,15 +280,19 @@
     "group": "Navigate",
     "title": "Go to Tags",
     "subtitle": null,
-    "icon": "Hashtag",
-    "keywords": ["topics"],
+    "icon": "HashtagIcon",
+    "keywords": [
+      "topics"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/tags" },
+    "payload": {
+      "path": "/tags"
+    },
     "priority": 130,
     "active": true
   },
@@ -242,15 +301,19 @@
     "group": "Navigate",
     "title": "Go to Sources",
     "subtitle": null,
-    "icon": "Source",
-    "keywords": ["publishers"],
+    "icon": "SourceIcon",
+    "keywords": [
+      "publishers"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/sources" },
+    "payload": {
+      "path": "/sources"
+    },
     "priority": 140,
     "active": true
   },
@@ -259,15 +322,19 @@
     "group": "Navigate",
     "title": "Go to Squads",
     "subtitle": null,
-    "icon": "Squad",
-    "keywords": ["communities"],
+    "icon": "SquadIcon",
+    "keywords": [
+      "communities"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/squads" },
+    "payload": {
+      "path": "/squads"
+    },
     "priority": 150,
     "active": true
   },
@@ -276,15 +343,20 @@
     "group": "Navigate",
     "title": "Go to Leaderboard",
     "subtitle": null,
-    "icon": "Reputation",
-    "keywords": ["users", "top developers"],
+    "icon": "ReputationIcon",
+    "keywords": [
+      "users",
+      "top developers"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/users" },
+    "payload": {
+      "path": "/users"
+    },
     "priority": 160,
     "active": true
   },
@@ -293,15 +365,19 @@
     "group": "Navigate",
     "title": "Go to Presidential briefing",
     "subtitle": null,
-    "icon": "Brief",
-    "keywords": ["daily brief"],
+    "icon": "BriefIcon",
+    "keywords": [
+      "daily brief"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/briefing" },
+    "payload": {
+      "path": "/briefing"
+    },
     "priority": 170,
     "active": true
   },
@@ -310,15 +386,19 @@
     "group": "Navigate",
     "title": "Go to Standups",
     "subtitle": null,
-    "icon": "ReadingStreak",
-    "keywords": ["live rooms"],
+    "icon": "ReadingStreakIcon",
+    "keywords": [
+      "live rooms"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/standups" },
+    "payload": {
+      "path": "/standups"
+    },
     "priority": 180,
     "active": true
   },
@@ -327,15 +407,21 @@
     "group": "Navigate",
     "title": "Go to Game center",
     "subtitle": null,
-    "icon": "Joystick",
-    "keywords": ["quests", "achievements", "gamification"],
+    "icon": "JoystickIcon",
+    "keywords": [
+      "quests",
+      "achievements",
+      "gamification"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/game-center" },
+    "payload": {
+      "path": "/game-center"
+    },
     "priority": 190,
     "active": true
   },
@@ -344,15 +430,20 @@
     "group": "Navigate",
     "title": "Go to Analytics",
     "subtitle": null,
-    "icon": "Analytics",
-    "keywords": ["stats", "reading"],
+    "icon": "AnalyticsIcon",
+    "keywords": [
+      "stats",
+      "reading"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/analytics" },
+    "payload": {
+      "path": "/analytics"
+    },
     "priority": 200,
     "active": true
   },
@@ -361,7 +452,7 @@
     "group": "Navigate",
     "title": "Go to DevCard",
     "subtitle": null,
-    "icon": "DevCard",
+    "icon": "DevCardIcon",
     "keywords": [],
     "shortcut": null,
     "quickKey": null,
@@ -369,7 +460,9 @@
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/settings/customization/devcard" },
+    "payload": {
+      "path": "/settings/customization/devcard"
+    },
     "priority": 210,
     "active": true
   },
@@ -378,15 +471,21 @@
     "group": "Navigate",
     "title": "Go to Plus",
     "subtitle": "Manage or upgrade your subscription",
-    "icon": "DevPlus",
-    "keywords": ["subscription", "upgrade", "membership"],
+    "icon": "DevPlusIcon",
+    "keywords": [
+      "subscription",
+      "upgrade",
+      "membership"
+    ],
     "shortcut": null,
     "quickKey": "gp",
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/plus" },
+    "payload": {
+      "path": "/plus"
+    },
     "priority": 220,
     "active": true
   },
@@ -395,15 +494,20 @@
     "group": "Navigate",
     "title": "Go to Wallet",
     "subtitle": null,
-    "icon": "CoreFlat",
-    "keywords": ["cores", "balance"],
+    "icon": "CoreFlatIcon",
+    "keywords": [
+      "cores",
+      "balance"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/wallet" },
+    "payload": {
+      "path": "/wallet"
+    },
     "priority": 230,
     "active": true
   },
@@ -412,15 +516,20 @@
     "group": "Navigate",
     "title": "Go to Jobs",
     "subtitle": null,
-    "icon": "Job",
-    "keywords": ["career", "opportunities"],
+    "icon": "JobIcon",
+    "keywords": [
+      "career",
+      "opportunities"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/jobs" },
+    "payload": {
+      "path": "/jobs"
+    },
     "priority": 240,
     "active": true
   },
@@ -429,15 +538,20 @@
     "group": "Navigate",
     "title": "Go to Settings",
     "subtitle": null,
-    "icon": "Settings",
-    "keywords": ["preferences", "account"],
+    "icon": "SettingsIcon",
+    "keywords": [
+      "preferences",
+      "account"
+    ],
     "shortcut": null,
     "quickKey": "gs",
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "Navigate",
-    "payload": { "path": "/settings/profile" },
+    "payload": {
+      "path": "/settings/profile"
+    },
     "priority": 250,
     "active": true
   },
@@ -446,15 +560,23 @@
     "group": "Create",
     "title": "New post",
     "subtitle": "Share a link or write a story",
-    "icon": "Plus",
-    "keywords": ["post", "create", "share", "write", "new"],
+    "icon": "PlusIcon",
+    "keywords": [
+      "post",
+      "create",
+      "share",
+      "write",
+      "new"
+    ],
     "shortcut": "N P",
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "CreateSharedPost" },
+    "payload": {
+      "modal": "CreateSharedPost"
+    },
     "priority": 10,
     "active": true
   },
@@ -463,15 +585,22 @@
     "group": "Create",
     "title": "Suggest a new source",
     "subtitle": null,
-    "icon": "Source",
-    "keywords": ["source", "submit", "rss", "blog"],
+    "icon": "SourceIcon",
+    "keywords": [
+      "source",
+      "submit",
+      "rss",
+      "blog"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "NewSource" },
+    "payload": {
+      "modal": "NewSource"
+    },
     "priority": 20,
     "active": true
   },
@@ -480,15 +609,21 @@
     "group": "Create",
     "title": "New squad",
     "subtitle": "Start your own community",
-    "icon": "Squad",
-    "keywords": ["squad", "community", "group"],
+    "icon": "SquadIcon",
+    "keywords": [
+      "squad",
+      "community",
+      "group"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "NewSquad" },
+    "payload": {
+      "modal": "NewSquad"
+    },
     "priority": 30,
     "active": true
   },
@@ -497,15 +632,22 @@
     "group": "Settings",
     "title": "Toggle dark mode",
     "subtitle": null,
-    "icon": "Moon",
-    "keywords": ["theme", "dark", "light", "mode"],
+    "icon": "MoonIcon",
+    "keywords": [
+      "theme",
+      "dark",
+      "light",
+      "mode"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "ToggleSetting",
-    "payload": { "key": "theme" },
+    "payload": {
+      "key": "theme"
+    },
     "priority": 20,
     "active": true
   },
@@ -514,15 +656,22 @@
     "group": "Settings",
     "title": "Toggle sidebar",
     "subtitle": null,
-    "icon": "Menu",
-    "keywords": ["sidebar", "collapse", "expand", "nav"],
+    "icon": "MenuIcon",
+    "keywords": [
+      "sidebar",
+      "collapse",
+      "expand",
+      "nav"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "ToggleSetting",
-    "payload": { "key": "sidebar" },
+    "payload": {
+      "key": "sidebar"
+    },
     "priority": 30,
     "active": true
   },
@@ -531,15 +680,21 @@
     "group": "Settings",
     "title": "Toggle insane mode",
     "subtitle": null,
-    "icon": "Magic",
-    "keywords": ["insane", "density", "compact"],
+    "icon": "MagicIcon",
+    "keywords": [
+      "insane",
+      "density",
+      "compact"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "ToggleSetting",
-    "payload": { "key": "insaneMode" },
+    "payload": {
+      "key": "insaneMode"
+    },
     "priority": 40,
     "active": true
   },
@@ -548,15 +703,21 @@
     "group": "Actions",
     "title": "Reading history",
     "subtitle": null,
-    "icon": "Eye",
-    "keywords": ["history", "read", "recent"],
+    "icon": "EyeIcon",
+    "keywords": [
+      "history",
+      "read",
+      "recent"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "ReadingHistory" },
+    "payload": {
+      "modal": "ReadingHistory"
+    },
     "priority": 20,
     "active": true
   },
@@ -565,15 +726,22 @@
     "group": "Actions",
     "title": "Ads dashboard",
     "subtitle": "Manage your boosted posts",
-    "icon": "Analytics",
-    "keywords": ["ads", "boost", "dashboard", "campaign"],
+    "icon": "AnalyticsIcon",
+    "keywords": [
+      "ads",
+      "boost",
+      "dashboard",
+      "campaign"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "AdsDashboard" },
+    "payload": {
+      "modal": "AdsDashboard"
+    },
     "priority": 30,
     "active": true
   },
@@ -582,15 +750,23 @@
     "group": "Actions",
     "title": "Invite friends",
     "subtitle": "Share your referral link",
-    "icon": "Link",
-    "keywords": ["referral", "invite", "share", "link", "friends"],
+    "icon": "LinkIcon",
+    "keywords": [
+      "referral",
+      "invite",
+      "share",
+      "link",
+      "friends"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "GenericReferral" },
+    "payload": {
+      "modal": "GenericReferral"
+    },
     "priority": 40,
     "active": true
   },
@@ -599,15 +775,21 @@
     "group": "Actions",
     "title": "Log out",
     "subtitle": null,
-    "icon": "Exit",
-    "keywords": ["logout", "sign out", "exit"],
+    "icon": "ExitIcon",
+    "keywords": [
+      "logout",
+      "sign out",
+      "exit"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": true,
     "requiresPlus": false,
     "platforms": null,
     "kind": "RunClientAction",
-    "payload": { "handlerId": "logout" },
+    "payload": {
+      "handlerId": "logout"
+    },
     "priority": 50,
     "active": true
   },
@@ -616,15 +798,22 @@
     "group": "Help",
     "title": "Documentation",
     "subtitle": null,
-    "icon": "Docs",
-    "keywords": ["docs", "help", "documentation"],
+    "icon": "DocsIcon",
+    "keywords": [
+      "docs",
+      "help",
+      "documentation"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenUrl",
-    "payload": { "url": "https://docs.daily.dev", "external": true },
+    "payload": {
+      "url": "https://docs.daily.dev",
+      "external": true
+    },
     "priority": 10,
     "active": true
   },
@@ -633,15 +822,21 @@
     "group": "Help",
     "title": "Send feedback",
     "subtitle": null,
-    "icon": "Feedback",
-    "keywords": ["feedback", "support", "contact"],
+    "icon": "FeedbackIcon",
+    "keywords": [
+      "feedback",
+      "support",
+      "contact"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenModal",
-    "payload": { "modal": "Feedback" },
+    "payload": {
+      "modal": "Feedback"
+    },
     "priority": 20,
     "active": true
   },
@@ -650,15 +845,22 @@
     "group": "Help",
     "title": "Join the community",
     "subtitle": null,
-    "icon": "Discord",
-    "keywords": ["community", "discord", "chat"],
+    "icon": "DiscordIcon",
+    "keywords": [
+      "community",
+      "discord",
+      "chat"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "OpenUrl",
-    "payload": { "url": "https://daily.dev/discord", "external": true },
+    "payload": {
+      "url": "https://daily.dev/discord",
+      "external": true
+    },
     "priority": 30,
     "active": true
   },
@@ -667,15 +869,21 @@
     "group": "Search",
     "title": "Search posts",
     "subtitle": null,
-    "icon": "Search",
-    "keywords": ["posts", "articles", "find"],
+    "icon": "SearchIcon",
+    "keywords": [
+      "posts",
+      "articles",
+      "find"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "RunClientAction",
-    "payload": { "handlerId": "searchPosts" },
+    "payload": {
+      "handlerId": "searchPosts"
+    },
     "priority": 10,
     "active": true
   },
@@ -684,15 +892,21 @@
     "group": "Search",
     "title": "Search sources",
     "subtitle": null,
-    "icon": "Source",
-    "keywords": ["sources", "find", "publisher"],
+    "icon": "SourceIcon",
+    "keywords": [
+      "sources",
+      "find",
+      "publisher"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "RunClientAction",
-    "payload": { "handlerId": "searchSources" },
+    "payload": {
+      "handlerId": "searchSources"
+    },
     "priority": 20,
     "active": true
   },
@@ -701,15 +915,21 @@
     "group": "Search",
     "title": "Search tags",
     "subtitle": null,
-    "icon": "Hashtag",
-    "keywords": ["tags", "topics", "find"],
+    "icon": "HashtagIcon",
+    "keywords": [
+      "tags",
+      "topics",
+      "find"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "RunClientAction",
-    "payload": { "handlerId": "searchTags" },
+    "payload": {
+      "handlerId": "searchTags"
+    },
     "priority": 30,
     "active": true
   },
@@ -718,15 +938,22 @@
     "group": "Search",
     "title": "Search people",
     "subtitle": null,
-    "icon": "User",
-    "keywords": ["users", "people", "profiles", "find"],
+    "icon": "UserIcon",
+    "keywords": [
+      "users",
+      "people",
+      "profiles",
+      "find"
+    ],
     "shortcut": null,
     "quickKey": null,
     "requiresAuth": false,
     "requiresPlus": false,
     "platforms": null,
     "kind": "RunClientAction",
-    "payload": { "handlerId": "searchUsers" },
+    "payload": {
+      "handlerId": "searchUsers"
+    },
     "priority": 40,
     "active": true
   }
