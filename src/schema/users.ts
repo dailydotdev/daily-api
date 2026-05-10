@@ -646,6 +646,10 @@ export const typeDefs = /* GraphQL */ `
     Flexible social media links array (replaces individual social fields)
     """
     socialLinks: [UserSocialLink!]!
+    """
+    Whether search engines should not index this user's profile
+    """
+    noindex: Boolean!
   }
 
   """

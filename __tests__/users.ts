@@ -1952,6 +1952,41 @@ describe('query user', () => {
   });
 });
 
+describe('query user noindex', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      noindex
+    }
+  }`;
+
+  it('should be false for a user with reputation > 10 and no vordr flag', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { reputation: 50, flags: {} });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toEqual({ noindex: false });
+  });
+
+  it('should be true when reputation <= 10', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { reputation: 10, flags: {} });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toEqual({ noindex: true });
+  });
+
+  it('should be true when shadow banned (flags.vordr) even with high reputation', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { reputation: 100, flags: { vordr: true } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toEqual({ noindex: true });
+  });
+});
+
 describe('query user socialLinks', () => {
   const QUERY = `query User($id: ID!) {
     user(id: $id) {
