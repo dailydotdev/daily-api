@@ -239,11 +239,13 @@ export const generateChannelHighlight = async ({
       if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
     }
     const retiredHighlightPostIdSet = new Set(
-      retiredHighlightPostIds.flatMap((postId) => [
-        postId,
-        fallbackPostIds.get(postId),
-        sharedByShareId.get(postId),
-      ]).filter((id): id is string => !!id),
+      retiredHighlightPostIds
+        .flatMap((postId) => [
+          postId,
+          fallbackPostIds.get(postId),
+          sharedByShareId.get(postId),
+        ])
+        .filter((id): id is string => !!id),
     );
     const retiredEvaluationPostIdSet = new Set(
       retiredEvaluationHighlights.map((item) => item.postId),
