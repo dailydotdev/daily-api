@@ -2652,6 +2652,9 @@ const obj = new GraphORM({
           customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .where(`${childAlias}."archiveId" = "${parentAlias}".id`)
+              .andWhere(
+                `EXISTS (SELECT 1 FROM "post" "p" WHERE "p".id = ${childAlias}."subjectId" AND "p"."deleted" = false)`,
+              )
               .orderBy(`${childAlias}.rank`, 'ASC'),
         },
       },
@@ -2689,7 +2692,9 @@ const obj = new GraphORM({
         relation: {
           isMany: false,
           customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb.where(`${childAlias}.id = "${parentAlias}"."subjectId"`),
+            qb
+              .where(`${childAlias}.id = "${parentAlias}"."subjectId"`)
+              .andWhere(`${childAlias}."deleted" = false`),
         },
       },
     },
