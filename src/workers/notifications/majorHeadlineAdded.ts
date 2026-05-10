@@ -21,7 +21,7 @@ export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighte
     subscription: 'api.major-headline-added-notification',
     parseMessage: (message) => PostHighlightedMessage.fromBinary(message.data),
     handler: async (data, con) => {
-      const { postId, headline, channel, significance } = data;
+      const { highlightId, postId, headline, channel, significance } = data;
 
       if (significance !== PostHighlightSignificance.Breaking) {
         return;
@@ -77,6 +77,7 @@ export const majorHeadlineAdded: TypedNotificationWorker<'api.v1.post-highlighte
             headline,
             channel,
             significance,
+            highlightId,
           } as NotificationMajorHeadlineContext,
         },
       ];

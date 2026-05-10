@@ -3,6 +3,7 @@ import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
   generateDevCard,
+  getHighlightLink,
   getOrganizationPermalink,
   notificationsLink,
   squadsFeaturedPage,
@@ -767,10 +768,11 @@ export const generateNotificationMap: Record<
     ctx: NotificationMajorHeadlineContext,
   ) =>
     builder
-      .icon(NotificationIcon.Bell)
+      .icon(NotificationIcon.Megaphone)
       .description(ctx.headline)
       .avatarSource(ctx.source)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .targetUrl(getHighlightLink(ctx.highlightId))
       .uniqueKey(ctx.post.id),
   live_room_started: (
     builder: NotificationBuilder,
