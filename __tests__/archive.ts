@@ -692,6 +692,27 @@ describe('archive queries', () => {
     });
   });
 
+  it('should exclude items whose post has been deleted', async () => {
+    await con.getRepository(Post).update({ id: 'post-6' }, { deleted: true });
+
+    const res = await client.query(archiveQuery, {
+      variables: {
+        subjectType: ArchiveSubjectType.Post,
+        rankingType: ArchiveRankingType.Best,
+        scopeType: ArchiveScopeType.Tag,
+        scopeId: 'webdev',
+        periodType: ArchivePeriodType.Month,
+        year: 2026,
+        month: 3,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.archive).toMatchObject({
+      items: [],
+    });
+  });
+
   it('should return only published archives from archiveIndex', async () => {
     const res = await client.query(archiveIndexQuery, {
       variables: {
