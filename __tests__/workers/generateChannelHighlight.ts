@@ -572,6 +572,114 @@ describe('generateChannelHighlight worker', () => {
     ]);
   });
 
+  it('should keep an accessible underlying article as the highlight postId when a public share appears later', async () => {
+    const now = new Date('2026-03-03T12:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    // The article is highlighted on its underlying postId at run time.
+    await saveArticle({
+      id: 'underlying-1',
+      title: 'Original article',
+      createdAt: new Date('2026-03-03T11:00:00.000Z'),
+    });
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'underlying-1',
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Original headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'previous run',
+    });
+    // A user shares the article between runs.
+    await saveShare({
+      id: 'share-1',
+      sharedPostId: 'underlying-1',
+      createdAt: new Date('2026-03-03T11:50:00.000Z'),
+      upvotes: 5,
+    });
+
+    jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    const allRows = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes' },
+    });
+    expect(allRows).toHaveLength(1);
+    expect(allRows[0]).toMatchObject({
+      postId: 'underlying-1',
+      retiredAt: null,
+    });
+  });
+
+  it('should downgrade a SharePost-stored highlight back to its underlying article when accessible', async () => {
+    const now = new Date('2026-03-03T12:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'publish',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveArticle({
+      id: 'underlying-2',
+      title: 'Underlying article',
+      createdAt: new Date('2026-03-03T11:00:00.000Z'),
+    });
+    await saveShare({
+      id: 'share-2',
+      sharedPostId: 'underlying-2',
+      createdAt: new Date('2026-03-03T11:20:00.000Z'),
+    });
+    // Legacy row: highlight previously stored on the share post ID.
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'share-2',
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Legacy share headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'pre-fix run',
+    });
+
+    jest
+      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await expectSuccessfulTypedBackground<'api.v1.generate-channel-highlight'>(
+      worker,
+      {
+        channel: 'vibes',
+        scheduledAt: now.toISOString(),
+      },
+    );
+
+    const liveRows = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', retiredAt: IsNull() },
+    });
+    expect(liveRows).toEqual([
+      expect.objectContaining({
+        postId: 'underlying-2',
+        headline: 'Legacy share headline',
+      }),
+    ]);
+    const retiredRows = await con.getRepository(PostHighlight).find({
+      where: { channel: 'vibes', postId: 'share-2' },
+    });
+    expect(retiredRows).toHaveLength(1);
+    expect(retiredRows[0].retiredAt).toBeInstanceOf(Date);
+  });
+
   it('should drop admitted candidates that race with collection regeneration', async () => {
     const now = new Date('2026-03-15T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
