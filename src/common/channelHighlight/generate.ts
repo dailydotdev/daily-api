@@ -141,10 +141,27 @@ export const generateChannelHighlight = async ({
       highlightedPosts,
       evaluationHistoryPosts,
     ]);
-    const relations = await fetchRelations({
-      con,
-      postIds: basePosts.map((post) => post.id),
-    });
+    // For SharePost-stored highlights we need the underlying article in the
+    // post pool so canonicalization can downgrade share → underlying when the
+    // underlying is accessible.
+    const sharedUnderlyingIds = [
+      ...new Set(
+        basePosts
+          .map((post) => post.sharedPostId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const [relations, sharedUnderlyingPosts] = await Promise.all([
+      fetchRelations({
+        con,
+        postIds: basePosts.map((post) => post.id),
+      }),
+      fetchPostsByIds({
+        con,
+        ids: sharedUnderlyingIds,
+        excludedSourceIds,
+      }),
+    ]);
     const relationPosts = await fetchPostsByIds({
       con,
       ids: [
@@ -157,7 +174,11 @@ export const generateChannelHighlight = async ({
       ],
       excludedSourceIds,
     });
-    const availablePosts = mergePosts([basePosts, relationPosts]);
+    const availablePosts = mergePosts([
+      basePosts,
+      relationPosts,
+      sharedUnderlyingPosts,
+    ]);
     const inaccessiblePostIds = new Set(
       availablePosts
         .filter((post) => post.sourceId === UNKNOWN_SOURCE)
@@ -178,6 +199,7 @@ export const generateChannelHighlight = async ({
         highlights: activeHighlights,
         relations,
         posts: availablePosts,
+        inaccessiblePostIds,
       }),
       inaccessiblePostIds,
       fallbackPostIds,
@@ -187,6 +209,7 @@ export const generateChannelHighlight = async ({
         highlights: evaluationHistoryHighlights.map(toHighlightItem),
         relations,
         posts: availablePosts,
+        inaccessiblePostIds,
       }),
       inaccessiblePostIds,
       fallbackPostIds,
@@ -198,6 +221,7 @@ export const generateChannelHighlight = async ({
           .map(toHighlightItem),
         relations,
         posts: availablePosts,
+        inaccessiblePostIds,
       }),
       inaccessiblePostIds,
       fallbackPostIds,
@@ -206,10 +230,22 @@ export const generateChannelHighlight = async ({
     const currentHighlightPostIds = new Set(
       liveHighlights.map((item) => item.postId),
     );
+    // A retired highlight may be stored as either the underlying post id (the
+    // new norm) or as a share-post id (legacy rows from before we stopped
+    // auto-migrating underlying → share). Dedup against both forms so a fresh
+    // candidate matching either side is filtered out.
+    const sharedByShareId = new Map<string, string>();
+    for (const post of availablePosts) {
+      if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
+    }
     const retiredHighlightPostIdSet = new Set(
-      retiredHighlightPostIds.map(
-        (postId) => fallbackPostIds.get(postId) || postId,
-      ),
+      retiredHighlightPostIds
+        .flatMap((postId) => [
+          postId,
+          fallbackPostIds.get(postId),
+          sharedByShareId.get(postId),
+        ])
+        .filter((id): id is string => !!id),
     );
     const retiredEvaluationPostIdSet = new Set(
       retiredEvaluationHighlights.map((item) => item.postId),
@@ -255,7 +291,7 @@ export const generateChannelHighlight = async ({
       admitted: evaluatedHighlights,
       fallbackPostIds,
       currentHighlightPostIds,
-      retiredHighlightPostIds: new Set(retiredHighlightPostIds),
+      retiredHighlightPostIds: retiredHighlightPostIdSet,
     });
 
     const internalHighlights = trimHighlights({
