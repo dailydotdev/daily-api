@@ -228,6 +228,7 @@ export type NotificationMajorHeadlineContext = NotificationPostContext & {
   headline: string;
   channel: string;
   significance: number;
+  highlightId: string;
 };
 
 export type NotificationLiveRoomContext = NotificationBaseContext & {

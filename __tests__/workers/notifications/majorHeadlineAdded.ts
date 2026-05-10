@@ -76,6 +76,7 @@ describe('majorHeadlineAdded notification worker', () => {
       headline: baseMessage.headline,
       channel: baseMessage.channel,
       significance: PostHighlightSignificance.Breaking,
+      highlightId: baseMessage.highlightId,
     });
   });
 
