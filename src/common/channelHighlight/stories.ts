@@ -201,25 +201,48 @@ export const toHighlightItem = (
   reason: item.reason,
 });
 
+// The only post-id transitions we allow are:
+// - share-post → underlying article when the underlying is accessible (downgrade
+//   a SharePost-stored highlight back to its source article so the rail links
+//   stay stable)
+// - child article → collection when both are present (canonical "story" upgrade)
+// Anything else keeps the highlight's stored postId as-is.
 export const canonicalizeCurrentHighlights = ({
   highlights,
   relations,
   posts,
+  inaccessiblePostIds,
 }: {
   highlights: HighlightItem[];
   relations: PostRelation[];
   posts: HighlightPost[];
+  inaccessiblePostIds: Set<string>;
 }): HighlightItem[] => {
   const postsById = new Map(posts.map((post) => [post.id, post]));
   const collectionByChildId = buildCollectionByChildId(
     relations,
     new Set(postsById.keys()),
   );
+  const sharedByShareId = new Map<string, string>();
+  for (const post of posts) {
+    if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
+  }
+
+  const downgradeShareToUnderlying = (postId: string): string => {
+    const underlyingId = sharedByShareId.get(postId);
+    if (!underlyingId) return postId;
+    if (!postsById.has(underlyingId) || inaccessiblePostIds.has(underlyingId)) {
+      return postId;
+    }
+    return underlyingId;
+  };
+
   const canonicalHighlights = new Map<string, HighlightItem>();
 
   for (const highlight of highlights) {
+    const downgradedPostId = downgradeShareToUnderlying(highlight.postId);
     const canonicalPostId =
-      collectionByChildId.get(highlight.postId) || highlight.postId;
+      collectionByChildId.get(downgradedPostId) || downgradedPostId;
     const canonicalPost = postsById.get(canonicalPostId);
 
     if (!canonicalPost) {
@@ -245,6 +268,10 @@ export const canonicalizeCurrentHighlights = ({
   );
 };
 
+// Substitute a public share for the underlying post only when the underlying
+// is inaccessible (UNKNOWN_SOURCE / banned / deleted). Accessible items keep
+// their original postId — we don't auto-migrate underlying → share when a user
+// happens to share a highlighted article.
 const applyPublicShareFallback = <T extends { postId: string }>({
   items,
   inaccessiblePostIds,
@@ -257,20 +284,18 @@ const applyPublicShareFallback = <T extends { postId: string }>({
   const mappedItems = new Map<string, T>();
 
   for (const item of items) {
-    const fallbackPostId = fallbackPostIds.get(item.postId);
-    if (!fallbackPostId && inaccessiblePostIds.has(item.postId)) {
-      continue;
+    let postId = item.postId;
+    if (inaccessiblePostIds.has(postId)) {
+      const fallbackPostId = fallbackPostIds.get(postId);
+      if (!fallbackPostId) continue;
+      postId = fallbackPostId;
     }
+    if (mappedItems.has(postId)) continue;
 
-    const postId = fallbackPostId || item.postId;
-    if (mappedItems.has(postId)) {
-      continue;
-    }
-
-    mappedItems.set(postId, {
-      ...item,
+    mappedItems.set(
       postId,
-    });
+      postId === item.postId ? item : { ...item, postId },
+    );
   }
 
   return [...mappedItems.values()];
