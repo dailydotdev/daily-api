@@ -12,7 +12,8 @@ import {
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
 import { PostHighlight } from '../entity/PostHighlight';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
-import { getUserProfileUrl } from '../common/users';
+import { getUserProfileUrl, MIN_INDEXABLE_REPUTATION } from '../common/users';
+import { whereVordrFilter } from '../common/vordr';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import { ONE_HOUR_IN_SECONDS } from '../common/constants';
@@ -414,10 +415,11 @@ const buildUsersSitemapQuery = (
     .select('u.username', 'username')
     .addSelect('u."updatedAt"', 'lastmod')
     .from(User, 'u')
-    .where('u.reputation > :minRep', { minRep: 10 })
+    .where('u.reputation > :minRep', { minRep: MIN_INDEXABLE_REPUTATION })
     .andWhere('u.bio IS NOT NULL')
     .andWhere(`btrim(u.bio) != ''`)
     .andWhere('u.username IS NOT NULL')
+    .andWhere(whereVordrFilter('u'))
     .andWhere((qb) => {
       const subQuery = qb
         .subQuery()

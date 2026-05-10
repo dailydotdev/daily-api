@@ -23,6 +23,14 @@ import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
 import { UserExperienceType } from '../entity/user/experiences/types';
 
+/**
+ * Reputation at or below this value is treated as "thin" and triggers
+ * `noindex` on the user's public surfaces (profile page, post pages, sitemap
+ * exclusion). Users above this threshold are indexable unless gated by
+ * another signal (e.g. shadow ban via `flags.vordr`).
+ */
+export const MIN_INDEXABLE_REPUTATION = 10;
+
 export interface User {
   id: string;
   email: string;

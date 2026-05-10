@@ -823,6 +823,26 @@ describe('GET /sitemaps/users.xml', () => {
         email: 'noposts@test.com',
         bio: 'Has no posts',
       },
+      {
+        ...userBase,
+        id: 'vordr-user',
+        name: 'Shadow Banned User',
+        image: 'https://daily.dev/vordr.jpg',
+        username: 'vordruser',
+        email: 'vordr@test.com',
+        bio: 'Looks legit but is shadow banned',
+        flags: { vordr: true },
+      },
+      {
+        ...userBase,
+        id: 'non-vordr-flagged-user',
+        name: 'Non Vordr Flagged User',
+        image: 'https://daily.dev/non-vordr.jpg',
+        username: 'nonvordrflagged',
+        email: 'nonvordrflagged@test.com',
+        bio: 'Has flags but vordr is explicitly false',
+        flags: { vordr: false, trustScore: 5 },
+      },
     ]);
 
     await con.getRepository(Post).insert([
@@ -893,6 +913,20 @@ describe('GET /sitemaps/users.xml', () => {
         authorId: 'hidden-post-user',
         visible: false,
       },
+      {
+        ...publicPostBase,
+        id: 'vordr-user-post',
+        shortId: 'vup',
+        title: 'Vordr User Post',
+        authorId: 'vordr-user',
+      },
+      {
+        ...publicPostBase,
+        id: 'non-vordr-flagged-user-post',
+        shortId: 'nvfup',
+        title: 'Non Vordr Flagged User Post',
+        authorId: 'non-vordr-flagged-user',
+      },
     ]);
 
     const res = await request(app.server)
@@ -918,6 +952,10 @@ describe('GET /sitemaps/users.xml', () => {
     expect(res.text).not.toContain('/deletedpost');
     expect(res.text).not.toContain('/hiddenpost');
     expect(res.text).not.toContain('/noposts');
+    expect(res.text).not.toContain('/vordruser');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/nonvordrflagged</loc>',
+    );
   });
 });
 

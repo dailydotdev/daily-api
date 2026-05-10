@@ -52,6 +52,7 @@ import {
   UserVote,
 } from '../types';
 import { whereVordrFilter } from '../common/vordr';
+import { MIN_INDEXABLE_REPUTATION } from '../common/users';
 import { UserCompany, Post } from '../entity';
 import {
   ContentPreferenceStatus,
@@ -321,6 +322,10 @@ const obj = new GraphORM({
       isHackathonParticipant: {
         alias: { field: 'flags', type: 'jsonb' },
         transform: (flags: UserFlags) => !!flags?.hackathonParticipant,
+      },
+      noindex: {
+        select: (_: Context, alias: string): string =>
+          `(COALESCE((${alias}.flags->>'vordr')::boolean, false) OR ${alias}.reputation <= ${MIN_INDEXABLE_REPUTATION})`,
       },
       plusMemberSince: {
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
