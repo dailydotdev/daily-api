@@ -98,7 +98,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     browsingContextEnabled: Boolean
-    highlightsPlacement: HighlightsPlacement
+    highlightsPlacement: String
     prompt: JSONObject
     timezoneMismatchIgnore: String
     lastPrompt: String
