@@ -84,6 +84,7 @@ export type FeedConfig = {
   blocked_sources?: string[];
   allowed_post_types?: string[];
   highlights_limit?: number;
+  highlights_first?: boolean;
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
   allowed_author_ids?: string[];

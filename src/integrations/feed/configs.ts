@@ -7,7 +7,7 @@ import {
   FeedVersion,
 } from './types';
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
-import { postTypes } from '../../entity';
+import { postTypes, Settings } from '../../entity';
 import { User } from '../../entity/user/User';
 import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
@@ -215,12 +215,18 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       const userId = opts.user_id;
       const feedId = this.opts.feedId || userId;
 
-      const [filters, user] = await Promise.all([
+      const [filters, user, settings] = await Promise.all([
         feedToFilters(ctx.con, feedId, userId),
         userId
           ? ctx.con.getRepository(User).findOne({
               select: ['id', 'experienceLevel', 'flags'],
               where: { id: userId },
+            })
+          : null,
+        userId
+          ? ctx.con.getRepository(Settings).findOne({
+              select: ['userId', 'flags'],
+              where: { userId },
             })
           : null,
       ]);
@@ -236,6 +242,9 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       }
       if (user?.flags?.country) {
         config.country = user.flags.country;
+      }
+      if (settings?.flags?.highlightsFirstEnabled) {
+        config.highlights_first = true;
       }
 
       return { config };

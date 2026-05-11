@@ -27,6 +27,7 @@ import {
   Keyword,
   PostType,
   postTypes,
+  Settings,
   Source,
   SourceMember,
   User,
@@ -771,6 +772,44 @@ describe('FeedPreferencesConfigGenerator', () => {
 
     expect(actual.config.experience_level).toBe('MORE_THAN_6_YEARS');
     expect(actual.config.country).toBe('US');
+  });
+
+  it('should set highlights_first when user enabled it in settings', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsFirstEnabled: true },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual.config.highlights_first).toBe(true);
+  });
+
+  it('should not set highlights_first when setting is disabled', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsFirstEnabled: false },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual.config.highlights_first).toBeUndefined();
   });
 });
 

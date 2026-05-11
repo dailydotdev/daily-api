@@ -121,6 +121,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded
       sidebarBookmarksExpanded
       clickbaitShieldEnabled
+      highlightsFirstEnabled
       defaultWriteTab
     }
   }
@@ -157,6 +158,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsFirstEnabled: null,
       defaultWriteTab: null,
     });
   });
@@ -176,6 +178,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsFirstEnabled: null,
       defaultWriteTab: null,
     });
 
@@ -312,8 +315,25 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsFirstEnabled: null,
       defaultWriteTab: null,
     });
+  });
+
+  it('should persist highlightsFirstEnabled in user settings flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(repo.create({ userId: '1' }));
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { flags: { highlightsFirstEnabled: true } } },
+    });
+
+    expect(res.data.updateUserSettings.flags.highlightsFirstEnabled).toBe(true);
+
+    const updated = await repo.findOneByOrFail({ userId: '1' });
+    expect(updated.flags.highlightsFirstEnabled).toBe(true);
   });
 
   it('should update but not remove user settings flags', async () => {
@@ -347,6 +367,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsFirstEnabled: null,
       defaultWriteTab: null,
     });
   });
