@@ -37,6 +37,12 @@ export enum ShortcutsAppearance {
   Chip = 'chip',
 }
 
+export enum HighlightsPlacement {
+  Default = 'default',
+  Pinned = 'pinned',
+  Disabled = 'disabled',
+}
+
 export type ShortcutMeta = {
   name?: string;
   iconUrl?: string;
@@ -51,7 +57,7 @@ export type SettingsFlags = Partial<{
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
   browsingContextEnabled: boolean;
-  highlightsFirstEnabled: boolean;
+  highlightsPlacement: HighlightsPlacement;
   prompt: object;
   timezoneMismatchIgnore: string;
   lastPrompt: string;
@@ -72,7 +78,7 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
   | 'browsingContextEnabled'
-  | 'highlightsFirstEnabled'
+  | 'highlightsPlacement'
   | 'prompt'
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'

@@ -7,7 +7,7 @@ import {
   FeedVersion,
 } from './types';
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
-import { postTypes, Settings } from '../../entity';
+import { HighlightsPlacement, postTypes, Settings } from '../../entity';
 import { User } from '../../entity/user/User';
 import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
@@ -243,8 +243,15 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       if (user?.flags?.country) {
         config.country = user.flags.country;
       }
-      if (settings?.flags?.highlightsFirstEnabled) {
-        config.highlights_first = true;
+      switch (settings?.flags?.highlightsPlacement) {
+        case HighlightsPlacement.Pinned:
+          config.highlights_first = true;
+          break;
+        case HighlightsPlacement.Disabled:
+          config.highlights_limit = 0;
+          break;
+        default:
+          break;
       }
 
       return { config };

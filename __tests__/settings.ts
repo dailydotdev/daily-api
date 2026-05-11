@@ -121,7 +121,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded
       sidebarBookmarksExpanded
       clickbaitShieldEnabled
-      highlightsFirstEnabled
+      highlightsPlacement
       defaultWriteTab
     }
   }
@@ -158,7 +158,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
-      highlightsFirstEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
   });
@@ -178,7 +178,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
-      highlightsFirstEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
 
@@ -315,25 +315,40 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
-      highlightsFirstEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
   });
 
-  it('should persist highlightsFirstEnabled in user settings flags', async () => {
+  it('should persist highlightsPlacement in user settings flags', async () => {
     loggedUser = '1';
 
     const repo = con.getRepository(Settings);
     await repo.save(repo.create({ userId: '1' }));
 
     const res = await client.mutate(MUTATION, {
-      variables: { data: { flags: { highlightsFirstEnabled: true } } },
+      variables: { data: { flags: { highlightsPlacement: 'pinned' } } },
     });
 
-    expect(res.data.updateUserSettings.flags.highlightsFirstEnabled).toBe(true);
+    expect(res.data.updateUserSettings.flags.highlightsPlacement).toBe(
+      'pinned',
+    );
 
     const updated = await repo.findOneByOrFail({ userId: '1' });
-    expect(updated.flags.highlightsFirstEnabled).toBe(true);
+    expect(updated.flags.highlightsPlacement).toBe('pinned');
+  });
+
+  it('should reject invalid highlightsPlacement values', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { flags: { highlightsPlacement: 'bogus' } } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should update but not remove user settings flags', async () => {
@@ -367,7 +382,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
-      highlightsFirstEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
   });

@@ -1403,7 +1403,7 @@ describe('boot misc', () => {
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
         browsingContextEnabled: false,
-        highlightsFirstEnabled: false,
+        highlightsPlacement: 'default',
         legacyPostLayoutOptOut: false,
       },
     });
