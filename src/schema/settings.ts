@@ -4,6 +4,7 @@ import {
   CampaignCtaPlacement,
   ChecklistViewState,
   DefaultWriteTab,
+  HighlightsPlacement,
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
@@ -68,6 +69,7 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(DefaultWriteTab, 'DefaultWriteTab')}
   ${toGQLEnum(ShortcutsMode, 'ShortcutsMode')}
   ${toGQLEnum(ShortcutsAppearance, 'ShortcutsAppearance')}
+  ${toGQLEnum(HighlightsPlacement, 'HighlightsPlacement')}
 
   type SettingsFlagsPublic {
     sidebarSquadExpanded: Boolean
@@ -77,7 +79,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     browsingContextEnabled: Boolean
-    highlightsFirstEnabled: Boolean
+    highlightsPlacement: HighlightsPlacement
     timezoneMismatchIgnore: String
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
@@ -96,7 +98,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     browsingContextEnabled: Boolean
-    highlightsFirstEnabled: Boolean
+    highlightsPlacement: HighlightsPlacement
     prompt: JSONObject
     timezoneMismatchIgnore: String
     lastPrompt: String
@@ -443,6 +445,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         )
       ) {
         throw new ValidationError(`Invalid value for 'shortcutsAppearance'`);
+      }
+
+      if (
+        data?.flags?.highlightsPlacement &&
+        !Object.values(HighlightsPlacement).includes(
+          data.flags.highlightsPlacement,
+        )
+      ) {
+        throw new ValidationError(`Invalid value for 'highlightsPlacement'`);
       }
 
       const promptSchema = z.record(z.string(), z.boolean());

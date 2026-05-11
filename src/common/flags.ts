@@ -1,4 +1,4 @@
-import type { Settings } from '../entity';
+import { HighlightsPlacement, type Settings } from '../entity';
 
 export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
   const {
@@ -9,7 +9,7 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     sidebarBookmarksExpanded,
     clickbaitShieldEnabled,
     browsingContextEnabled,
-    highlightsFirstEnabled,
+    highlightsPlacement,
     prompt,
     timezoneMismatchIgnore,
     lastPrompt,
@@ -29,7 +29,7 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     sidebarBookmarksExpanded: sidebarBookmarksExpanded ?? true,
     clickbaitShieldEnabled: clickbaitShieldEnabled ?? true,
     browsingContextEnabled: browsingContextEnabled ?? false,
-    highlightsFirstEnabled: highlightsFirstEnabled ?? false,
+    highlightsPlacement: highlightsPlacement ?? HighlightsPlacement.Default,
     prompt,
     timezoneMismatchIgnore,
     lastPrompt,

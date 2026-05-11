@@ -27,6 +27,7 @@ import {
   Keyword,
   PostType,
   postTypes,
+  HighlightsPlacement,
   Settings,
   Source,
   SourceMember,
@@ -774,10 +775,10 @@ describe('FeedPreferencesConfigGenerator', () => {
     expect(actual.config.country).toBe('US');
   });
 
-  it('should set highlights_first when user enabled it in settings', async () => {
+  it('should set highlights_first when highlightsPlacement is pinned', async () => {
     await con.getRepository(Settings).save({
       userId: '1',
-      flags: { highlightsFirstEnabled: true },
+      flags: { highlightsPlacement: HighlightsPlacement.Pinned },
     });
 
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
@@ -791,12 +792,13 @@ describe('FeedPreferencesConfigGenerator', () => {
     });
 
     expect(actual.config.highlights_first).toBe(true);
+    expect(actual.config.highlights_limit).toBeUndefined();
   });
 
-  it('should not set highlights_first when setting is disabled', async () => {
+  it('should zero out highlights_limit when highlightsPlacement is disabled', async () => {
     await con.getRepository(Settings).save({
       userId: '1',
-      flags: { highlightsFirstEnabled: false },
+      flags: { highlightsPlacement: HighlightsPlacement.Disabled },
     });
 
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
@@ -807,9 +809,32 @@ describe('FeedPreferencesConfigGenerator', () => {
       user_id: '1',
       page_size: 2,
       offset: 3,
+      highlights_limit: 2,
+    });
+
+    expect(actual.config.highlights_limit).toBe(0);
+    expect(actual.config.highlights_first).toBeUndefined();
+  });
+
+  it('should leave highlights config untouched when placement is default', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsPlacement: HighlightsPlacement.Default },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+      highlights_limit: 2,
     });
 
     expect(actual.config.highlights_first).toBeUndefined();
+    expect(actual.config.highlights_limit).toBe(2);
   });
 });
 
