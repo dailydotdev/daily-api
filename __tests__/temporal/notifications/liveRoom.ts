@@ -19,6 +19,10 @@ jest.mock('../../../src/temporal/common', () => {
   };
 });
 
+const { getWorkflowDescription } = jest.requireMock(
+  '../../../src/temporal/common',
+);
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
@@ -41,7 +45,7 @@ describe('getLiveRoomStartingSoonReminderWorkflowId', () => {
 
 describe('scheduleLiveRoomStartingSoonReminder', () => {
   it('should start reminder workflow', async () => {
-    mock.describe.mockRejectedValueOnce(notFoundError());
+    getWorkflowDescription.mockRejectedValueOnce(notFoundError());
     mock.start.mockResolvedValueOnce({ describe: mock.describe });
     jest.useFakeTimers().setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
 
@@ -74,7 +78,9 @@ describe('scheduleLiveRoomStartingSoonReminder', () => {
   });
 
   it('should not start reminder workflow when workflow exists', async () => {
-    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+    getWorkflowDescription.mockResolvedValueOnce({
+      status: { name: 'RUNNING' },
+    });
 
     await scheduleLiveRoomStartingSoonReminder({
       roomId: 'e624ca91-5bde-4304-ae0a-c82f46edb6f8',

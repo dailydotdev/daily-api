@@ -14,6 +14,7 @@ import { Source } from '../src/entity/Source';
 import { StorageKey, StorageTopic } from '../src/config';
 import {
   createMockTemporalClient,
+  doNotFake,
   disposeGraphQLTesting,
   type GraphQLTestClient,
   type GraphQLTestingState,
@@ -434,7 +435,9 @@ describe('live rooms', () => {
     await grantStandupAccess(loggedUser);
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, [postsFixture[0]]);
-    jest.useFakeTimers().setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
+    jest
+      .useFakeTimers({ doNotFake })
+      .setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
