@@ -128,12 +128,29 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
     await con
       .getRepository(SourcePostModeration)
       .update({ createdById: userId }, { createdById: ghostUser.id });
-    await con
-      .getRepository(PostMention)
-      .update(
-        { mentionedByUserId: userId },
-        { mentionedByUserId: ghostUser.id },
-      );
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(PostMention)
+        .createQueryBuilder()
+        .delete()
+        .where({ mentionedByUserId: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM post_mention t2
+             WHERE t2."postId" = post_mention."postId"
+               AND t2."mentionedUserId" = post_mention."mentionedUserId"
+               AND t2."mentionedByUserId" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(PostMention)
+        .update(
+          { mentionedByUserId: userId },
+          { mentionedByUserId: ghostUser.id },
+        );
+    });
     await con.transaction(async (manager) => {
       await manager
         .getRepository(PostMention)
@@ -154,18 +171,90 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
         .getRepository(PostMention)
         .update({ mentionedUserId: userId }, { mentionedUserId: ghostUser.id });
     });
-    await con
-      .getRepository(CommentMention)
-      .update({ commentByUserId: userId }, { commentByUserId: ghostUser.id });
-    await con
-      .getRepository(CommentMention)
-      .update({ mentionedUserId: userId }, { mentionedUserId: ghostUser.id });
-    await con
-      .getRepository(ReputationEvent)
-      .update({ grantToId: userId }, { grantToId: ghostUser.id });
-    await con
-      .getRepository(ReputationEvent)
-      .update({ grantById: userId }, { grantById: ghostUser.id });
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(CommentMention)
+        .createQueryBuilder()
+        .delete()
+        .where({ commentByUserId: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM comment_mention t2
+             WHERE t2."commentId" = comment_mention."commentId"
+               AND t2."mentionedUserId" = comment_mention."mentionedUserId"
+               AND t2."commentByUserId" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(CommentMention)
+        .update({ commentByUserId: userId }, { commentByUserId: ghostUser.id });
+    });
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(CommentMention)
+        .createQueryBuilder()
+        .delete()
+        .where({ mentionedUserId: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM comment_mention t2
+             WHERE t2."commentId" = comment_mention."commentId"
+               AND t2."commentByUserId" = comment_mention."commentByUserId"
+               AND t2."mentionedUserId" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(CommentMention)
+        .update({ mentionedUserId: userId }, { mentionedUserId: ghostUser.id });
+    });
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(ReputationEvent)
+        .createQueryBuilder()
+        .delete()
+        .where({ grantToId: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM reputation_event t2
+             WHERE t2."grantById" = reputation_event."grantById"
+               AND t2."targetId" = reputation_event."targetId"
+               AND t2."reason" = reputation_event."reason"
+               AND t2."targetType" = reputation_event."targetType"
+               AND t2."grantToId" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(ReputationEvent)
+        .update({ grantToId: userId }, { grantToId: ghostUser.id });
+    });
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(ReputationEvent)
+        .createQueryBuilder()
+        .delete()
+        .where({ grantById: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM reputation_event t2
+             WHERE t2."grantToId" = reputation_event."grantToId"
+               AND t2."targetId" = reputation_event."targetId"
+               AND t2."reason" = reputation_event."reason"
+               AND t2."targetType" = reputation_event."targetType"
+               AND t2."grantById" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(ReputationEvent)
+        .update({ grantById: userId }, { grantById: ghostUser.id });
+    });
     await con
       .getRepository(UserTransaction)
       .update({ senderId: userId }, { senderId: ghostUser.id });
