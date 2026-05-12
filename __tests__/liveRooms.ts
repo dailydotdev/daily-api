@@ -13,6 +13,7 @@ import { Post } from '../src/entity/posts/Post';
 import { Source } from '../src/entity/Source';
 import { StorageKey, StorageTopic } from '../src/config';
 import {
+  createMockTemporalClient,
   disposeGraphQLTesting,
   type GraphQLTestClient,
   type GraphQLTestingState,
@@ -27,6 +28,27 @@ import { LiveRoomStatus } from '../src/common/schema/liveRooms';
 import { deleteKeysByPattern } from '../src/redis';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
+
+const {
+  mock: temporalMock,
+  client: temporalClient,
+  notFoundError,
+} = createMockTemporalClient();
+
+jest.mock('../src/temporal/client', () => ({
+  getTemporalClient: () => temporalClient,
+}));
+
+jest.mock('../src/temporal/common', () => {
+  const actual = jest.requireActual('../src/temporal/common');
+
+  return {
+    ...actual,
+    getWorkflowDescription: jest.fn(),
+  };
+});
+
+const { getWorkflowDescription } = jest.requireMock('../src/temporal/common');
 
 const flytingOrigin = 'http://flyting.test';
 const flytingInternalKey = 'flyting-internal-key';
@@ -64,10 +86,16 @@ afterAll(async () => {
   await disposeGraphQLTesting(state);
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(async () => {
   loggedUser = null;
   loggedTrackingId = undefined;
   nock.cleanAll();
+  jest.clearAllMocks();
+  temporalMock.describe.mockRejectedValue(notFoundError());
   await deleteKeysByPattern(
     `${StorageTopic.LiveRoom}:${StorageKey.ParticipantCount}:*`,
   );
@@ -406,6 +434,7 @@ describe('live rooms', () => {
     await grantStandupAccess(loggedUser);
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, [postsFixture[0]]);
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
@@ -419,7 +448,7 @@ describe('live rooms', () => {
         input: {
           topic: 'Scheduled GraphQL and SFUs',
           mode: 'moderated',
-          scheduledStart: '2026-05-05T15:00:00.000Z',
+          scheduledStart: '2026-05-05T15:10:00.000Z',
           description:
             'Review [this post](http://localhost:5002/posts/p1) before we start.',
         },
@@ -428,7 +457,7 @@ describe('live rooms', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.createLiveRoom.room).toMatchObject({
-      scheduledStart: '2026-05-05T15:00:00.000Z',
+      scheduledStart: '2026-05-05T15:10:00.000Z',
       description:
         'Review [this post](http://localhost:5002/posts/p1) before we start.',
       descriptionHtml:
@@ -447,7 +476,22 @@ describe('live rooms', () => {
       parentId: roomId,
       parentType: ContentEmbedParentType.LiveRoom,
     });
+
     expect(embeds).toHaveLength(1);
+    expect(getWorkflowDescription).toHaveBeenCalledTimes(1);
+    expect(temporalMock.start).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        args: [
+          {
+            entityId: roomId,
+            entityTableName: con.getRepository(LiveRoom).metadata.tableName,
+            scheduledAtMs: new Date('2026-05-05T15:05:00.000Z').getTime(),
+            delayMs: 10 * 60 * 1000,
+          },
+        ],
+      }),
+    );
     expect(scope.isDone()).toBe(true);
   }, 10000);
 

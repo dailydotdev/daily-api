@@ -27,6 +27,7 @@ import graphorm from '../graphorm';
 import { getFlytingClient } from '../integrations/flyting/client';
 import { AbortError, HttpError } from '../integrations/retry';
 import { Roles } from '../roles';
+import { scheduleLiveRoomStartingSoonReminder } from '../temporal/notifications/liveRoom';
 
 export type GQLLiveRoom = LiveRoom;
 
@@ -383,6 +384,19 @@ export const resolvers: IResolvers = {
           });
         }
         throw error;
+      }
+
+      if (room.scheduledStart) {
+        await scheduleLiveRoomStartingSoonReminder({
+          roomId: room.id,
+          entityTableName: roomRepo.metadata.tableName,
+          scheduledStart: room.scheduledStart,
+        }).catch((err) => {
+          ctx.log.error(
+            { err, roomId: room.id },
+            'Failed to schedule live room starting soon reminder',
+          );
+        });
       }
 
       return createJoinTokenPayload({
