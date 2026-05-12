@@ -290,9 +290,10 @@ export const resolvers: IResolvers = {
           });
           if (!ctx.userId) {
             builder.queryBuilder.andWhere(
-              `("${builder.alias}"."status" = :liveStatus OR ("${builder.alias}"."status" = :createdStatus AND "${builder.alias}"."scheduledStart" IS NOT NULL))`,
+              `("${builder.alias}"."status" = :liveStatus OR "${builder.alias}"."status" = :endedStatus OR ("${builder.alias}"."status" = :createdStatus AND "${builder.alias}"."scheduledStart" IS NOT NULL))`,
               {
                 createdStatus: LiveRoomStatus.Created,
+                endedStatus: LiveRoomStatus.Ended,
                 liveStatus: LiveRoomStatus.Live,
               },
             );

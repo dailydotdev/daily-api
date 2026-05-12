@@ -1330,4 +1330,41 @@ describe('live rooms', () => {
       },
     });
   });
+
+  it('returns an ended room by id for an anonymous caller', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '54e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        hostId: '2',
+        topic: 'Public ended room',
+        mode: 'moderated',
+        status: LiveRoomStatus.Ended,
+        startedAt: new Date('2026-05-05T15:00:00.000Z'),
+        endedAt: new Date('2026-05-05T15:20:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(GET_QUERY, {
+      variables: {
+        id: '54e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      liveRoom: {
+        id: '54e45613-c9f8-4823-96cb-ebd6dcbbf4fe',
+        topic: 'Public ended room',
+        mode: 'moderated',
+        status: 'ended',
+        participantCount: null,
+        host: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
+    });
+  });
 });
