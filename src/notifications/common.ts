@@ -90,6 +90,7 @@ export enum NotificationType {
   DigestReady = 'digest_ready',
   MajorHeadlineAdded = 'major_headline_added',
   LiveRoomStarted = 'live_room_started',
+  LiveRoomStartingSoon = 'live_room_starting_soon',
 }
 
 export enum NotificationPreferenceType {
@@ -322,6 +323,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.LiveRoomStarted]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.LiveRoomStartingSoon]: {
     email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

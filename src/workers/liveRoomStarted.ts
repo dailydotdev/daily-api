@@ -1,15 +1,16 @@
 import { LiveRoom } from '../entity/LiveRoom';
 import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
-import { User } from '../entity/user/User';
 import {
   LiveRoomStatus,
   liveRoomLifecycleEventSchema,
 } from '../common/schema/liveRooms';
-import { generateAndStoreNotificationsV2 } from '../notifications';
 import { NotificationType } from '../notifications/common';
-import type { NotificationLiveRoomContext } from '../notifications/types';
 import { TypedWorker } from './worker';
-import type { DataSource, EntityManager } from 'typeorm';
+import type { DataSource } from 'typeorm';
+import {
+  loadLiveRoomSubscriberIds,
+  notifyLiveRoomSubscribers,
+} from './liveRoomNotifications';
 
 const markLiveRoomStarted = async ({
   con,
@@ -29,53 +30,6 @@ const markLiveRoomStarted = async ({
   );
 };
 
-const loadSubscriberIds = async ({
-  con,
-  roomId,
-}: {
-  con: DataSource;
-  roomId: string;
-}): Promise<{ subscriberIds: string[]; subscriptionCount: number }> => {
-  const subscriptions = await con.getRepository(LiveRoomSubscription).findBy({
-    roomId,
-  });
-
-  return {
-    subscriberIds: subscriptions.map(({ userId }) => userId),
-    subscriptionCount: subscriptions.length,
-  };
-};
-
-const notifySubscribers = async ({
-  manager,
-  room,
-  userIds,
-}: {
-  manager: EntityManager;
-  room: LiveRoom;
-  userIds: string[];
-}): Promise<void> => {
-  if (!userIds.length) {
-    return;
-  }
-
-  const host = await manager.getRepository(User).findOneByOrFail({
-    id: room.hostId,
-  });
-  const notificationContext: NotificationLiveRoomContext = {
-    host,
-    userIds,
-    room,
-  };
-
-  await generateAndStoreNotificationsV2(manager, [
-    {
-      type: NotificationType.LiveRoomStarted,
-      ctx: notificationContext,
-    },
-  ]);
-};
-
 const notifyLiveRoomStartedSubscribers = async ({
   con,
   room,
@@ -83,15 +37,16 @@ const notifyLiveRoomStartedSubscribers = async ({
   con: DataSource;
   room: LiveRoom;
 }): Promise<void> => {
-  const { subscriberIds, subscriptionCount } = await loadSubscriberIds({
-    con,
+  const { subscriberIds, subscriptionCount } = await loadLiveRoomSubscriberIds({
+    manager: con.manager,
     roomId: room.id,
   });
 
   await con.transaction(async (manager) => {
-    await notifySubscribers({
+    await notifyLiveRoomSubscribers({
       manager,
       room,
+      type: NotificationType.LiveRoomStarted,
       userIds: subscriberIds,
     });
 

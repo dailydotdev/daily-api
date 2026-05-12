@@ -247,6 +247,8 @@ export const notificationTitleMap: Record<
     `<b>${ctx.headline}</b>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
     `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
+  live_room_starting_soon: (ctx: NotificationLiveRoomContext) =>
+    `<b>${ctx.host.name || ctx.host.username}</b> will soon go live: <b>${ctx.room.topic}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -773,6 +775,16 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost)
       .uniqueKey(ctx.post.id),
   live_room_started: (
+    builder: NotificationBuilder,
+    ctx: NotificationLiveRoomContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceLiveRoom(ctx.room.id)
+      .avatarUser(ctx.host)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/standups/${ctx.room.id}`)
+      .uniqueKey(ctx.room.id),
+  live_room_starting_soon: (
     builder: NotificationBuilder,
     ctx: NotificationLiveRoomContext,
   ) =>

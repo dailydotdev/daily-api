@@ -75,6 +75,7 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
   [NotificationType.MajorHeadlineAdded]: 'Happening now',
   [NotificationType.LiveRoomStarted]: 'Room is live',
+  [NotificationType.LiveRoomStartingSoon]: 'Standup starts soon',
 };
 
 const pushHeadingFnMap: Partial<
@@ -95,6 +96,10 @@ const pushHeadingFnMap: Partial<
   [NotificationType.LiveRoomStarted]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);
     return match ? `${match[1]} is live` : 'Room is live';
+  },
+  [NotificationType.LiveRoomStartingSoon]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} starts soon` : 'Standup starts soon';
   },
 };
 

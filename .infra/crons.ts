@@ -107,6 +107,10 @@ export const crons: Cron[] = [
     activeDeadlineSeconds: 4 * 60,
   },
   {
+    name: 'live-room-starting-soon-notifications',
+    schedule: '0 * * * *',
+  },
+  {
     name: 'calculate-top-readers',
     schedule: '0 2 1 * *',
   },
