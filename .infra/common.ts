@@ -432,6 +432,10 @@ export const workers: Worker[] = [
     subscription: 'api.poll-result-notification',
   },
   {
+    topic: 'api.v1.delayed-notification-reminder',
+    subscription: 'api.live-room-starting-soon-notification',
+  },
+  {
     topic: 'gondul.v1.candidate-application-scored',
     subscription: 'api.store-candidate-application-score',
   },

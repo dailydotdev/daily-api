@@ -6,6 +6,7 @@ import { uploadToolIcon } from './cloudinary';
 const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
 const DEVICON_CDN = 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons';
 const ICONIFY_API = 'https://api.iconify.design/logos';
+const ICON_FETCH_TIMEOUT_MS = 500;
 
 export type IconSource = 'simple-icons' | 'devicon' | 'iconify' | 'none';
 
@@ -21,7 +22,9 @@ export const normalizeTitle = (title: string): string =>
 
 const tryFetchIcon = async (url: string): Promise<Buffer | null> => {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(ICON_FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) {
       return null;
     }

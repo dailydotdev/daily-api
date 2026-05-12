@@ -57,4 +57,5 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.DigestReady]: notificationPreferenceSchema,
   [NotificationType.MajorHeadlineAdded]: notificationPreferenceSchema,
   [NotificationType.LiveRoomStarted]: notificationPreferenceSchema,
+  [NotificationType.LiveRoomStartingSoon]: notificationPreferenceSchema,
 });
