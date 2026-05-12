@@ -134,9 +134,26 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
         { mentionedByUserId: userId },
         { mentionedByUserId: ghostUser.id },
       );
-    await con
-      .getRepository(PostMention)
-      .update({ mentionedUserId: userId }, { mentionedUserId: ghostUser.id });
+    await con.transaction(async (manager) => {
+      await manager
+        .getRepository(PostMention)
+        .createQueryBuilder()
+        .delete()
+        .where({ mentionedUserId: userId })
+        .andWhere(
+          `EXISTS (
+             SELECT 1 FROM post_mention t2
+             WHERE t2."postId" = post_mention."postId"
+               AND t2."mentionedByUserId" = post_mention."mentionedByUserId"
+               AND t2."mentionedUserId" = :ghostId
+           )`,
+          { ghostId: ghostUser.id },
+        )
+        .execute();
+      await manager
+        .getRepository(PostMention)
+        .update({ mentionedUserId: userId }, { mentionedUserId: ghostUser.id });
+    });
     await con
       .getRepository(CommentMention)
       .update({ commentByUserId: userId }, { commentByUserId: ghostUser.id });
