@@ -4,7 +4,7 @@ import {
 } from '../../../src/temporal/notifications/liveRoom';
 import { createMockTemporalClient } from '../../helpers';
 
-const { mock, client, notFoundError } = createMockTemporalClient();
+const { mock, client } = createMockTemporalClient();
 
 jest.mock('../../../src/temporal/client', () => ({
   getTemporalClient: () => client,
@@ -45,7 +45,7 @@ describe('getLiveRoomStartingSoonReminderWorkflowId', () => {
 
 describe('scheduleLiveRoomStartingSoonReminder', () => {
   it('should start reminder workflow', async () => {
-    getWorkflowDescription.mockRejectedValueOnce(notFoundError());
+    getWorkflowDescription.mockResolvedValueOnce(undefined);
     mock.start.mockResolvedValueOnce({ describe: mock.describe });
     jest.useFakeTimers().setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
 
