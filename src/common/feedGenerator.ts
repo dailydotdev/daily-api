@@ -50,13 +50,17 @@ export const whereTags = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
   variableAlias = 'tags',
+  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
+  const postIdMatch = includeSharedPost
+    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
+    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
     .where(`pk.keyword IN (:...${variableAlias})`, { [variableAlias]: tags })
-    .andWhere(`pk.postId = ${alias}.id`)
+    .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -73,13 +77,17 @@ export const whereKeyword = (
   keyword: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
+  const postIdMatch = includeSharedPost
+    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
+    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
     .where(`pk.keyword = :keyword`, { keyword })
-    .andWhere(`pk."postId" = ${alias}.id`)
+    .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -835,7 +843,9 @@ export const tagFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
+  builder.andWhere((subBuilder) =>
+    whereTags([tag], subBuilder, alias, 'tags', { includeSharedPost: true }),
+  );
 
 export const repostFeedBuilder = (
   ctx: Context,
