@@ -497,6 +497,9 @@ export const workerSubscribe = (
       maxMessages,
     },
     batching: { maxMilliseconds: 10 },
+    streamingOptions: {
+      maxStreams: 1,
+    },
   });
   const childLogger = logger.child({ subscription });
   // const histogram = meter.createHistogram('message_processing_time', {
@@ -537,4 +540,13 @@ export const workerSubscribe = (
       },
     ),
   );
+  sub.on('error', (err) => {
+    childLogger.error({ err }, 'subscription stream error');
+  });
+  sub.on('debug', (message) => {
+    childLogger.warn({ message }, 'subscription stream debug');
+  });
+  sub.on('close', () => {
+    childLogger.warn('subscription stream closed');
+  });
 };
