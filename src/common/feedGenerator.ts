@@ -790,8 +790,22 @@ export const sourceFeedBuilder = (
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  linkedSourceIds?: string[],
 ): SelectQueryBuilder<Post> => {
-  builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  if (linkedSourceIds?.length) {
+    builder.andWhere(`${alias}.sourceId IN (:...sourceIds)`, {
+      sourceIds: [sourceId, ...linkedSourceIds],
+    });
+    builder.andWhere(
+      new Brackets((qb) => {
+        qb.where(`${alias}.sourceId = :primarySourceId`, {
+          primarySourceId: sourceId,
+        }).orWhere(`${alias}.banned = false AND ${alias}."showOnFeed" = true`);
+      }),
+    );
+  } else {
+    builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  }
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);

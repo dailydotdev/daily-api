@@ -4,8 +4,10 @@ import {
   PostFlags,
   PostMention,
   PostType,
+  Source,
   SourceMember,
   SourceType,
+  SquadSource,
   User,
   UserAction,
   UserActionType,
@@ -161,6 +163,40 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
               userIds: members.map(({ userId }) => userId),
             } as NotificationSourceContext & NotificationPostContext,
           });
+        }
+
+        if (!post.private) {
+          const linkedSquads = await con
+            .getRepository(SquadSource)
+            .createQueryBuilder('s')
+            .where(`s.type = :type`, { type: SourceType.Squad })
+            .andWhere(`s."linkedSourceIds" @> ARRAY[:sourceId]::text[]`, {
+              sourceId: source.id,
+            })
+            .getMany();
+
+          for (const squad of linkedSquads) {
+            const subscribedMembers = await getOptInSubscribedMembers({
+              con,
+              type: NotificationType.SourcePostAdded,
+              referenceId: squad.id,
+              where: {
+                sourceId: squad.id,
+                role: Not(SourceMemberRoles.Blocked),
+              },
+            });
+
+            if (subscribedMembers.length) {
+              notifs.push({
+                type: NotificationType.SourcePostAdded,
+                ctx: {
+                  ...baseCtx,
+                  source: squad as Source,
+                  userIds: subscribedMembers.map(({ userId }) => userId),
+                } as NotificationSourceContext & NotificationPostContext,
+              });
+            }
+          }
         }
       }
     }

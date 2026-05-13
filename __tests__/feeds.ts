@@ -24,6 +24,7 @@ import {
   Source,
   SourceMember,
   SourceType,
+  SquadSource,
   User,
   UserPost,
   View,
@@ -1804,6 +1805,53 @@ describe('query sourceFeed', () => {
       const res = await client.query(QUERY('b'));
 
       expect(res.data.sourceFeed.edges.length).toBe(4);
+    });
+  });
+
+  describe('linkedSourceIds', () => {
+    beforeEach(async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { type: SourceType.Squad });
+    });
+
+    it('should include posts from linked sources in the squad feed', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a', 'c'] });
+
+      const res = await client.query(QUERY('b'));
+      const sourceIds = new Set(
+        res.data.sourceFeed.edges.map(({ node }) => node.source.id),
+      );
+
+      expect(sourceIds).toContain('b');
+      expect(sourceIds).toContain('a');
+      expect(sourceIds).toContain('c');
+    });
+
+    it('should ignore linked source ids that do not exist', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['does-not-exist'] });
+
+      const res = await client.query(QUERY('b'));
+      res.data.sourceFeed.edges.forEach(({ node }) =>
+        expect(node.source.id).toEqual('b'),
+      );
+    });
+
+    it('should filter out banned and showOnFeed=false posts from linked sources', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a'] });
+      await con.getRepository(Post).update({ id: 'p1' }, { banned: true });
+      await con.getRepository(Post).update({ id: 'p4' }, { showOnFeed: false });
+
+      const res = await client.query(QUERY('b'));
+      const ids = res.data.sourceFeed.edges.map(({ node }) => node.id);
+      expect(ids).not.toContain('p1');
+      expect(ids).not.toContain('p4');
     });
   });
 });

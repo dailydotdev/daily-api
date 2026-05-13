@@ -454,4 +454,39 @@ describe('postAddedSlackChannelSend worker', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('linked sources', () => {
+    it('should send to slack integrations of squads with the post source in linkedSourceIds', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update(
+          { id: 'squadslackchannel' },
+          { linkedSourceIds: ['a'], private: false },
+        );
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: 'p1',
+      });
+
+      await expectSuccessfulTypedBackground(worker, {
+        post: post as unknown as ChangeObject<ArticlePost>,
+      });
+
+      // direct integration on 'a' + linked integration on 'squadslackchannel'
+      expect(chatPostMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not send when no squad links the post source', async () => {
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: 'p1',
+      });
+
+      await expectSuccessfulTypedBackground(worker, {
+        post: post as unknown as ChangeObject<ArticlePost>,
+      });
+
+      // only the direct integration on 'a' fires
+      expect(chatPostMessage).toHaveBeenCalledTimes(1);
+    });
+  });
 });
