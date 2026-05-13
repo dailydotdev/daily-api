@@ -175,19 +175,23 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
             })
             .getMany();
 
-          for (const squad of linkedSquads) {
-            const subscribedMembers = await getOptInSubscribedMembers({
-              con,
-              type: NotificationType.SquadPostAdded,
-              referenceId: squad.id,
-              where: {
-                sourceId: squad.id,
-                role: Not(SourceMemberRoles.Blocked),
-              },
-            });
+          const perSquadNotifs = await Promise.all(
+            linkedSquads.map(async (squad) => {
+              const subscribedMembers = await getOptInSubscribedMembers({
+                con,
+                type: NotificationType.SquadPostAdded,
+                referenceId: squad.id,
+                where: {
+                  sourceId: squad.id,
+                  role: Not(SourceMemberRoles.Blocked),
+                },
+              });
 
-            if (subscribedMembers.length) {
-              notifs.push({
+              if (!subscribedMembers.length) {
+                return null;
+              }
+
+              return {
                 type: NotificationType.SquadPostAdded,
                 ctx: {
                   ...baseCtx,
@@ -195,7 +199,13 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
                   userIds: subscribedMembers.map(({ userId }) => userId),
                 } as NotificationPostContext &
                   Partial<NotificationDoneByContext>,
-              });
+              };
+            }),
+          );
+
+          for (const notif of perSquadNotifs) {
+            if (notif) {
+              notifs.push(notif);
             }
           }
         }

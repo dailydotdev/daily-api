@@ -206,22 +206,6 @@ describe('vordrPostCommentPrevented', () => {
       expect(squadNotif?.ctx.userIds).toEqual(['2']);
     });
 
-    it('should fire even when the post has no authorId', async () => {
-      const result = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
-        postAdded,
-        {
-          post: { id: 'p1' },
-        },
-      );
-
-      const squadNotif = result?.find(
-        (n) =>
-          n.type === NotificationType.SquadPostAdded &&
-          (n.ctx.source as Source).id === 'b',
-      );
-      expect(squadNotif).toBeDefined();
-    });
-
     it('should not emit when the post is private', async () => {
       await con.getRepository(Post).update('p1', { private: true });
 

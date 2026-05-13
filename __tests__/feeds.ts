@@ -1853,6 +1853,17 @@ describe('query sourceFeed', () => {
       expect(ids).not.toContain('p1');
       expect(ids).not.toContain('p4');
     });
+
+    it('should filter out private posts from linked sources', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a'] });
+      await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+
+      const res = await client.query(QUERY('b'));
+      const ids = res.data.sourceFeed.edges.map(({ node }) => node.id);
+      expect(ids).not.toContain('p1');
+    });
   });
 });
 
