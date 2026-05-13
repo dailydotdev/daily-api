@@ -656,7 +656,11 @@ describe('mutation personaQuizNextQuestion', () => {
   it('should pass recswipe candidate_topics to bragi and return structured question', async () => {
     loggedUser = '1';
     recommendTagsMock.mockResolvedValueOnce({
-      tags: ['machine-learning', 'recommendation-systems', 'vector-search'],
+      recommended_tags: [
+        { tag: 'machine-learning', score: 0.95 },
+        { tag: 'recommendation-systems', score: 0.85 },
+        { tag: 'vector-search', score: 0.75 },
+      ],
     });
     mockNextPersonaQuizQuestion.mockResolvedValueOnce({
       id: 'op-1',
@@ -738,7 +742,7 @@ describe('mutation personaQuizNextQuestion', () => {
 
   it('should propagate isFinal=true with null question', async () => {
     loggedUser = '1';
-    recommendTagsMock.mockResolvedValueOnce({ tags: [] });
+    recommendTagsMock.mockResolvedValueOnce({ recommended_tags: [] });
     mockNextPersonaQuizQuestion.mockResolvedValueOnce({
       id: 'op-2',
       isFinal: true,
@@ -857,7 +861,9 @@ describe('mutation personaQuizReveal', () => {
           'Feed tuned for someone who reads dev drama and ships anyway.',
       },
     });
-    recommendTagsMock.mockResolvedValueOnce({ tags: ['css'] });
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [{ tag: 'css', score: 0.6 }],
+    });
 
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -892,7 +898,7 @@ describe('mutation personaQuizReveal', () => {
       includeTags: ['react', 'typescript', 'tailwindcss', 'css'],
       reveal: { headline: 'h', description: 'd' },
     });
-    recommendTagsMock.mockResolvedValueOnce({ tags: [] });
+    recommendTagsMock.mockResolvedValueOnce({ recommended_tags: [] });
 
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -917,7 +923,9 @@ describe('mutation personaQuizReveal', () => {
       includeTags: ['nonsense-1', 'nonsense-2'],
       reveal: { headline: 'h', description: 'd' },
     });
-    recommendTagsMock.mockResolvedValueOnce({ tags: ['another-nonsense'] });
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [{ tag: 'another-nonsense', score: 0.5 }],
+    });
 
     const res = await client.mutate(MUTATION, {
       variables: {
