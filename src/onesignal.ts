@@ -82,8 +82,12 @@ const pushHeadingFnMap: Partial<
   Record<NotificationType, (title: string) => string>
 > = {
   [NotificationType.SquadPostAdded]: (title) => {
-    const match = title.match(/<b>([^<]+)<\/b>[^<]*<b>([^<]+)<\/b>/);
-    return match ? `New post in ${match[2]}` : 'New squad post';
+    const twoMatch = title.match(/<b>([^<]+)<\/b>[^<]*<b>([^<]+)<\/b>/);
+    if (twoMatch) {
+      return `New post in ${twoMatch[2]}`;
+    }
+    const oneMatch = title.match(/<b>([^<]+)<\/b>/);
+    return oneMatch ? `New post in ${oneMatch[1]}` : 'New squad post';
   },
   [NotificationType.SquadNewComment]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);

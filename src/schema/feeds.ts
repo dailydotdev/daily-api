@@ -10,6 +10,8 @@ import {
   Post,
   PostType,
   Source,
+  SourceType,
+  SquadSource,
   UserPost,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -1881,8 +1883,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       );
     },
     sourceFeed: feedResolver(
-      (ctx, { source }: SourceFeedArgs, builder, alias) =>
-        sourceFeedBuilder(ctx, source, builder, alias),
+      (ctx, { source }: SourceFeedArgs, builder, alias, params) =>
+        sourceFeedBuilder(
+          ctx,
+          source,
+          builder,
+          alias,
+          (params as { linkedSourceIds?: string[] } | undefined)
+            ?.linkedSourceIds,
+        ),
       feedPageGeneratorWithPin,
       (ctx, args, page, builder, alias) =>
         applyFeedPagingWithPin(ctx, page, builder, alias),
@@ -1893,8 +1902,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         fetchQueryParams: async (
           ctx,
           { source: sourceId }: SourceFeedArgs,
-        ): Promise<void> => {
-          await ensureSourcePermissions(ctx, sourceId);
+        ): Promise<{ linkedSourceIds?: string[] }> => {
+          const source = await ensureSourcePermissions(ctx, sourceId);
+          if (source.type !== SourceType.Squad) {
+            return {};
+          }
+          const linkedSourceIds = (source as SquadSource).linkedSourceIds ?? [];
+          if (linkedSourceIds.length === 0) {
+            return {};
+          }
+          return { linkedSourceIds };
         },
       },
     ),

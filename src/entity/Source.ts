@@ -175,6 +175,7 @@ export class MachineSource extends Source {
 }
 
 @ChildEntity(SourceType.Squad)
+@Index('IDX_source_linked_source_ids', { synchronize: false })
 export class SquadSource extends Source {
   @Column({ default: 0 })
   memberPostingRank: number;
@@ -184,6 +185,9 @@ export class SquadSource extends Source {
 
   @Column({ default: false })
   moderationRequired: boolean;
+
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  linkedSourceIds: string[];
 }
 
 @ChildEntity(SourceType.User)

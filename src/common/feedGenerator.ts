@@ -790,8 +790,27 @@ export const sourceFeedBuilder = (
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  linkedSourceIds?: string[],
 ): SelectQueryBuilder<Post> => {
-  builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  if (linkedSourceIds?.length) {
+    builder.andWhere(`${alias}.sourceId IN (:...sourceIds)`, {
+      sourceIds: [sourceId, ...linkedSourceIds],
+    });
+    // sourceFeed resolver disables removeBannedPosts/removeHiddenPosts so the
+    // squad can show its own banned/hidden/private posts. Linked-source rows
+    // should NOT inherit that override.
+    builder.andWhere(
+      new Brackets((qb) => {
+        qb.where(`${alias}.sourceId = :primarySourceId`, {
+          primarySourceId: sourceId,
+        }).orWhere(
+          `${alias}.banned = false AND ${alias}."showOnFeed" = true AND ${alias}.private = false`,
+        );
+      }),
+    );
+  } else {
+    builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  }
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);

@@ -1020,6 +1020,31 @@ describe('generateNotification', () => {
     ]);
   });
 
+  it('should generate squad_post_added notification without doneBy', () => {
+    const type = NotificationType.SquadPostAdded;
+    const ctx: NotificationPostContext = {
+      userIds: [userId],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.title).toEqual('New post in <b>A</b>');
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+    ]);
+  });
+
   it('should generate squad_member_joined notification', async () => {
     const type = NotificationType.SquadMemberJoined;
     await con.getRepository(Source).save(sourcesFixture[0]);
