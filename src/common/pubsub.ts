@@ -497,6 +497,8 @@ export const workerSubscribe = (
       maxMessages,
     },
     batching: { maxMilliseconds: 10 },
+    // The background process shares PubSub clients across many subscriptions,
+    // so we keep each subscription to a single stream to avoid silent stream starvation.
     streamingOptions: {
       maxStreams: 1,
     },
