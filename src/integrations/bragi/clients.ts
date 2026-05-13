@@ -24,7 +24,12 @@ import {
   GuessWhoQuizPersona,
   GuessWhoQuizQuestion,
   GuessWhoQuizResponse,
+  NextPersonaQuizQuestionResponse,
   OnboardingProfileTagsResponse,
+  PersonaQuizOption,
+  PersonaQuizQuestion,
+  PersonaQuizRevealResponse,
+  PersonaQuizRevealText,
   ParseFeedbackResponse,
   Pipelines,
   SentimentDigestResponse,
@@ -208,6 +213,66 @@ export const getBragiClient = (
                       ],
                     }),
                   },
+          }),
+        nextPersonaQuizQuestion: async ({
+          askedCount,
+          maxQuestions,
+        }: {
+          askedCount?: number;
+          maxQuestions?: number;
+        }) => {
+          const reached = (askedCount ?? 0) >= (maxQuestions ?? 14);
+          if (reached) {
+            return new NextPersonaQuizQuestionResponse({
+              id: 'mock-id',
+              isFinal: true,
+            });
+          }
+          return new NextPersonaQuizQuestionResponse({
+            id: 'mock-id',
+            isFinal: false,
+            question: new PersonaQuizQuestion({
+              id: `mock-q-${askedCount ?? 0}`,
+              prompt: 'Vector databases anchor your retrieval pipeline.',
+              axis: 'tooling',
+              cols: 3,
+              options: [
+                new PersonaQuizOption({
+                  id: 'yes',
+                  label: 'Spot on',
+                  tagHints: ['vector-search'],
+                }),
+                new PersonaQuizOption({
+                  id: 'sort_of',
+                  label: 'Sort of',
+                  tagHints: ['machine-learning'],
+                }),
+                new PersonaQuizOption({
+                  id: 'no',
+                  label: 'Nope',
+                  tagHints: [],
+                }),
+              ],
+              rationale: 'Mock rationale.',
+            }),
+          });
+        },
+        personaQuizReveal: async () =>
+          new PersonaQuizRevealResponse({
+            id: 'mock-id',
+            includeTags: [
+              'machine-learning',
+              'python',
+              'recommendation-systems',
+              'vector-search',
+              'mlops',
+              'data-engineering',
+            ],
+            reveal: new PersonaQuizRevealText({
+              headline: 'Recsys-curious, production-leaning',
+              description:
+                'You actually run model.fit() and squint at retrieval. Feed will lean recsys, vector search, and MLOps.',
+            }),
           }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),

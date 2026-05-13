@@ -13,6 +13,7 @@ import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
 import { recswipeClient } from '../../src/integrations/recswipe/clients';
 import { HttpError } from '../../src/integrations/retry';
+import { Keyword, KeywordStatus } from '../../src/entity/Keyword';
 
 jest.mock('../../src/integrations/recswipe/clients', () => ({
   recswipeClient: {
@@ -23,6 +24,8 @@ jest.mock('../../src/integrations/recswipe/clients', () => ({
 }));
 
 const mockGuessWhoQuiz = jest.fn();
+const mockNextPersonaQuizQuestion = jest.fn();
+const mockPersonaQuizReveal = jest.fn();
 
 jest.mock('../../src/integrations/bragi', () => ({
   getBragiClient: () => ({
@@ -31,6 +34,9 @@ jest.mock('../../src/integrations/bragi', () => ({
     },
     instance: {
       guessWhoQuiz: (...args: unknown[]) => mockGuessWhoQuiz(...args),
+      nextPersonaQuizQuestion: (...args: unknown[]) =>
+        mockNextPersonaQuizQuestion(...args),
+      personaQuizReveal: (...args: unknown[]) => mockPersonaQuizReveal(...args),
     },
   }),
 }));
@@ -573,5 +579,390 @@ describe('mutation guessWhoQuizStep', () => {
 
     expect(res.errors?.length).toBeGreaterThan(0);
     expect(res.errors?.[0].extensions?.code).toBe('UNEXPECTED');
+  });
+});
+
+describe('mutation personaQuizNextQuestion', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation PersonaQuizNextQuestion(
+      $priorAnswers: [PersonaQuizQAInput!]!
+      $seedTags: [String!]!
+      $askedCount: Int!
+      $maxQuestions: Int
+    ) {
+      personaQuizNextQuestion(
+        priorAnswers: $priorAnswers
+        seedTags: $seedTags
+        askedCount: $askedCount
+        maxQuestions: $maxQuestions
+      ) {
+        isFinal
+        question {
+          id
+          prompt
+          axis
+          cols
+          options {
+            id
+            label
+            emoji
+            tagHints
+          }
+        }
+      }
+    }
+  `;
+
+  const oneAnswer = [
+    {
+      questionId: 'q_domain',
+      question: 'Where do you spend most of your dev hours?',
+      optionId: 'data-ml',
+      answer: 'Data, ML, or AI engineering — broad lane',
+    },
+  ];
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          priorAnswers: oneAnswer,
+          seedTags: ['machine-learning'],
+          askedCount: 1,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should reject askedCount < 1', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          priorAnswers: oneAnswer,
+          seedTags: ['machine-learning'],
+          askedCount: 0,
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+    expect(mockNextPersonaQuizQuestion).not.toHaveBeenCalled();
+  });
+
+  it('should pass recswipe candidate_topics to bragi and return structured question', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [
+        { tag: 'machine-learning', score: 0.95 },
+        { tag: 'recommendation-systems', score: 0.85 },
+        { tag: 'vector-search', score: 0.75 },
+      ],
+    });
+    mockNextPersonaQuizQuestion.mockResolvedValueOnce({
+      id: 'op-1',
+      isFinal: false,
+      question: {
+        id: 'q_llm_1',
+        prompt: 'Vector databases anchor your retrieval pipeline.',
+        axis: 'tooling',
+        cols: 3,
+        options: [
+          {
+            id: 'yes',
+            label: 'Spot on',
+            emoji: '',
+            tagHints: ['vector-search'],
+          },
+          {
+            id: 'sort_of',
+            label: 'Sort of',
+            emoji: '',
+            tagHints: ['machine-learning'],
+          },
+          { id: 'no', label: 'Nope', emoji: '', tagHints: [] },
+        ],
+        rationale: 'ML user, retrieval is adjacent.',
+      },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        priorAnswers: oneAnswer,
+        seedTags: ['machine-learning'],
+        askedCount: 1,
+        maxQuestions: 14,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      personaQuizNextQuestion: {
+        isFinal: false,
+        question: {
+          id: 'q_llm_1',
+          prompt: 'Vector databases anchor your retrieval pipeline.',
+          axis: 'tooling',
+          cols: 3,
+          options: [
+            {
+              id: 'yes',
+              label: 'Spot on',
+              emoji: null,
+              tagHints: ['vector-search'],
+            },
+            {
+              id: 'sort_of',
+              label: 'Sort of',
+              emoji: null,
+              tagHints: ['machine-learning'],
+            },
+            { id: 'no', label: 'Nope', emoji: null, tagHints: [] },
+          ],
+        },
+      },
+    });
+
+    // Seed tag must be excluded from candidate_topics; pass-through to bragi.
+    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
+      selectedTags: ['machine-learning'],
+      n: 12,
+    });
+    expect(mockNextPersonaQuizQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidateTopics: ['recommendation-systems', 'vector-search'],
+        askedCount: 1,
+        seedTags: ['machine-learning'],
+      }),
+    );
+  });
+
+  it('should propagate isFinal=true with null question', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockResolvedValueOnce({ recommended_tags: [] });
+    mockNextPersonaQuizQuestion.mockResolvedValueOnce({
+      id: 'op-2',
+      isFinal: true,
+      question: undefined,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        priorAnswers: oneAnswer,
+        seedTags: ['machine-learning'],
+        askedCount: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      personaQuizNextQuestion: { isFinal: true, question: null },
+    });
+  });
+
+  it('should still call bragi when recswipe candidate-topics fetch fails', async () => {
+    loggedUser = '1';
+    recommendTagsMock.mockRejectedValueOnce(
+      new HttpError(
+        'http://recswipe.local:8000/api/recommend-tags',
+        500,
+        'boom',
+      ),
+    );
+    mockNextPersonaQuizQuestion.mockResolvedValueOnce({
+      id: 'op-3',
+      isFinal: true,
+      question: undefined,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        priorAnswers: oneAnswer,
+        seedTags: ['machine-learning'],
+        askedCount: 1,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(mockNextPersonaQuizQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({ candidateTopics: [] }),
+    );
+  });
+});
+
+describe('mutation personaQuizReveal', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation PersonaQuizReveal(
+      $answers: [PersonaQuizQAInput!]!
+      $seedTags: [String!]!
+      $targetCount: Int
+    ) {
+      personaQuizReveal(
+        answers: $answers
+        seedTags: $seedTags
+        targetCount: $targetCount
+      ) {
+        includeTags
+        reveal {
+          headline
+          description
+        }
+      }
+    }
+  `;
+
+  const oneAnswer = [
+    {
+      questionId: 'q_domain',
+      question: 'Where do you spend most of your dev hours?',
+      optionId: 'frontend',
+      answer: 'Frontend / UI craft',
+    },
+  ];
+
+  beforeEach(async () => {
+    await saveFixtures(con, Keyword, [
+      { value: 'react', occurrences: 100, status: KeywordStatus.Allow },
+      { value: 'typescript', occurrences: 100, status: KeywordStatus.Allow },
+      { value: 'tailwindcss', occurrences: 50, status: KeywordStatus.Allow },
+      { value: 'css', occurrences: 80, status: KeywordStatus.Allow },
+    ]);
+  });
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          answers: oneAnswer,
+          seedTags: ['react'],
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should filter bragi tags through the Keyword table and return reveal copy', async () => {
+    loggedUser = '1';
+    mockPersonaQuizReveal.mockResolvedValueOnce({
+      id: 'op-r-1',
+      includeTags: [
+        'react',
+        'typescript',
+        'hallucinated-slug', // not in Keyword table — must be dropped
+        'tailwindcss',
+      ],
+      reveal: {
+        headline: 'Friday-shipper, refactor addict',
+        description:
+          'Feed tuned for someone who reads dev drama and ships anyway.',
+      },
+    });
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [{ tag: 'css', score: 0.6 }],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        answers: oneAnswer,
+        seedTags: ['react'],
+        targetCount: 6,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data?.personaQuizReveal.reveal).toEqual({
+      headline: 'Friday-shipper, refactor addict',
+      description:
+        'Feed tuned for someone who reads dev drama and ships anyway.',
+    });
+    // Order: bragi tags first (canonical-only), then recsys fillers.
+    expect(res.data?.personaQuizReveal.includeTags).toEqual([
+      'react',
+      'typescript',
+      'tailwindcss',
+      'css',
+    ]);
+    expect(res.data?.personaQuizReveal.includeTags).not.toContain(
+      'hallucinated-slug',
+    );
+  });
+
+  it('should cap returned tags at targetCount', async () => {
+    loggedUser = '1';
+    mockPersonaQuizReveal.mockResolvedValueOnce({
+      id: 'op-r-2',
+      includeTags: ['react', 'typescript', 'tailwindcss', 'css'],
+      reveal: { headline: 'h', description: 'd' },
+    });
+    recommendTagsMock.mockResolvedValueOnce({ recommended_tags: [] });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        answers: oneAnswer,
+        seedTags: ['react'],
+        targetCount: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data?.personaQuizReveal.includeTags).toHaveLength(2);
+    expect(res.data?.personaQuizReveal.includeTags).toEqual([
+      'react',
+      'typescript',
+    ]);
+  });
+
+  it('should return empty tag list when nothing matches the Keyword table', async () => {
+    loggedUser = '1';
+    mockPersonaQuizReveal.mockResolvedValueOnce({
+      id: 'op-r-3',
+      includeTags: ['nonsense-1', 'nonsense-2'],
+      reveal: { headline: 'h', description: 'd' },
+    });
+    recommendTagsMock.mockResolvedValueOnce({
+      recommended_tags: [{ tag: 'another-nonsense', score: 0.5 }],
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        answers: oneAnswer,
+        seedTags: ['react'],
+        targetCount: 8,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data?.personaQuizReveal.includeTags).toEqual([]);
+  });
+
+  it('should still call bragi when recswipe fillers fetch fails', async () => {
+    loggedUser = '1';
+    mockPersonaQuizReveal.mockResolvedValueOnce({
+      id: 'op-r-4',
+      includeTags: ['react'],
+      reveal: { headline: 'h', description: 'd' },
+    });
+    recommendTagsMock.mockRejectedValueOnce(
+      new HttpError(
+        'http://recswipe.local:8000/api/recommend-tags',
+        500,
+        'boom',
+      ),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        answers: oneAnswer,
+        seedTags: ['react'],
+        targetCount: 6,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data?.personaQuizReveal.includeTags).toEqual(['react']);
   });
 });
