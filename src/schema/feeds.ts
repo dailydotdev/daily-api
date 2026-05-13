@@ -2050,7 +2050,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
         if (tag) {
           builder.andWhere((subBuilder) =>
-            whereKeyword(tag, subBuilder, alias),
+            whereKeyword(tag, subBuilder, alias, { includeSharedPost: true }),
           );
         }
         if (source) {
@@ -2092,7 +2092,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
         if (tag) {
           builder.andWhere((subBuilder) =>
-            whereKeyword(tag, subBuilder, alias),
+            whereKeyword(tag, subBuilder, alias, { includeSharedPost: true }),
           );
         }
         if (source) {
