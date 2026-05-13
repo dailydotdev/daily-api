@@ -131,13 +131,13 @@ describe('vordrPostCommentPrevented', () => {
           userId: '2',
           sourceId: 'b',
           referenceId: 'b',
-          notificationType: NotificationType.SourcePostAdded,
+          notificationType: NotificationType.SquadPostAdded,
           status: NotificationPreferenceStatus.Subscribed,
         },
       ]);
     });
 
-    it('should emit SourcePostAdded for opt-in members of squads linked to the post source', async () => {
+    it('should emit SquadPostAdded for opt-in members of squads linked to the post source', async () => {
       const result = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
         postAdded,
         {
@@ -147,7 +147,7 @@ describe('vordrPostCommentPrevented', () => {
 
       const squadNotif = result?.find(
         (n) =>
-          n.type === NotificationType.SourcePostAdded &&
+          n.type === NotificationType.SquadPostAdded &&
           (n.ctx.source as Source).id === 'b',
       );
       expect(squadNotif).toBeDefined();
@@ -168,7 +168,7 @@ describe('vordrPostCommentPrevented', () => {
 
       const squadNotif = result?.find(
         (n) =>
-          n.type === NotificationType.SourcePostAdded &&
+          n.type === NotificationType.SquadPostAdded &&
           (n.ctx.source as Source).id === 'b',
       );
       expect(squadNotif).toBeUndefined();
@@ -180,7 +180,7 @@ describe('vordrPostCommentPrevented', () => {
           userId: '3',
           sourceId: 'b',
           referenceId: 'b',
-          notificationType: NotificationType.SourcePostAdded,
+          notificationType: NotificationType.SquadPostAdded,
           status: NotificationPreferenceStatus.Subscribed,
         },
       ]);
@@ -200,7 +200,7 @@ describe('vordrPostCommentPrevented', () => {
 
       const squadNotif = result?.find(
         (n) =>
-          n.type === NotificationType.SourcePostAdded &&
+          n.type === NotificationType.SquadPostAdded &&
           (n.ctx.source as Source).id === 'b',
       );
       expect(squadNotif?.ctx.userIds).toEqual(['2']);
@@ -216,7 +216,7 @@ describe('vordrPostCommentPrevented', () => {
 
       const squadNotif = result?.find(
         (n) =>
-          n.type === NotificationType.SourcePostAdded &&
+          n.type === NotificationType.SquadPostAdded &&
           (n.ctx.source as Source).id === 'b',
       );
       expect(squadNotif).toBeDefined();
@@ -234,7 +234,7 @@ describe('vordrPostCommentPrevented', () => {
 
       const squadNotif = result?.find(
         (n) =>
-          n.type === NotificationType.SourcePostAdded &&
+          n.type === NotificationType.SquadPostAdded &&
           (n.ctx.source as Source).id === 'b',
       );
       expect(squadNotif).toBeUndefined();

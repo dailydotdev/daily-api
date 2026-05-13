@@ -178,7 +178,7 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
           for (const squad of linkedSquads) {
             const subscribedMembers = await getOptInSubscribedMembers({
               con,
-              type: NotificationType.SourcePostAdded,
+              type: NotificationType.SquadPostAdded,
               referenceId: squad.id,
               where: {
                 sourceId: squad.id,
@@ -188,12 +188,13 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
 
             if (subscribedMembers.length) {
               notifs.push({
-                type: NotificationType.SourcePostAdded,
+                type: NotificationType.SquadPostAdded,
                 ctx: {
                   ...baseCtx,
                   source: squad as Source,
                   userIds: subscribedMembers.map(({ userId }) => userId),
-                } as NotificationSourceContext & NotificationPostContext,
+                } as NotificationPostContext &
+                  Partial<NotificationDoneByContext>,
               });
             }
           }
