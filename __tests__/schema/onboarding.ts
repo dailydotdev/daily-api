@@ -667,8 +667,18 @@ describe('mutation personaQuizNextQuestion', () => {
         axis: 'tooling',
         cols: 3,
         options: [
-          { id: 'yes', label: 'Spot on', emoji: '', tagHints: ['vector-search'] },
-          { id: 'sort_of', label: 'Sort of', emoji: '', tagHints: ['machine-learning'] },
+          {
+            id: 'yes',
+            label: 'Spot on',
+            emoji: '',
+            tagHints: ['vector-search'],
+          },
+          {
+            id: 'sort_of',
+            label: 'Sort of',
+            emoji: '',
+            tagHints: ['machine-learning'],
+          },
           { id: 'no', label: 'Nope', emoji: '', tagHints: [] },
         ],
         rationale: 'ML user, retrieval is adjacent.',
@@ -694,8 +704,18 @@ describe('mutation personaQuizNextQuestion', () => {
           axis: 'tooling',
           cols: 3,
           options: [
-            { id: 'yes', label: 'Spot on', emoji: null, tagHints: ['vector-search'] },
-            { id: 'sort_of', label: 'Sort of', emoji: null, tagHints: ['machine-learning'] },
+            {
+              id: 'yes',
+              label: 'Spot on',
+              emoji: null,
+              tagHints: ['vector-search'],
+            },
+            {
+              id: 'sort_of',
+              label: 'Sort of',
+              emoji: null,
+              tagHints: ['machine-learning'],
+            },
             { id: 'no', label: 'Nope', emoji: null, tagHints: [] },
           ],
         },
@@ -742,7 +762,11 @@ describe('mutation personaQuizNextQuestion', () => {
   it('should still call bragi when recswipe candidate-topics fetch fails', async () => {
     loggedUser = '1';
     recommendTagsMock.mockRejectedValueOnce(
-      new HttpError('http://recswipe.local:8000/api/recommend-tags', 500, 'boom'),
+      new HttpError(
+        'http://recswipe.local:8000/api/recommend-tags',
+        500,
+        'boom',
+      ),
     );
     mockNextPersonaQuizQuestion.mockResolvedValueOnce({
       id: 'op-3',
@@ -829,7 +853,8 @@ describe('mutation personaQuizReveal', () => {
       ],
       reveal: {
         headline: 'Friday-shipper, refactor addict',
-        description: 'Feed tuned for someone who reads dev drama and ships anyway.',
+        description:
+          'Feed tuned for someone who reads dev drama and ships anyway.',
       },
     });
     recommendTagsMock.mockResolvedValueOnce({ tags: ['css'] });
@@ -845,7 +870,8 @@ describe('mutation personaQuizReveal', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data?.personaQuizReveal.reveal).toEqual({
       headline: 'Friday-shipper, refactor addict',
-      description: 'Feed tuned for someone who reads dev drama and ships anyway.',
+      description:
+        'Feed tuned for someone who reads dev drama and ships anyway.',
     });
     // Order: bragi tags first (canonical-only), then recsys fillers.
     expect(res.data?.personaQuizReveal.includeTags).toEqual([
@@ -913,7 +939,11 @@ describe('mutation personaQuizReveal', () => {
       reveal: { headline: 'h', description: 'd' },
     });
     recommendTagsMock.mockRejectedValueOnce(
-      new HttpError('http://recswipe.local:8000/api/recommend-tags', 500, 'boom'),
+      new HttpError(
+        'http://recswipe.local:8000/api/recommend-tags',
+        500,
+        'boom',
+      ),
     );
 
     const res = await client.mutate(MUTATION, {

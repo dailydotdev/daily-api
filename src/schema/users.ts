@@ -1866,7 +1866,7 @@ export const typeDefs = /* GraphQL */ `
     Final-screen reveal: bragi turns the Q&A history into canonical tag
     suggestions + a reveal headline / description; daily-api merges with
     recswipe NMF recommendations and filters everything through the canonical
-    Keyword table so only existing keywords reach `feedSettings.includeTags`.
+    Keyword table so only existing keywords reach \`feedSettings.includeTags\`.
     """
     personaQuizReveal(
       answers: [PersonaQuizQAInput!]!
@@ -4634,7 +4634,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             n: 12,
           });
           const seen = new Set(parsed.seedTags.map((t) => t.toLowerCase()));
-          candidateTopics = (recs.tags ?? [])
+          candidateTopics = (recs.recommended_tags ?? [])
+            .map((t) => t.tag)
             .filter((t) => !seen.has(t.toLowerCase()))
             .slice(0, 12);
         } catch {
@@ -4713,7 +4714,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               selectedTags: parsed.seedTags,
               n: parsed.targetCount * 2,
             });
-            recsysFillers = recs.tags ?? [];
+            recsysFillers = (recs.recommended_tags ?? []).map((t) => t.tag);
           } catch {
             recsysFillers = [];
           }
