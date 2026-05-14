@@ -125,8 +125,9 @@ export interface IFeedClient {
   /**
    * Fetches the feed from the service
    * @param ctx GraphQL context
-   * @param feedId The feed ID (used for caching primarily)
+   * @param path The feed-service request path (e.g. `/api/feed`, `/api/personalised`)
    * @param config The feed config
+   * @param extraMetadata Metadata merged into every item's feedMeta
    */
   fetchFeed(
     ctx: Context,

@@ -1499,6 +1499,34 @@ describe('query feedByTags', () => {
       expect.arrayContaining(['b', 'c']),
     );
   });
+
+  it('should reject empty tags array', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags: [], version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should reject more than 20 tags', async () => {
+    loggedUser = '1';
+    const tags = Array.from({ length: 21 }, (_, i) => `tag-${i}`);
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags, version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should reject empty-string tags', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags: ['rust', ''], version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
 });
 
 describe('query feedByConfig', () => {
@@ -5921,5 +5949,105 @@ describe('query feedTagsList', () => {
       selectedTags: ['ai-coding', 'llm'],
       n: 3,
     });
+  });
+
+  it('should cache empty and return empty when feed service fails', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .replyWithError('feed service down');
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([]);
+    expect(recommendTagsMock).not.toHaveBeenCalled();
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([]);
+    expect(user?.flags?.feedTagsList?.updatedAt).toEqual(expect.any(String));
+  });
+
+  it('should dedupe overlap between feed and recswipe results', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['ai-coding', 'llm'] });
+
+    recommendTagsMock.mockResolvedValue({
+      recommended_tags: [
+        { tag: 'llm', score: 0.95 },
+        { tag: 'machine-learning', score: 0.9 },
+        { tag: 'pytorch', score: 0.8 },
+        { tag: 'tensorflow', score: 0.7 },
+      ],
+    });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      'ai-coding',
+      'llm',
+      'machine-learning',
+      'pytorch',
+      'tensorflow',
+    ]);
+  });
+
+  it('should dedupe duplicates within the feed-service response', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['rust', 'rust', 'golang', 'rust'] });
+
+    recommendTagsMock.mockResolvedValue({
+      recommended_tags: [
+        { tag: 'docker', score: 0.9 },
+        { tag: 'kubernetes', score: 0.8 },
+        { tag: 'python', score: 0.7 },
+      ],
+    });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      'rust',
+      'golang',
+      'docker',
+      'kubernetes',
+      'python',
+    ]);
+  });
+
+  it('should re-fetch when cached updatedAt is more than 24h in the future', async () => {
+    loggedUser = '1';
+    const farFuture = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: {
+          feedTagsList: {
+            tags: ['stale-future-tag'],
+            updatedAt: farFuture.toISOString(),
+          },
+        },
+      },
+    );
+
+    const userTagsScope = nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: ['fresh-1', 'fresh-2', 'fresh-3', 'fresh-4', 'fresh-5'],
+      });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      'fresh-1',
+      'fresh-2',
+      'fresh-3',
+      'fresh-4',
+      'fresh-5',
+    ]);
+    expect(userTagsScope.isDone()).toBe(true);
   });
 });

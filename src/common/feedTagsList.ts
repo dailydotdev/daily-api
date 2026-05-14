@@ -5,6 +5,7 @@ import { recswipeClient } from '../integrations/recswipe/clients';
 import { queryReadReplica } from './queryReadReplica';
 import { updateFlagsStatement } from './utils';
 import { ONE_DAY_IN_SECONDS } from './constants';
+import { logger } from '../logger';
 
 export type FeedTagsList = {
   tags: string[];
@@ -17,7 +18,41 @@ const isFresh = (updatedAt: string): boolean => {
   if (Number.isNaN(ts)) {
     return false;
   }
-  return Date.now() - ts < CACHE_TTL_MS;
+  return Math.abs(Date.now() - ts) < CACHE_TTL_MS;
+};
+
+const dedupeKeepOrder = (tags: string[]): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const tag of tags) {
+    if (!seen.has(tag)) {
+      seen.add(tag);
+      result.push(tag);
+    }
+  }
+  return result;
+};
+
+const writeCache = async ({
+  con,
+  userId,
+  tags,
+}: {
+  con: DataSource;
+  userId: string;
+  tags: string[];
+}): Promise<void> => {
+  await con.getRepository(User).update(
+    { id: userId },
+    {
+      flags: updateFlagsStatement<User>({
+        feedTagsList: {
+          tags,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    },
+  );
 };
 
 export const getFeedTagsList = async ({
@@ -40,7 +75,19 @@ export const getFeedTagsList = async ({
     return { tags: cached.tags.slice(0, limit) };
   }
 
-  let tags = await feedClient.getUserTags(userId, limit);
+  let tags: string[];
+  try {
+    tags = await feedClient.getUserTags(userId, limit);
+  } catch (err) {
+    logger.error(
+      { err, userId },
+      'feedClient.getUserTags failed; caching empty feedTagsList',
+    );
+    await writeCache({ con, userId, tags: [] });
+    return { tags: [] };
+  }
+
+  tags = dedupeKeepOrder(tags);
 
   if (tags.length < limit) {
     const supplement = await recswipeClient.recommendTags(userId, {
@@ -50,20 +97,10 @@ export const getFeedTagsList = async ({
     const supplementTags = (supplement.recommended_tags ?? []).map(
       (t) => t.tag,
     );
-    tags = [...tags, ...supplementTags].slice(0, limit);
+    tags = dedupeKeepOrder([...tags, ...supplementTags]).slice(0, limit);
   }
 
-  await con.getRepository(User).update(
-    { id: userId },
-    {
-      flags: updateFlagsStatement<User>({
-        feedTagsList: {
-          tags,
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    },
-  );
+  await writeCache({ con, userId, tags });
 
   return { tags };
 };

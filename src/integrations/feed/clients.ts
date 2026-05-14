@@ -7,20 +7,8 @@ import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
 import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { ServiceError } from '../../errors';
-import { isMockEnabled } from '../../mocks/opportunity/services';
-
-const MOCK_USER_TAGS = [
-  'javascript',
-  'typescript',
-  'react',
-  'nodejs',
-  'python',
-  'golang',
-  'rust',
-  'docker',
-  'kubernetes',
-  'webdev',
-];
+import { isMockEnabled } from '../../mocks/common';
+import { mockUserTagsResponse } from '../../mocks/feed/userTags';
 
 type RawFeedDataItem = {
   post_id: string;
@@ -189,7 +177,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
 
   async getUserTags(userId: string, limit: number): Promise<string[]> {
     if (isMockEnabled()) {
-      return MOCK_USER_TAGS.slice(0, limit);
+      return mockUserTagsResponse(limit);
     }
 
     const result = await this.garmr.execute(() =>

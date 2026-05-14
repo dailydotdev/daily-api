@@ -101,6 +101,7 @@ import {
   getForYouFeedGenerator,
   toFeedV2PostConnection,
 } from './feedV2';
+import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 
 interface GQLTagsCategory {
   id: string;
@@ -1750,12 +1751,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return feedResolverV1(source, args, ctx, info);
     },
     feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
+      const { tags } = feedByTagsInputSchema.parse(args);
       const generator = getForYouFeedGenerator(args).withConfigTransform(
         (result) => ({
           ...result,
           config: {
             ...result.config,
-            allowed_tags: args.tags,
+            allowed_tags: tags,
           },
         }),
       );
