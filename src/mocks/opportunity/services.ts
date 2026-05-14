@@ -11,11 +11,7 @@ import {
 } from '@dailydotdev/schema';
 import { PersonaliseState } from '../../integrations/snotra';
 
-/**
- * Check if external services should be mocked
- */
-export const isMockEnabled = (): boolean =>
-  process.env.MOCK_EXTERNAL_SERVICES === 'true';
+export { isMockEnabled } from '../common';
 
 /**
  * Mock response for Brokkr parseOpportunity service call

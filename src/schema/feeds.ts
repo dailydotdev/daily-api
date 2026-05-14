@@ -101,6 +101,7 @@ import {
   getForYouFeedGenerator,
   toFeedV2PostConnection,
 } from './feedV2';
+import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 
 interface GQLTagsCategory {
   id: string;
@@ -575,6 +576,48 @@ export const typeDefs = /* GraphQL */ `
       """
       supportedTypes: [String!]
     ): PostConnection!
+
+    """
+    Get a personalized feed limited to one or more tags. Reuses the standard feed pipeline
+    (blocked tags/sources/users, content prefs, etc.) but overrides allowed_tags with the
+    supplied list — the user's followed tags are not included.
+    """
+    feedByTags(
+      """
+      Tags to allow in the feed (overrides the user's followed tags)
+      """
+      tags: [String!]!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
 
     """
     Get a single tag feed
@@ -1170,6 +1213,11 @@ interface TagFeedArgs extends FeedArgs {
   tag: string;
 }
 
+interface FeedByTagsArgs extends FeedArgs {
+  tags: string[];
+  version: number;
+}
+
 interface KeywordFeedArgs extends FeedArgs {
   keyword: string;
 }
@@ -1701,6 +1749,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
+      const { tags } = feedByTagsInputSchema.parse(args);
+      const generator = getForYouFeedGenerator(args).withConfigTransform(
+        (result) => ({
+          ...result,
+          config: {
+            ...result.config,
+            allowed_tags: tags,
+          },
+        }),
+      );
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs),
+          generator,
+        },
+        ctx,
+        info,
+      );
     },
     feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
       shouldUseFeedGenerator(args)
