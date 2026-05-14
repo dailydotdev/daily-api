@@ -186,7 +186,7 @@ beforeEach(async () => {
     .map((post) => ({ post_id: post.id }));
 
   nockScope = nock('http://localhost:6000')
-    .post('/feed.json', (body) => {
+    .post('/api/personalised', (body) => {
       nockBody = body;
 
       return true;
@@ -610,7 +610,7 @@ describe('personalizedDigestEmail worker', () => {
     nock.cleanAll();
 
     nockScope = nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/personalised', (body) => {
         nockBody = body;
 
         return true;
@@ -834,7 +834,7 @@ describe('personalizedDigestEmail worker', () => {
       .slice(0, 5)
       .map((post) => ({ post_id: post.id }));
 
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/api/personalised').reply(200, {
       data: mockedPostIds,
       rows: mockedPostIds.length,
     });
@@ -920,7 +920,7 @@ describe('personalizedDigestEmail worker', () => {
     nock.cleanAll();
 
     nockScope = nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/personalised', (body) => {
         nockBody = body;
         return true;
       })
@@ -1005,7 +1005,7 @@ describe('personalizedDigestEmail worker', () => {
       .slice(0, 3)
       .map((post) => ({ post_id: post.id }));
 
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/api/personalised').reply(200, {
       data: newPostIds,
       rows: newPostIds.length,
     });
@@ -1578,7 +1578,7 @@ describe('personalizedDigestEmail worker', () => {
       nock.cleanAll();
 
       nockScope = nock('http://localhost:6000')
-        .post('/feed.json', (body) => {
+        .post('/api/personalised', (body) => {
           nockBody = body;
 
           return true;
@@ -1644,7 +1644,7 @@ describe('personalizedDigestEmail worker', () => {
       nock.cleanAll();
 
       nockScope = nock('http://localhost:6000')
-        .post('/feed.json', (body) => {
+        .post('/api/personalised', (body) => {
           nockBody = body;
 
           return true;

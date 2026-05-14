@@ -85,7 +85,7 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
 
     // Mock the feed service
     nock('http://localhost:6000')
-      .post('/feed.json')
+      .post('/api/feed')
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p2' }],
         cursor: null,

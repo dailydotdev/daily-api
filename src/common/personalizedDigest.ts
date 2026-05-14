@@ -430,7 +430,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },
-    personalizedDigest.userId,
+    '/api/personalised',
     feedConfigPayload,
   );
 

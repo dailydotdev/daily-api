@@ -130,7 +130,7 @@ export interface IFeedClient {
    */
   fetchFeed(
     ctx: Context,
-    feedId: string,
+    path: string,
     config: FeedConfig,
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;

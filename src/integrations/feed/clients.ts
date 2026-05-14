@@ -7,6 +7,20 @@ import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
 import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { ServiceError } from '../../errors';
+import { isMockEnabled } from '../../mocks/opportunity/services';
+
+const MOCK_USER_TAGS = [
+  'javascript',
+  'typescript',
+  'react',
+  'nodejs',
+  'python',
+  'golang',
+  'rust',
+  'docker',
+  'kubernetes',
+  'webdev',
+];
 
 type RawFeedDataItem = {
   post_id: string;
@@ -52,12 +66,12 @@ export class FeedClient implements IFeedClient, IGarmrClient {
 
   async fetchFeed(
     ctx: unknown,
-    feedId: string,
+    path: string,
     config: FeedConfig,
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse> {
     const res = await this.garmr.execute(() => {
-      return fetchParse<RawFeedServiceResponse>(this.url, {
+      return fetchParse<RawFeedServiceResponse>(`${this.url}${path}`, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(config),
@@ -171,5 +185,24 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     return {
       updatedAt,
     };
+  }
+
+  async getUserTags(userId: string, limit: number): Promise<string[]> {
+    if (isMockEnabled()) {
+      return MOCK_USER_TAGS.slice(0, limit);
+    }
+
+    const result = await this.garmr.execute(() =>
+      fetchParse<{ data: string[] }>(`${this.url}/api/user_tags`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId, limit }),
+      }),
+    );
+
+    return result?.data ?? [];
   }
 }

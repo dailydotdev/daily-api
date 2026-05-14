@@ -51,6 +51,10 @@ export type UserFlags = Partial<{
   lastExtensionUse: Date | null;
   inDeletion: boolean;
   hackathonParticipant: boolean;
+  feedTagsList: {
+    tags: string[];
+    updatedAt: string;
+  };
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;

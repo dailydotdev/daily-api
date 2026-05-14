@@ -47,7 +47,7 @@ import { ContentPreferenceUser } from '../../src/entity/contentPreference/Conten
 let con: DataSource;
 let ctx: Context;
 
-const url = 'http://localhost:3000/feed.json';
+const url = 'http://localhost:3000';
 const config: FeedConfig = {
   page_size: 2,
   offset: 0,
@@ -108,22 +108,22 @@ describe('FeedClient', () => {
   it('should parse feed service response', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed).toEqual(feedResponse);
   });
 
   it('should merge tyr metadata with feed metadata', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config, {
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config, {
       mab: { test: 'da' },
     });
     expect(feed).toEqual({
@@ -165,7 +165,7 @@ describe('FeedClient', () => {
   it('should preserve highlight items from the feed service response', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, {
         data: [
           { post_id: '1', metadata: { p: 'a' } },
@@ -179,7 +179,7 @@ describe('FeedClient', () => {
       });
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
 
     expect(feed).toEqual({
       data: [
@@ -202,11 +202,11 @@ describe('FeedClient', () => {
 
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, responseWithStaleCursor);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed).toMatchObject({
       cursor: 'abc123',
       staleCursor: true,
@@ -216,12 +216,34 @@ describe('FeedClient', () => {
   it('should not include staleCursor when not present in response', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed.staleCursor).toBeUndefined();
+  });
+
+  describe('getUserTags', () => {
+    const expectedBody = { user_id: 'u1', limit: 10 };
+
+    it('should return the data array from the feed service', async () => {
+      nock(url)
+        .post('/api/user_tags', expectedBody)
+        .reply(200, { data: ['ai-coding', 'llm'] });
+
+      const feedClient = new FeedClient(url);
+      const tags = await feedClient.getUserTags('u1', 10);
+      expect(tags).toEqual(['ai-coding', 'llm']);
+    });
+
+    it('should return an empty array when data is missing', async () => {
+      nock(url).post('/api/user_tags', expectedBody).reply(200, {});
+
+      const feedClient = new FeedClient(url);
+      const tags = await feedClient.getUserTags('u1', 10);
+      expect(tags).toEqual([]);
+    });
   });
 });
 
@@ -1081,7 +1103,7 @@ describe('versionToTimeFeedGenerator', () => {
   it('should generate config with chronological settings and no lofn', async () => {
     let capturedBody: Record<string, unknown> = {};
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         capturedBody = body;
         return true;
       })

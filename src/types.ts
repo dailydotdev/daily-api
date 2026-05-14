@@ -198,6 +198,12 @@ export const maxFeedsPerUser = 20;
 
 export const maxBookmarksPerMutation = 10;
 
+export const RECOMMENDED_TAGS_LIMIT = 5;
+
+export const MIN_SEARCH_QUERY_LENGTH = 2;
+
+export const SEARCH_TAGS_LIMIT = 100;
+
 export enum BookmarkListCountLimit {
   Free = 0,
   Plus = 50,
