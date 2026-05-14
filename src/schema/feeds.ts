@@ -40,7 +40,9 @@ import {
   tagFeedBuilder,
   toGQLEnum,
   whereKeyword,
+  whereTags,
 } from '../common';
+import { isMockEnabled } from '../mocks/common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
@@ -1503,6 +1505,18 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     },
   );
 
+const feedByTagsLocalResolver: IFieldResolver<
+  unknown,
+  AuthContext,
+  FeedByTagsArgs
+> = feedResolver(
+  (ctx, { tags }: FeedByTagsArgs, builder, alias) =>
+    builder.andWhere((subBuilder) => whereTags(tags, subBuilder, alias)),
+  feedPageGenerator,
+  applyFeedPaging,
+  { allowPrivatePosts: false },
+);
+
 const feedResolverV2Local: IFieldResolver<
   unknown,
   AuthContext,
@@ -1752,6 +1766,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
       const { tags } = feedByTagsInputSchema.parse(args);
+      if (isMockEnabled()) {
+        return feedByTagsLocalResolver(source, { ...args, tags }, ctx, info);
+      }
       const generator = getForYouFeedGenerator(args).withConfigTransform(
         (result) => ({
           ...result,

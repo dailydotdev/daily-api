@@ -7,12 +7,12 @@ const MOCK_USER_TAGS = [
   'typescript',
   'react',
   'nodejs',
-  'python',
-  'golang',
-  'rust',
-  'docker',
-  'kubernetes',
-  'webdev',
+  'backend',
+  'frontend',
+  'css',
+  'database',
+  'observability',
+  'architecture',
 ];
 
 export const mockUserTagsResponse = (limit: number): string[] =>
