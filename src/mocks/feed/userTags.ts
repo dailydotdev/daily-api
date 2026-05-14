@@ -13,6 +13,16 @@ const MOCK_USER_TAGS = [
   'database',
   'observability',
   'architecture',
+  'python',
+  'go',
+  'rust',
+  'docker',
+  'kubernetes',
+  'graphql',
+  'testing',
+  'security',
+  'devops',
+  'machine-learning',
 ];
 
 export const mockUserTagsResponse = (limit: number): string[] =>

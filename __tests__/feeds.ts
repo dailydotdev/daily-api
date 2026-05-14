@@ -5911,12 +5911,12 @@ describe('query feedTagsList', () => {
     expect(userTagsScope.isDone()).toBe(true);
   });
 
-  it('should reject limit greater than 10', async () => {
+  it('should reject limit greater than 30', async () => {
     loggedUser = '1';
 
     await testQueryErrorCode(
       client,
-      { query: QUERY, variables: { limit: 11 } },
+      { query: QUERY, variables: { limit: 31 } },
       'ZOD_VALIDATION_ERROR',
     );
     expect(nock.pendingMocks()).toEqual([]);
