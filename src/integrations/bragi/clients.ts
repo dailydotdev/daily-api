@@ -21,9 +21,6 @@ import {
   GenerateRecruiterEmailResponse,
   ExtractedProfileTag,
   GitHubProfileTagsResponse,
-  GuessWhoQuizPersona,
-  GuessWhoQuizQuestion,
-  GuessWhoQuizResponse,
   NextPersonaQuizQuestionResponse,
   OnboardingProfileTagsResponse,
   PersonaQuizOption,
@@ -182,37 +179,6 @@ export const getBragiClient = (
               new ExtractedProfileTag({ name: 'go', confidence: 0.73 }),
               new ExtractedProfileTag({ name: 'ai', confidence: 0.7 }),
             ],
-          }),
-        guessWhoQuiz: async ({
-          history,
-        }: {
-          history?: { question: string; answer: string }[];
-        }) =>
-          new GuessWhoQuizResponse({
-            id: 'mock-id',
-            result:
-              (history?.length ?? 0) >= 8
-                ? {
-                    case: 'finalPersona',
-                    value: new GuessWhoQuizPersona({
-                      name: 'Pragmatic Backend Architect',
-                      description:
-                        'You wrangle systems for a living and stay quietly suspicious of every shiny new abstraction.',
-                    }),
-                  }
-                : {
-                    case: 'nextQuestion',
-                    value: new GuessWhoQuizQuestion({
-                      question:
-                        'How do you feel about feature flags in production?',
-                      options: [
-                        'Ship it gated, always',
-                        'Use them sparingly',
-                        'Avoid them, prefer canaries',
-                        'Never used one in anger',
-                      ],
-                    }),
-                  },
           }),
         nextPersonaQuizQuestion: async ({
           askedCount,

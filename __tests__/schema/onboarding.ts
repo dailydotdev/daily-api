@@ -23,7 +23,6 @@ jest.mock('../../src/integrations/recswipe/clients', () => ({
   },
 }));
 
-const mockGuessWhoQuiz = jest.fn();
 const mockNextPersonaQuizQuestion = jest.fn();
 const mockPersonaQuizReveal = jest.fn();
 
@@ -33,7 +32,6 @@ jest.mock('../../src/integrations/bragi', () => ({
       execute: (fn: () => Promise<unknown>) => fn(),
     },
     instance: {
-      guessWhoQuiz: (...args: unknown[]) => mockGuessWhoQuiz(...args),
       nextPersonaQuizQuestion: (...args: unknown[]) =>
         mockNextPersonaQuizQuestion(...args),
       personaQuizReveal: (...args: unknown[]) => mockPersonaQuizReveal(...args),
@@ -397,184 +395,6 @@ describe('mutation onboardingRecommendTags', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: { selectedTags: ['rust'] },
-    });
-
-    expect(res.errors?.length).toBeGreaterThan(0);
-    expect(res.errors?.[0].extensions?.code).toBe('UNEXPECTED');
-  });
-});
-
-describe('mutation guessWhoQuizStep', () => {
-  const MUTATION = /* GraphQL */ `
-    mutation GuessWhoQuizStep($history: [GuessWhoQuizQAInput!]!) {
-      guessWhoQuizStep(history: $history) {
-        nextQuestion {
-          question
-          options
-        }
-        finalPersona {
-          name
-          description
-          tags
-        }
-      }
-    }
-  `;
-
-  const fiveTurns = Array.from({ length: 5 }, (_, i) => ({
-    question: `Q${i + 1}`,
-    answer: `A${i + 1}`,
-  }));
-
-  it('should require authentication', () =>
-    testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { history: fiveTurns } },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should reject input with fewer than 5 history pairs', async () => {
-    loggedUser = '1';
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { history: fiveTurns.slice(0, 3) } },
-      'ZOD_VALIDATION_ERROR',
-    );
-    expect(mockGuessWhoQuiz).not.toHaveBeenCalled();
-  });
-
-  it('should return next question without calling recswipe', async () => {
-    loggedUser = '1';
-    mockGuessWhoQuiz.mockResolvedValueOnce({
-      id: 'op-1',
-      result: {
-        case: 'nextQuestion',
-        value: {
-          question: 'How do you feel about feature flags?',
-          options: ['ship it', 'sparingly', 'avoid', 'never used'],
-        },
-      },
-    });
-
-    const res = await client.mutate(MUTATION, {
-      variables: { history: fiveTurns },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      guessWhoQuizStep: {
-        nextQuestion: {
-          question: 'How do you feel about feature flags?',
-          options: ['ship it', 'sparingly', 'avoid', 'never used'],
-        },
-        finalPersona: null,
-      },
-    });
-    expect(extractTagsMock).not.toHaveBeenCalled();
-  });
-
-  it('should call recswipe.extractTags and return persona with tags on final', async () => {
-    loggedUser = '1';
-    mockGuessWhoQuiz.mockResolvedValueOnce({
-      id: 'op-2',
-      result: {
-        case: 'finalPersona',
-        value: {
-          name: 'Pragmatic Backend Architect',
-          description:
-            'You wrangle systems for a living and stay quietly suspicious of every shiny new abstraction.',
-        },
-      },
-    });
-    extractTagsMock.mockResolvedValueOnce({
-      tags: ['backend', 'systems', 'go'],
-    });
-
-    const res = await client.mutate(MUTATION, {
-      variables: { history: fiveTurns },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      guessWhoQuizStep: {
-        nextQuestion: null,
-        finalPersona: {
-          name: 'Pragmatic Backend Architect',
-          description:
-            'You wrangle systems for a living and stay quietly suspicious of every shiny new abstraction.',
-          tags: ['backend', 'systems', 'go'],
-        },
-      },
-    });
-    expect(extractTagsMock).toHaveBeenCalledWith('1', {
-      prompt:
-        'You wrangle systems for a living and stay quietly suspicious of every shiny new abstraction.',
-    });
-  });
-
-  it('should default missing tags to empty list', async () => {
-    loggedUser = '1';
-    mockGuessWhoQuiz.mockResolvedValueOnce({
-      id: 'op-3',
-      result: {
-        case: 'finalPersona',
-        value: {
-          name: 'Curious Developer',
-          description: 'You poke at things.',
-        },
-      },
-    });
-    extractTagsMock.mockResolvedValueOnce({
-      tags: undefined as unknown as string[],
-    });
-
-    const res = await client.mutate(MUTATION, {
-      variables: { history: fiveTurns },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      guessWhoQuizStep: {
-        nextQuestion: null,
-        finalPersona: {
-          name: 'Curious Developer',
-          description: 'You poke at things.',
-          tags: [],
-        },
-      },
-    });
-  });
-
-  it('should error when bragi returns neither branch', async () => {
-    loggedUser = '1';
-    mockGuessWhoQuiz.mockResolvedValueOnce({
-      id: 'op-4',
-      result: { case: undefined },
-    });
-
-    const res = await client.mutate(MUTATION, {
-      variables: { history: fiveTurns },
-    });
-
-    expect(res.errors?.length).toBeGreaterThan(0);
-    expect(extractTagsMock).not.toHaveBeenCalled();
-  });
-
-  it('should surface an UNEXPECTED error when recswipe extractTags fails', async () => {
-    loggedUser = '1';
-    mockGuessWhoQuiz.mockResolvedValueOnce({
-      id: 'op-5',
-      result: {
-        case: 'finalPersona',
-        value: { name: 'X', description: 'Y' },
-      },
-    });
-    extractTagsMock.mockRejectedValueOnce(
-      new HttpError('http://recswipe.local:8000/api/extract-tags', 500, 'boom'),
-    );
-
-    const res = await client.mutate(MUTATION, {
-      variables: { history: fiveTurns },
     });
 
     expect(res.errors?.length).toBeGreaterThan(0);
