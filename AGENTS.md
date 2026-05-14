@@ -5,7 +5,7 @@ This file provides guidance to coding agents when working with code in this repo
 ## Prerequisites
 
 - **Node.js**: 24.14.0 (managed via Volta)
-- **Package Manager**: pnpm 9.14.4
+- **Package Manager**: pnpm 10.33.4 (activate via `corepack enable && corepack prepare pnpm@10.33.4 --activate`)
 
 ## Essential Commands
 

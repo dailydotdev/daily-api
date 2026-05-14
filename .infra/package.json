@@ -12,7 +12,7 @@
     "@pulumi/kubernetes": "^4.26.0",
     "@pulumi/pulumi": "^3.223.0"
   },
-  "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
+  "packageManager": "pnpm@10.33.4",
   "volta": {
     "node": "24.14.0"
   }

@@ -24,7 +24,7 @@ along with other very useful endpoints.
 
 - Node v22 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 
-- pnpm for managing dependencies.
+- [pnpm](https://pnpm.io/) 10.33.4 for managing dependencies (pinned via `packageManager` in `package.json`, activate with `corepack enable && corepack prepare pnpm@10.33.4 --activate`).
 
 - Fastify as the web framework
 
@@ -78,6 +78,12 @@ Finally, run `pnpm run dev` to run the service and listen on port `5000`.
 ### Caveat
 
 Currently, there is no staging environment for Algolia, so there is no search functionality for local development.
+
+## Dependency Supply-Chain Hardening
+
+This repo delays newly published package versions for seven days via `minimumReleaseAge: 10080` in `pnpm-workspace.yaml`, and rejects exotic transitive dependencies (git/tarball URLs) via `blockExoticSubdeps: true`. Both settings are only enforced by pnpm 10+ — keep using the pinned pnpm version from `package.json`.
+
+Keep `pnpm-lock.yaml` committed, use frozen-lockfile installs in CI, and avoid adding git or tarball dependencies unless they are reviewed explicitly. If an urgent dependency update must bypass the cooldown, add a temporary `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`, review the package contents/provenance first, and remove the exception after the release ages out.
 
 ## GraphORM
 

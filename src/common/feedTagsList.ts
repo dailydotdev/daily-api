@@ -90,14 +90,21 @@ export const getFeedTagsList = async ({
   tags = dedupeKeepOrder(tags);
 
   if (tags.length < limit) {
-    const supplement = await recswipeClient.recommendTags(userId, {
-      selectedTags: tags,
-      n: limit - tags.length,
-    });
-    const supplementTags = (supplement.recommended_tags ?? []).map(
-      (t) => t.tag,
-    );
-    tags = dedupeKeepOrder([...tags, ...supplementTags]).slice(0, limit);
+    try {
+      const supplement = await recswipeClient.recommendTags(userId, {
+        selectedTags: tags,
+        n: limit - tags.length,
+      });
+      const supplementTags = (supplement.recommended_tags ?? []).map(
+        (t) => t.tag,
+      );
+      tags = dedupeKeepOrder([...tags, ...supplementTags]).slice(0, limit);
+    } catch (err) {
+      logger.error(
+        { err, userId },
+        'recswipeClient.recommendTags failed; using feedClient tags only',
+      );
+    }
   }
 
   await writeCache({ con, userId, tags });

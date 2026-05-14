@@ -11,12 +11,14 @@ RUN chmod 644 /usr/local/share/ca-certificates/*.cer && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     npm install -g corepack@0.31.0 && \
+    corepack enable && \
+    corepack prepare pnpm@10.33.4 --activate && \
     mkdir -p /opt/app && \
     chown -R node:node /opt/app
 
 WORKDIR /opt/app
 
-COPY --chown=node:node .npmrc package.json pnpm-lock.yaml ./
+COPY --chown=node:node .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --chown=node:node patches patches
 COPY --chown=node:node queries queries
 COPY --chown=node:node clickhouse/migrations/*.sql clickhouse/migrations/
