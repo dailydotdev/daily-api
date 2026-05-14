@@ -67,7 +67,6 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
-import { feedClient } from '../src/integrations/feed/generators';
 import { recswipeClient } from '../src/integrations/recswipe/clients';
 import {
   ContentPreferenceStatus,
@@ -79,13 +78,6 @@ import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPr
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { SubscriptionCycles } from '../src/paddle';
 
-jest.mock('../src/integrations/feed/generators', () => ({
-  ...jest.requireActual('../src/integrations/feed/generators'),
-  feedClient: {
-    getUserTags: jest.fn(),
-  },
-}));
-
 jest.mock('../src/integrations/recswipe/clients', () => ({
   ...jest.requireActual('../src/integrations/recswipe/clients'),
   recswipeClient: {
@@ -93,9 +85,6 @@ jest.mock('../src/integrations/recswipe/clients', () => ({
   },
 }));
 
-const getUserTagsMock = feedClient.getUserTags as jest.MockedFunction<
-  typeof feedClient.getUserTags
->;
 const recommendTagsMock = recswipeClient.recommendTags as jest.MockedFunction<
   typeof recswipeClient.recommendTags
 >;
@@ -5785,7 +5774,6 @@ describe('query feedTagsList', () => {
   `;
 
   beforeEach(() => {
-    getUserTagsMock.mockReset();
     recommendTagsMock.mockReset();
   });
 
@@ -5799,13 +5787,15 @@ describe('query feedTagsList', () => {
 
   it('should fetch tags from feed service and cache them in user flags', async () => {
     loggedUser = '1';
-    getUserTagsMock.mockResolvedValue([
-      'ai-coding',
-      'llm',
-      'claude-code',
-      'ai-agents',
-      'anthropic',
-    ]);
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/user_tags', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: ['ai-coding', 'llm', 'claude-code', 'ai-agents', 'anthropic'],
+      });
 
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
@@ -5816,7 +5806,7 @@ describe('query feedTagsList', () => {
       'ai-agents',
       'anthropic',
     ]);
-    expect(getUserTagsMock).toHaveBeenCalledWith('1', 5);
+    expect(capturedBody).toEqual({ user_id: '1', limit: 5 });
     expect(recommendTagsMock).not.toHaveBeenCalled();
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
@@ -5849,7 +5839,8 @@ describe('query feedTagsList', () => {
       'cached-tag-1',
       'cached-tag-2',
     ]);
-    expect(getUserTagsMock).not.toHaveBeenCalled();
+    // No nock interceptor set up — if getUserTags were called, the request would error.
+    expect(nock.pendingMocks()).toEqual([]);
   });
 
   it('should re-fetch when cache is older than 24h', async () => {
@@ -5868,13 +5859,17 @@ describe('query feedTagsList', () => {
       },
     );
 
-    getUserTagsMock.mockResolvedValue([
-      'fresh-tag-1',
-      'fresh-tag-2',
-      'fresh-tag-3',
-      'fresh-tag-4',
-      'fresh-tag-5',
-    ]);
+    const userTagsScope = nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: [
+          'fresh-tag-1',
+          'fresh-tag-2',
+          'fresh-tag-3',
+          'fresh-tag-4',
+          'fresh-tag-5',
+        ],
+      });
 
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
@@ -5885,7 +5880,7 @@ describe('query feedTagsList', () => {
       'fresh-tag-4',
       'fresh-tag-5',
     ]);
-    expect(getUserTagsMock).toHaveBeenCalled();
+    expect(userTagsScope.isDone()).toBe(true);
   });
 
   it('should reject limit greater than 10', async () => {
@@ -5896,12 +5891,15 @@ describe('query feedTagsList', () => {
       { query: QUERY, variables: { limit: 11 } },
       'ZOD_VALIDATION_ERROR',
     );
-    expect(getUserTagsMock).not.toHaveBeenCalled();
+    expect(nock.pendingMocks()).toEqual([]);
   });
 
   it('should backfill with recswipe when feed returns fewer than limit', async () => {
     loggedUser = '1';
-    getUserTagsMock.mockResolvedValue(['ai-coding', 'llm']);
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['ai-coding', 'llm'] });
+
     recommendTagsMock.mockResolvedValue({
       recommended_tags: [
         { tag: 'machine-learning', score: 0.9 },
