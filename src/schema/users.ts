@@ -4588,6 +4588,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           },
         };
       } catch (err) {
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            askedCount: parsed.askedCount,
+            seedTagCount: parsed.seedTags.length,
+            priorAnswerCount: parsed.priorAnswers.length,
+          },
+          'personaQuizNextQuestion: request failed',
+        );
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'personaQuizNextQuestion request failed',
@@ -4615,6 +4625,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             application: 'webapp',
           }),
         );
+
+        // Surface unexpected bragi responses (success status but empty
+        // reveal copy) — without this log the frontend silently falls back
+        // to the seed-tag headline and the root cause stays invisible.
+        const bragiHasReveal = !!(
+          bragiResp.reveal &&
+          (bragiResp.reveal.headline || bragiResp.reveal.description)
+        );
+        if (!bragiHasReveal) {
+          logger.warn(
+            {
+              userId: ctx.userId,
+              bragiId: bragiResp.id,
+              includeTagCount: bragiResp.includeTags?.length ?? 0,
+              answerCount: parsed.answers.length,
+              seedTagCount: parsed.seedTags.length,
+            },
+            'personaQuizReveal: bragi returned empty reveal',
+          );
+        }
 
         // Fetch recsys-grounded fillers in parallel-friendly fashion. Used to
         // pad the LLM tag list up to targetCount once we've filtered through
@@ -4661,14 +4691,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         return {
           includeTags: canonical.slice(0, parsed.targetCount),
-          reveal: bragiResp.reveal
+          reveal: bragiHasReveal
             ? {
-                headline: bragiResp.reveal.headline,
-                description: bragiResp.reveal.description,
+                headline: bragiResp.reveal!.headline,
+                description: bragiResp.reveal!.description,
               }
             : null,
         };
       } catch (err) {
+        // Log the failure explicitly — the GraphQL middleware will also
+        // log a generic "unexpected graphql error" further up, but having
+        // a resolver-tagged entry makes it greppable by feature name.
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            answerCount: parsed.answers.length,
+            seedTagCount: parsed.seedTags.length,
+          },
+          'personaQuizReveal: request failed',
+        );
         if (err instanceof HttpError) {
           throw new ServiceError({
             message: 'personaQuizReveal request failed',
