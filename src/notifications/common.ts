@@ -320,7 +320,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.MajorHeadlineAdded]: {
     email: NotificationPreferenceStatus.Muted,
-    inApp: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Muted,
   },
   [NotificationType.LiveRoomStarted]: {
     email: NotificationPreferenceStatus.Muted,
