@@ -67,7 +67,7 @@ import {
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
-import { MIN_SEARCH_QUERY_LENGTH } from './tags';
+import { MIN_SEARCH_QUERY_LENGTH } from '../types';
 import { SourceSimilarityView } from '../entity/SourceSimilarityView';
 import { SourceTagView } from '../entity/SourceTagView';
 import { TrendingSource } from '../entity/TrendingSource';

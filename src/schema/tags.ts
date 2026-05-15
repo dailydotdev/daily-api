@@ -1,5 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { BaseContext, Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { Keyword } from '../entity';
 import { TagRecommendation } from '../entity/TagRecommendation';
 import { In, Not, ObjectType } from 'typeorm';
@@ -9,6 +9,14 @@ import graphorm from '../graphorm';
 import { GQLKeyword } from './keywords';
 import { TrendingTag } from '../entity/TrendingTag';
 import { PopularTag } from '../entity/PopularTag';
+import { getFeedTagsList } from '../common/feedTagsList';
+import { feedTagsListInputSchema } from '../common/schema/feedTagsList';
+import { z } from 'zod';
+import {
+  MIN_SEARCH_QUERY_LENGTH,
+  RECOMMENDED_TAGS_LIMIT,
+  SEARCH_TAGS_LIMIT,
+} from '../types';
 
 interface GQLTag {
   name: string;
@@ -20,12 +28,6 @@ interface GQLTagSearchResults {
 }
 
 export type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
-
-export const RECOMMENDED_TAGS_LIMIT = 5;
-
-export const MIN_SEARCH_QUERY_LENGTH = 2;
-
-export const SEARCH_TAGS_LIMIT = 100;
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -57,6 +59,16 @@ export const typeDefs = /* GraphQL */ `
     Results
     """
     hits: [Tag]!
+  }
+
+  """
+  Personalized feed tag list returned for the signed-in user.
+  """
+  type FeedTagsList {
+    """
+    Tags to render as chips
+    """
+    tags: [String!]!
   }
 
   extend type Query {
@@ -91,6 +103,13 @@ export const typeDefs = /* GraphQL */ `
     Get initial list of tags recommended for onboarding
     """
     onboardingTags: TagResults!
+
+    """
+    Tag chips to render in the unified feed nav for the signed-in user.
+    Cached in user.flags.feedTagsList for 24 hours; backfilled with
+    onboardingRecommendTags when the feed service returns fewer than the requested limit.
+    """
+    feedTagsList(limit: Int = 10): FeedTagsList! @auth
 
     """
     Get recommended tags based on current selected and shown tags
@@ -191,6 +210,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return {
         hits: hits.map((hit: Keyword) => ({ name: hit.value })),
       };
+    },
+    feedTagsList: (
+      _,
+      args: z.input<typeof feedTagsListInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const { limit } = feedTagsListInputSchema.parse(args);
+      return getFeedTagsList({ con: ctx.con, userId: ctx.userId, limit });
     },
     recommendedTags: async (
       source,

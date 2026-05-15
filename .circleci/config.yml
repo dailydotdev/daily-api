@@ -8,6 +8,13 @@ jobs:
       name: common/node
       tag: "24.14"
     steps:
+      - checkout
+      - run:
+          name: Enable pnpm
+          command: |
+            mkdir -p $HOME/.local/bin
+            corepack enable --install-directory $HOME/.local/bin
+            corepack prepare pnpm@10.33.4 --activate
       - common/setup-node
       - run:
           name: Build
@@ -38,6 +45,13 @@ jobs:
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 6
     steps:
+      - checkout
+      - run:
+          name: Enable pnpm
+          command: |
+            mkdir -p $HOME/.local/bin
+            corepack enable --install-directory $HOME/.local/bin
+            corepack prepare pnpm@10.33.4 --activate
       - common/setup-node
       - common/wait-for:
           protocol: postgresql

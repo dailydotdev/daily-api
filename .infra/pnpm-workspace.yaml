@@ -1,0 +1,6 @@
+# Delay new package versions for 7 days before pnpm may resolve them.
+minimumReleaseAge: 10080
+# First-party packages are reviewed in-tree and don't need the cooldown.
+minimumReleaseAgeExclude:
+  - "@dailydotdev/pulumi-common"
+blockExoticSubdeps: true
