@@ -190,6 +190,11 @@ export type PubSubSchema = {
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
+  'api.v1.post-trending': {
+    postId: string;
+    trending: number;
+    trendingAt: string;
+  };
   'api.v1.post-highlighted': PostHighlightedMessage;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];

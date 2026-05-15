@@ -1122,6 +1122,23 @@ const onPostChange = async (
         },
       });
     }
+
+    const trending = data.payload.after!.trending;
+    if (
+      data.payload.before!.trending == null &&
+      typeof trending === 'number' &&
+      trending > 0
+    ) {
+      const trendingAt = data.payload.after!.lastTrending
+        ? debeziumTimeToDate(data.payload.after!.lastTrending).toISOString()
+        : new Date().toISOString();
+
+      await triggerTypedEvent(logger, 'api.v1.post-trending', {
+        postId: data.payload.after!.id,
+        trending,
+        trendingAt,
+      });
+    }
   } else if (data.payload.op === 'd') {
     await notifyPostBannedOrRemoved(logger, data.payload.before!, 'hard');
   }
