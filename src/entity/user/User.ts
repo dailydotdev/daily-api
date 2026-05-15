@@ -52,7 +52,7 @@ export type UserFlags = Partial<{
   inDeletion: boolean;
   hackathonParticipant: boolean;
   feedTagsList: {
-    tags: string[];
+    tags: { value: string; label: string }[];
     updatedAt: string;
   };
 }>;

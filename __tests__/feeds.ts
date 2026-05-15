@@ -5796,7 +5796,10 @@ describe('query feedTagsList', () => {
   const QUERY = /* GraphQL */ `
     query FeedTagsList($limit: Int) {
       feedTagsList(limit: $limit) {
-        tags
+        tags {
+          value
+          label
+        }
       }
     }
   `;
@@ -5828,22 +5831,48 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'ai-coding',
-      'llm',
-      'claude-code',
-      'ai-agents',
-      'anthropic',
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
     ]);
     expect(capturedBody).toEqual({ user_id: '1', limit: 5 });
     expect(recommendTagsMock).not.toHaveBeenCalled();
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
     expect(user?.flags?.feedTagsList?.tags).toEqual([
-      'ai-coding',
-      'llm',
-      'claude-code',
-      'ai-agents',
-      'anthropic',
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
+    ]);
+  });
+
+  it('should resolve human-friendly labels from Keyword.flags.title', async () => {
+    loggedUser = '1';
+    await con.getRepository(Keyword).save([
+      { value: 'reactjs', status: 'allow', flags: { title: 'React.js' } },
+      { value: 'nodejs', status: 'allow', flags: { title: 'Node.js' } },
+    ]);
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['reactjs', 'nodejs', 'no-title-tag'] });
+
+    const res = await client.query(QUERY, { variables: { limit: 3 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'reactjs', label: 'React.js' },
+      { value: 'nodejs', label: 'Node.js' },
+      { value: 'no-title-tag', label: 'no-title-tag' },
+    ]);
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([
+      { value: 'reactjs', label: 'React.js' },
+      { value: 'nodejs', label: 'Node.js' },
+      { value: 'no-title-tag', label: 'no-title-tag' },
     ]);
   });
 
@@ -5854,7 +5883,10 @@ describe('query feedTagsList', () => {
       {
         flags: {
           feedTagsList: {
-            tags: ['cached-tag-1', 'cached-tag-2'],
+            tags: [
+              { value: 'cached-tag-1', label: 'cached-tag-1' },
+              { value: 'cached-tag-2', label: 'Cached 2' },
+            ],
             updatedAt: new Date().toISOString(),
           },
         },
@@ -5864,8 +5896,8 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'cached-tag-1',
-      'cached-tag-2',
+      { value: 'cached-tag-1', label: 'cached-tag-1' },
+      { value: 'cached-tag-2', label: 'Cached 2' },
     ]);
     // No nock interceptor set up — if getUserTags were called, the request would error.
     expect(nock.pendingMocks()).toEqual([]);
@@ -5880,7 +5912,7 @@ describe('query feedTagsList', () => {
       {
         flags: {
           feedTagsList: {
-            tags: ['stale-tag'],
+            tags: [{ value: 'stale-tag', label: 'stale-tag' }],
             updatedAt: stale.toISOString(),
           },
         },
@@ -5902,11 +5934,11 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'fresh-tag-1',
-      'fresh-tag-2',
-      'fresh-tag-3',
-      'fresh-tag-4',
-      'fresh-tag-5',
+      { value: 'fresh-tag-1', label: 'fresh-tag-1' },
+      { value: 'fresh-tag-2', label: 'fresh-tag-2' },
+      { value: 'fresh-tag-3', label: 'fresh-tag-3' },
+      { value: 'fresh-tag-4', label: 'fresh-tag-4' },
+      { value: 'fresh-tag-5', label: 'fresh-tag-5' },
     ]);
     expect(userTagsScope.isDone()).toBe(true);
   });
@@ -5939,11 +5971,11 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'ai-coding',
-      'llm',
-      'machine-learning',
-      'pytorch',
-      'tensorflow',
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'machine-learning', label: 'machine-learning' },
+      { value: 'pytorch', label: 'pytorch' },
+      { value: 'tensorflow', label: 'tensorflow' },
     ]);
     expect(recommendTagsMock).toHaveBeenCalledWith('1', {
       selectedTags: ['ai-coding', 'llm'],
@@ -5985,11 +6017,11 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'ai-coding',
-      'llm',
-      'machine-learning',
-      'pytorch',
-      'tensorflow',
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'machine-learning', label: 'machine-learning' },
+      { value: 'pytorch', label: 'pytorch' },
+      { value: 'tensorflow', label: 'tensorflow' },
     ]);
   });
 
@@ -6010,11 +6042,11 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'rust',
-      'golang',
-      'docker',
-      'kubernetes',
-      'python',
+      { value: 'rust', label: 'rust' },
+      { value: 'golang', label: 'golang' },
+      { value: 'docker', label: 'docker' },
+      { value: 'kubernetes', label: 'kubernetes' },
+      { value: 'python', label: 'python' },
     ]);
   });
 
@@ -6026,7 +6058,7 @@ describe('query feedTagsList', () => {
       {
         flags: {
           feedTagsList: {
-            tags: ['stale-future-tag'],
+            tags: [{ value: 'stale-future-tag', label: 'stale-future-tag' }],
             updatedAt: farFuture.toISOString(),
           },
         },
@@ -6042,11 +6074,11 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
-      'fresh-1',
-      'fresh-2',
-      'fresh-3',
-      'fresh-4',
-      'fresh-5',
+      { value: 'fresh-1', label: 'fresh-1' },
+      { value: 'fresh-2', label: 'fresh-2' },
+      { value: 'fresh-3', label: 'fresh-3' },
+      { value: 'fresh-4', label: 'fresh-4' },
+      { value: 'fresh-5', label: 'fresh-5' },
     ]);
     expect(userTagsScope.isDone()).toBe(true);
   });

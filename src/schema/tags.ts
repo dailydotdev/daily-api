@@ -62,13 +62,27 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  A single tag chip with the keyword slug and a human-friendly label.
+  """
+  type FeedTagsListItem {
+    """
+    Keyword value, used for URL slugs and feed filtering.
+    """
+    value: String!
+    """
+    Human-friendly display label.
+    """
+    label: String!
+  }
+
+  """
   Personalized feed tag list returned for the signed-in user.
   """
   type FeedTagsList {
     """
     Tags to render as chips
     """
-    tags: [String!]!
+    tags: [FeedTagsListItem!]!
   }
 
   extend type Query {
