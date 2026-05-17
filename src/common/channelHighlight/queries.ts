@@ -85,6 +85,28 @@ export const fetchCurrentHighlights = async ({
     },
   });
 
+export const fetchCurrentHighlightsForChannels = async ({
+  con,
+  channels,
+}: {
+  con: DataSource;
+  channels: string[];
+}): Promise<PostHighlight[]> => {
+  if (!channels.length) {
+    return [];
+  }
+
+  return con.getRepository(PostHighlight).find({
+    where: {
+      channel: In(channels),
+      retiredAt: IsNull(),
+    },
+    order: {
+      highlightedAt: 'DESC',
+    },
+  });
+};
+
 export const getEvaluationHistoryStart = ({ now }: { now: Date }): Date =>
   new Date(now.getTime() - HIGHLIGHT_EVALUATION_HISTORY_SECONDS * 1000);
 
@@ -111,6 +133,34 @@ export const fetchEvaluationHistoryHighlights = async ({
     },
   });
 
+export const fetchEvaluationHistoryHighlightsForChannels = async ({
+  con,
+  channels,
+  now,
+}: {
+  con: DataSource;
+  channels: string[];
+  now: Date;
+}): Promise<PostHighlight[]> => {
+  if (!channels.length) {
+    return [];
+  }
+
+  return con.getRepository(PostHighlight).find({
+    where: {
+      channel: In(channels),
+      highlightedAt: MoreThanOrEqual(
+        getEvaluationHistoryStart({
+          now,
+        }),
+      ),
+    },
+    order: {
+      highlightedAt: 'DESC',
+    },
+  });
+};
+
 export const fetchRetiredHighlightPostIds = async ({
   con,
   channel,
@@ -129,6 +179,38 @@ export const fetchRetiredHighlightPostIds = async ({
   });
 
   return highlights.map((highlight) => highlight.postId);
+};
+
+export const fetchRetiredHighlightPostIdsForChannels = async ({
+  con,
+  channels,
+}: {
+  con: DataSource;
+  channels: string[];
+}): Promise<Map<string, Set<string>>> => {
+  if (!channels.length) {
+    return new Map();
+  }
+
+  const highlights = await con.getRepository(PostHighlight).find({
+    select: {
+      channel: true,
+      postId: true,
+    },
+    where: {
+      channel: In(channels),
+      retiredAt: Not(IsNull()),
+    },
+  });
+
+  const retiredByChannel = new Map<string, Set<string>>();
+  for (const highlight of highlights) {
+    const postIds = retiredByChannel.get(highlight.channel) || new Set();
+    postIds.add(highlight.postId);
+    retiredByChannel.set(highlight.channel, postIds);
+  }
+
+  return retiredByChannel;
 };
 
 export const fetchPostsByIds = async ({
@@ -180,6 +262,44 @@ export const fetchIncrementalPosts = async ({
     .andWhere('post.showOnFeed = true')
     .andWhere('post.sharedPostId IS NULL')
     .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
+    .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
+      rejectedCurations: REJECTED_CONTENT_CURATIONS,
+    })
+    .andWhere(
+      excludedSourceIds.length
+        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
+        : '1=1',
+      { excludedSourceIds },
+    )
+    .andWhere(
+      new Brackets((builder) => {
+        builder
+          .where('post.createdAt >= :fetchStart', { fetchStart })
+          .orWhere('post.metadataChangedAt >= :fetchStart', { fetchStart });
+      }),
+    )
+    .getMany() as unknown as Promise<HighlightPost[]>;
+
+export const fetchGlobalIncrementalPosts = async ({
+  con,
+  fetchStart,
+  horizonStart,
+  excludedSourceIds = [],
+}: {
+  con: DataSource;
+  fetchStart: Date;
+  horizonStart: Date;
+  excludedSourceIds?: string[];
+}): Promise<HighlightPost[]> =>
+  con
+    .getRepository(Post)
+    .createQueryBuilder('post')
+    .where('post.createdAt >= :horizonStart', { horizonStart })
+    .andWhere('post.visible = true')
+    .andWhere('post.deleted = false')
+    .andWhere('post.banned = false')
+    .andWhere('post.showOnFeed = true')
+    .andWhere('post.sharedPostId IS NULL')
     .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
       rejectedCurations: REJECTED_CONTENT_CURATIONS,
     })
@@ -295,15 +415,27 @@ export const fetchCollectionMembership = async ({
     .where('relation.type = :type', {
       type: PostRelationType.Collection,
     })
-    .andWhere('relation.relatedPostId IN (:...postIds)', { postIds })
+    .andWhere(
+      new Brackets((builder) => {
+        builder
+          .where('relation.relatedPostId IN (:...postIds)', { postIds })
+          .orWhere('relation.postId IN (:...postIds)', { postIds });
+      }),
+    )
     .getMany();
 
+  const collectionIds = new Set<string>();
   for (const relation of directRelations) {
-    collectionByChild.set(relation.relatedPostId, relation.postId);
+    if (postIds.includes(relation.relatedPostId)) {
+      collectionByChild.set(relation.relatedPostId, relation.postId);
+      collectionIds.add(relation.postId);
+    }
+    if (postIds.includes(relation.postId)) {
+      collectionIds.add(relation.postId);
+    }
   }
 
-  const collectionIds = [...new Set(collectionByChild.values())];
-  if (!collectionIds.length) {
+  if (!collectionIds.size) {
     return { collectionByChild, childrenByCollection };
   }
 
@@ -313,7 +445,9 @@ export const fetchCollectionMembership = async ({
     .where('relation.type = :type', {
       type: PostRelationType.Collection,
     })
-    .andWhere('relation.postId IN (:...collectionIds)', { collectionIds })
+    .andWhere('relation.postId IN (:...collectionIds)', {
+      collectionIds: [...collectionIds],
+    })
     .getMany();
 
   for (const relation of siblingRelations) {

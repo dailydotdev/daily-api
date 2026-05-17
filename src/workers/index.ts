@@ -83,7 +83,6 @@ import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import gearClassify from './gearClassify';
 import generateChannelDigest from './generateChannelDigest';
-import generateChannelHighlight from './generateChannelHighlight';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 import userDeletionCleanup from './userDeletionCleanup';
@@ -174,7 +173,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackUpdatedSlack,
   gearClassify,
   generateChannelDigest,
-  generateChannelHighlight,
   newHighlightRealTime,
   userDeletionCleanup,
   liveRoomStartedWorker,

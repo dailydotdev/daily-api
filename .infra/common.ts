@@ -523,10 +523,6 @@ export const workers: Worker[] = [
     subscription: 'api.generate-channel-digest',
   },
   {
-    topic: 'api.v1.generate-channel-highlight',
-    subscription: 'api.generate-channel-highlight',
-  },
-  {
     topic: 'api.v1.user-deletion-requested',
     subscription: 'api.user-deletion-cleanup',
     args: {

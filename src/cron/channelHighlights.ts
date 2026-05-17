@@ -1,23 +1,38 @@
 import { getChannelHighlightDefinitions } from '../common/channelHighlight/definitions';
-import { triggerTypedEvent } from '../common/typedPubsub';
+import { generateChannelHighlights } from '../common/channelHighlight/generate';
 import { Cron } from './cron';
+import type { DataSource } from 'typeorm';
+
+export const runChannelHighlights = async ({
+  con,
+  now = new Date(),
+}: {
+  con: DataSource;
+  now?: Date;
+}): Promise<void> => {
+  const definitions = await getChannelHighlightDefinitions({
+    con,
+  });
+  const enabledDefinitions = definitions.filter(
+    (definition) => definition.mode !== 'disabled',
+  );
+  if (!enabledDefinitions.length) {
+    return;
+  }
+
+  await generateChannelHighlights({
+    con,
+    definitions: enabledDefinitions,
+    now,
+  });
+};
 
 const cron: Cron = {
   name: 'channel-highlights',
-  handler: async (con, logger) => {
-    const scheduledAt = new Date().toISOString();
-    const definitions = await getChannelHighlightDefinitions({
+  handler: async (con) => {
+    await runChannelHighlights({
       con,
     });
-
-    await Promise.all(
-      definitions.map(({ channel }) =>
-        triggerTypedEvent(logger, 'api.v1.generate-channel-highlight', {
-          channel,
-          scheduledAt,
-        }),
-      ),
-    );
   },
 };
 
