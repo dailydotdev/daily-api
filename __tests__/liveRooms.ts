@@ -3,13 +3,15 @@ import nock from 'nock';
 import type { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Feature, FeatureType, FeatureValue } from '../src/entity/Feature';
+import { Feed } from '../src/entity/Feed';
 import {
   ContentEmbed,
   ContentEmbedParentType,
 } from '../src/entity/ContentEmbed';
 import { LiveRoom } from '../src/entity/LiveRoom';
 import { LiveRoomSubscription } from '../src/entity/LiveRoomSubscription';
-import { Post } from '../src/entity/posts/Post';
+import { Post, PostType } from '../src/entity/posts/Post';
+import { LiveRoomPost } from '../src/entity/posts/LiveRoomPost';
 import { Source } from '../src/entity/Source';
 import { StorageKey, StorageTopic } from '../src/config';
 import {
@@ -29,6 +31,7 @@ import { LiveRoomStatus } from '../src/common/schema/liveRooms';
 import { deleteKeysByPattern } from '../src/redis';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
+import { LIVE_ROOM_POST_PROMOTION_SECONDS } from '../src/schema/liveRooms';
 
 const {
   mock: temporalMock,
@@ -209,6 +212,21 @@ describe('live rooms', () => {
         status
         endedAt
         participantCount
+      }
+    }
+  `;
+
+  const POST_QUERY = /* GraphQL */ `
+    query LiveRoomPost($id: ID!) {
+      post(id: $id) {
+        id
+        type
+        title
+        permalink
+        liveRoom {
+          id
+          topic
+        }
       }
     }
   `;
@@ -435,6 +453,7 @@ describe('live rooms', () => {
     await grantStandupAccess(loggedUser);
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, [postsFixture[0]]);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
     jest
       .useFakeTimers({ doNotFake })
       .setSystemTime(new Date('2026-05-05T14:55:00.000Z'));
@@ -475,6 +494,45 @@ describe('live rooms', () => {
     });
 
     const roomId = res.data.createLiveRoom.room.id;
+    const post = await con.getRepository(LiveRoomPost).findOneByOrFail({
+      liveRoomId: roomId,
+    });
+    const expectedPromotion = Math.floor(
+      (new Date('2026-05-05T14:55:00.000Z').getTime() +
+        LIVE_ROOM_POST_PROMOTION_SECONDS * 1000) /
+        1000,
+    );
+    expect(post).toMatchObject({
+      type: PostType.LiveRoom,
+      title: 'Scheduled GraphQL and SFUs',
+      sourceId: '1',
+      authorId: '1',
+      visible: true,
+      showOnFeed: true,
+      private: false,
+      flags: {
+        visible: true,
+        private: false,
+        promoteToPublic: expectedPromotion,
+      },
+    });
+
+    const postRes = await client.query(POST_QUERY, {
+      variables: { id: post.id },
+    });
+
+    expect(postRes.errors).toBeFalsy();
+    expect(postRes.data.post).toEqual({
+      id: post.id,
+      type: 'live_room',
+      title: 'Scheduled GraphQL and SFUs',
+      permalink: `http://localhost:5002/standups/${roomId}`,
+      liveRoom: {
+        id: roomId,
+        topic: 'Scheduled GraphQL and SFUs',
+      },
+    });
+
     const embeds = await con.getRepository(ContentEmbed).findBy({
       parentId: roomId,
       parentType: ContentEmbedParentType.LiveRoom,
@@ -503,6 +561,7 @@ describe('live rooms', () => {
     await grantStandupAccess(loggedUser);
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, [postsFixture[0]]);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
@@ -516,6 +575,7 @@ describe('live rooms', () => {
         input: {
           topic: 'Invalid prepare',
           mode: 'moderated',
+          scheduledStart: '2026-05-05T15:10:00.000Z',
           description:
             'Review [this post](http://localhost:5002/posts/p1) before we start.',
         },
@@ -536,6 +596,7 @@ describe('live rooms', () => {
         parentType: ContentEmbedParentType.LiveRoom,
       }),
     ).toBe(0);
+    expect(await con.getRepository(LiveRoomPost).count()).toBe(0);
   });
 
   it('returns only live rooms', async () => {
