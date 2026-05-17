@@ -26,6 +26,7 @@ export enum PostType {
   Digest = 'digest',
   Poll = 'poll',
   SocialTwitter = 'social:twitter',
+  LiveRoom = 'live_room',
 }
 
 export const postTypes: string[] = Object.values(PostType);

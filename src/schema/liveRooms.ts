@@ -1,8 +1,9 @@
 import type { IResolvers } from '@graphql-tools/utils';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
+import type { EntityManager } from 'typeorm';
 import type { Context } from '../Context';
-import { toGQLEnum } from '../common';
+import { ONE_HOUR_IN_SECONDS, toGQLEnum } from '../common';
 import { GQLEmptyResponse } from './common';
 import { createLiveRoomJoinToken } from '../common/liveRoom/token';
 import {
@@ -23,13 +24,20 @@ import { NotFoundError } from '../errors';
 import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { LiveRoom } from '../entity/LiveRoom';
 import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
+import { LiveRoomPost } from '../entity/posts/LiveRoomPost';
+import { PostOrigin } from '../entity/posts/Post';
+import { generateTitleHtml } from '../entity/posts/utils';
 import graphorm from '../graphorm';
 import { getFlytingClient } from '../integrations/flyting/client';
 import { AbortError, HttpError } from '../integrations/retry';
 import { Roles } from '../roles';
 import { scheduleLiveRoomStartingSoonReminder } from '../temporal/notifications/liveRoom';
+import { generateShortId } from '../ids';
+import { ensureUserSourceExists } from './sources';
 
 export type GQLLiveRoom = LiveRoom;
+
+export const LIVE_ROOM_POST_PROMOTION_SECONDS = 6 * ONE_HOUR_IN_SECONDS;
 
 type GQLLiveRoomJoinToken = {
   room: LiveRoom;
@@ -114,6 +122,43 @@ const getRoomOrThrow = async ({
   }
 
   return room;
+};
+
+const getLiveRoomPromotionExpiresAt = (): number =>
+  Math.floor((Date.now() + LIVE_ROOM_POST_PROMOTION_SECONDS * 1000) / 1000);
+
+const createScheduledLiveRoomPost = async ({
+  manager,
+  room,
+  userId,
+}: {
+  manager: EntityManager;
+  room: LiveRoom;
+  userId: string;
+}): Promise<void> => {
+  const id = await generateShortId();
+
+  await manager.getRepository(LiveRoomPost).save(
+    manager.getRepository(LiveRoomPost).create({
+      id,
+      shortId: id,
+      liveRoomId: room.id,
+      sourceId: userId,
+      authorId: userId,
+      title: room.topic,
+      titleHtml: generateTitleHtml(room.topic, []),
+      visible: true,
+      visibleAt: new Date(),
+      private: false,
+      origin: PostOrigin.UserGenerated,
+      showOnFeed: true,
+      flags: {
+        visible: true,
+        private: false,
+        promoteToPublic: getLiveRoomPromotionExpiresAt(),
+      },
+    }),
+  );
 };
 
 const assertCanEndRoom = ({
@@ -339,33 +384,44 @@ export const resolvers: IResolvers = {
     ): Promise<GQLLiveRoomJoinToken> => {
       const input = createLiveRoomSchema.parse(args.input);
       await assertCanCreateRoom({ ctx });
+      const userId = ctx.userId;
+      if (!userId) {
+        throw new ForbiddenError('Access denied!');
+      }
       const description = input.description || null;
       const renderedDescription = description
         ? renderMarkdown(description)
         : null;
-      const roomRepo = ctx.con.getRepository(LiveRoom);
-      const room = await roomRepo.save(
-        roomRepo.create({
-          description,
-          descriptionHtml: renderedDescription?.contentHtml ?? null,
-          hostId: ctx.userId,
-          mode: input.mode,
-          scheduledStart: input.scheduledStart ?? null,
-          topic: input.topic,
-          status: LiveRoomStatus.Created,
-        }),
-      );
 
-      if (description) {
-        await replaceContentEmbeds({
-          con: ctx.con,
-          parentType: ContentEmbedParentType.LiveRoom,
-          parentId: room.id,
-          content: description,
-          tokens: renderedDescription?.tokens,
-          limit: MAX_LIVE_ROOM_CONTENT_EMBEDS,
-        });
-      }
+      const room = await ctx.con.transaction(async (manager) => {
+        const roomRepo = manager.getRepository(LiveRoom);
+        const savedRoom = await roomRepo.save(
+          roomRepo.create({
+            description,
+            descriptionHtml: renderedDescription?.contentHtml ?? null,
+            hostId: userId,
+            mode: input.mode,
+            scheduledStart: input.scheduledStart ?? null,
+            topic: input.topic,
+            status: LiveRoomStatus.Created,
+          }),
+        );
+
+        if (description) {
+          await replaceContentEmbeds({
+            con: manager,
+            parentType: ContentEmbedParentType.LiveRoom,
+            parentId: savedRoom.id,
+            content: description,
+            tokens: renderedDescription?.tokens,
+            limit: MAX_LIVE_ROOM_CONTENT_EMBEDS,
+          });
+        }
+
+        return savedRoom;
+      });
+
+      const roomRepo = ctx.con.getRepository(LiveRoom);
 
       try {
         await getFlytingClient().prepareRoom({
@@ -388,6 +444,15 @@ export const resolvers: IResolvers = {
       }
 
       if (room.scheduledStart) {
+        await ensureUserSourceExists(userId, ctx.con);
+        await ctx.con.transaction(async (manager) =>
+          createScheduledLiveRoomPost({
+            manager,
+            room,
+            userId,
+          }),
+        );
+
         await scheduleLiveRoomStartingSoonReminder({
           roomId: room.id,
           entityTableName: roomRepo.metadata.tableName,

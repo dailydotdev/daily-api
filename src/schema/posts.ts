@@ -164,6 +164,7 @@ import {
 import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { PollPost } from '../entity/posts/PollPost';
+import type { LiveRoom } from '../entity/LiveRoom';
 
 export interface GQLPollOption {
   id: string;
@@ -211,6 +212,8 @@ export interface GQLPost {
   isScout?: number;
   isAuthor?: number;
   sharedPost?: GQLPost;
+  liveRoom?: LiveRoom;
+  liveRoomId?: string | null;
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
@@ -611,6 +614,11 @@ export const typeDefs = /* GraphQL */ `
     URL to the post
     """
     url: String
+
+    """
+    Live room promoted by this post
+    """
+    liveRoom: LiveRoom
 
     """
     Title of the post
@@ -1880,8 +1888,15 @@ const nullableImageType = [
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
 
-export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
-  `${process.env.URL_PREFIX}/r/${post.shortId}`;
+export const getPostPermalink = (
+  post: Pick<GQLPost, 'shortId' | 'type' | 'liveRoomId'>,
+): string => {
+  if (post.type === PostType.LiveRoom && post.liveRoomId) {
+    return `${process.env.COMMENTS_PREFIX}/standups/${post.liveRoomId}`;
+  }
+
+  return `${process.env.URL_PREFIX}/r/${post.shortId}`;
+};
 
 export const getPostByUrl = async (
   ctx: Context,
