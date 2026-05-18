@@ -1472,16 +1472,9 @@ describe('query feedByTags', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should override allowed_tags with the provided tags', async () => {
+  it('should override allowed_tags with the provided tags and use for_you_by_tag config', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-
-    nock('http://localhost:6002')
-      .post('/config')
-      .reply(200, {
-        user_id: '1',
-        config: { providers: {} },
-      });
 
     let capturedBody: Record<string, unknown> = {};
     nock('http://localhost:6000')
@@ -1501,6 +1494,7 @@ describe('query feedByTags', () => {
     });
 
     expect(res.errors).toBeFalsy();
+    expect(capturedBody.feed_config_name).toBe('for_you_by_tag');
     expect(capturedBody.allowed_tags).toEqual(['rust', 'webdev']);
     expect(capturedBody.blocked_tags).toEqual(
       expect.arrayContaining(['golang']),

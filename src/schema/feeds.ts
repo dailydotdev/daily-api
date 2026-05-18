@@ -67,6 +67,7 @@ import {
   getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
 } from '../integrations/feed';
+import { getForYouByTagFeedGenerator } from '../integrations/feed/generators';
 import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -1769,20 +1770,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       if (isMockEnabled()) {
         return feedByTagsLocalResolver(source, { ...args, tags }, ctx, info);
       }
-      const generator = getForYouFeedGenerator(args).withConfigTransform(
-        (result) => ({
-          ...result,
-          config: {
-            ...result.config,
-            allowed_tags: tags,
-          },
-        }),
-      );
       return feedResolverCursor(
         source,
         {
           ...(args as FeedArgs),
-          generator,
+          generator: getForYouByTagFeedGenerator(tags),
         },
         ctx,
         info,

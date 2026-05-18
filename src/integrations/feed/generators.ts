@@ -99,6 +99,22 @@ const opts: Options = {
   includeBlockedUsers: true,
 };
 
+export const getForYouByTagFeedGenerator = (tags: string[]): FeedGenerator =>
+  new FeedGenerator(
+    feedClient,
+    new FeedPreferencesConfigGenerator(
+      {
+        ...baseFeedConfig,
+        feed_config_name: FeedConfigName.ForYouByTag,
+        allowed_tags: tags,
+      },
+      {
+        ...opts,
+        includeAllowedTags: undefined, // we add tags from query arguments above
+      },
+    ),
+  );
+
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({
     popular: new FeedGenerator(

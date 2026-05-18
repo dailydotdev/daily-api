@@ -47,6 +47,7 @@ export enum FeedConfigName {
   // currently used when sorting custom feed by other option then recommended
   CustomFeedNaV1 = 'custom_feed_na_v1',
   ForYouByDate = 'for_you_by_date',
+  ForYouByTag = 'for_you_by_tag',
 }
 
 export type FeedProvider = {
