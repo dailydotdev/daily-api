@@ -3,6 +3,7 @@ import createOrGetConnection from '../../src/db';
 import { ChannelDigest } from '../../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../../src/entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../src/entity/ChannelHighlightRun';
+import { HighlightsCanonical } from '../../src/entity/HighlightsCanonical';
 import { AGENTS_DIGEST_SOURCE, UNKNOWN_SOURCE } from '../../src/entity/Source';
 import {
   PostHighlight,
@@ -167,6 +168,7 @@ describe('channel highlight generation cron', () => {
     await con.getRepository(ChannelHighlightRun).clear();
     await con.getRepository(ChannelHighlightDefinition).clear();
     await con.getRepository(ChannelDigest).clear();
+    await con.getRepository(HighlightsCanonical).clear();
     await con.getRepository(PostHighlight).clear();
     await con.getRepository(PostRelation).clear();
     await con
@@ -306,6 +308,13 @@ describe('channel highlight generation cron', () => {
       headline: 'Live headline',
     });
 
+    const canonicalHighlights = await con
+      .getRepository(HighlightsCanonical)
+      .find({
+        order: { highlightedAt: 'DESC' },
+      });
+    expect(canonicalHighlights).toEqual([]);
+
     const run = await con.getRepository(ChannelHighlightRun).findOneByOrFail({
       channel: 'vibes',
     });
@@ -356,6 +365,20 @@ describe('channel highlight generation cron', () => {
         headline: 'Older live headline',
       },
     ]);
+    await con.getRepository(HighlightsCanonical).save([
+      {
+        postId: 'new-live',
+        channels: ['vibes'],
+        highlightedAt: new Date('2026-03-03T10:00:00.000Z'),
+        headline: 'Newer live headline',
+      },
+      {
+        postId: 'old-live',
+        channels: ['vibes'],
+        highlightedAt: new Date('2026-03-03T09:00:00.000Z'),
+        headline: 'Older live headline',
+      },
+    ]);
 
     jest.spyOn(evaluator, 'evaluateChannelHighlights').mockResolvedValue({
       items: [
@@ -390,6 +413,31 @@ describe('channel highlight generation cron', () => {
       postId: 'old-live',
     });
     expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
+
+    const canonicalHighlights = await con
+      .getRepository(HighlightsCanonical)
+      .find({
+        order: { highlightedAt: 'DESC' },
+      });
+    expect(canonicalHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        channels: ['vibes'],
+        headline: 'Fresh headline',
+        significance: PostHighlightSignificance.Breaking,
+        reason: 'test',
+      }),
+      expect.objectContaining({
+        postId: 'new-live',
+        channels: ['vibes'],
+        headline: 'Newer live headline',
+      }),
+      expect.objectContaining({
+        postId: 'old-live',
+        channels: ['vibes'],
+        headline: 'Older live headline',
+      }),
+    ]);
   });
 
   it('should evaluate globally and fan out admitted highlights to all enabled post channels', async () => {
@@ -464,6 +512,17 @@ describe('channel highlight generation cron', () => {
       expect.objectContaining({
         channel: 'vibes',
         postId: 'global-fresh',
+        headline: 'Global headline',
+        significance: PostHighlightSignificance.Major,
+      }),
+    ]);
+    const canonicalHighlights = await con
+      .getRepository(HighlightsCanonical)
+      .find();
+    expect(canonicalHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'global-fresh',
+        channels: ['backend', 'vibes'],
         headline: 'Global headline',
         significance: PostHighlightSignificance.Major,
       }),

@@ -6,7 +6,7 @@ import { UNKNOWN_SOURCE } from '../../entity/Source';
 import { getChannelDigestSourceIds } from '../channelDigest/definitions';
 import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
-import { replaceHighlightsForChannel } from './publish';
+import { publishHighlightsForChannel } from './publish';
 import {
   fetchCollectionMembership,
   fetchCurrentHighlightsForChannels,
@@ -589,7 +589,7 @@ export const generateChannelHighlights = async ({
         );
 
         if (shouldPublish) {
-          await replaceHighlightsForChannel({
+          await publishHighlightsForChannel({
             manager,
             channel: definition.channel,
             items: internalHighlights,
