@@ -737,6 +737,45 @@ describe('live rooms', () => {
     expect(scope.isDone()).toBe(true);
   });
 
+  it('limits active live rooms', async () => {
+    await saveFixtures(
+      con,
+      LiveRoom,
+      Array.from({ length: 6 }, (_, index) => ({
+        id: `0000000${index}-b26e-44fb-b9f8-4c977b28a123`,
+        hostId: '1',
+        topic: `Live room ${index}`,
+        mode: 'moderated',
+        status: LiveRoomStatus.Live,
+        createdAt: new Date(`2035-01-0${index + 1}T12:00:00.000Z`),
+      })),
+    );
+
+    const res = await client.query(/* GraphQL */ `
+      query ActiveLiveRooms {
+        activeLiveRooms(limit: 2) {
+          id
+          topic
+          status
+        }
+      }
+    `);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.activeLiveRooms).toEqual([
+      {
+        id: '00000005-b26e-44fb-b9f8-4c977b28a123',
+        topic: 'Live room 5',
+        status: 'live',
+      },
+      {
+        id: '00000004-b26e-44fb-b9f8-4c977b28a123',
+        topic: 'Live room 4',
+        status: 'live',
+      },
+    ]);
+  });
+
   it('keeps active live rooms visible when the batched count lookup fails', async () => {
     await saveFixtures(con, LiveRoom, [
       {
