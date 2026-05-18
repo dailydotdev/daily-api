@@ -1,7 +1,9 @@
-import type { EntityManager } from 'typeorm';
+import { In, type EntityManager } from 'typeorm';
+import { HighlightsCanonical } from '../../entity/HighlightsCanonical';
 import {
   PostHighlight,
   toPostHighlightSignificance,
+  toPostHighlightSignificanceLabel,
 } from '../../entity/PostHighlight';
 import type { HighlightItem } from './types';
 
@@ -25,7 +27,7 @@ const normalizeHighlightItems = ({
   return [...dedupedItems.values()];
 };
 
-export const replaceHighlightsForChannel = async ({
+const replaceLegacyHighlightsForChannel = async ({
   manager,
   channel,
   items,
@@ -86,4 +88,78 @@ export const replaceHighlightsForChannel = async ({
       });
     }),
   );
+};
+
+const upsertCanonicalHighlights = async ({
+  manager,
+  channel,
+  items,
+}: {
+  manager: EntityManager;
+  channel: string;
+  items: HighlightItem[];
+}): Promise<HighlightsCanonical[]> => {
+  const repo = manager.getRepository(HighlightsCanonical);
+  const nextItems = normalizeHighlightItems({
+    items,
+    retiredPostIds: new Set(),
+  });
+
+  if (!nextItems.length) {
+    return [];
+  }
+
+  const currentByPostId = new Map(
+    (
+      await repo.findBy({
+        postId: In(nextItems.map((item) => item.postId)),
+      })
+    ).map((highlight) => [highlight.postId, highlight]),
+  );
+
+  return repo.save(
+    nextItems.map((item) => {
+      const current = currentByPostId.get(item.postId);
+
+      return repo.create({
+        id: current?.id,
+        postId: item.postId,
+        channels: [...new Set([...(current?.channels || []), channel])].sort(),
+        highlightedAt: item.highlightedAt,
+        headline: item.headline,
+        significance: toPostHighlightSignificance(item.significanceLabel),
+        reason: item.reason,
+      });
+    }),
+  );
+};
+
+export const publishHighlightsForChannel = async ({
+  manager,
+  channel,
+  items,
+}: {
+  manager: EntityManager;
+  channel: string;
+  items: HighlightItem[];
+}): Promise<void> => {
+  const canonicalHighlights = await upsertCanonicalHighlights({
+    manager,
+    channel,
+    items,
+  });
+
+  await replaceLegacyHighlightsForChannel({
+    manager,
+    channel,
+    items: canonicalHighlights.map((highlight) => ({
+      postId: highlight.postId,
+      highlightedAt: highlight.highlightedAt,
+      headline: highlight.headline,
+      significanceLabel: toPostHighlightSignificanceLabel(
+        highlight.significance,
+      ),
+      reason: highlight.reason,
+    })),
+  });
 };
