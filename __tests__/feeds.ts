@@ -176,6 +176,16 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
       type: PostType.VideoYouTube,
     },
   },
+  {
+    id: 8,
+    title: 'Standups',
+    description: 'Live standup posts hosted on daily.dev.',
+    defaultEnabledState: true,
+    group: 'content_types',
+    options: {
+      type: PostType.LiveRoom,
+    },
+  },
 ];
 
 const categories: Partial<Category>[] = [
@@ -4014,6 +4024,20 @@ describe('function feedToFilters', () => {
     await saveAdvancedSettingsFiltersFixtures();
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeTypes).toEqual(['video:youtube']);
+  });
+
+  it('should return filters having excluded standups based on advanced settings', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    await saveFixtures(con, FeedAdvancedSettings, [
+      { feedId: '1', advancedSettingsId: 8, enabled: false },
+    ]);
+
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeTypes).toEqual([
+      PostType.VideoYouTube,
+      PostType.LiveRoom,
+    ]);
   });
 
   it('should return filters for tags/sources based on the values from our data', async () => {
