@@ -13,6 +13,7 @@ import {
 } from '../common/contentEmbeds';
 import { renderMarkdown } from '../common/markdown';
 import {
+  activeLiveRoomsQuerySchema,
   createLiveRoomSchema,
   LiveRoomMode,
   LiveRoomParticipantRole,
@@ -84,7 +85,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     liveRoom(id: ID!): LiveRoom
-    activeLiveRooms: [LiveRoom!]!
+    activeLiveRooms(limit: Int): [LiveRoom!]!
   }
 
   extend type Mutation {
@@ -350,11 +351,13 @@ export const resolvers: IResolvers = {
       ),
     activeLiveRooms: async (
       _,
-      __,
+      args: { limit?: number | null },
       ctx: Context,
       info,
-    ): Promise<GQLLiveRoom[]> =>
-      graphorm.query<GQLLiveRoom>(
+    ): Promise<GQLLiveRoom[]> => {
+      const input = activeLiveRoomsQuerySchema.parse(args);
+
+      return graphorm.query<GQLLiveRoom>(
         ctx,
         info,
         (builder) => {
@@ -362,11 +365,13 @@ export const resolvers: IResolvers = {
             .where(`"${builder.alias}"."status" = :status`, {
               status: LiveRoomStatus.Live,
             })
-            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC');
+            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
+            .limit(input.limit);
           return builder;
         },
         true,
-      ),
+      );
+    },
   },
   Mutation: {
     createLiveRoom: async (

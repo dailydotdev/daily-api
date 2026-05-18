@@ -70,6 +70,16 @@ export const createLiveRoomSchema = z
     }
   });
 
+export const activeLiveRoomsQuerySchema = z.object({
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .nullish()
+    .transform((value) => value ?? 5),
+});
+
 export const liveRoomIdSchema = z.uuid('Live room ID must be a valid UUID');
 
 export const liveRoomIdInputSchema = z.object({

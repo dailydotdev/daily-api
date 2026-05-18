@@ -54,6 +54,7 @@ import {
 
 import {
   ONE_DAY_IN_SECONDS,
+  ONE_MINUTE_IN_SECONDS,
   base64,
   getSourceLink,
   submitArticleThreshold,
@@ -104,6 +105,8 @@ import {
   skadiEngagementClient,
   type EngagementCreative,
 } from '../integrations/skadi';
+import { LiveRoom } from '../entity/LiveRoom';
+import { LiveRoomStatus } from '../common/schema/liveRooms';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -155,6 +158,7 @@ export type BaseBoot = {
   alerts: BootAlerts;
   settings: Omit<Settings, 'userId' | 'updatedAt' | 'user'>;
   notifications: { unreadNotificationsCount: number };
+  liveRooms: { hasLive: boolean };
   squads: BootSquadSource[];
   exp?: Experimentation;
   geo: Geo;
@@ -226,6 +230,36 @@ const getBootAppPlatform = (req: FastifyRequest): string | undefined =>
 
 const isExtensionBootRequest = (req: FastifyRequest): boolean =>
   getBootAppPlatform(req) === 'extension';
+
+const LIVE_ROOMS_BOOT_CACHE_TTL_SECONDS = ONE_MINUTE_IN_SECONDS / 2;
+
+const liveRoomsBootCacheKey = (): string =>
+  generateStorageKey(StorageTopic.LiveRoom, StorageKey.HasLiveRooms, 'global');
+
+const getLiveRoomsBoot = async (
+  con: DataSource,
+): Promise<{ hasLive: boolean }> => {
+  const cacheKey = liveRoomsBootCacheKey();
+  const cached = await getRedisObject(cacheKey);
+
+  if (cached !== null) {
+    return { hasLive: cached === '1' };
+  }
+
+  const hasLive = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(LiveRoom).exists({
+      where: { status: LiveRoomStatus.Live },
+    }),
+  );
+
+  await setRedisObjectWithExpiry(
+    cacheKey,
+    hasLive ? '1' : '0',
+    LIVE_ROOMS_BOOT_CACHE_TTL_SECONDS,
+  );
+
+  return { hasLive };
+};
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
   generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);
@@ -727,6 +761,7 @@ const loggedInBoot = async ({
       clickbaitTries,
       anonymousTheme,
       engagementCreatives,
+      liveRooms,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -755,6 +790,7 @@ const loggedInBoot = async ({
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
       getEngagementCreatives(userId),
+      getLiveRoomsBoot(con),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -862,6 +898,7 @@ const loggedInBoot = async ({
         'bookmarkSlug',
       ]),
       notifications: { unreadNotificationsCount },
+      liveRooms,
       squads,
       accessToken,
       exp,
@@ -941,15 +978,23 @@ const anonymousBoot = async (
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
-  const [visit, extra, firstVisit, exp, existingTheme, engagementCreatives] =
-    await Promise.all([
-      visitSection(req, res),
-      middleware ? middleware(con, req, res) : {},
-      getAnonymousFirstVisit(req.trackingId),
-      getExperimentation({ userId: req.trackingId, con, ...geo }),
-      getAnonymousTheme(req.trackingId),
-      getEngagementCreatives(req.trackingId ?? ''),
-    ]);
+  const [
+    visit,
+    extra,
+    firstVisit,
+    exp,
+    existingTheme,
+    engagementCreatives,
+    liveRooms,
+  ] = await Promise.all([
+    visitSection(req, res),
+    middleware ? middleware(con, req, res) : {},
+    getAnonymousFirstVisit(req.trackingId),
+    getExperimentation({ userId: req.trackingId, con, ...geo }),
+    getAnonymousTheme(req.trackingId),
+    getEngagementCreatives(req.trackingId ?? ''),
+    getLiveRoomsBoot(con),
+  ]);
 
   // Determine theme: use existing preference or referrer-based default
   const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
@@ -976,6 +1021,7 @@ const anonymousBoot = async (
       ...(theme && { theme }),
     },
     notifications: { unreadNotificationsCount: 0 },
+    liveRooms,
     squads: [],
     exp,
     geo,

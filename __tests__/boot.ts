@@ -92,6 +92,8 @@ import { UserExperienceWork } from '../src/entity/user/experiences/UserExperienc
 import { UserExperienceEducation } from '../src/entity/user/experiences/UserExperienceEducation';
 import * as betterAuthModule from '../src/betterAuth';
 import { remoteConfig } from '../src/remoteConfig';
+import { LiveRoom } from '../src/entity/LiveRoom';
+import { LiveRoomStatus } from '../src/common/schema/liveRooms';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -106,6 +108,7 @@ const BASE_BODY = {
   },
   settings: { ...SETTINGS_DEFAULT },
   notifications: { unreadNotificationsCount: 0 },
+  liveRooms: { hasLive: false },
   squads: [],
   visit: {
     sessionId: expect.any(String),
@@ -224,6 +227,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  await con.getRepository(LiveRoom).createQueryBuilder().delete().execute();
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
@@ -251,6 +255,47 @@ describe('anonymous boot', () => {
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+
+  it('should indicate when there are live rooms', async () => {
+    await con.getRepository(LiveRoom).save({
+      id: '32ad3407-0d6a-4d95-98c2-bc5a3d7cf4d1',
+      hostId: '1',
+      topic: 'Live boot hint',
+      mode: 'moderated',
+      status: LiveRoomStatus.Live,
+    });
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body.liveRooms).toEqual({ hasLive: true });
+  });
+
+  it('should reuse the cached live rooms boot hint', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    await con.getRepository(LiveRoom).save({
+      id: '61168086-ce61-4c1a-a56e-dcf173d31150',
+      hostId: '1',
+      topic: 'Recently started room',
+      mode: 'moderated',
+      status: LiveRoomStatus.Live,
+    });
+
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+
+    expect(first.body.liveRooms).toEqual({ hasLive: false });
+    expect(second.body.liveRooms).toEqual({ hasLive: false });
   });
 
   it('should keep the same tracking and session id', async () => {
