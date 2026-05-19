@@ -576,6 +576,14 @@ describe('channel highlight generation cron', () => {
       significance: PostHighlightSignificance.Major,
       reason: 'existing',
     });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'child-upgrade',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
+      headline: 'Original child headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'existing',
+    });
 
     const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
 
@@ -602,6 +610,18 @@ describe('channel highlight generation cron', () => {
       postId: 'child-upgrade',
     });
     expect(retiredHighlight?.retiredAt).toBeInstanceOf(Date);
+    const canonicalHighlights = await con
+      .getRepository(HighlightsCanonical)
+      .find();
+    expect(canonicalHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'col-upgrade',
+        channels: ['vibes'],
+        headline: 'Original child headline',
+        significance: PostHighlightSignificance.Major,
+        reason: 'existing',
+      }),
+    ]);
   });
 
   it('should exclude retired highlights from candidates and keep them retired', async () => {

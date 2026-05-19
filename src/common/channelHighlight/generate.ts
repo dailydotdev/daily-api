@@ -593,6 +593,7 @@ export const generateChannelHighlights = async ({
             manager,
             channel: definition.channel,
             items: internalHighlights,
+            relations,
           });
           published = true;
         }
