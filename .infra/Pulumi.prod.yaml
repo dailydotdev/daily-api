@@ -200,6 +200,9 @@ config:
     tenorApiKey:
       secure: AAABAApa5GEV473b7T+WtKazqzPbyQDc7qFT3SZjqmU1LL1n24jwcpn2/bwRINsUz4vwduduqh0/0ey1JpoWfEFJ1LvxlLk=
     tenorGifSearchUrl: https://tenor.googleapis.com/v2/search
+    klipyApiKey:
+      secure: AAABADCz8pDVkU6+4S9ePSsZZns8/GmH89qpZpXK51LLA52CMXrY8ktOI9+MHLzROb8neJ371IP/UxnLlPzX++wFTmRtC7q++KgM2Qi8xWDAli88vVmy54lLDjJUvUgk
+    klipyGifSearchUrl: https://api.klipy.com/v2/search
     gondulOpportunityServerOrigin:
       secure: AAABADfUUbSK5WvKYJM6lgpfvaPChqDYdUolX6Kv6/TMy0D7hWJWPbkipmq9W8vXbkuM97XzU2RlJGFB/9eiVfEdB6jBvu2C9iu5GbJ276481jB8Q+lw1do=
     intercomSecretKey:
@@ -286,6 +289,3 @@ config:
       secure: AAABAH16I8xQAJjTyasPQzLDqd3AAo7q4dMEBGHVbgJJVvSviQelQT09
     signingKey:
       secure: AAABAGxRaqkffmtnKxeVFwStkBB2QUM1t5XtIOBJN0T/AcAJOac8oaovU/4H41JxFS5tnOOvWqN6HLvyejByOZ6UtxF6DqC27mvRiOKu863MKg7JrL3wPhHqEEgDJmdoGfqJw4Yady/CLRMqn58TCUwwNHRlcESng2RmwT9+BDXZywRFXfE5NKp41qLtLeOU6piAooQghHjVX6EQd8AG9Ffl2ehijRcwNnpgkQR8oz1V+Ilat6fvn9qQT1bjrBSE6oagdOxeLBdsVOmoa0H6ZbocsGmtvETEypK1uW62QD/Ar2PYtRSsFhvY9YiUf5qMxa6Kp1fJ4IdupoOKaAZY3yHlTFHXkU6pg0GGpfhktfaEgZaEgxcoknpQzPwEknjiAQ==
-  api:klipyApiKey:
-    secure: AAABADCz8pDVkU6+4S9ePSsZZns8/GmH89qpZpXK51LLA52CMXrY8ktOI9+MHLzROb8neJ371IP/UxnLlPzX++wFTmRtC7q++KgM2Qi8xWDAli88vVmy54lLDjJUvUgk
-  api:klipyGifSearchUrl: https://api.klipy.com/v2/search
