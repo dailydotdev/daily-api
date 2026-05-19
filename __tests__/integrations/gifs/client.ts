@@ -1,5 +1,5 @@
 import nock from 'nock';
-import { TenorClient } from '../../../src/integrations/tenor/clients';
+import { KlipyClient } from '../../../src/integrations/gifs/clients';
 import { GarmrNoopService } from '../../../src/integrations/garmr';
 import {
   deleteKeysByPattern,
@@ -7,21 +7,21 @@ import {
   getRedisObjectExpiry,
 } from '../../../src/redis';
 
-const TENOR_API_URL = process.env.TENOR_GIF_SEARCH_URL!;
-const TENOR_SEARCH_PATH = '/v2/search';
+const KLIPY_API_URL = process.env.KLIPY_GIF_SEARCH_URL!;
+const KLIPY_SEARCH_PATH = '/v2/search';
 
-describe('TenorClient', () => {
+describe('KlipyClient', () => {
   const API_KEY = 'test-api-key';
-  let client: TenorClient;
+  let client: KlipyClient;
 
   beforeAll(() => {
-    process.env.TENOR_GIF_SEARCH_URL = `${TENOR_API_URL}${TENOR_SEARCH_PATH}`;
+    process.env.KLIPY_GIF_SEARCH_URL = `${KLIPY_API_URL}${KLIPY_SEARCH_PATH}`;
   });
 
   beforeEach(async () => {
     nock.cleanAll();
-    await deleteKeysByPattern('tenor:search:*');
-    client = new TenorClient(API_KEY, { garmr: new GarmrNoopService() });
+    await deleteKeysByPattern('klipy:search:*');
+    client = new KlipyClient(API_KEY, { garmr: new GarmrNoopService() });
   });
 
   afterEach(() => {
@@ -29,29 +29,29 @@ describe('TenorClient', () => {
   });
 
   afterAll(async () => {
-    await deleteKeysByPattern('tenor:search:*');
+    await deleteKeysByPattern('klipy:search:*');
   });
 
   describe('search', () => {
-    const mockTenorResponse = {
+    const mockKlipyResponse = {
       results: [
         {
           id: 'gif1',
           title: 'Funny cat',
           content_description: 'A funny cat',
-          url: 'https://tenor.com/gif1',
+          url: 'https://klipy.com/gif1',
           media_formats: {
-            gif: { url: 'https://media.tenor.com/gif1.gif' },
-            mediumgif: { url: 'https://media.tenor.com/gif1-medium.gif' },
+            gif: { url: 'https://media.klipy.com/gif1.gif' },
+            mediumgif: { url: 'https://media.klipy.com/gif1-medium.gif' },
           },
         },
         {
           id: 'gif2',
           title: 'Dancing dog',
           content_description: 'A dancing dog',
-          url: 'https://tenor.com/gif2',
+          url: 'https://klipy.com/gif2',
           media_formats: {
-            gif: { url: 'https://media.tenor.com/gif2.gif' },
+            gif: { url: 'https://media.klipy.com/gif2.gif' },
           },
         },
       ],
@@ -65,14 +65,14 @@ describe('TenorClient', () => {
     });
 
     it('should fetch from API on cache miss', async () => {
-      const scope = nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      const scope = nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'cats',
           key: API_KEY,
           limit: '10',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
       const result = await client.search({ q: 'cats' });
 
@@ -80,26 +80,26 @@ describe('TenorClient', () => {
       expect(result.gifs).toHaveLength(2);
       expect(result.gifs[0]).toEqual({
         id: 'gif1',
-        url: 'https://media.tenor.com/gif1.gif',
-        preview: 'https://media.tenor.com/gif1-medium.gif',
+        url: 'https://media.klipy.com/gif1.gif',
+        preview: 'https://media.klipy.com/gif1-medium.gif',
         title: 'A funny cat',
       });
       expect(result.next).toBe('next-page-token');
     });
 
     it('should cache results after API call', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'dogs',
           key: API_KEY,
           limit: '10',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
       await client.search({ q: 'dogs' });
 
-      const cached = await getRedisObject('tenor:search:dogs:10');
+      const cached = await getRedisObject('klipy:search:dogs:10');
       expect(cached).not.toBeNull();
 
       const parsedCache = JSON.parse(cached!);
@@ -109,21 +109,21 @@ describe('TenorClient', () => {
 
     it('should return cached result on cache hit without calling API', async () => {
       // First call - should hit API
-      const scope = nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      const scope = nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'birds',
           key: API_KEY,
           limit: '10',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
       await client.search({ q: 'birds' });
       expect(scope.isDone()).toBe(true);
 
       // Second call - should use cache, not API
-      const secondScope = nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      const secondScope = nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'birds',
           key: API_KEY,
@@ -141,18 +141,18 @@ describe('TenorClient', () => {
     });
 
     it('should cache with 3 hour TTL', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'fish',
           key: API_KEY,
           limit: '10',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
       await client.search({ q: 'fish' });
 
-      const ttl = await getRedisObjectExpiry('tenor:search:fish:10');
+      const ttl = await getRedisObjectExpiry('klipy:search:fish:10');
       const threeHoursInSeconds = 3 * 60 * 60;
 
       // TTL should be approximately 3 hours (allow 10 seconds tolerance)
@@ -161,8 +161,8 @@ describe('TenorClient', () => {
     });
 
     it('should NOT cache rate limited responses', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'ratelimited',
           key: API_KEY,
@@ -174,13 +174,13 @@ describe('TenorClient', () => {
 
       expect(result).toEqual({ gifs: [], next: undefined });
 
-      const cached = await getRedisObject('tenor:search:ratelimited:10');
+      const cached = await getRedisObject('klipy:search:ratelimited:10');
       expect(cached).toBeNull();
     });
 
     it('should preserve pagination position when rate limited', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'test',
           key: API_KEY,
@@ -196,21 +196,21 @@ describe('TenorClient', () => {
 
     it('should use separate cache keys for different pagination positions', async () => {
       // First page
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'animals',
           key: API_KEY,
           limit: '10',
         })
         .reply(200, {
-          results: [mockTenorResponse.results[0]],
+          results: [mockKlipyResponse.results[0]],
           next: 'page-2',
         });
 
       // Second page
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'animals',
           key: API_KEY,
@@ -218,7 +218,7 @@ describe('TenorClient', () => {
           pos: 'page-2',
         })
         .reply(200, {
-          results: [mockTenorResponse.results[1]],
+          results: [mockKlipyResponse.results[1]],
           next: 'page-3',
         });
 
@@ -234,9 +234,9 @@ describe('TenorClient', () => {
       expect(page2.next).toBe('page-3');
 
       // Verify separate cache keys
-      const cachedPage1 = await getRedisObject('tenor:search:animals:10');
+      const cachedPage1 = await getRedisObject('klipy:search:animals:10');
       const cachedPage2 = await getRedisObject(
-        'tenor:search:animals:10:page-2',
+        'klipy:search:animals:10:page-2',
       );
 
       expect(cachedPage1).not.toBeNull();
@@ -246,37 +246,37 @@ describe('TenorClient', () => {
     });
 
     it('should use separate cache keys for different limits', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'test',
           key: API_KEY,
           limit: '5',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'test',
           key: API_KEY,
           limit: '20',
         })
-        .reply(200, mockTenorResponse);
+        .reply(200, mockKlipyResponse);
 
       await client.search({ q: 'test', limit: 5 });
       await client.search({ q: 'test', limit: 20 });
 
-      const cached5 = await getRedisObject('tenor:search:test:5');
-      const cached20 = await getRedisObject('tenor:search:test:20');
+      const cached5 = await getRedisObject('klipy:search:test:5');
+      const cached20 = await getRedisObject('klipy:search:test:20');
 
       expect(cached5).not.toBeNull();
       expect(cached20).not.toBeNull();
     });
 
     it('should throw error on API failure (non-429)', async () => {
-      nock(TENOR_API_URL)
-        .get(TENOR_SEARCH_PATH)
+      nock(KLIPY_API_URL)
+        .get(KLIPY_SEARCH_PATH)
         .query({
           q: 'error',
           key: API_KEY,
@@ -285,11 +285,11 @@ describe('TenorClient', () => {
         .reply(500, 'Internal Server Error');
 
       await expect(client.search({ q: 'error' })).rejects.toThrow(
-        'Tenor API error: 500 Internal Server Error',
+        'Klipy API error: 500 Internal Server Error',
       );
 
       // Should not cache error responses
-      const cached = await getRedisObject('tenor:search:error:10');
+      const cached = await getRedisObject('klipy:search:error:10');
       expect(cached).toBeNull();
     });
   });

@@ -47,6 +47,7 @@ export enum FeedConfigName {
   // currently used when sorting custom feed by other option then recommended
   CustomFeedNaV1 = 'custom_feed_na_v1',
   ForYouByDate = 'for_you_by_date',
+  ForYouByTag = 'for_you_by_tag',
 }
 
 export type FeedProvider = {
@@ -125,12 +126,13 @@ export interface IFeedClient {
   /**
    * Fetches the feed from the service
    * @param ctx GraphQL context
-   * @param feedId The feed ID (used for caching primarily)
+   * @param path The feed-service request path (e.g. `/api/feed`, `/api/personalised`)
    * @param config The feed config
+   * @param extraMetadata Metadata merged into every item's feedMeta
    */
   fetchFeed(
     ctx: Context,
-    feedId: string,
+    path: string,
     config: FeedConfig,
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;

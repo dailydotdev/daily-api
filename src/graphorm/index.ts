@@ -572,6 +572,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'liveRoomId',
       'subType',
       'slug',
       'translation',
@@ -723,6 +724,13 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
               .andWhere(`${childAlias}."deleted" = false`),
+        },
+      },
+      liveRoom: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'liveRoomId',
         },
       },
       downvoted: {

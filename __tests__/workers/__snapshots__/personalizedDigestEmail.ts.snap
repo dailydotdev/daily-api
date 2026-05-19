@@ -11,6 +11,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -24,6 +25,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -41,6 +43,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -54,6 +57,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -67,6 +71,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -112,6 +117,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -125,6 +131,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -142,6 +149,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -155,6 +163,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -168,6 +177,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -234,6 +244,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -247,6 +258,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -264,6 +276,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -277,6 +290,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -290,6 +304,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -356,6 +371,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -369,6 +385,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -386,6 +403,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -399,6 +417,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -412,6 +431,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -478,6 +498,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -491,6 +512,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -508,6 +530,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -521,6 +544,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -534,6 +558,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -600,6 +625,7 @@ Object {
     "first_name": "Ido",
     "posts": Array [
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -613,6 +639,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -630,6 +657,7 @@ Object {
         "type": "ad_plus",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -643,6 +671,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
@@ -656,6 +685,7 @@ Object {
         "type": "post",
       },
       Object {
+        "cta_label": "Read article →",
         "post_comments": 5,
         "post_image": "https://daily.dev/image.jpg",
         "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",

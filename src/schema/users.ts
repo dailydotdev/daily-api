@@ -3,11 +3,12 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import type { z } from 'zod';
-import { guessWhoQuizStepInputSchema } from '../common/schema/guessWhoQuizStep';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
 import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
 import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
 import { onboardingRecommendTagsInputSchema } from '../common/schema/onboardingRecommendTags';
+import { personaQuizNextQuestionInputSchema } from '../common/schema/personaQuizNextQuestion';
+import { personaQuizRevealInputSchema } from '../common/schema/personaQuizReveal';
 import { recswipeClient } from '../integrations/recswipe/clients';
 import { HttpError } from '../integrations/retry';
 import { ServiceError } from '../errors';
@@ -1840,13 +1841,28 @@ export const typeDefs = /* GraphQL */ `
     ): OnboardingRecommendTagsResult! @auth
 
     """
-    Send the current Guess Who quiz Q&A history to bragi. Returns either the
-    next clarifying question or the final persona (with tags extracted from the
-    persona description via recswipe). Stateless — caller resends history each
-    turn.
+    Akinator-style persona quiz: ask bragi for the next guess based on prior
+    Q&A. daily-api fetches NMF candidate_topics from recswipe and passes them
+    to bragi as steering signals. Stateless — caller resends history each turn.
     """
-    guessWhoQuizStep(history: [GuessWhoQuizQAInput!]!): GuessWhoQuizStepResult!
-      @auth
+    personaQuizNextQuestion(
+      priorAnswers: [PersonaQuizQAInput!]!
+      seedTags: [String!]!
+      askedCount: Int!
+      maxQuestions: Int
+    ): PersonaQuizNextQuestionResult! @auth
+
+    """
+    Final-screen reveal: bragi turns the Q&A history into canonical tag
+    suggestions + a reveal headline / description; daily-api merges with
+    recswipe NMF recommendations and filters everything through the canonical
+    Keyword table so only existing keywords reach \`feedSettings.includeTags\`.
+    """
+    personaQuizReveal(
+      answers: [PersonaQuizQAInput!]!
+      seedTags: [String!]!
+      targetCount: Int
+    ): PersonaQuizRevealResult! @auth
   }
 
   type OnboardingTagsResult {
@@ -1879,25 +1895,41 @@ export const typeDefs = /* GraphQL */ `
     tags: [String!]!
   }
 
-  input GuessWhoQuizQAInput {
+  input PersonaQuizQAInput {
+    questionId: String!
     question: String!
+    optionId: String!
     answer: String!
   }
 
-  type GuessWhoQuizQuestion {
-    question: String!
-    options: [String!]!
+  type PersonaQuizOption {
+    id: String!
+    label: String!
+    emoji: String
+    tagHints: [String!]!
   }
 
-  type GuessWhoQuizPersona {
-    name: String!
+  type PersonaQuizQuestion {
+    id: String!
+    prompt: String!
+    axis: String!
+    cols: Int
+    options: [PersonaQuizOption!]!
+  }
+
+  type PersonaQuizNextQuestionResult {
+    isFinal: Boolean!
+    question: PersonaQuizQuestion
+  }
+
+  type PersonaQuizRevealText {
+    headline: String!
     description: String!
-    tags: [String!]!
   }
 
-  type GuessWhoQuizStepResult {
-    nextQuestion: GuessWhoQuizQuestion
-    finalPersona: GuessWhoQuizPersona
+  type PersonaQuizRevealResult {
+    includeTags: [String!]!
+    reveal: PersonaQuizRevealText
   }
 `;
 
@@ -4497,60 +4529,195 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw err;
       }
     },
-    guessWhoQuizStep: async (
+    personaQuizNextQuestion: async (
       _,
-      args: z.input<typeof guessWhoQuizStepInputSchema>,
+      args: z.input<typeof personaQuizNextQuestionInputSchema>,
       ctx: AuthContext,
     ) => {
-      const parsed = guessWhoQuizStepInputSchema.parse(args);
+      const parsed = personaQuizNextQuestionInputSchema.parse(args);
+
+      // Fetch NMF candidate_topics from recswipe to steer bragi's next guess.
+      // Best-effort — if recswipe is down we still call bragi without steering.
+      let candidateTopics: string[] = [];
+      if (parsed.seedTags.length > 0) {
+        try {
+          const recs = await recswipeClient.recommendTags(ctx.userId, {
+            selectedTags: parsed.seedTags,
+            n: 12,
+          });
+          const seen = new Set(parsed.seedTags.map((t) => t.toLowerCase()));
+          candidateTopics = (recs.recommended_tags ?? [])
+            .map((t) => t.tag)
+            .filter((t) => !seen.has(t.toLowerCase()))
+            .slice(0, 12);
+        } catch {
+          candidateTopics = [];
+        }
+      }
 
       try {
         const client = getBragiClient();
         const bragiResp = await client.garmr.execute(() =>
-          client.instance.guessWhoQuiz({
-            history: parsed.history,
+          client.instance.nextPersonaQuizQuestion({
+            priorAnswers: parsed.priorAnswers,
+            seedTags: parsed.seedTags,
+            askedCount: parsed.askedCount,
+            maxQuestions: parsed.maxQuestions,
+            candidateTopics,
             application: 'webapp',
           }),
         );
 
-        const { result } = bragiResp;
-        if (result.case === 'nextQuestion') {
-          return {
-            nextQuestion: {
-              question: result.value.question,
-              options: [...result.value.options],
-            },
-            finalPersona: null,
-          };
+        if (bragiResp.isFinal || !bragiResp.question) {
+          return { isFinal: true, question: null };
         }
-        if (result.case === 'finalPersona') {
-          const persona = result.value;
-          const tagData = await recswipeClient.extractTags(ctx.userId, {
-            prompt: persona.description,
-          });
-          return {
-            nextQuestion: null,
-            finalPersona: {
-              name: persona.name,
-              description: persona.description,
-              tags: tagData.tags ?? [],
-            },
-          };
-        }
-        throw new ServiceError({
-          message:
-            'Bragi guessWhoQuiz returned neither nextQuestion nor finalPersona',
-          statusCode: 502,
-        });
+        const q = bragiResp.question;
+        return {
+          isFinal: false,
+          question: {
+            id: q.id,
+            prompt: q.prompt,
+            axis: q.axis,
+            cols: q.cols || null,
+            options: q.options.map((o) => ({
+              id: o.id,
+              label: o.label,
+              emoji: o.emoji || null,
+              tagHints: [...o.tagHints],
+            })),
+          },
+        };
       } catch (err) {
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            askedCount: parsed.askedCount,
+            seedTagCount: parsed.seedTags.length,
+            priorAnswerCount: parsed.priorAnswers.length,
+          },
+          'personaQuizNextQuestion: request failed',
+        );
         if (err instanceof HttpError) {
           throw new ServiceError({
-            message: 'guessWhoQuizStep request failed',
+            message: 'personaQuizNextQuestion request failed',
             data: err.response,
             statusCode: err.statusCode,
           });
         }
+        throw err;
+      }
+    },
+    personaQuizReveal: async (
+      _,
+      args: z.input<typeof personaQuizRevealInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = personaQuizRevealInputSchema.parse(args);
 
+      try {
+        const client = getBragiClient();
+        const bragiResp = await client.garmr.execute(() =>
+          client.instance.personaQuizReveal({
+            answers: parsed.answers,
+            seedTags: parsed.seedTags,
+            targetCount: parsed.targetCount,
+            application: 'webapp',
+          }),
+        );
+
+        // Surface unexpected bragi responses (success status but empty
+        // reveal copy) — without this log the frontend silently falls back
+        // to the seed-tag headline and the root cause stays invisible.
+        const bragiHasReveal = !!(
+          bragiResp.reveal &&
+          (bragiResp.reveal.headline || bragiResp.reveal.description)
+        );
+        if (!bragiHasReveal) {
+          logger.warn(
+            {
+              userId: ctx.userId,
+              bragiId: bragiResp.id,
+              includeTagCount: bragiResp.includeTags?.length ?? 0,
+              answerCount: parsed.answers.length,
+              seedTagCount: parsed.seedTags.length,
+            },
+            'personaQuizReveal: bragi returned empty reveal',
+          );
+        }
+
+        // Fetch recsys-grounded fillers in parallel-friendly fashion. Used to
+        // pad the LLM tag list up to targetCount once we've filtered through
+        // the canonical Keyword table.
+        let recsysFillers: string[] = [];
+        if (parsed.seedTags.length > 0) {
+          try {
+            const recs = await recswipeClient.recommendTags(ctx.userId, {
+              selectedTags: parsed.seedTags,
+              n: parsed.targetCount * 2,
+            });
+            recsysFillers = (recs.recommended_tags ?? []).map((t) => t.tag);
+          } catch {
+            recsysFillers = [];
+          }
+        }
+
+        const seen = new Set<string>();
+        const merged: string[] = [];
+        const push = (tag: string) => {
+          const key = tag.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(tag);
+          }
+        };
+        bragiResp.includeTags.forEach(push);
+        recsysFillers.forEach(push);
+
+        // Canonical filter: only keep tags that exist in the Keyword table.
+        // ContentPreferenceKeyword.keywordId is a FK to Keyword — unknown
+        // tags would raise a FK violation when followTags persists them.
+        let canonical: string[] = [];
+        if (merged.length > 0) {
+          const known = await ctx.con
+            .getRepository(Keyword)
+            .createQueryBuilder()
+            .select(['value'])
+            .where('value IN (:...values)', { values: merged })
+            .getRawMany<{ value: string }>();
+          const valid = new Set(known.map((k) => k.value));
+          canonical = merged.filter((t) => valid.has(t));
+        }
+
+        return {
+          includeTags: canonical.slice(0, parsed.targetCount),
+          reveal: bragiHasReveal
+            ? {
+                headline: bragiResp.reveal!.headline,
+                description: bragiResp.reveal!.description,
+              }
+            : null,
+        };
+      } catch (err) {
+        // Log the failure explicitly — the GraphQL middleware will also
+        // log a generic "unexpected graphql error" further up, but having
+        // a resolver-tagged entry makes it greppable by feature name.
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            answerCount: parsed.answers.length,
+            seedTagCount: parsed.seedTags.length,
+          },
+          'personaQuizReveal: request failed',
+        );
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'personaQuizReveal request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
         throw err;
       }
     },

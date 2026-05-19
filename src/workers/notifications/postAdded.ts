@@ -4,8 +4,10 @@ import {
   PostFlags,
   PostMention,
   PostType,
+  Source,
   SourceMember,
   SourceType,
+  SquadSource,
   User,
   UserAction,
   UserActionType,
@@ -161,6 +163,51 @@ export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
               userIds: members.map(({ userId }) => userId),
             } as NotificationSourceContext & NotificationPostContext,
           });
+        }
+
+        if (!post.private) {
+          const linkedSquads = await con
+            .getRepository(SquadSource)
+            .createQueryBuilder('s')
+            .where(`s.type = :type`, { type: SourceType.Squad })
+            .andWhere(`s."linkedSourceIds" @> ARRAY[:sourceId]::text[]`, {
+              sourceId: source.id,
+            })
+            .getMany();
+
+          const perSquadNotifs = await Promise.all(
+            linkedSquads.map(async (squad) => {
+              const subscribedMembers = await getOptInSubscribedMembers({
+                con,
+                type: NotificationType.SquadPostAdded,
+                referenceId: squad.id,
+                where: {
+                  sourceId: squad.id,
+                  role: Not(SourceMemberRoles.Blocked),
+                },
+              });
+
+              if (!subscribedMembers.length) {
+                return null;
+              }
+
+              return {
+                type: NotificationType.SquadPostAdded,
+                ctx: {
+                  ...baseCtx,
+                  source: squad as Source,
+                  userIds: subscribedMembers.map(({ userId }) => userId),
+                } as NotificationPostContext &
+                  Partial<NotificationDoneByContext>,
+              };
+            }),
+          );
+
+          for (const notif of perSquadNotifs) {
+            if (notif) {
+              notifs.push(notif);
+            }
+          }
         }
       }
     }

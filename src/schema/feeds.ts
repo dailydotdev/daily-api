@@ -10,6 +10,8 @@ import {
   Post,
   PostType,
   Source,
+  SourceType,
+  SquadSource,
   UserPost,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -38,7 +40,9 @@ import {
   tagFeedBuilder,
   toGQLEnum,
   whereKeyword,
+  whereTags,
 } from '../common';
+import { isMockEnabled } from '../mocks/common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
@@ -63,6 +67,7 @@ import {
   getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
 } from '../integrations/feed';
+import { getForYouByTagFeedGenerator } from '../integrations/feed/generators';
 import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -99,6 +104,7 @@ import {
   getForYouFeedGenerator,
   toFeedV2PostConnection,
 } from './feedV2';
+import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 
 interface GQLTagsCategory {
   id: string;
@@ -573,6 +579,48 @@ export const typeDefs = /* GraphQL */ `
       """
       supportedTypes: [String!]
     ): PostConnection!
+
+    """
+    Get a personalized feed limited to one or more tags. Reuses the standard feed pipeline
+    (blocked tags/sources/users, content prefs, etc.) but overrides allowed_tags with the
+    supplied list — the user's followed tags are not included.
+    """
+    feedByTags(
+      """
+      Tags to allow in the feed (overrides the user's followed tags)
+      """
+      tags: [String!]!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
 
     """
     Get a single tag feed
@@ -1168,6 +1216,11 @@ interface TagFeedArgs extends FeedArgs {
   tag: string;
 }
 
+interface FeedByTagsArgs extends FeedArgs {
+  tags: string[];
+  version: number;
+}
+
 interface KeywordFeedArgs extends FeedArgs {
   keyword: string;
 }
@@ -1453,6 +1506,18 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     },
   );
 
+const feedByTagsLocalResolver: IFieldResolver<
+  unknown,
+  AuthContext,
+  FeedByTagsArgs
+> = feedResolver(
+  (ctx, { tags }: FeedByTagsArgs, builder, alias) =>
+    builder.andWhere((subBuilder) => whereTags(tags, subBuilder, alias)),
+  feedPageGenerator,
+  applyFeedPaging,
+  { allowPrivatePosts: false },
+);
+
 const feedResolverV2Local: IFieldResolver<
   unknown,
   AuthContext,
@@ -1700,6 +1765,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return feedResolverV1(source, args, ctx, info);
     },
+    feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
+      const { tags } = feedByTagsInputSchema.parse(args);
+      if (isMockEnabled()) {
+        return feedByTagsLocalResolver(source, { ...args, tags }, ctx, info);
+      }
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs),
+          generator: getForYouByTagFeedGenerator(tags),
+        },
+        ctx,
+        info,
+      );
+    },
     feedV2: (source, args: FeedV2Args, ctx: AuthContext, info) =>
       shouldUseFeedGenerator(args)
         ? feedV2QueryResolver(source, args, ctx, info)
@@ -1881,8 +1961,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       );
     },
     sourceFeed: feedResolver(
-      (ctx, { source }: SourceFeedArgs, builder, alias) =>
-        sourceFeedBuilder(ctx, source, builder, alias),
+      (ctx, { source }: SourceFeedArgs, builder, alias, params) =>
+        sourceFeedBuilder(
+          ctx,
+          source,
+          builder,
+          alias,
+          (params as { linkedSourceIds?: string[] } | undefined)
+            ?.linkedSourceIds,
+        ),
       feedPageGeneratorWithPin,
       (ctx, args, page, builder, alias) =>
         applyFeedPagingWithPin(ctx, page, builder, alias),
@@ -1893,8 +1980,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         fetchQueryParams: async (
           ctx,
           { source: sourceId }: SourceFeedArgs,
-        ): Promise<void> => {
-          await ensureSourcePermissions(ctx, sourceId);
+        ): Promise<{ linkedSourceIds?: string[] }> => {
+          const source = await ensureSourcePermissions(ctx, sourceId);
+          if (source.type !== SourceType.Squad) {
+            return {};
+          }
+          const linkedSourceIds = (source as SquadSource).linkedSourceIds ?? [];
+          if (linkedSourceIds.length === 0) {
+            return {};
+          }
+          return { linkedSourceIds };
         },
       },
     ),
@@ -2033,7 +2128,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
         if (tag) {
           builder.andWhere((subBuilder) =>
-            whereKeyword(tag, subBuilder, alias),
+            whereKeyword(tag, subBuilder, alias, { includeSharedPost: true }),
           );
         }
         if (source) {
@@ -2075,7 +2170,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
         if (tag) {
           builder.andWhere((subBuilder) =>
-            whereKeyword(tag, subBuilder, alias),
+            whereKeyword(tag, subBuilder, alias, { includeSharedPost: true }),
           );
         }
         if (source) {

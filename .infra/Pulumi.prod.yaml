@@ -72,7 +72,7 @@ config:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
     growthbookClientKey:
       secure: AAABAIVkkeJGes/CVRjekXu8GfXXhC9FihKkcb2C4peMA7yS7HbO52uViOrP5uIFmgAQ2A==
-    internalFeed: http://feed.feed.svc.cluster.local/api/feed?
+    internalFeed: http://feed.feed.svc.cluster.local
     jwtAudience:
       secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
     jwtIssuer:
@@ -106,7 +106,7 @@ config:
     paddleEnvironment: production
     paddleWebhookSecret:
       secure: AAABAMlKmiJ3FUQOJKHlOEbgpKnYDi6z62jEVcWDLdvhWuqRAah/dUZrgF9aISC86B56vR9M0wbp2/C7gJVy5if2n+O25cz6VJtJpSvgkSkfua6kDHX1qzNe1ewqxYh6VOBz1zLH
-    personalizedDigestFeed: http://feed-digest-server.feed/api/personalised
+    personalizedDigestFeed: http://feed-digest-server.feed
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
     postScraperOrigin: http://post-scraper-one-ai-server.content.svc.cluster.local
@@ -286,3 +286,6 @@ config:
       secure: AAABAH16I8xQAJjTyasPQzLDqd3AAo7q4dMEBGHVbgJJVvSviQelQT09
     signingKey:
       secure: AAABAGxRaqkffmtnKxeVFwStkBB2QUM1t5XtIOBJN0T/AcAJOac8oaovU/4H41JxFS5tnOOvWqN6HLvyejByOZ6UtxF6DqC27mvRiOKu863MKg7JrL3wPhHqEEgDJmdoGfqJw4Yady/CLRMqn58TCUwwNHRlcESng2RmwT9+BDXZywRFXfE5NKp41qLtLeOU6piAooQghHjVX6EQd8AG9Ffl2ehijRcwNnpgkQR8oz1V+Ilat6fvn9qQT1bjrBSE6oagdOxeLBdsVOmoa0H6ZbocsGmtvETEypK1uW62QD/Ar2PYtRSsFhvY9YiUf5qMxa6Kp1fJ4IdupoOKaAZY3yHlTFHXkU6pg0GGpfhktfaEgZaEgxcoknpQzPwEknjiAQ==
+  api:klipyApiKey:
+    secure: AAABADCz8pDVkU6+4S9ePSsZZns8/GmH89qpZpXK51LLA52CMXrY8ktOI9+MHLzROb8neJ371IP/UxnLlPzX++wFTmRtC7q++KgM2Qi8xWDAli88vVmy54lLDjJUvUgk
+  api:klipyGifSearchUrl: https://api.klipy.com/v2/search

@@ -40,13 +40,7 @@ export class FeedGenerator {
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
     const { config, extraMetadata } = await this.config.generate(ctx, opts);
-    const userId = opts.user_id;
-    return this.client.fetchFeed(
-      ctx,
-      this.feedId ?? userId!,
-      config,
-      extraMetadata,
-    );
+    return this.client.fetchFeed(ctx, '/api/feed', config, extraMetadata);
   }
 
   withConfigTransform(
@@ -104,6 +98,22 @@ const opts: Options = {
   includeFollowedUsers: true,
   includeBlockedUsers: true,
 };
+
+export const getForYouByTagFeedGenerator = (tags: string[]): FeedGenerator =>
+  new FeedGenerator(
+    feedClient,
+    new FeedPreferencesConfigGenerator(
+      {
+        ...baseFeedConfig,
+        feed_config_name: FeedConfigName.ForYouByTag,
+        allowed_tags: tags,
+      },
+      {
+        ...opts,
+        includeAllowedTags: undefined, // we add tags from query arguments above
+      },
+    ),
+  );
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({

@@ -173,6 +173,14 @@ export const crons: Cron[] = [
   {
     name: 'channel-highlights',
     schedule: '*/10 * * * *',
+    activeDeadlineSeconds: 9 * 60,
+    limits: {
+      memory: '1Gi',
+    },
+    requests: {
+      cpu: '250m',
+      memory: '1Gi',
+    },
   },
   {
     name: 'clean-channel-highlights',

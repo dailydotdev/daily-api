@@ -122,6 +122,9 @@ config:
       secure: v1:tv8YYQ0svzb8wBoQ:syeVe2YGXWDovBqjG4ZlPPv/YJ5gG7zl/gw/7g7WYw==
     facebookClientSecret:
       secure: v1:SBZg3Yfnq3P3HsxB:+p1lRrWwY9qUcojAtZZYcOl4aHhaPd4/Jz/u4Ev3gnwhrkQTP1Qqqq8BkJh0BpKp
+    klipyApiKey:
+      secure: v1:gzBeDqBc2YJvv4/D:4Z5XkabQxCfJ9YEsg+ifIHSiRRAyChx5j0FbKLibSuj2HT/5cpdTJzPqVvl6X7jlxJUhI0KY4NantpGkRdC4ZOCiYZ74qA47eTZG+/gkUG8=
+    klipyGifSearchUrl: https://api.klipy.com/v2/search
   api:k8s:
     namespace: local
   api:temporal:

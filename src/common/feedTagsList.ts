@@ -1,0 +1,145 @@
+import type { DataSource } from 'typeorm';
+import { In } from 'typeorm';
+import { User } from '../entity/user/User';
+import { Keyword } from '../entity/Keyword';
+import { feedClient } from '../integrations/feed/generators';
+import { recswipeClient } from '../integrations/recswipe/clients';
+import { queryReadReplica } from './queryReadReplica';
+import { updateFlagsStatement } from './utils';
+import { ONE_DAY_IN_SECONDS } from './constants';
+import { logger } from '../logger';
+
+export type FeedTagsListItem = {
+  value: string;
+  label: string;
+};
+
+export type FeedTagsList = {
+  tags: FeedTagsListItem[];
+};
+
+const CACHE_TTL_MS = ONE_DAY_IN_SECONDS * 1000;
+
+const isFresh = (updatedAt: string): boolean => {
+  const ts = Date.parse(updatedAt);
+  if (Number.isNaN(ts)) {
+    return false;
+  }
+  return Math.abs(Date.now() - ts) < CACHE_TTL_MS;
+};
+
+const dedupeKeepOrder = (tags: string[]): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const tag of tags) {
+    if (!seen.has(tag)) {
+      seen.add(tag);
+      result.push(tag);
+    }
+  }
+  return result;
+};
+
+const resolveLabels = async ({
+  con,
+  values,
+}: {
+  con: DataSource;
+  values: string[];
+}): Promise<FeedTagsListItem[]> => {
+  if (!values.length) {
+    return [];
+  }
+  const keywords = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Keyword).find({
+      where: { value: In(values) },
+      select: ['value', 'flags'],
+    }),
+  );
+  const labelByValue = new Map(keywords.map((k) => [k.value, k.flags?.title]));
+  return values.map((value) => ({
+    value,
+    label: labelByValue.get(value) || value,
+  }));
+};
+
+const writeCache = async ({
+  con,
+  userId,
+  tags,
+}: {
+  con: DataSource;
+  userId: string;
+  tags: FeedTagsListItem[];
+}): Promise<void> => {
+  await con.getRepository(User).update(
+    { id: userId },
+    {
+      flags: updateFlagsStatement<User>({
+        feedTagsList: {
+          tags,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    },
+  );
+};
+
+export const getFeedTagsList = async ({
+  con,
+  userId,
+  limit,
+}: {
+  con: DataSource;
+  userId: string;
+  limit: number;
+}): Promise<FeedTagsList> => {
+  const user = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .getRepository(User)
+      .findOne({ where: { id: userId }, select: ['id', 'flags'] }),
+  );
+
+  const cached = user?.flags?.feedTagsList;
+  if (cached && isFresh(cached.updatedAt)) {
+    return { tags: cached.tags.slice(0, limit) };
+  }
+
+  let values: string[];
+  try {
+    values = await feedClient.getUserTags(userId, limit);
+  } catch (err) {
+    logger.error(
+      { err, userId },
+      'feedClient.getUserTags failed; caching empty feedTagsList',
+    );
+    await writeCache({ con, userId, tags: [] });
+    return { tags: [] };
+  }
+
+  values = dedupeKeepOrder(values);
+
+  if (values.length < limit) {
+    try {
+      const supplement = await recswipeClient.recommendTags(userId, {
+        selectedTags: values,
+        n: limit - values.length,
+      });
+      const supplementTags = (supplement.recommended_tags ?? []).map(
+        (t) => t.tag,
+      );
+      values = dedupeKeepOrder([...values, ...supplementTags]).slice(0, limit);
+    } catch (err) {
+      logger.error(
+        { err, userId },
+        'recswipeClient.recommendTags failed; using feedClient tags only',
+      );
+    }
+  }
+
+  const tags = await resolveLabels({ con, values });
+
+  await writeCache({ con, userId, tags });
+
+  return { tags };
+};

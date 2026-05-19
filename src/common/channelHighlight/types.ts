@@ -69,6 +69,6 @@ export type HighlightItem = {
 };
 
 export type GenerateChannelHighlightResult = {
-  run: ChannelHighlightRun;
+  runs: ChannelHighlightRun[];
   published: boolean;
 };

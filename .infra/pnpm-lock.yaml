@@ -9,16 +9,16 @@ importers:
   .:
     dependencies:
       '@dailydotdev/pulumi-common':
-        specifier: ^2.21.0
+        specifier: 2.21.0
         version: 2.21.0
       '@pulumi/gcp':
-        specifier: ^9.12.0
+        specifier: 9.12.0
         version: 9.12.0
       '@pulumi/kubernetes':
-        specifier: ^4.26.0
+        specifier: 4.26.0
         version: 4.26.0
       '@pulumi/pulumi':
-        specifier: ^3.223.0
+        specifier: 3.223.0
         version: 3.223.0
     devDependencies:
       '@types/node':

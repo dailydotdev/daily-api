@@ -50,13 +50,17 @@ export const whereTags = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
   variableAlias = 'tags',
+  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
+  const postIdMatch = includeSharedPost
+    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
+    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
     .where(`pk.keyword IN (:...${variableAlias})`, { [variableAlias]: tags })
-    .andWhere(`pk.postId = ${alias}.id`)
+    .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -73,13 +77,17 @@ export const whereKeyword = (
   keyword: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
+  const postIdMatch = includeSharedPost
+    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
+    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
     .where(`pk.keyword = :keyword`, { keyword })
-    .andWhere(`pk."postId" = ${alias}.id`)
+    .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -790,8 +798,27 @@ export const sourceFeedBuilder = (
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  linkedSourceIds?: string[],
 ): SelectQueryBuilder<Post> => {
-  builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  if (linkedSourceIds?.length) {
+    builder.andWhere(`${alias}.sourceId IN (:...sourceIds)`, {
+      sourceIds: [sourceId, ...linkedSourceIds],
+    });
+    // sourceFeed resolver disables removeBannedPosts/removeHiddenPosts so the
+    // squad can show its own banned/hidden/private posts. Linked-source rows
+    // should NOT inherit that override.
+    builder.andWhere(
+      new Brackets((qb) => {
+        qb.where(`${alias}.sourceId = :primarySourceId`, {
+          primarySourceId: sourceId,
+        }).orWhere(
+          `${alias}.banned = false AND ${alias}."showOnFeed" = true AND ${alias}.private = false`,
+        );
+      }),
+    );
+  } else {
+    builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+  }
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);
@@ -816,7 +843,9 @@ export const tagFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
+  builder.andWhere((subBuilder) =>
+    whereTags([tag], subBuilder, alias, 'tags', { includeSharedPost: true }),
+  );
 
 export const repostFeedBuilder = (
   ctx: Context,

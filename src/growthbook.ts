@@ -113,6 +113,7 @@ const digestFeatureBaseConfig = {
   adIndex: 2,
   title: '',
   preview: '',
+  campaignId: 'default',
 };
 
 export type PersonalizedDigestFeatureConfig = typeof digestFeatureBaseConfig;

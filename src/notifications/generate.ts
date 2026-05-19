@@ -103,9 +103,11 @@ export const notificationTitleMap: Record<
     UPVOTE_TITLES[ctx.upvotes as keyof typeof UPVOTE_TITLES] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   squad_post_added: (
-    ctx: NotificationPostContext & NotificationDoneByContext,
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
   ) =>
-    `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
+    ctx.doneBy
+      ? `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`
+      : `New post in <b>${ctx.source.name}</b>`,
   squad_member_joined: (
     ctx: NotificationPostContext &
       NotificationSourceContext &
@@ -386,12 +388,13 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post, ctx.comment),
   squad_post_added: (
     builder,
-    ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
+  ) => {
+    const base = builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
-      .avatarManyUsers([ctx.doneBy]),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!);
+    return ctx.doneBy ? base.avatarManyUsers([ctx.doneBy]) : base;
+  },
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,

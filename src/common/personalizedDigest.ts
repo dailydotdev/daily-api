@@ -126,9 +126,63 @@ const getPostsTemplateData = ({
       post_views: post.views || 0,
       source_name: post.sourceName,
       source_image: mapCloudinaryUrl(post.sourceImage),
+      cta_label: 'Read article →',
       type: 'post',
     };
   });
+};
+
+type FixedDigestPost = {
+  type: 'post';
+  id: string;
+  createdAt: number;
+  sourceId: string;
+  post_title: string;
+  post_image: string;
+  post_link: string;
+  post_summary: string;
+  post_upvotes: number;
+  post_comments: number;
+  post_views: number;
+  post_read_time: number;
+  source_name: string;
+  source_image: string;
+  cta_label: string;
+};
+
+const digestCampaignBuilders: Record<
+  string,
+  (() => FixedDigestPost) | undefined
+> = {
+  'daily-digest-promotion': () => ({
+    type: 'post',
+    id: 'daily-digest-promotion',
+    createdAt: Date.now(),
+    sourceId: 'daily_updates',
+    post_title: 'Want the digest daily? No problem!',
+    post_image:
+      'https://media.daily.dev/image/upload/s--obIsql4---/f_auto,q_auto/v1/recruiter-landing/6581377512ef38140313c902_image_20_103_f74000bd3e?_a=BAMAMiB80',
+    post_link: 'https://app.daily.dev/settings/notifications',
+    post_summary:
+      'Customize your daily.dev digest preferences in your notifications settings',
+    post_upvotes: 0,
+    post_comments: 0,
+    post_views: 0,
+    post_read_time: 0,
+    source_name: 'daily.dev',
+    source_image:
+      'https://media.daily.dev/image/upload/s--COeiQtov--/f_auto/v1704465510/squads/daily_updates',
+    cta_label: 'Open settings →',
+  }),
+};
+
+export const getDigestCampaignPost = (
+  campaignId: string,
+): FixedDigestPost | undefined => {
+  if (campaignId === 'default') {
+    return undefined;
+  }
+  return digestCampaignBuilders[campaignId]?.();
 };
 
 export type CIOSkadiAd = {
@@ -167,6 +221,7 @@ const getEmailVariation = async ({
   feature,
   currentDate,
   adProps,
+  campaignPost,
 }: {
   personalizedDigest: UserPersonalizedDigest;
   posts: TemplatePostData[];
@@ -175,6 +230,7 @@ const getEmailVariation = async ({
   feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
   adProps: CIOSkadiAd | null;
+  campaignPost?: FixedDigestPost;
 }): Promise<
   Pick<SendEmailRequestWithTemplate, 'to' | 'message_data' | 'identifiers'>
 > => {
@@ -189,6 +245,9 @@ const getEmailVariation = async ({
     posts: postsData,
     feature,
   });
+  if (campaignPost) {
+    posts.unshift(campaignPost);
+  }
   if (posts.length >= feature.adIndex) {
     if (adProps) {
       posts.splice(feature.adIndex, 0, adProps);
@@ -411,9 +470,14 @@ export const getPersonalizedDigestEmailPayload = async ({
     personaliseState,
   });
 
+  const campaignPost = getDigestCampaignPost(feature.campaignId);
+  const feedPostCount = campaignPost
+    ? Math.max(feature.maxPosts - 1, 0)
+    : feature.maxPosts;
+
   const feedConfigPayload = {
     user_id: personalizedDigest.userId,
-    total_posts: feature.maxPosts,
+    total_posts: feedPostCount,
     date_from: format(previousSendDate, personalizedDigestDateFormat),
     date_to: format(currentDate, personalizedDigestDateFormat),
     allowed_tags: feedConfig.includeTags,
@@ -424,13 +488,13 @@ export const getPersonalizedDigestEmailPayload = async ({
       baseFeedConfig.source_types?.filter(
         (el) => !feedConfig.excludeSourceTypes?.includes(el),
       ) || [],
-    page_size: feature.maxPosts,
+    page_size: feedPostCount,
     total_pages: 1,
     blocked_author_ids: feedConfig.excludeUsers,
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },
-    personalizedDigest.userId,
+    '/api/personalised',
     feedConfigPayload,
   );
 
@@ -504,6 +568,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     feature,
     currentDate,
     adProps,
+    campaignPost,
   });
 
   const postIds = getFeedResponsePostIds(feedResponse);

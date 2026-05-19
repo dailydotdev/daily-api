@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm';
+import { In, type DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
 import { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
@@ -6,15 +6,15 @@ import { UNKNOWN_SOURCE } from '../../entity/Source';
 import { getChannelDigestSourceIds } from '../channelDigest/definitions';
 import { compareSnapshots } from './decisions';
 import { evaluateChannelHighlights } from './evaluate';
-import { replaceHighlightsForChannel } from './publish';
+import { publishHighlightsForChannel } from './publish';
 import {
   fetchCollectionMembership,
-  fetchCurrentHighlights,
-  fetchEvaluationHistoryHighlights,
-  fetchIncrementalPosts,
+  fetchCurrentHighlightsForChannels,
+  fetchEvaluationHistoryHighlightsForChannels,
+  fetchGlobalIncrementalPosts,
   fetchPostsByIds,
   fetchPublicShareFallbackPostIds,
-  fetchRetiredHighlightPostIds,
+  fetchRetiredHighlightPostIdsForChannels,
   fetchRelations,
   getEvaluationHistoryStart,
   getFetchStart,
@@ -29,7 +29,17 @@ import {
   toHighlightItem,
   toStoredSnapshotItem,
 } from './stories';
-import type { GenerateChannelHighlightResult, HighlightItem } from './types';
+import type {
+  GenerateChannelHighlightResult,
+  HighlightItem,
+  HighlightPost,
+} from './types';
+
+type EvaluationConfig = {
+  channel: string;
+  targetAudience: string;
+  maxItems: number;
+};
 
 const trimHighlights = ({
   items,
@@ -45,82 +55,236 @@ const trimHighlights = ({
     )
     .slice(0, maxItems);
 
-// High-level flow:
-// 1. Keep only currently highlighted items that are still inside the horizon.
-// 2. Canonicalize those highlights to collections on the API side.
-// 3. Build new canonical candidate posts from incremental post/relation fetches.
-// 4. Ask the evaluator only about new candidates.
-// 5. Append admitted items, trim FIFO by maxItems, then publish if the surface changed.
-export const generateChannelHighlight = async ({
+const groupHighlightsByChannel = <T extends { channel: string }>(
+  highlights: T[],
+): Map<string, T[]> => {
+  const grouped = new Map<string, T[]>();
+
+  for (const highlight of highlights) {
+    const items = grouped.get(highlight.channel) || [];
+    items.push(highlight);
+    grouped.set(highlight.channel, items);
+  }
+
+  return grouped;
+};
+
+const dedupeHighlightsByPostId = (items: HighlightItem[]): HighlightItem[] => {
+  const deduped = new Map<string, HighlightItem>();
+
+  for (const item of [...items].sort(
+    (left, right) =>
+      right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+  )) {
+    if (!deduped.has(item.postId)) {
+      deduped.set(item.postId, item);
+    }
+  }
+
+  return [...deduped.values()];
+};
+
+const getEvaluationConfig = (
+  definitions: ChannelHighlightDefinition[],
+): EvaluationConfig => {
+  if (definitions.length === 1) {
+    const definition = definitions[0];
+
+    return {
+      channel: definition.channel,
+      targetAudience:
+        definition.targetAudience.trim() ||
+        `daily.dev readers following ${definition.channel}`,
+      maxItems: definition.maxItems,
+    };
+  }
+
+  return {
+    channel: 'global',
+    targetAudience:
+      'software engineers and engineering leaders who want to stay current on meaningful developments that affect how modern software is built, shipped, operated, and grown',
+    maxItems: definitions.reduce(
+      (total, definition) => total + definition.maxItems,
+      0,
+    ),
+  };
+};
+
+const getHighlightChannels = ({
+  postId,
+  posts,
+  relations,
+  fallbackPostIds,
+  enabledChannels,
+}: {
+  postId: string;
+  posts: HighlightPost[];
+  relations: { postId: string; relatedPostId: string }[];
+  fallbackPostIds: Map<string, string>;
+  enabledChannels: Set<string>;
+}): string[] => {
+  const postsById = new Map(posts.map((post) => [post.id, post]));
+  const shareToUnderlying = new Map(
+    [...fallbackPostIds].map(([underlying, share]) => [share, underlying]),
+  );
+  const childrenByCollection = new Map<string, string[]>();
+  const collectionByChild = new Map<string, string>();
+
+  for (const relation of relations) {
+    const children = childrenByCollection.get(relation.postId) || [];
+    children.push(relation.relatedPostId);
+    childrenByCollection.set(relation.postId, children);
+    collectionByChild.set(relation.relatedPostId, relation.postId);
+  }
+
+  const underlyingPostId = shareToUnderlying.get(postId) || postId;
+  const collectionId = collectionByChild.get(underlyingPostId);
+  const storyPostIds = [
+    ...(collectionId ? [collectionId] : []),
+    underlyingPostId,
+    ...(childrenByCollection.get(collectionId || underlyingPostId) || []),
+  ];
+  const channels = new Set<string>();
+
+  for (const storyPostId of storyPostIds) {
+    const contentMeta = postsById.get(storyPostId)?.contentMeta as
+      | { channels?: unknown }
+      | undefined;
+    const postChannels = contentMeta?.channels;
+    if (!Array.isArray(postChannels)) {
+      continue;
+    }
+
+    for (const channel of postChannels) {
+      if (typeof channel === 'string' && enabledChannels.has(channel)) {
+        channels.add(channel);
+      }
+    }
+  }
+
+  return [...channels];
+};
+
+export const generateChannelHighlights = async ({
   con,
-  definition,
+  definitions,
   now = new Date(),
 }: {
   con: DataSource;
-  definition: ChannelHighlightDefinition;
+  definitions: ChannelHighlightDefinition[];
   now?: Date;
 }): Promise<GenerateChannelHighlightResult> => {
-  const runRepo = con.getRepository(ChannelHighlightRun);
-  const run = await runRepo.save(
-    runRepo.create({
-      channel: definition.channel,
-      scheduledAt: now,
-      status: 'processing',
-      baselineSnapshot: [],
-      inputSummary: {},
-      internalSnapshot: [],
-      comparison: {},
-      metrics: {},
-    }),
+  if (!definitions.length) {
+    return {
+      runs: [],
+      published: false,
+    };
+  }
+
+  const channels = definitions.map((definition) => definition.channel);
+  const definitionsByChannel = new Map(
+    definitions.map((definition) => [definition.channel, definition]),
   );
+  const runRepo = con.getRepository(ChannelHighlightRun);
+  const runs = await runRepo.save(
+    definitions.map((definition) =>
+      runRepo.create({
+        channel: definition.channel,
+        scheduledAt: now,
+        status: 'processing',
+        baselineSnapshot: [],
+        inputSummary: {},
+        internalSnapshot: [],
+        comparison: {},
+        metrics: {},
+      }),
+    ),
+  );
+  const runByChannel = new Map(runs.map((run) => [run.channel, run]));
 
   try {
     const [
       currentHighlights,
-      retiredHighlightPostIds,
+      retiredHighlightPostIdsByChannel,
       excludedSourceIds,
       evaluationHistoryHighlights,
     ] = await Promise.all([
-      fetchCurrentHighlights({
+      fetchCurrentHighlightsForChannels({
         con,
-        channel: definition.channel,
+        channels,
       }),
-      fetchRetiredHighlightPostIds({
+      fetchRetiredHighlightPostIdsForChannels({
         con,
-        channel: definition.channel,
+        channels,
       }),
       getChannelDigestSourceIds({
         con,
       }),
-      fetchEvaluationHistoryHighlights({
+      fetchEvaluationHistoryHighlightsForChannels({
         con,
-        channel: definition.channel,
+        channels,
         now,
       }),
     ]);
+    const maxCandidateHorizonHours = Math.max(
+      ...definitions.map((definition) => definition.candidateHorizonHours),
+    );
     const horizonStart = getHorizonStart({
       now,
-      definition,
+      definition: {
+        candidateHorizonHours: maxCandidateHorizonHours,
+      },
     });
-    const fetchStart = getFetchStart({
-      now,
-      definition,
-    });
-
-    const baselineHighlights = currentHighlights.map(toHighlightItem);
-    const activeHighlights = baselineHighlights.filter(
-      (item) => item.highlightedAt >= horizonStart,
+    const fetchStart = definitions
+      .map((definition) =>
+        getFetchStart({
+          now,
+          definition,
+        }),
+      )
+      .sort((left, right) => left.getTime() - right.getTime())[0];
+    const currentHighlightsByChannel =
+      groupHighlightsByChannel(currentHighlights);
+    const evaluationHistoryHighlightsByChannel = groupHighlightsByChannel(
+      evaluationHistoryHighlights,
     );
-
-    const highlightedPostIds = activeHighlights.map((item) => item.postId);
-    const evaluationHistoryPostIds = evaluationHistoryHighlights.map(
-      (item) => item.postId,
+    const baselineHighlightsByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        (currentHighlightsByChannel.get(channel) || []).map(toHighlightItem),
+      ]),
     );
+    const activeHighlightsByChannel = new Map(
+      definitions.map((definition) => {
+        const channelBaseline =
+          baselineHighlightsByChannel.get(definition.channel) || [];
+        const channelHorizonStart = getHorizonStart({
+          now,
+          definition,
+        });
+
+        return [
+          definition.channel,
+          channelBaseline.filter(
+            (item) => item.highlightedAt >= channelHorizonStart,
+          ),
+        ];
+      }),
+    );
+    const highlightedPostIds = [
+      ...new Set(
+        [...activeHighlightsByChannel.values()].flatMap((items) =>
+          items.map((item) => item.postId),
+        ),
+      ),
+    ];
+    const evaluationHistoryPostIds = [
+      ...new Set(evaluationHistoryHighlights.map((item) => item.postId)),
+    ];
     const [incrementalPosts, highlightedPosts, evaluationHistoryPosts] =
       await Promise.all([
-        fetchIncrementalPosts({
+        fetchGlobalIncrementalPosts({
           con,
-          channel: definition.channel,
           fetchStart,
           horizonStart,
           excludedSourceIds,
@@ -141,9 +305,6 @@ export const generateChannelHighlight = async ({
       highlightedPosts,
       evaluationHistoryPosts,
     ]);
-    // For SharePost-stored highlights we need the underlying article in the
-    // post pool so canonicalization can downgrade share → underlying when the
-    // underlying is accessible.
     const sharedUnderlyingIds = [
       ...new Set(
         basePosts
@@ -184,6 +345,13 @@ export const generateChannelHighlight = async ({
         .filter((post) => post.sourceId === UNKNOWN_SOURCE)
         .map((post) => post.id),
     );
+    const retiredHighlightPostIds = [
+      ...new Set(
+        [...retiredHighlightPostIdsByChannel.values()].flatMap((postIds) => [
+          ...postIds,
+        ]),
+      ),
+    ];
     const fallbackPostIds = await fetchPublicShareFallbackPostIds({
       con,
       sharedPostIds: [
@@ -194,63 +362,122 @@ export const generateChannelHighlight = async ({
       ],
       excludedSourceIds,
     });
-    const liveHighlights = applyPublicShareFallbackToHighlights({
-      highlights: canonicalizeCurrentHighlights({
-        highlights: activeHighlights,
-        relations,
-        posts: availablePosts,
-        inaccessiblePostIds,
-      }),
-      inaccessiblePostIds,
-      fallbackPostIds,
-    });
-    const evaluationHighlights = applyPublicShareFallbackToHighlights({
-      highlights: canonicalizeCurrentHighlights({
-        highlights: evaluationHistoryHighlights.map(toHighlightItem),
-        relations,
-        posts: availablePosts,
-        inaccessiblePostIds,
-      }),
-      inaccessiblePostIds,
-      fallbackPostIds,
-    });
-    const retiredEvaluationHighlights = applyPublicShareFallbackToHighlights({
-      highlights: canonicalizeCurrentHighlights({
-        highlights: evaluationHistoryHighlights
-          .filter((item) => !!item.retiredAt)
-          .map(toHighlightItem),
-        relations,
-        posts: availablePosts,
-        inaccessiblePostIds,
-      }),
-      inaccessiblePostIds,
-      fallbackPostIds,
-    });
-
-    const currentHighlightPostIds = new Set(
-      liveHighlights.map((item) => item.postId),
+    const liveHighlightsByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        applyPublicShareFallbackToHighlights({
+          highlights: canonicalizeCurrentHighlights({
+            highlights: activeHighlightsByChannel.get(channel) || [],
+            relations,
+            posts: availablePosts,
+            inaccessiblePostIds,
+          }),
+          inaccessiblePostIds,
+          fallbackPostIds,
+        }),
+      ]),
     );
-    // A retired highlight may be stored as either the underlying post id (the
-    // new norm) or as a share-post id (legacy rows from before we stopped
-    // auto-migrating underlying → share). Dedup against both forms so a fresh
-    // candidate matching either side is filtered out.
+    const evaluationHighlightsByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        applyPublicShareFallbackToHighlights({
+          highlights: canonicalizeCurrentHighlights({
+            highlights: (
+              evaluationHistoryHighlightsByChannel.get(channel) || []
+            ).map(toHighlightItem),
+            relations,
+            posts: availablePosts,
+            inaccessiblePostIds,
+          }),
+          inaccessiblePostIds,
+          fallbackPostIds,
+        }),
+      ]),
+    );
+    const retiredEvaluationHighlightsByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        applyPublicShareFallbackToHighlights({
+          highlights: canonicalizeCurrentHighlights({
+            highlights: (
+              evaluationHistoryHighlightsByChannel.get(channel) || []
+            )
+              .filter((item) => !!item.retiredAt)
+              .map(toHighlightItem),
+            relations,
+            posts: availablePosts,
+            inaccessiblePostIds,
+          }),
+          inaccessiblePostIds,
+          fallbackPostIds,
+        }),
+      ]),
+    );
+    const currentHighlightPostIdsByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        new Set(
+          (liveHighlightsByChannel.get(channel) || []).map(
+            (item) => item.postId,
+          ),
+        ),
+      ]),
+    );
     const sharedByShareId = new Map<string, string>();
     for (const post of availablePosts) {
       if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
     }
-    const retiredHighlightPostIdSet = new Set(
-      retiredHighlightPostIds
-        .flatMap((postId) => [
-          postId,
-          fallbackPostIds.get(postId),
-          sharedByShareId.get(postId),
-        ])
-        .filter((id): id is string => !!id),
+    const retiredHighlightPostIdSetByChannel = new Map(
+      channels.map((channel) => {
+        const postIds =
+          retiredHighlightPostIdsByChannel.get(channel) || new Set();
+
+        return [
+          channel,
+          new Set(
+            [...postIds]
+              .flatMap((postId) => [
+                postId,
+                fallbackPostIds.get(postId),
+                sharedByShareId.get(postId),
+              ])
+              .filter((id): id is string => !!id),
+          ),
+        ];
+      }),
     );
-    const retiredEvaluationPostIdSet = new Set(
-      retiredEvaluationHighlights.map((item) => item.postId),
+    const retiredEvaluationPostIdSetByChannel = new Map(
+      channels.map((channel) => [
+        channel,
+        new Set(
+          (retiredEvaluationHighlightsByChannel.get(channel) || []).map(
+            (item) => item.postId,
+          ),
+        ),
+      ]),
     );
-    const newCandidates = applyPublicShareFallbackToCandidates({
+    const enabledChannels = new Set(channels);
+    const getPublishableChannels = ({
+      postId,
+      itemChannels,
+    }: {
+      postId: string;
+      itemChannels: string[];
+    }): string[] =>
+      itemChannels.filter(
+        (channel) =>
+          !currentHighlightPostIdsByChannel.get(channel)?.has(postId) &&
+          !retiredHighlightPostIdSetByChannel.get(channel)?.has(postId) &&
+          !retiredEvaluationPostIdSetByChannel.get(channel)?.has(postId),
+      );
+    const liveHighlightItems = dedupeHighlightsByPostId(
+      [...liveHighlightsByChannel.values()].flat(),
+    );
+    const liveHighlightPostIds = new Set(
+      liveHighlightItems.map((item) => item.postId),
+    );
+
+    const candidates = applyPublicShareFallbackToCandidates({
       candidates: buildCandidates({
         posts: availablePosts,
         relations,
@@ -258,23 +485,53 @@ export const generateChannelHighlight = async ({
       }),
       inaccessiblePostIds,
       fallbackPostIds,
-    }).filter(
-      (candidate) =>
-        !currentHighlightPostIds.has(candidate.postId) &&
-        !retiredHighlightPostIdSet.has(candidate.postId) &&
-        !retiredEvaluationPostIdSet.has(candidate.postId),
-    );
+    });
+    const candidateChannelsByPostId = new Map<string, string[]>();
+    const newCandidates = candidates.filter((candidate) => {
+      const candidateChannels = getHighlightChannels({
+        postId: candidate.postId,
+        posts: availablePosts,
+        relations,
+        fallbackPostIds,
+        enabledChannels,
+      }).filter((channel) => {
+        const definition = definitionsByChannel.get(channel);
 
+        return (
+          !!definition &&
+          candidate.lastActivityAt >=
+            getHorizonStart({
+              now,
+              definition,
+            })
+        );
+      });
+      const publishableChannels = liveHighlightPostIds.has(candidate.postId)
+        ? []
+        : getPublishableChannels({
+            postId: candidate.postId,
+            itemChannels: candidateChannels,
+          });
+
+      if (!publishableChannels.length) {
+        return false;
+      }
+
+      candidateChannelsByPostId.set(candidate.postId, publishableChannels);
+      return true;
+    });
+    const evaluationConfig = getEvaluationConfig(definitions);
+    const evaluationHighlights = dedupeHighlightsByPostId(
+      [...evaluationHighlightsByChannel.values()].flat(),
+    );
     const evaluatedHighlights =
       newCandidates.length === 0
         ? []
         : (
             await evaluateChannelHighlights({
-              channel: definition.channel,
-              targetAudience:
-                definition.targetAudience.trim() ||
-                `daily.dev readers following ${definition.channel}`,
-              maxItems: definition.maxItems,
+              channel: evaluationConfig.channel,
+              targetAudience: evaluationConfig.targetAudience,
+              maxItems: evaluationConfig.maxItems,
               currentHighlights: evaluationHighlights,
               newCandidates,
             })
@@ -285,100 +542,148 @@ export const generateChannelHighlight = async ({
             significanceLabel: item.significanceLabel,
             reason: item.reason,
           }));
+    const admittedHighlightsByChannel = new Map<string, HighlightItem[]>();
 
-    const admittedHighlights = await dropAdmissionsRacingCollections({
-      con,
-      admitted: evaluatedHighlights,
-      fallbackPostIds,
-      currentHighlightPostIds,
-      retiredHighlightPostIds: retiredHighlightPostIdSet,
-    });
+    for (const channel of channels) {
+      const channelAdmissions = evaluatedHighlights.filter((item) =>
+        candidateChannelsByPostId.get(item.postId)?.includes(channel),
+      );
+      const admittedHighlights = await dropAdmissionsRacingCollections({
+        con,
+        admitted: channelAdmissions,
+        fallbackPostIds,
+        currentHighlightPostIds:
+          currentHighlightPostIdsByChannel.get(channel) || new Set(),
+        retiredHighlightPostIds:
+          retiredHighlightPostIdSetByChannel.get(channel) || new Set(),
+      });
+      admittedHighlightsByChannel.set(channel, admittedHighlights);
+    }
 
-    const internalHighlights = trimHighlights({
-      items: [...liveHighlights, ...admittedHighlights],
-      maxItems: definition.maxItems,
-    });
-    const comparison = compareSnapshots({
-      baseline: baselineHighlights,
-      internal: internalHighlights,
-    });
-    const publish = definition.mode === 'publish' && comparison.changed;
-
+    let published = false;
     await con.transaction(async (manager) => {
-      await manager.getRepository(ChannelHighlightDefinition).update(
-        { channel: definition.channel },
-        {
-          lastFetchedAt: now,
-        },
-      );
-
-      if (publish) {
-        await replaceHighlightsForChannel({
-          manager,
-          channel: definition.channel,
-          items: internalHighlights,
+      for (const definition of definitions) {
+        const baselineHighlights =
+          baselineHighlightsByChannel.get(definition.channel) || [];
+        const liveHighlights =
+          liveHighlightsByChannel.get(definition.channel) || [];
+        const admittedHighlights =
+          admittedHighlightsByChannel.get(definition.channel) || [];
+        const internalHighlights = trimHighlights({
+          items: [...liveHighlights, ...admittedHighlights],
+          maxItems: definition.maxItems,
         });
-      }
+        const comparison = compareSnapshots({
+          baseline: baselineHighlights,
+          internal: internalHighlights,
+        });
+        const shouldPublish =
+          definition.mode === 'publish' && comparison.changed;
+        const run = runByChannel.get(definition.channel);
 
-      await manager.getRepository(ChannelHighlightRun).update(
-        { id: run.id },
-        {
-          status: 'completed',
-          completedAt: new Date(),
-          baselineSnapshot: baselineHighlights.map(toStoredSnapshotItem),
-          inputSummary: {
-            fetchStart: fetchStart.toISOString(),
-            horizonStart: horizonStart.toISOString(),
-            evaluationHistoryStart: getEvaluationHistoryStart({
-              now,
-            }).toISOString(),
-            excludedSourceIds,
-            currentHighlightPostIds: liveHighlights.map((item) => item.postId),
-            evaluationHighlightPostIds: evaluationHighlights.map(
-              (item) => item.postId,
-            ),
-            retiredEvaluationHighlightPostIds: retiredEvaluationHighlights.map(
-              (item) => item.postId,
-            ),
-            retiredHighlightPostIds,
-            candidatePostIds: newCandidates.map(
-              (candidate) => candidate.postId,
-            ),
+        await manager.getRepository(ChannelHighlightDefinition).update(
+          { channel: definition.channel },
+          {
+            lastFetchedAt: now,
           },
-          internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
-          comparison: {
-            ...comparison,
-            wouldPublish: comparison.changed,
-            published: publish,
-          },
-          metrics: {
-            fetchedPosts: incrementalPosts.length + highlightedPosts.length,
-            relationPosts: relationPosts.length,
-            currentHighlights: baselineHighlights.length,
-            activeHighlights: activeHighlights.length,
-            canonicalizedHighlights: liveHighlights.length,
-            evaluationHighlights: evaluationHighlights.length,
-            retiredEvaluationHighlights: retiredEvaluationHighlights.length,
-            newCandidates: newCandidates.length,
-            admittedHighlights: admittedHighlights.length,
-          },
-        },
-      );
+        );
+
+        if (shouldPublish) {
+          await publishHighlightsForChannel({
+            manager,
+            channel: definition.channel,
+            items: internalHighlights,
+            relations,
+          });
+          published = true;
+        }
+
+        if (run) {
+          await manager.getRepository(ChannelHighlightRun).update(
+            { id: run.id },
+            {
+              status: 'completed',
+              completedAt: new Date(),
+              baselineSnapshot: baselineHighlights.map(toStoredSnapshotItem),
+              inputSummary: {
+                fetchStart: fetchStart.toISOString(),
+                horizonStart: getHorizonStart({
+                  now,
+                  definition,
+                }).toISOString(),
+                evaluationHistoryStart: getEvaluationHistoryStart({
+                  now,
+                }).toISOString(),
+                excludedSourceIds,
+                currentHighlightPostIds: liveHighlights.map(
+                  (item) => item.postId,
+                ),
+                evaluationHighlightPostIds: (
+                  evaluationHighlightsByChannel.get(definition.channel) || []
+                ).map((item) => item.postId),
+                retiredEvaluationHighlightPostIds: (
+                  retiredEvaluationHighlightsByChannel.get(
+                    definition.channel,
+                  ) || []
+                ).map((item) => item.postId),
+                retiredHighlightPostIds: [
+                  ...(retiredHighlightPostIdsByChannel.get(
+                    definition.channel,
+                  ) || []),
+                ],
+                candidatePostIds: newCandidates
+                  .filter((candidate) =>
+                    candidateChannelsByPostId
+                      .get(candidate.postId)
+                      ?.includes(definition.channel),
+                  )
+                  .map((candidate) => candidate.postId),
+              },
+              internalSnapshot: internalHighlights.map(toStoredSnapshotItem),
+              comparison: {
+                ...comparison,
+                wouldPublish: comparison.changed,
+                published: shouldPublish,
+              },
+              metrics: {
+                fetchedPosts: incrementalPosts.length + highlightedPosts.length,
+                relationPosts: relationPosts.length,
+                currentHighlights: baselineHighlights.length,
+                activeHighlights:
+                  activeHighlightsByChannel.get(definition.channel)?.length ||
+                  0,
+                canonicalizedHighlights: liveHighlights.length,
+                evaluationHighlights:
+                  evaluationHighlightsByChannel.get(definition.channel)
+                    ?.length || 0,
+                retiredEvaluationHighlights:
+                  retiredEvaluationHighlightsByChannel.get(definition.channel)
+                    ?.length || 0,
+                newCandidates: newCandidates.filter((candidate) =>
+                  candidateChannelsByPostId
+                    .get(candidate.postId)
+                    ?.includes(definition.channel),
+                ).length,
+                admittedHighlights: admittedHighlights.length,
+              },
+            },
+          );
+        }
+      }
     });
 
     return {
-      run: await runRepo.findOneByOrFail({
-        id: run.id,
+      runs: await runRepo.findBy({
+        id: In(runs.map((run) => run.id)),
       }),
-      published: publish,
+      published,
     };
   } catch (err) {
-    baseLogger.error(
-      { err, channel: definition.channel },
-      'Failed channel highlight run',
-    );
+    baseLogger.error({ err, channels }, 'Failed channel highlight run');
     await runRepo.update(
-      { id: run.id },
+      {
+        id: In(runs.map((run) => run.id)),
+      },
       {
         status: 'failed',
         completedAt: new Date(),
@@ -391,10 +696,6 @@ export const generateChannelHighlight = async ({
   }
 };
 
-// Bragi can admit a candidate that's already part of a previously-highlighted
-// collection when the collection's regeneration job inserts the post_relation
-// row after fetchRelations has run. Re-fetch membership now and drop any
-// admitted item whose collection (or any sibling) is already live or retired.
 const dropAdmissionsRacingCollections = async ({
   con,
   admitted,
@@ -421,7 +722,7 @@ const dropAdmissionsRacingCollections = async ({
       con,
       postIds: [...new Set(admitted.map((item) => underlyingId(item.postId)))],
     });
-  if (!collectionByChild.size) return admitted;
+  if (!collectionByChild.size && !childrenByCollection.size) return admitted;
 
   const isCovered = (postId: string): boolean => {
     const aliased = fallbackPostIds.get(postId) ?? postId;
@@ -434,8 +735,9 @@ const dropAdmissionsRacingCollections = async ({
   };
 
   return admitted.filter((item) => {
-    const collectionId = collectionByChild.get(underlyingId(item.postId));
-    if (!collectionId) return true;
+    const postId = underlyingId(item.postId);
+    const collectionId = collectionByChild.get(postId) || postId;
+    if (!childrenByCollection.has(collectionId)) return true;
     const members = [
       collectionId,
       ...(childrenByCollection.get(collectionId) ?? []),
