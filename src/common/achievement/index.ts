@@ -274,6 +274,8 @@ export async function checkAchievementProgress(
       AchievementEventType.ReadingStreak,
       AchievementEventType.CoresSpent,
       AchievementEventType.PostImpressions,
+      AchievementEventType.ShareClickMilestone,
+      AchievementEventType.SharePostsClicked,
     ];
 
     if (absoluteValueEventTypes.includes(eventType)) {
