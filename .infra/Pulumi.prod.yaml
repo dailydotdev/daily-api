@@ -286,3 +286,6 @@ config:
       secure: AAABAH16I8xQAJjTyasPQzLDqd3AAo7q4dMEBGHVbgJJVvSviQelQT09
     signingKey:
       secure: AAABAGxRaqkffmtnKxeVFwStkBB2QUM1t5XtIOBJN0T/AcAJOac8oaovU/4H41JxFS5tnOOvWqN6HLvyejByOZ6UtxF6DqC27mvRiOKu863MKg7JrL3wPhHqEEgDJmdoGfqJw4Yady/CLRMqn58TCUwwNHRlcESng2RmwT9+BDXZywRFXfE5NKp41qLtLeOU6piAooQghHjVX6EQd8AG9Ffl2ehijRcwNnpgkQR8oz1V+Ilat6fvn9qQT1bjrBSE6oagdOxeLBdsVOmoa0H6ZbocsGmtvETEypK1uW62QD/Ar2PYtRSsFhvY9YiUf5qMxa6Kp1fJ4IdupoOKaAZY3yHlTFHXkU6pg0GGpfhktfaEgZaEgxcoknpQzPwEknjiAQ==
+  api:klipyApiKey:
+    secure: AAABADCz8pDVkU6+4S9ePSsZZns8/GmH89qpZpXK51LLA52CMXrY8ktOI9+MHLzROb8neJ371IP/UxnLlPzX++wFTmRtC7q++KgM2Qi8xWDAli88vVmy54lLDjJUvUgk
+  api:klipyGifSearchUrl: https://api.klipy.com/v2/search
