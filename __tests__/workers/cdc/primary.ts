@@ -30,6 +30,8 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
+  Keyword,
+  KeywordStatus,
   MarketingCta,
   MarketingCtaStatus,
   NotificationV2,
@@ -69,6 +71,7 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  UserTopReader,
   YouTubePost,
 } from '../../../src/entity';
 import { UserAchievement } from '../../../src/entity/user/UserAchievement';
@@ -5126,6 +5129,100 @@ describe('user streak change', () => {
         });
       expect(userAchievement!.progress).toEqual(30);
     });
+  });
+});
+
+describe('user top reader change', () => {
+  type ObjectType = UserTopReader;
+  const userId = randomUUID();
+  const keywordValue = 'top-reader-test-keyword';
+  let touchGrassAchievementId: string;
+
+  beforeEach(async () => {
+    touchGrassAchievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: touchGrassAchievementId,
+      name: 'Touch grass',
+      description: 'Earn 10 top reader badges',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.TopReaderBadge,
+      criteria: { targetCount: 10 },
+      points: 40,
+    });
+
+    await saveFixtures(con, User, [
+      {
+        id: userId,
+        bio: null,
+        name: 'Top Reader Test',
+        image: 'https://daily.dev/top-reader.jpg',
+        email: `top-reader-${userId}@daily.dev`,
+        createdAt: new Date(),
+        username: `topreader${userId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+
+    await saveFixtures(con, Keyword, [
+      { value: keywordValue, occurrences: 1, status: KeywordStatus.Allow },
+    ]);
+  });
+
+  const fireBadge = async (index: number) => {
+    const issuedAt = new Date(2024, 0, index).toISOString();
+    const badge: ChangeObject<ObjectType> = {
+      id: randomUUID(),
+      userId,
+      issuedAt: issuedAt as never,
+      keywordValue,
+      image: null as never,
+    };
+
+    await con.getRepository(UserTopReader).save({
+      ...badge,
+      issuedAt: new Date(issuedAt),
+    });
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: badge,
+        before: undefined,
+        op: 'c',
+        table: 'user_top_reader',
+      }),
+    );
+  };
+
+  it('should set progress to the absolute badge count and not unlock below targetCount', async () => {
+    for (let i = 1; i <= 7; i++) {
+      await fireBadge(i);
+    }
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: touchGrassAchievementId,
+      userId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(7);
+    expect(userAchievement!.unlockedAt).toBeNull();
+  });
+
+  it('should unlock the achievement only when the actual badge count reaches targetCount', async () => {
+    for (let i = 1; i <= 10; i++) {
+      await fireBadge(i);
+    }
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: touchGrassAchievementId,
+      userId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(10);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
   });
 });
 
