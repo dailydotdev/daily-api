@@ -10,6 +10,7 @@ import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
 import { MoreThanOrEqual } from 'typeorm';
+import { updateFlagsStatement } from '../common/utils';
 
 export interface GQLKeyword {
   value: string;
@@ -27,6 +28,10 @@ interface GQLKeywordSearchResults {
 
 interface GQLKeywordArgs {
   keyword: string;
+}
+
+interface GQLAllowKeywordArgs extends GQLKeywordArgs {
+  title?: string;
 }
 
 interface GQLSynonymKeywordArgs {
@@ -120,7 +125,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Add keyword to the allowlist
     """
-    allowKeyword(keyword: String!): EmptyResponse @auth(requires: [MODERATOR])
+    allowKeyword(keyword: String!, title: String): EmptyResponse
+      @auth(requires: [MODERATOR])
     """
     Add keyword to the denylist
     """
@@ -228,14 +234,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     allowKeyword: async (
       source,
-      { keyword }: GQLKeywordArgs,
+      { keyword, title }: GQLAllowKeywordArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager.getRepository(Keyword).save({
+        const repo = entityManager.getRepository(Keyword);
+        await repo.save({
           value: keyword,
           status: KeywordStatus.Allow,
         });
+        if (title) {
+          await repo.update(
+            { value: keyword },
+            { flags: updateFlagsStatement<Keyword>({ title }) },
+          );
+        }
       });
       return { _: true };
     },
