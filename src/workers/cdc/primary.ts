@@ -997,7 +997,8 @@ const onUserChange = async (
       (data.payload.after!.subscriptionFlags as unknown as string) || '{}',
     );
     const plusStatus = hasPlusStatusChanged(afterFlags, beforeFlags);
-    if (plusStatus.statusChanged && plusStatus.isPlus) {
+    const isHackathonCycle = afterFlags.cycle === 'hackathon';
+    if (plusStatus.statusChanged && plusStatus.isPlus && !isHackathonCycle) {
       await checkAchievementProgress(
         con,
         logger,
@@ -1006,7 +1007,7 @@ const onUserChange = async (
       );
     }
 
-    if (plusStatus.isPlus && afterFlags.createdAt) {
+    if (plusStatus.isPlus && !isHackathonCycle && afterFlags.createdAt) {
       const createdAt = new Date(afterFlags.createdAt);
       const monthsSubscribed = differenceInMonths(new Date(), createdAt);
       if (monthsSubscribed >= 12) {
