@@ -1,10 +1,13 @@
 import fetch from 'node-fetch';
-import { DataSource } from 'typeorm';
+import { ArrayContains, IsNull } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { anthropicClient } from '../integrations/anthropic';
 import { generateShortId } from '../ids';
 import { Company, CompanyType } from '../entity/Company';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../entity/user/experiences/types';
+import { UserCompany } from '../entity/UserCompany';
+import { validateWorkEmailDomain } from './utils';
 
 const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const FAVICON_SIZE = 128;
@@ -106,10 +109,271 @@ export function getGoogleFaviconUrl(domain: string): string {
   return `${GOOGLE_FAVICON_URL}?domain=${encodeURIComponent(domain)}&sz=${FAVICON_SIZE}`;
 }
 
-export interface EnrichCompanyParams {
+export type EnrichCompanyParams = {
   experienceId: string;
   customCompanyName: string;
   experienceType: UserExperienceType;
+};
+
+export type EnrichCompanyForUserCompanyParams = {
+  userCompanyEmail: string;
+  userCompanyUserId: string;
+  domain: string;
+};
+
+const skippedResult = (error: string): EnrichmentResult => ({
+  success: false,
+  skipped: true,
+  linkedToExisting: false,
+  companyCreated: false,
+  error,
+});
+
+const isAnthropicConfigured = (): boolean =>
+  !!anthropicClient && !!process.env.ANTHROPIC_API_KEY;
+
+const isSerializationError = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === '40001';
+
+const serializableTransaction = async <T>(
+  con: DataSource,
+  run: (manager: EntityManager) => Promise<T>,
+): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await con.transaction('SERIALIZABLE', run);
+    } catch (error) {
+      if (!isSerializationError(error) || attempt === 3) {
+        throw error;
+      }
+
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+};
+
+const linkExistingCompanyForUserCompany = async (
+  con: DataSource,
+  {
+    userCompanyEmail,
+    userCompanyUserId,
+    domain,
+  }: EnrichCompanyForUserCompanyParams,
+): Promise<EnrichmentResult | null> =>
+  serializableTransaction(con, async (manager) => {
+    const userCompany = await manager.getRepository(UserCompany).findOneBy({
+      email: userCompanyEmail,
+      userId: userCompanyUserId,
+    });
+
+    if (!userCompany) {
+      return skippedResult('User company not found');
+    }
+
+    if (userCompany.companyId) {
+      return {
+        success: true,
+        skipped: false,
+        linkedToExisting: true,
+        companyCreated: false,
+        companyId: userCompany.companyId,
+      };
+    }
+
+    const existingCompany = await manager.getRepository(Company).findOneBy({
+      domains: ArrayContains([domain]),
+    });
+
+    if (!existingCompany) {
+      return null;
+    }
+
+    await manager.getRepository(UserCompany).update(
+      {
+        email: userCompanyEmail,
+        userId: userCompanyUserId,
+        companyId: IsNull(),
+      },
+      { companyId: existingCompany.id },
+    );
+
+    return {
+      success: true,
+      skipped: false,
+      linkedToExisting: true,
+      companyCreated: false,
+      companyId: existingCompany.id,
+    };
+  });
+
+export async function enrichCompanyForUserCompany(
+  con: DataSource,
+  params: EnrichCompanyForUserCompanyParams,
+  logger: EnrichmentLogger,
+): Promise<EnrichmentResult> {
+  const domain = params.domain.trim().toLowerCase();
+  const userCompanyParams = { ...params, domain };
+
+  if (!domain) {
+    return skippedResult('Missing domain');
+  }
+
+  if (validateWorkEmailDomain(domain)) {
+    logger.debug({ domain }, 'Work email domain is ignored, skipping');
+    return skippedResult('Ignored work email domain');
+  }
+
+  const existingResult = await linkExistingCompanyForUserCompany(
+    con,
+    userCompanyParams,
+  );
+  if (existingResult) {
+    return existingResult;
+  }
+
+  if (!isAnthropicConfigured()) {
+    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
+    return skippedResult('Anthropic client not configured');
+  }
+
+  const res = await anthropicClient.createMessage({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 1024,
+    system:
+      'You are a helpful assistant that returns information about an organization. The user will give you a web domain, and you will return the organization name in both English and its native language.',
+    messages: [
+      {
+        role: 'user',
+        content: domain,
+      },
+    ],
+    tools: [
+      {
+        name: 'organization_info',
+        description: 'Gets information about the organization for a domain',
+        input_schema: {
+          type: 'object',
+          properties: {
+            englishName: {
+              type: 'string',
+              description: 'The English name of the organization',
+            },
+            nativeName: {
+              type: 'string',
+              description:
+                'The name of the organization in its native language',
+            },
+          },
+          required: ['englishName', 'nativeName'],
+        },
+      },
+    ],
+    tool_choice: {
+      type: 'tool',
+      name: 'organization_info',
+    },
+  });
+
+  const organizationInfo = res.content[0]?.input as
+    | {
+        englishName?: string;
+        nativeName?: string;
+      }
+    | undefined;
+  const englishName = organizationInfo?.englishName;
+  const nativeName = organizationInfo?.nativeName;
+
+  if (!englishName) {
+    logger.debug({ domain }, 'Missing required organization info englishName');
+    return skippedResult('Missing englishName');
+  }
+
+  const validatedDomain = await validateDomain(domain, logger);
+  if (!validatedDomain) {
+    logger.debug({ domain }, 'Domain validation failed, using email domain');
+  }
+
+  const companyId = await generateShortId();
+  const altName = nativeName && nativeName !== englishName ? nativeName : null;
+  const faviconUrl = getGoogleFaviconUrl(domain);
+
+  return serializableTransaction(con, async (manager) => {
+    const userCompany = await manager.getRepository(UserCompany).findOneBy({
+      email: params.userCompanyEmail,
+      userId: params.userCompanyUserId,
+    });
+
+    if (!userCompany) {
+      return skippedResult('User company not found');
+    }
+
+    if (userCompany.companyId) {
+      return {
+        success: true,
+        skipped: false,
+        linkedToExisting: true,
+        companyCreated: false,
+        companyId: userCompany.companyId,
+      };
+    }
+
+    const existingCompany = await manager.getRepository(Company).findOneBy({
+      domains: ArrayContains([domain]),
+    });
+
+    if (existingCompany) {
+      await manager.getRepository(UserCompany).update(
+        {
+          email: params.userCompanyEmail,
+          userId: params.userCompanyUserId,
+          companyId: IsNull(),
+        },
+        { companyId: existingCompany.id },
+      );
+
+      return {
+        success: true,
+        skipped: false,
+        linkedToExisting: true,
+        companyCreated: false,
+        companyId: existingCompany.id,
+      };
+    }
+
+    const company = manager.getRepository(Company).create({
+      id: companyId,
+      name: englishName,
+      altName,
+      image: faviconUrl,
+      domains: [domain],
+      type: CompanyType.Company,
+    });
+
+    await manager.getRepository(Company).save(company);
+    await manager.getRepository(UserCompany).update(
+      {
+        email: params.userCompanyEmail,
+        userId: params.userCompanyUserId,
+        companyId: IsNull(),
+      },
+      { companyId },
+    );
+
+    return {
+      success: true,
+      skipped: false,
+      linkedToExisting: false,
+      companyCreated: true,
+      companyId,
+    };
+  });
 }
 
 /**
@@ -124,15 +388,9 @@ export async function enrichCompanyForExperience(
 ): Promise<EnrichmentResult> {
   const { experienceId, customCompanyName, experienceType } = params;
 
-  if (!anthropicClient) {
+  if (!isAnthropicConfigured()) {
     logger.debug({}, 'Anthropic client not configured, skipping enrichment');
-    return {
-      success: false,
-      skipped: true,
-      linkedToExisting: false,
-      companyCreated: false,
-      error: 'Anthropic client not configured',
-    };
+    return skippedResult('Anthropic client not configured');
   }
 
   const res = await anthropicClient.createMessage({
