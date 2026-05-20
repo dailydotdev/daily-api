@@ -1450,6 +1450,7 @@ describe('boot misc', () => {
         browsingContextEnabled: false,
         highlightsPlacement: 'default',
         legacyPostLayoutOptOut: false,
+        readerInstallPromptAcknowledged: false,
       },
     });
     expect(res.body.settings.flags.removedFlag).toBeUndefined();
