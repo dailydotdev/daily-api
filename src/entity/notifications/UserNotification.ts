@@ -17,11 +17,9 @@ import { NotificationV2 } from './NotificationV2';
     where: `"uniqueKey" IS NOT NULL`,
   },
 )
-@Index('IDX_user_notification_userid_public_readat', [
-  'userId',
-  'public',
-  'readAt',
-])
+@Index('IDX_user_notification_unread_visible', ['userId', 'showAt'], {
+  where: `"readAt" IS NULL AND "public" = true`,
+})
 export class UserNotification {
   @PrimaryColumn({ type: 'uuid' })
   notificationId: string;
