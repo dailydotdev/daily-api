@@ -30,6 +30,8 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
+  Keyword,
+  KeywordStatus,
   MarketingCta,
   MarketingCtaStatus,
   NotificationV2,
@@ -69,6 +71,7 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  UserTopReader,
   YouTubePost,
 } from '../../../src/entity';
 import { UserAchievement } from '../../../src/entity/user/UserAchievement';
@@ -5129,6 +5132,100 @@ describe('user streak change', () => {
   });
 });
 
+describe('user top reader change', () => {
+  type ObjectType = UserTopReader;
+  const userId = randomUUID();
+  const keywordValue = 'top-reader-test-keyword';
+  let touchGrassAchievementId: string;
+
+  beforeEach(async () => {
+    touchGrassAchievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: touchGrassAchievementId,
+      name: 'Touch grass',
+      description: 'Earn 10 top reader badges',
+      image: '',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.TopReaderBadge,
+      criteria: { targetCount: 10 },
+      points: 40,
+    });
+
+    await saveFixtures(con, User, [
+      {
+        id: userId,
+        bio: null,
+        name: 'Top Reader Test',
+        image: 'https://daily.dev/top-reader.jpg',
+        email: `top-reader-${userId}@daily.dev`,
+        createdAt: new Date(),
+        username: `topreader${userId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+
+    await saveFixtures(con, Keyword, [
+      { value: keywordValue, occurrences: 1, status: KeywordStatus.Allow },
+    ]);
+  });
+
+  const fireBadge = async (index: number) => {
+    const issuedAt = new Date(2024, 0, index).toISOString();
+    const badge: ChangeObject<ObjectType> = {
+      id: randomUUID(),
+      userId,
+      issuedAt: issuedAt as never,
+      keywordValue,
+      image: null as never,
+    };
+
+    await con.getRepository(UserTopReader).save({
+      ...badge,
+      issuedAt: new Date(issuedAt),
+    });
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: badge,
+        before: undefined,
+        op: 'c',
+        table: 'user_top_reader',
+      }),
+    );
+  };
+
+  it('should set progress to the absolute badge count and not unlock below targetCount', async () => {
+    for (let i = 1; i <= 7; i++) {
+      await fireBadge(i);
+    }
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: touchGrassAchievementId,
+      userId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(7);
+    expect(userAchievement!.unlockedAt).toBeNull();
+  });
+
+  it('should unlock the achievement only when the actual badge count reaches targetCount', async () => {
+    for (let i = 1; i <= 10; i++) {
+      await fireBadge(i);
+    }
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: touchGrassAchievementId,
+      userId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(10);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
+  });
+});
+
 describe('user company approved', () => {
   type ObjectType = UserCompany;
   const base: ChangeObject<ObjectType> = {
@@ -8339,6 +8436,150 @@ describe('post analytics achievement progress', () => {
 
     expect(userAchievement).not.toBeNull();
     expect(userAchievement!.progress).toEqual(1200);
+    expect(userAchievement!.unlockedAt).toBeNull();
+  });
+});
+
+describe('share click achievement progress', () => {
+  let sharePostsClickedAchievementId: string;
+  let shareClickMilestoneAchievementId: string;
+  let authorId: string;
+
+  const postIds = ['share-click-1', 'share-click-2', 'share-click-3'];
+
+  const emitClickChange = (
+    postId: string,
+    beforeClicks: number,
+    afterClicks: number,
+  ) =>
+    expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PostAnalytics>({
+        before: {
+          id: postId,
+          impressions: 0,
+          impressionsAds: 0,
+          clicks: beforeClicks,
+        },
+        after: {
+          id: postId,
+          impressions: 0,
+          impressionsAds: 0,
+          clicks: afterClicks,
+        },
+        op: 'u',
+        table: 'post_analytics',
+      }),
+    );
+
+  beforeEach(async () => {
+    sharePostsClickedAchievementId = randomUUID();
+    shareClickMilestoneAchievementId = randomUUID();
+    authorId = randomUUID();
+
+    await saveFixtures(con, User, [
+      {
+        id: authorId,
+        bio: null,
+        name: 'Share Click Author',
+        image: 'https://daily.dev/share-click-author.jpg',
+        email: `share-click-author-${authorId}@daily.dev`,
+        createdAt: new Date(),
+        username: `share${authorId.slice(0, 8)}`,
+        infoConfirmed: true,
+      },
+    ]);
+    await saveFixtures(con, Source, sourcesFixture);
+
+    await con.getRepository(Achievement).save([
+      {
+        id: sharePostsClickedAchievementId,
+        name: 'Share Posts Clicked Achievement',
+        description: 'Get clicks on 10 distinct share posts',
+        image: '',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.SharePostsClicked,
+        criteria: { targetCount: 10 },
+        points: 10,
+      },
+      {
+        id: shareClickMilestoneAchievementId,
+        name: 'Share Click Milestone Achievement',
+        description: 'Reach 100 clicks on a share post',
+        image: '',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.ShareClickMilestone,
+        criteria: { targetCount: 100 },
+        points: 10,
+      },
+    ]);
+
+    await con.getRepository(Post).save(
+      postIds.map((id, index) => ({
+        id,
+        shortId: id,
+        title: `Share post ${index + 1}`,
+        authorId,
+        sourceId: 'a',
+        type: PostType.Share,
+        sharedPostId: null,
+      })),
+    );
+
+    await con.getRepository(PostAnalytics).save(
+      postIds.map((id) => ({
+        id,
+        impressions: 0,
+        impressionsAds: 0,
+        clicks: 0,
+      })),
+    );
+  });
+
+  it('should set SharePostsClicked progress to the count of share posts with clicks (not accumulate)', async () => {
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: postIds[0] }, { clicks: 1 });
+    await emitClickChange(postIds[0], 0, 1);
+
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: postIds[1] }, { clicks: 1 });
+    await emitClickChange(postIds[1], 0, 1);
+
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: postIds[2] }, { clicks: 1 });
+    await emitClickChange(postIds[2], 0, 1);
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: sharePostsClickedAchievementId,
+      userId: authorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(3);
+    expect(userAchievement!.unlockedAt).toBeNull();
+  });
+
+  it('should set ShareClickMilestone progress to the user-level max clicks across share posts', async () => {
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: postIds[0] }, { clicks: 50 });
+    await emitClickChange(postIds[0], 0, 50);
+
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: postIds[1] }, { clicks: 10 });
+    await emitClickChange(postIds[1], 0, 10);
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: shareClickMilestoneAchievementId,
+      userId: authorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(50);
     expect(userAchievement!.unlockedAt).toBeNull();
   });
 });

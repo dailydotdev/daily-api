@@ -5,7 +5,10 @@ import {
   toPostHighlightSignificance,
   toPostHighlightSignificanceLabel,
 } from '../../entity/PostHighlight';
+import type { PostRelation } from '../../entity/posts/PostRelation';
 import type { HighlightItem } from './types';
+
+type HighlightRelation = Pick<PostRelation, 'postId' | 'relatedPostId'>;
 
 const normalizeHighlightItems = ({
   items,
@@ -94,10 +97,12 @@ const upsertCanonicalHighlights = async ({
   manager,
   channel,
   items,
+  relations,
 }: {
   manager: EntityManager;
   channel: string;
   items: HighlightItem[];
+  relations: HighlightRelation[];
 }): Promise<HighlightsCanonical[]> => {
   const repo = manager.getRepository(HighlightsCanonical);
   const nextItems = normalizeHighlightItems({
@@ -109,17 +114,40 @@ const upsertCanonicalHighlights = async ({
     return [];
   }
 
+  const childrenByCollection = new Map<string, string[]>();
+  const collectionByChild = new Map<string, string>();
+  for (const relation of relations) {
+    const children = childrenByCollection.get(relation.postId) || [];
+    children.push(relation.relatedPostId);
+    childrenByCollection.set(relation.postId, children);
+    collectionByChild.set(relation.relatedPostId, relation.postId);
+  }
+  const familyPostIdsByPostId = new Map(
+    nextItems.map((item) => {
+      const collectionId = collectionByChild.get(item.postId) || item.postId;
+
+      return [
+        item.postId,
+        [collectionId, ...(childrenByCollection.get(collectionId) || [])],
+      ];
+    }),
+  );
+  const lookupPostIds = [
+    ...new Set([...familyPostIdsByPostId.values()].flat()),
+  ];
   const currentByPostId = new Map(
     (
       await repo.findBy({
-        postId: In(nextItems.map((item) => item.postId)),
+        postId: In(lookupPostIds),
       })
     ).map((highlight) => [highlight.postId, highlight]),
   );
 
   return repo.save(
     nextItems.map((item) => {
-      const current = currentByPostId.get(item.postId);
+      const current = (familyPostIdsByPostId.get(item.postId) || [item.postId])
+        .map((postId) => currentByPostId.get(postId))
+        .find((highlight): highlight is HighlightsCanonical => !!highlight);
 
       return repo.create({
         id: current?.id,
@@ -138,15 +166,18 @@ export const publishHighlightsForChannel = async ({
   manager,
   channel,
   items,
+  relations = [],
 }: {
   manager: EntityManager;
   channel: string;
   items: HighlightItem[];
+  relations?: HighlightRelation[];
 }): Promise<void> => {
   const canonicalHighlights = await upsertCanonicalHighlights({
     manager,
     channel,
     items,
+    relations,
   });
 
   await replaceLegacyHighlightsForChannel({

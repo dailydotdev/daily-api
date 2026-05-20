@@ -1000,7 +1000,8 @@ const onUserChange = async (
       (data.payload.after!.subscriptionFlags as unknown as string) || '{}',
     );
     const plusStatus = hasPlusStatusChanged(afterFlags, beforeFlags);
-    if (plusStatus.statusChanged && plusStatus.isPlus) {
+    const isHackathonCycle = afterFlags.cycle === 'hackathon';
+    if (plusStatus.statusChanged && plusStatus.isPlus && !isHackathonCycle) {
       await checkAchievementProgress(
         con,
         logger,
@@ -1009,7 +1010,7 @@ const onUserChange = async (
       );
     }
 
-    if (plusStatus.isPlus && afterFlags.createdAt) {
+    if (plusStatus.isPlus && !isHackathonCycle && afterFlags.createdAt) {
       const createdAt = new Date(afterFlags.createdAt);
       const monthsSubscribed = differenceInMonths(new Date(), createdAt);
       if (monthsSubscribed >= 12) {
@@ -2772,21 +2773,28 @@ const onPostAnalyticsChange = async (
         );
       }
 
+      const stats = await con
+        .getRepository(SharePost)
+        .createQueryBuilder('sp')
+        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
+        .where('sp.authorId = :userId', { userId: sharePost.authorId })
+        .select('COALESCE(MAX(pa.clicks), 0)::int', 'maxClicks')
+        .addSelect(
+          'COUNT(*) FILTER (WHERE pa.clicks > 0)::int',
+          'postsWithClicks',
+        )
+        .getRawOne<{ maxClicks: number; postsWithClicks: number }>();
+
+      const maxClicks = stats?.maxClicks ?? 0;
+      const postsWithClicks = stats?.postsWithClicks ?? 0;
+
       await checkAchievementProgress(
         con,
         logger,
         sharePost.authorId,
         AchievementEventType.ShareClickMilestone,
-        clicks,
+        maxClicks,
       );
-
-      const postsWithClicks = await con
-        .getRepository(SharePost)
-        .createQueryBuilder('sp')
-        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
-        .where('sp.authorId = :userId', { userId: sharePost.authorId })
-        .andWhere('pa.clicks > 0')
-        .getCount();
 
       await checkAchievementProgress(
         con,
