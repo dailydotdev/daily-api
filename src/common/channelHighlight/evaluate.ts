@@ -68,6 +68,8 @@ const toCurrentHighlight = (item: HighlightItem): ChannelHighlightCurrentItem =>
   new ChannelHighlightCurrentItem({
     postId: item.postId,
     headline: item.headline,
+    summary: item.summary || undefined,
+    reason: item.reason || undefined,
     highlightedAt: toTimestamp(item.highlightedAt),
     significance: toProtoSignificance(item.significanceLabel),
   });

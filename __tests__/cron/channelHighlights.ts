@@ -41,6 +41,7 @@ const saveArticle = async ({
   channels = [channel],
   sourceId = 'content-source',
   contentCuration = [] as string[],
+  summary,
 }: {
   id: string;
   title: string;
@@ -51,11 +52,13 @@ const saveArticle = async ({
   channels?: string[];
   sourceId?: string;
   contentCuration?: string[];
+  summary?: string;
 }) =>
   con.getRepository(ArticlePost).save({
     id,
     shortId: id,
     title,
+    summary,
     url: `https://example.com/${id}`,
     canonicalUrl: `https://example.com/${id}`,
     score: 0,
@@ -250,6 +253,7 @@ describe('channel highlight generation cron', () => {
     await saveArticle({
       id: 'live-1',
       title: 'Live story',
+      summary: 'Live story summary',
       createdAt: new Date('2026-03-03T08:00:00.000Z'),
     });
     await saveArticle({
@@ -288,6 +292,7 @@ describe('channel highlight generation cron', () => {
       expect.objectContaining({
         postId: 'live-1',
         headline: 'Live headline',
+        summary: 'Live story summary',
       }),
     ]);
     expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([

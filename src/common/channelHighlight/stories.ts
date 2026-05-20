@@ -196,6 +196,7 @@ export const toHighlightItem = (
 ): HighlightItem => ({
   postId: item.postId,
   headline: item.headline,
+  summary: null,
   highlightedAt: item.highlightedAt,
   significanceLabel: toPostHighlightSignificanceLabel(item.significance),
   reason: item.reason,
@@ -256,6 +257,7 @@ export const canonicalizeCurrentHighlights = ({
     canonicalHighlights.set(canonicalPostId, {
       postId: canonicalPostId,
       headline: highlight.headline,
+      summary: canonicalPost.summary || highlight.summary,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
       reason: highlight.reason,

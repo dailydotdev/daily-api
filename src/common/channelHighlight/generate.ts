@@ -538,6 +538,7 @@ export const generateChannelHighlights = async ({
           ).items.map<HighlightItem>((item) => ({
             postId: item.postId,
             headline: item.headline,
+            summary: null,
             highlightedAt: now,
             significanceLabel: item.significanceLabel,
             reason: item.reason,
