@@ -30,10 +30,6 @@ interface GQLKeywordArgs {
   keyword: string;
 }
 
-interface GQLAllowKeywordArgs extends GQLKeywordArgs {
-  title?: string;
-}
-
 interface GQLSynonymKeywordArgs {
   keywordToUpdate: string;
   originalKeyword: string;
@@ -234,7 +230,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     allowKeyword: async (
       source,
-      { keyword, title }: GQLAllowKeywordArgs,
+      { keyword, title }: GQLKeywordArgs & { title?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
