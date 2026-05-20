@@ -3,12 +3,6 @@ import type { User } from '../user';
 import { NotificationV2 } from './NotificationV2';
 
 @Entity()
-@Index('IDX_user_notification_user_id_created_at', [
-  'userId',
-  'public',
-  'createdAt',
-])
-@Index('IDX_user_notification_user_id_read_at', ['userId', 'readAt'])
 @Index(
   'IDX_user_notification_userId_uniqueKey_unique',
   ['userId', 'uniqueKey'],
