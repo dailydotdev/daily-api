@@ -97,6 +97,7 @@ import {
   updateFlagsStatement,
   updateNotificationFlags,
   updateSubscriptionFlags,
+  isProd,
   uploadAvatar,
   UploadPreset,
   uploadProfileCover,
@@ -3260,6 +3261,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       __,
       { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (isProd) {
+        throw new ValidationError('Signups are closed');
+      }
+
       await con.getRepository(User).update(
         { id: userId },
         {
