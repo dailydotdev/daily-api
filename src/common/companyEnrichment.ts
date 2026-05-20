@@ -121,12 +121,43 @@ export type EnrichCompanyForUserCompanyParams = {
   domain: string;
 };
 
+type RepositorySource = DataSource | EntityManager;
+
+type OrganizationInfo = {
+  englishName?: string;
+  nativeName?: string;
+  domain?: string;
+};
+
+type CreateCompanyParams = {
+  domain: string;
+  englishName: string;
+  nativeName?: string;
+  type: CompanyType;
+};
+
 const skippedResult = (error: string): EnrichmentResult => ({
   success: false,
   skipped: true,
   linkedToExisting: false,
   companyCreated: false,
   error,
+});
+
+const linkedResult = (companyId: string): EnrichmentResult => ({
+  success: true,
+  skipped: false,
+  linkedToExisting: true,
+  companyCreated: false,
+  companyId,
+});
+
+const createdResult = (companyId: string): EnrichmentResult => ({
+  success: true,
+  skipped: false,
+  linkedToExisting: false,
+  companyCreated: true,
+  companyId,
 });
 
 const isAnthropicConfigured = (): boolean =>
@@ -159,58 +190,148 @@ const serializableTransaction = async <T>(
   throw lastError;
 };
 
-const linkExistingCompanyForUserCompany = async (
-  con: DataSource,
-  {
-    userCompanyEmail,
-    userCompanyUserId,
-    domain,
-  }: EnrichCompanyForUserCompanyParams,
-): Promise<EnrichmentResult | null> =>
-  serializableTransaction(con, async (manager) => {
-    const userCompany = await manager.getRepository(UserCompany).findOneBy({
+const getCompanyByDomain = (
+  source: RepositorySource,
+  domain: string,
+): Promise<Company | null> =>
+  source.getRepository(Company).findOneBy({
+    domains: ArrayContains([domain]),
+  });
+
+const createCompany = async (
+  source: RepositorySource,
+  { domain, englishName, nativeName, type }: CreateCompanyParams,
+): Promise<string> => {
+  const companyId = await generateShortId();
+  const altName = nativeName && nativeName !== englishName ? nativeName : null;
+  const company = source.getRepository(Company).create({
+    id: companyId,
+    name: englishName,
+    altName,
+    image: getGoogleFaviconUrl(domain),
+    domains: [domain],
+    type,
+  });
+
+  await source.getRepository(Company).save(company);
+
+  return companyId;
+};
+
+const getOrganizationInfo = async ({
+  input,
+  includeDomain,
+}: {
+  input: string;
+  includeDomain: boolean;
+}): Promise<OrganizationInfo> => {
+  const properties = {
+    englishName: {
+      type: 'string',
+      description: 'The English name of the organization',
+    },
+    nativeName: {
+      type: 'string',
+      description: 'The name of the organization in its native language',
+    },
+    ...(includeDomain
+      ? {
+          domain: {
+            type: 'string',
+            description:
+              'The web domain of the organization. Return empty string if unknown.',
+          },
+        }
+      : {}),
+  };
+
+  const res = await anthropicClient.createMessage({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 1024,
+    system: includeDomain
+      ? 'You are a helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.'
+      : 'You are a helpful assistant that returns information about an organization. The user will give you a web domain, and you will return the organization name in both English and its native language.',
+    messages: [
+      {
+        role: 'user',
+        content: input,
+      },
+    ],
+    tools: [
+      {
+        name: 'organization_info',
+        description: includeDomain
+          ? 'Gets information about the given organization'
+          : 'Gets information about the organization for a domain',
+        input_schema: {
+          type: 'object',
+          properties,
+          required: includeDomain
+            ? ['englishName', 'nativeName', 'domain']
+            : ['englishName', 'nativeName'],
+        },
+      },
+    ],
+    tool_choice: {
+      type: 'tool',
+      name: 'organization_info',
+    },
+  });
+
+  return (res.content[0]?.input ?? {}) as OrganizationInfo;
+};
+
+const getUserCompanyResult = async (
+  manager: EntityManager,
+  { userCompanyEmail, userCompanyUserId }: EnrichCompanyForUserCompanyParams,
+): Promise<EnrichmentResult | null> => {
+  const userCompany = await manager.getRepository(UserCompany).findOneBy({
+    email: userCompanyEmail,
+    userId: userCompanyUserId,
+  });
+
+  if (!userCompany) {
+    return skippedResult('User company not found');
+  }
+
+  return userCompany.companyId ? linkedResult(userCompany.companyId) : null;
+};
+
+const updateUserCompanyCompanyId = (
+  manager: EntityManager,
+  { userCompanyEmail, userCompanyUserId }: EnrichCompanyForUserCompanyParams,
+  companyId: string,
+) =>
+  manager.getRepository(UserCompany).update(
+    {
       email: userCompanyEmail,
       userId: userCompanyUserId,
-    });
+      companyId: IsNull(),
+    },
+    { companyId },
+  );
 
-    if (!userCompany) {
-      return skippedResult('User company not found');
+const linkExistingCompanyForUserCompany = async (
+  con: DataSource,
+  params: EnrichCompanyForUserCompanyParams,
+): Promise<EnrichmentResult | null> =>
+  serializableTransaction(con, async (manager) => {
+    const existingUserCompanyResult = await getUserCompanyResult(
+      manager,
+      params,
+    );
+    if (existingUserCompanyResult) {
+      return existingUserCompanyResult;
     }
 
-    if (userCompany.companyId) {
-      return {
-        success: true,
-        skipped: false,
-        linkedToExisting: true,
-        companyCreated: false,
-        companyId: userCompany.companyId,
-      };
-    }
-
-    const existingCompany = await manager.getRepository(Company).findOneBy({
-      domains: ArrayContains([domain]),
-    });
-
+    const existingCompany = await getCompanyByDomain(manager, params.domain);
     if (!existingCompany) {
       return null;
     }
 
-    await manager.getRepository(UserCompany).update(
-      {
-        email: userCompanyEmail,
-        userId: userCompanyUserId,
-        companyId: IsNull(),
-      },
-      { companyId: existingCompany.id },
-    );
+    await updateUserCompanyCompanyId(manager, params, existingCompany.id);
 
-    return {
-      success: true,
-      skipped: false,
-      linkedToExisting: true,
-      companyCreated: false,
-      companyId: existingCompany.id,
-    };
+    return linkedResult(existingCompany.id);
   });
 
 export async function enrichCompanyForUserCompany(
@@ -243,52 +364,10 @@ export async function enrichCompanyForUserCompany(
     return skippedResult('Anthropic client not configured');
   }
 
-  const res = await anthropicClient.createMessage({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 1024,
-    system:
-      'You are a helpful assistant that returns information about an organization. The user will give you a web domain, and you will return the organization name in both English and its native language.',
-    messages: [
-      {
-        role: 'user',
-        content: domain,
-      },
-    ],
-    tools: [
-      {
-        name: 'organization_info',
-        description: 'Gets information about the organization for a domain',
-        input_schema: {
-          type: 'object',
-          properties: {
-            englishName: {
-              type: 'string',
-              description: 'The English name of the organization',
-            },
-            nativeName: {
-              type: 'string',
-              description:
-                'The name of the organization in its native language',
-            },
-          },
-          required: ['englishName', 'nativeName'],
-        },
-      },
-    ],
-    tool_choice: {
-      type: 'tool',
-      name: 'organization_info',
-    },
+  const { englishName, nativeName } = await getOrganizationInfo({
+    input: domain,
+    includeDomain: false,
   });
-
-  const organizationInfo = res.content[0]?.input as
-    | {
-        englishName?: string;
-        nativeName?: string;
-      }
-    | undefined;
-  const englishName = organizationInfo?.englishName;
-  const nativeName = organizationInfo?.nativeName;
 
   if (!englishName) {
     logger.debug({ domain }, 'Missing required organization info englishName');
@@ -300,79 +379,36 @@ export async function enrichCompanyForUserCompany(
     logger.debug({ domain }, 'Domain validation failed, using email domain');
   }
 
-  const companyId = await generateShortId();
-  const altName = nativeName && nativeName !== englishName ? nativeName : null;
-  const faviconUrl = getGoogleFaviconUrl(domain);
-
   return serializableTransaction(con, async (manager) => {
-    const userCompany = await manager.getRepository(UserCompany).findOneBy({
-      email: params.userCompanyEmail,
-      userId: params.userCompanyUserId,
-    });
-
-    if (!userCompany) {
-      return skippedResult('User company not found');
+    const existingUserCompanyResult = await getUserCompanyResult(
+      manager,
+      userCompanyParams,
+    );
+    if (existingUserCompanyResult) {
+      return existingUserCompanyResult;
     }
 
-    if (userCompany.companyId) {
-      return {
-        success: true,
-        skipped: false,
-        linkedToExisting: true,
-        companyCreated: false,
-        companyId: userCompany.companyId,
-      };
-    }
-
-    const existingCompany = await manager.getRepository(Company).findOneBy({
-      domains: ArrayContains([domain]),
-    });
-
+    const existingCompany = await getCompanyByDomain(manager, domain);
     if (existingCompany) {
-      await manager.getRepository(UserCompany).update(
-        {
-          email: params.userCompanyEmail,
-          userId: params.userCompanyUserId,
-          companyId: IsNull(),
-        },
-        { companyId: existingCompany.id },
+      await updateUserCompanyCompanyId(
+        manager,
+        userCompanyParams,
+        existingCompany.id,
       );
 
-      return {
-        success: true,
-        skipped: false,
-        linkedToExisting: true,
-        companyCreated: false,
-        companyId: existingCompany.id,
-      };
+      return linkedResult(existingCompany.id);
     }
 
-    const company = manager.getRepository(Company).create({
-      id: companyId,
-      name: englishName,
-      altName,
-      image: faviconUrl,
-      domains: [domain],
+    const companyId = await createCompany(manager, {
+      domain,
+      englishName,
+      nativeName,
       type: CompanyType.Company,
     });
 
-    await manager.getRepository(Company).save(company);
-    await manager.getRepository(UserCompany).update(
-      {
-        email: params.userCompanyEmail,
-        userId: params.userCompanyUserId,
-        companyId: IsNull(),
-      },
-      { companyId },
-    );
+    await updateUserCompanyCompanyId(manager, userCompanyParams, companyId);
 
-    return {
-      success: true,
-      skipped: false,
-      linkedToExisting: false,
-      companyCreated: true,
-      companyId,
-    };
+    return createdResult(companyId);
   });
 }
 
@@ -393,128 +429,48 @@ export async function enrichCompanyForExperience(
     return skippedResult('Anthropic client not configured');
   }
 
-  const res = await anthropicClient.createMessage({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 1024,
-    system:
-      'You are a helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.',
-    messages: [
-      {
-        role: 'user',
-        content: customCompanyName,
-      },
-    ],
-    tools: [
-      {
-        name: 'organization_info',
-        description: 'Gets information about the given organization',
-        input_schema: {
-          type: 'object',
-          properties: {
-            englishName: {
-              type: 'string',
-              description: 'The English name of the organization',
-            },
-            nativeName: {
-              type: 'string',
-              description:
-                'The name of the organization in its native language',
-            },
-            domain: {
-              type: 'string',
-              description:
-                'The web domain of the organization. Return empty string if unknown.',
-            },
-          },
-          required: ['englishName', 'nativeName', 'domain'],
-        },
-      },
-    ],
-    tool_choice: {
-      type: 'tool',
-      name: 'organization_info',
-    },
+  const { englishName, nativeName, domain } = await getOrganizationInfo({
+    input: customCompanyName,
+    includeDomain: true,
   });
-
-  const { englishName, nativeName, domain } = res.content[0].input as {
-    englishName: string;
-    nativeName: string;
-    domain: string;
-  };
 
   if (!englishName || !domain) {
     logger.debug(
       { englishName, domain },
       'Missing required organization info (englishName or domain)',
     );
-    return {
-      success: false,
-      skipped: true,
-      linkedToExisting: false,
-      companyCreated: false,
-      error: 'Missing englishName or domain',
-    };
+    return skippedResult('Missing englishName or domain');
   }
 
   const validatedDomain = await validateDomain(domain, logger);
   if (!validatedDomain) {
     logger.debug({ domain }, 'Domain validation failed');
-    return {
-      success: false,
-      skipped: true,
-      linkedToExisting: false,
-      companyCreated: false,
-      error: `Domain validation failed for ${domain}`,
-    };
+    return skippedResult(`Domain validation failed for ${domain}`);
   }
 
-  const existingCompany = await con
-    .getRepository(Company)
-    .createQueryBuilder('company')
-    .where(':domain = ANY(company.domains)', { domain: validatedDomain })
-    .getOne();
+  const existingCompany = await getCompanyByDomain(con, validatedDomain);
 
   if (existingCompany) {
     await con
       .getRepository(UserExperience)
       .update({ id: experienceId }, { companyId: existingCompany.id });
 
-    return {
-      success: true,
-      skipped: false,
-      linkedToExisting: true,
-      companyCreated: false,
-      companyId: existingCompany.id,
-    };
+    return linkedResult(existingCompany.id);
   }
 
-  const faviconUrl = getGoogleFaviconUrl(validatedDomain);
-  const companyId = await generateShortId();
-  const altName = nativeName && nativeName !== englishName ? nativeName : null;
-  const companyType =
-    experienceType === UserExperienceType.Education
-      ? CompanyType.School
-      : CompanyType.Company;
-  const company = con.getRepository(Company).create({
-    id: companyId,
-    name: englishName,
-    altName,
-    image: faviconUrl,
-    domains: [validatedDomain],
-    type: companyType,
+  const companyId = await createCompany(con, {
+    domain: validatedDomain,
+    englishName,
+    nativeName,
+    type:
+      experienceType === UserExperienceType.Education
+        ? CompanyType.School
+        : CompanyType.Company,
   });
-
-  await con.getRepository(Company).save(company);
 
   await con
     .getRepository(UserExperience)
     .update({ id: experienceId }, { companyId });
 
-  return {
-    success: true,
-    skipped: false,
-    linkedToExisting: false,
-    companyCreated: true,
-    companyId,
-  };
+  return createdResult(companyId);
 }
