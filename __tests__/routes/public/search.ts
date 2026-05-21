@@ -65,6 +65,25 @@ describe('GET /public/v1/search/posts', () => {
       .query({ q: 'test' })
       .expect(401);
   });
+
+  it('should return 400 for missing required q parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    await request(state.app.server)
+      .get('/public/v1/search/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('should return 400 for invalid time enum value', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    await request(state.app.server)
+      .get('/public/v1/search/posts')
+      .query({ q: 'foo', time: 'forever' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
 });
 
 describe('GET /public/v1/search/tags', () => {
