@@ -182,12 +182,14 @@ export const notificationTitleMap: Record<
       return `<b>${ctx.sender.username}</b> awarded your <b>${ctx.source.name}</b> Squad +${coreAmount} Cores`;
     }
 
+    const suffix = ctx.targetType === 'user' ? ' for being awesome!' : '';
+
     if (ctx.transaction.valueIncFees === 0) {
-      return `<b>${ctx.sender.username}</b> sent you an Award`;
+      return `<b>${ctx.sender.username}</b> sent you an Award${suffix}`;
     }
 
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
-    return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores`;
+    return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores${suffix}`;
   },
   organization_member_joined: ({
     user,
