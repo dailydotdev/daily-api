@@ -187,6 +187,7 @@ export const publishHighlightsForChannel = async ({
       postId: highlight.postId,
       highlightedAt: highlight.highlightedAt,
       headline: highlight.headline,
+      summary: null,
       significanceLabel: toPostHighlightSignificanceLabel(
         highlight.significance,
       ),
