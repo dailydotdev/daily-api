@@ -135,6 +135,11 @@ export const workers: Worker[] = [
     args: { enableMessageOrdering: true },
   },
   {
+    topic: 'api.changes',
+    subscription: 'api.user-company-enrichment',
+    args: { enableMessageOrdering: true },
+  },
+  {
     topic: 'api.v1.cdc-notifications',
     subscription: 'api.cdc-notifications',
   },

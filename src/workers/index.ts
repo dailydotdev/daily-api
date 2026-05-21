@@ -16,6 +16,7 @@ import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
+import cdcUserCompanyEnrichment from './cdc/userCompanyEnrichment';
 import newNotificationRealTime from './newNotificationV2RealTime';
 import newHighlightRealTime from './newHighlightRealTime';
 import newNotificationMail from './newNotificationV2Mail';
@@ -122,6 +123,7 @@ export const workers: Worker[] = [
   userReadmeImages,
   cdc,
   cdcNotifications,
+  cdcUserCompanyEnrichment,
   userCreatedPersonalizedDigestSendType,
   ...notificationWorkers,
 ];

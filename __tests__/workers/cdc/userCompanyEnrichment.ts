@@ -6,7 +6,8 @@ import { User } from '../../../src/entity/user/User';
 import { UserCompany } from '../../../src/entity/UserCompany';
 import { Company, CompanyType } from '../../../src/entity/Company';
 import { anthropicClient } from '../../../src/integrations/anthropic';
-import worker from '../../../src/workers/cdc/primary';
+import cdcWorker from '../../../src/workers/cdc/primary';
+import worker from '../../../src/workers/cdc/userCompanyEnrichment';
 import { ChangeObject } from '../../../src/types';
 import {
   expectSuccessfulBackground,
@@ -125,7 +126,7 @@ describe('user company enrichment CDC', () => {
     };
 
     await expectSuccessfulBackground(
-      worker,
+      cdcWorker,
       mockChangeMessage<UserCompany>({
         after,
         before: base,

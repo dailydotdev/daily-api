@@ -178,10 +178,7 @@ import { UserExperienceWork } from '../../entity/user/experiences/UserExperience
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
-import {
-  enrichCompanyForExperience,
-  enrichCompanyForUserCompany,
-} from '../../common/companyEnrichment';
+import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
 import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
 import { OpportunityUserType } from '../../entity/opportunities/types';
@@ -1822,32 +1819,6 @@ const onUserCompanyCompanyChange = async (
       data.payload.after!.userId,
       AchievementEventType.CompanyVerified,
     );
-  }
-
-  const shouldEnrichUserCompany =
-    data.payload.after?.companyId === null &&
-    !!data.payload.after?.email &&
-    (data.payload.op === 'c' ||
-      (data.payload.op === 'u' &&
-        data.payload.before?.companyId === null &&
-        !data.payload.before?.verified &&
-        !!data.payload.after?.verified));
-
-  if (shouldEnrichUserCompany && data.payload.after) {
-    const { email, userId } = data.payload.after;
-    const domain = email.toLowerCase().split('@')[1];
-
-    if (domain) {
-      await enrichCompanyForUserCompany(
-        con,
-        {
-          userCompanyEmail: email,
-          userCompanyUserId: userId,
-          domain,
-        },
-        logger,
-      );
-    }
   }
 
   const creationWithCompany =
