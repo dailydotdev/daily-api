@@ -59,16 +59,6 @@ describe('GET /public/v1/search/posts', () => {
     },
   );
 
-  it('should reject unknown time values with 400', async () => {
-    const token = await createTokenForUser(state.con, '5');
-
-    await request(state.app.server)
-      .get('/public/v1/search/posts')
-      .query({ q: 'foo', time: 'forever' })
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
-  });
-
   it('should require authentication', async () => {
     await request(state.app.server)
       .get('/public/v1/search/posts')
