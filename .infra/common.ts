@@ -308,6 +308,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-company-approved-cio',
   },
   {
+    topic: 'api.v1.user-company-enrichment',
+    subscription: 'api.user-company-enrichment',
+  },
+  {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-user-notification',
   },

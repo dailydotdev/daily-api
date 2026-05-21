@@ -88,6 +88,7 @@ import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 import userDeletionCleanup from './userDeletionCleanup';
 import { liveRoomStartedWorker } from './liveRoomStarted';
 import { liveRoomEndedWorker } from './liveRoomEnded';
+import userCompanyEnrichment from './userCompanyEnrichment';
 
 export { Worker } from './worker';
 
@@ -177,6 +178,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,
+  userCompanyEnrichment,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
