@@ -16,6 +16,10 @@ import tagsRoutes from './tags';
 import recommendRoutes from './recommend';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
+import {
+  SEMATTRS_DAILY_APPS_USER_ID,
+  SEMATTRS_DAILY_PUBLIC_API_TOKEN_ID,
+} from '../../telemetry/common';
 
 export { PUBLIC_API_PREFIX };
 const USER_RATE_LIMIT_PER_MINUTE = 60;
@@ -56,6 +60,14 @@ const tokenAuthHook = async (
   // Also set userId for GraphQL injection compatibility
   request.userId = result.userId;
   request.isPlus = true;
+
+  // Attach identity to the active span so /public/v1 traffic is attributable
+  // per user/token in tracing (SignOz). Used for abuse detection and per-user
+  // observability without re-querying the PAT table.
+  request.opentelemetry().span?.setAttributes({
+    [SEMATTRS_DAILY_APPS_USER_ID]: result.userId,
+    [SEMATTRS_DAILY_PUBLIC_API_TOKEN_ID]: result.tokenId,
+  });
 };
 
 export default async function (
