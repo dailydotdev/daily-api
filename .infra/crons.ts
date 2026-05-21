@@ -198,4 +198,9 @@ export const crons: Cron[] = [
     name: 'materialize-yearly-best-post-archives',
     schedule: '15 0 1 1 *',
   },
+  {
+    name: 'clean-old-notifications',
+    schedule: '13 * * * *',
+    activeDeadlineSeconds: 5 * 60,
+  },
 ];

@@ -63,6 +63,7 @@ export type CurrentHighlight = {
 export type HighlightItem = {
   postId: string;
   headline: string;
+  summary: string | null;
   highlightedAt: Date;
   significanceLabel: string | null;
   reason: string | null;
