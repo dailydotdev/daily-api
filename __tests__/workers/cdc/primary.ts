@@ -5239,7 +5239,7 @@ describe('user company approved', () => {
     flags: {},
   };
 
-  it('should not notify on creation when company id not set', async () => {
+  it('should request enrichment on creation when company id not set', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
       worker,
@@ -5250,7 +5250,10 @@ describe('user company approved', () => {
         table: 'user_company',
       }),
     );
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
+    expectTypedEvent('api.v1.user-company-enrichment', {
+      email: after.email,
+      userId: after.userId,
+    });
   });
 
   it('should notify on creation when company id is set', async () => {
