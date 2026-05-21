@@ -7,10 +7,11 @@ import { UserCompany } from '../../../src/entity/UserCompany';
 import { Company, CompanyType } from '../../../src/entity/Company';
 import { anthropicClient } from '../../../src/integrations/anthropic';
 import cdcWorker from '../../../src/workers/cdc/primary';
-import worker from '../../../src/workers/cdc/userCompanyEnrichment';
+import worker from '../../../src/workers/userCompanyEnrichment';
 import { ChangeObject } from '../../../src/types';
 import {
   expectSuccessfulBackground,
+  expectSuccessfulTypedBackground,
   mockChangeMessage,
   saveFixtures,
 } from '../../helpers';
@@ -50,7 +51,7 @@ afterEach(() => {
 });
 
 describe('user company enrichment CDC', () => {
-  it('enriches inserted UserCompany and publishes approval on companyId update', async () => {
+  it('publishes enrichment for inserted UserCompany and publishes approval on companyId update', async () => {
     const email = 'person@integrated-worlds.com';
     const base: ChangeObject<UserCompany> = {
       userId: '1',
@@ -84,7 +85,7 @@ describe('user company enrichment CDC', () => {
     });
 
     await expectSuccessfulBackground(
-      worker,
+      cdcWorker,
       mockChangeMessage<UserCompany>({
         after: base,
         before: null,
@@ -93,7 +94,17 @@ describe('user company enrichment CDC', () => {
       }),
     );
 
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-company-enrichment',
+      { email, userId: '1' },
+    ]);
+
+    jest.clearAllMocks();
+
+    await expectSuccessfulTypedBackground<'api.v1.user-company-enrichment'>(
+      worker,
+      { email, userId: '1' },
+    );
 
     const userCompany = await con.getRepository(UserCompany).findOneByOrFail({
       email,

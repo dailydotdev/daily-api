@@ -155,6 +155,10 @@ export type PubSubSchema = {
   'api.v1.user-company-approved': {
     userCompany: ChangeObject<UserCompany>;
   };
+  'api.v1.user-company-enrichment': {
+    email: string;
+    userId: string;
+  };
   'api.v1.user-top-reader': {
     userTopReader: ChangeObject<UserTopReader>;
   };

@@ -16,7 +16,6 @@ import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
-import cdcUserCompanyEnrichment from './cdc/userCompanyEnrichment';
 import newNotificationRealTime from './newNotificationV2RealTime';
 import newHighlightRealTime from './newHighlightRealTime';
 import newNotificationMail from './newNotificationV2Mail';
@@ -89,6 +88,7 @@ import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 import userDeletionCleanup from './userDeletionCleanup';
 import { liveRoomStartedWorker } from './liveRoomStarted';
 import { liveRoomEndedWorker } from './liveRoomEnded';
+import userCompanyEnrichment from './userCompanyEnrichment';
 
 export { Worker } from './worker';
 
@@ -123,7 +123,6 @@ export const workers: Worker[] = [
   userReadmeImages,
   cdc,
   cdcNotifications,
-  cdcUserCompanyEnrichment,
   userCreatedPersonalizedDigestSendType,
   ...notificationWorkers,
 ];
@@ -179,6 +178,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,
+  userCompanyEnrichment,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

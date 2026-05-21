@@ -1821,6 +1821,24 @@ const onUserCompanyCompanyChange = async (
     );
   }
 
+  const shouldEnrichUserCompany =
+    data.payload.after?.companyId === null &&
+    !!data.payload.after?.email &&
+    (data.payload.op === 'c' ||
+      (data.payload.op === 'u' &&
+        data.payload.before?.companyId === null &&
+        !data.payload.before?.verified &&
+        !!data.payload.after?.verified));
+
+  if (shouldEnrichUserCompany && data.payload.after) {
+    const { email, userId } = data.payload.after;
+
+    await triggerTypedEvent(logger, 'api.v1.user-company-enrichment', {
+      email,
+      userId,
+    });
+  }
+
   const creationWithCompany =
     data.payload.op === 'c' && !!data.payload.after?.companyId;
   const updateWithDifferentCompany =
