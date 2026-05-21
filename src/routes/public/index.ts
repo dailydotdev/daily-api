@@ -56,6 +56,14 @@ const tokenAuthHook = async (
   // Also set userId for GraphQL injection compatibility
   request.userId = result.userId;
   request.isPlus = true;
+
+  // Attach identity to the active span so /public/v1 traffic is attributable
+  // per user/token in tracing (SignOz). Used for abuse detection and per-user
+  // observability without re-querying the PAT table.
+  request.opentelemetry().span?.setAttributes({
+    'daily.api_user_id': result.userId,
+    'daily.api_token_id': result.tokenId,
+  });
 };
 
 export default async function (
