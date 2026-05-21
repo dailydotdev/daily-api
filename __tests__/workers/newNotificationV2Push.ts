@@ -308,6 +308,7 @@ it('should not send award push notification if the user prefers not to receive t
     receiver: receiver as Reference<User>,
     sender: sender as Reference<User>,
     targetUrl: `${env.COMMENTS_PREFIX}/idoshamun`,
+    targetType: 'user',
   };
 
   const notificationId = await saveNotificationV2Fixture(
