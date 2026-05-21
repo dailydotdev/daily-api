@@ -163,33 +163,6 @@ const createdResult = (companyId: string): EnrichmentResult => ({
 const isAnthropicConfigured = (): boolean =>
   !!anthropicClient && !!process.env.ANTHROPIC_API_KEY;
 
-const isSerializationError = (error: unknown): boolean =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  error.code === '40001';
-
-const serializableTransaction = async <T>(
-  con: DataSource,
-  run: (manager: EntityManager) => Promise<T>,
-): Promise<T> => {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      return await con.transaction('SERIALIZABLE', run);
-    } catch (error) {
-      if (!isSerializationError(error) || attempt === 3) {
-        throw error;
-      }
-
-      lastError = error;
-    }
-  }
-
-  throw lastError;
-};
-
 const getCompanyByDomain = (
   source: RepositorySource,
   domain: string,
@@ -315,7 +288,7 @@ const linkExistingCompanyForUserCompany = async (
   con: DataSource,
   params: EnrichCompanyForUserCompanyParams,
 ): Promise<EnrichmentResult | null> =>
-  serializableTransaction(con, async (manager) => {
+  con.transaction(async (manager) => {
     const existingUserCompanyResult = await getUserCompanyResult(
       manager,
       params,
@@ -379,7 +352,7 @@ export async function enrichCompanyForUserCompany(
     logger.debug({ domain }, 'Domain validation failed, using email domain');
   }
 
-  return serializableTransaction(con, async (manager) => {
+  return con.transaction(async (manager) => {
     const existingUserCompanyResult = await getUserCompanyResult(
       manager,
       userCompanyParams,

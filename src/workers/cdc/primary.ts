@@ -1800,6 +1800,24 @@ const onUserStreakChange = async (
   }
 };
 
+const shouldEnrichUserCompany = (data: ChangeMessage<UserCompany>): boolean => {
+  const { op, before, after } = data.payload;
+
+  if (!after?.email || after.companyId !== null) {
+    return false;
+  }
+
+  if (op === 'c') {
+    return true;
+  }
+
+  if (op !== 'u' || before?.companyId !== null) {
+    return false;
+  }
+
+  return !before?.verified && !!after.verified;
+};
+
 const onUserCompanyCompanyChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1821,16 +1839,7 @@ const onUserCompanyCompanyChange = async (
     );
   }
 
-  const shouldEnrichUserCompany =
-    data.payload.after?.companyId === null &&
-    !!data.payload.after?.email &&
-    (data.payload.op === 'c' ||
-      (data.payload.op === 'u' &&
-        data.payload.before?.companyId === null &&
-        !data.payload.before?.verified &&
-        !!data.payload.after?.verified));
-
-  if (shouldEnrichUserCompany && data.payload.after) {
+  if (shouldEnrichUserCompany(data) && data.payload.after) {
     const { email, userId } = data.payload.after;
 
     await triggerTypedEvent(logger, 'api.v1.user-company-enrichment', {
