@@ -160,25 +160,25 @@ export default async function app(
   });
 
   app.setErrorHandler((err: FastifyError, req, res) => {
-    // Preserve fastify's status code for client errors (validation 400s,
-    // rate-limit 429s, unauthorized 401s, etc). Without this, every non-500
-    // is reported as a 500, which pollutes /public/v1 5xx metrics and hides
-    // legitimate rate-limit hits and client-side schema mistakes.
     const statusCode =
-      typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600
+      typeof err.statusCode === 'number' && err.statusCode >= 400
         ? err.statusCode
         : 500;
 
     if (statusCode >= 500) {
       req.log.error({ err }, err.message);
-    } else {
-      req.log.warn({ err }, err.message);
+
+      return res
+        .code(500)
+        .send({ statusCode: 500, error: 'Internal Server Error' });
     }
 
-    res.code(statusCode).send({
+    req.log.warn({ err }, err.message);
+
+    return res.code(statusCode).send({
       statusCode,
-      error: statusCode === 500 ? 'Internal Server Error' : err.name || 'Error',
-      message: statusCode === 500 ? undefined : err.message,
+      error: err.name || 'Error',
+      message: err.message,
     });
   });
 
