@@ -267,7 +267,7 @@ describe('POST /public/v1/profile/experiences', () => {
         title: 'Test',
         startedAt: '2023-01-01T00:00:00.000Z',
       })
-      .expect(500); // Schema validation errors return 500 from global error handler
+      .expect(400);
   });
 
   it('should require authentication', async () => {

@@ -28,12 +28,11 @@ describe('POST /public/v1/feeds/custom', () => {
   it('should require name', async () => {
     const token = await createTokenForUser(state.con, '5');
 
-    // Server returns 500 for schema validation errors due to global error handler
     await request(state.app.server)
       .post('/public/v1/feeds/custom')
       .set('Authorization', `Bearer ${token}`)
       .send({ icon: '🚀' })
-      .expect(500);
+      .expect(400);
   });
 });
 

@@ -69,11 +69,10 @@ describe('GET /public/v1/profile/stack/search', () => {
   it('should require query parameter', async () => {
     const token = await createTokenForUser(state.con, '5');
 
-    // Server returns 500 for schema validation errors due to global error handler
     await request(state.app.server)
       .get('/public/v1/profile/stack/search')
       .set('Authorization', `Bearer ${token}`)
-      .expect(500);
+      .expect(400);
   });
 
   it('should return empty array for no matches', async () => {
@@ -176,18 +175,17 @@ describe('POST /public/v1/profile/stack', () => {
   it('should require title and section', async () => {
     const token = await createTokenForUser(state.con, '5');
 
-    // Server returns 500 for schema validation errors due to global error handler
     await request(state.app.server)
       .post('/public/v1/profile/stack')
       .set('Authorization', `Bearer ${token}`)
       .send({ title: 'Test' })
-      .expect(500);
+      .expect(400);
 
     await request(state.app.server)
       .post('/public/v1/profile/stack')
       .set('Authorization', `Bearer ${token}`)
       .send({ section: 'primary' })
-      .expect(500);
+      .expect(400);
   });
 });
 

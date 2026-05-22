@@ -159,9 +159,27 @@ export default async function app(
     runFirst: true,
   });
 
-  app.setErrorHandler((err: Error, req, res) => {
-    req.log.error({ err }, err.message);
-    res.code(500).send({ statusCode: 500, error: 'Internal Server Error' });
+  app.setErrorHandler((err: FastifyError, req, res) => {
+    const statusCode =
+      typeof err.statusCode === 'number' && err.statusCode >= 400
+        ? err.statusCode
+        : 500;
+
+    if (statusCode >= 500) {
+      req.log.error({ err }, err.message);
+
+      return res
+        .code(500)
+        .send({ statusCode: 500, error: 'Internal Server Error' });
+    }
+
+    req.log.warn({ err }, err.message);
+
+    return res.code(statusCode).send({
+      statusCode,
+      error: err.name || 'Error',
+      message: err.message,
+    });
   });
 
   app.get('/health', (req, res) => {
