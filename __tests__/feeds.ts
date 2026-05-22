@@ -1987,6 +1987,25 @@ describe('query tagFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should return the same tag feed for uppercase and mixed-case tags', async () => {
+    const now = new Date();
+    const lowerRes = await client.query(
+      QUERY('javascript', Ranking.POPULARITY, now),
+    );
+    const upperRes = await client.query(
+      QUERY('JAVASCRIPT', Ranking.POPULARITY, now),
+    );
+    const mixedRes = await client.query(
+      QUERY('JavaScript', Ranking.POPULARITY, now),
+    );
+    const lowerIds = lowerRes.data.tagFeed.edges.map(({ node }) => node.id);
+    const upperIds = upperRes.data.tagFeed.edges.map(({ node }) => node.id);
+    const mixedIds = mixedRes.data.tagFeed.edges.map(({ node }) => node.id);
+
+    expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
+    expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
+  });
+
   it('should include share posts whose shared post matches the tag', async () => {
     await con.getRepository(SharePost).save({
       id: 'tagShare1',
@@ -2022,6 +2041,18 @@ describe('query keywordFeed', () => {
   it('should return a single keyword feed', async () => {
     const res = await client.query(QUERY('javascript'));
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the same keyword feed for uppercase and mixed-case keywords', async () => {
+    const lowerRes = await client.query(QUERY('javascript'));
+    const upperRes = await client.query(QUERY('JAVASCRIPT'));
+    const mixedRes = await client.query(QUERY('JavaScript'));
+    const lowerIds = lowerRes.data.keywordFeed.edges.map(({ node }) => node.id);
+    const upperIds = upperRes.data.keywordFeed.edges.map(({ node }) => node.id);
+    const mixedIds = mixedRes.data.keywordFeed.edges.map(({ node }) => node.id);
+
+    expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
+    expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
   });
 });
 
@@ -2573,16 +2604,25 @@ describe('query mostUpvotedFeed', () => {
     });
   });
 
-  it('should return posts from provided tag', async () => {
+  it('should return posts from provided tag case-insensitively', async () => {
     const repo = con.getRepository(Post);
     await repo.update({ id: 'p1' }, { upvotes: 20 });
     await repo.update({ id: 'p3' }, { upvotes: 15 });
     await repo.update({ id: 'p4' }, { upvotes: 30 });
 
-    const res = await client.query(QUERY(30, 10, '', 'javascript'));
-    expect(res.errors).toBeFalsy();
-    expect(res.data.mostUpvotedFeed.edges.length).toEqual(2);
-    res.data.mostUpvotedFeed.edges.forEach(({ node }) => {
+    const lowerRes = await client.query(QUERY(30, 10, '', 'javascript'));
+    const upperRes = await client.query(QUERY(30, 10, '', 'JAVASCRIPT'));
+    const lowerIds = lowerRes.data.mostUpvotedFeed.edges.map(
+      ({ node }) => node.id,
+    );
+    const upperIds = upperRes.data.mostUpvotedFeed.edges.map(
+      ({ node }) => node.id,
+    );
+
+    expect(lowerRes.errors || upperRes.errors).toBeFalsy();
+    expect(lowerRes.data.mostUpvotedFeed.edges.length).toEqual(2);
+    expect(upperIds).toEqual(lowerIds);
+    upperRes.data.mostUpvotedFeed.edges.forEach(({ node }) => {
       expect(node.tags).toContain('javascript');
     });
   });
