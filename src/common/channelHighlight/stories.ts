@@ -87,6 +87,17 @@ const groupPostsByCanonicalPostId = ({
   return groupedPosts;
 };
 
+const getPostSummary = ({
+  post,
+  postsById,
+}: {
+  post: HighlightPost;
+  postsById: Map<string, HighlightPost>;
+}): string | null =>
+  post.summary ||
+  (post.sharedPostId && postsById.get(post.sharedPostId)?.summary) ||
+  null;
+
 const buildCandidate = ({
   canonicalPostId,
   memberPosts,
@@ -238,7 +249,11 @@ export const canonicalizeCurrentHighlights = ({
     canonicalHighlights.set(canonicalPostId, {
       postId: canonicalPostId,
       headline: highlight.headline,
-      summary: canonicalPost.summary || highlight.summary,
+      summary:
+        getPostSummary({
+          post: canonicalPost,
+          postsById,
+        }) || highlight.summary,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
       reason: highlight.reason,
