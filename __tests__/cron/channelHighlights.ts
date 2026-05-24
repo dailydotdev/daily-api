@@ -226,11 +226,7 @@ describe('channel highlight generation cron', () => {
     });
     expect(runs).toMatchObject([
       {
-        channel: 'backend',
-        status: 'completed',
-      },
-      {
-        channel: 'vibes',
+        channel: 'global',
         status: 'completed',
       },
     ]);
@@ -239,6 +235,66 @@ describe('channel highlight generation cron', () => {
       expect(run.scheduledAt.getTime()).toBeGreaterThanOrEqual(startedAt);
       expect(run.scheduledAt.getTime()).toBeLessThanOrEqual(completedAt);
     }
+  });
+
+  it('should generate canonical highlights without legacy definitions', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    await saveArticle({
+      id: 'defless-1',
+      title: 'Definitionless story',
+      createdAt: new Date('2026-03-03T09:45:00.000Z'),
+      channels: ['backend', 'vibes'],
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateHighlights')
+      .mockResolvedValue({
+        items: [
+          {
+            postId: 'defless-1',
+            headline: 'Definitionless headline',
+            significanceLabel: 'major',
+            reason: 'test',
+          },
+        ],
+      });
+
+    await runChannelHighlights({ con, now });
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0]).toMatchObject({
+      maxItems: 20,
+    });
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'defless-1',
+        title: 'Definitionless story',
+      }),
+    ]);
+
+    const canonicalHighlights = await con
+      .getRepository(HighlightsCanonical)
+      .find();
+    expect(canonicalHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'defless-1',
+        channels: ['backend', 'vibes'],
+        headline: 'Definitionless headline',
+        significance: PostHighlightSignificance.Major,
+        reason: 'test',
+      }),
+    ]);
+
+    const liveHighlights = await con.getRepository(PostHighlight).find();
+    expect(liveHighlights).toEqual([]);
+
+    const runs = await con.getRepository(ChannelHighlightRun).find();
+    expect(runs).toMatchObject([
+      {
+        channel: 'global',
+        status: 'completed',
+      },
+    ]);
   });
 
   it('should keep live highlights unchanged in shadow mode and store a comparison run', async () => {
@@ -269,7 +325,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -284,24 +340,17 @@ describe('channel highlight generation cron', () => {
     await runChannelHighlights({ con, now });
 
     expect(evaluatorSpy).toHaveBeenCalledTimes(1);
-    expect(evaluatorSpy.mock.calls[0][0].targetAudience).toBe(
-      'Developers following vibes',
+    expect(evaluatorSpy.mock.calls[0][0].maxItems).toBe(20);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postId: 'fresh-1',
+          title: 'Fresh story',
+          relatedItemsCount: 1,
+        }),
+      ]),
     );
-    expect(evaluatorSpy.mock.calls[0][0].maxItems).toBe(3);
-    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
-      expect.objectContaining({
-        postId: 'live-1',
-        headline: 'Live headline',
-        summary: 'Live story summary',
-      }),
-    ]);
-    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
-      expect.objectContaining({
-        postId: 'fresh-1',
-        title: 'Fresh story',
-        relatedItemsCount: 1,
-      }),
-    ]);
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes', retiredAt: IsNull() },
@@ -318,19 +367,92 @@ describe('channel highlight generation cron', () => {
       .find({
         order: { highlightedAt: 'DESC' },
       });
-    expect(canonicalHighlights).toEqual([]);
+    expect(canonicalHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'fresh-1',
+        channels: ['vibes'],
+        headline: 'Fresh headline',
+        significance: PostHighlightSignificance.Breaking,
+        reason: 'test',
+      }),
+    ]);
 
     const run = await con.getRepository(ChannelHighlightRun).findOneByOrFail({
-      channel: 'vibes',
+      channel: 'global',
     });
     expect(run.status).toBe('completed');
     expect(run.comparison).toMatchObject({
       wouldPublish: true,
-      published: false,
-      baselineCount: 1,
-      internalCount: 2,
+      published: true,
+      baselineCount: 0,
+      internalCount: 1,
       addedPostIds: ['fresh-1'],
     });
+  });
+
+  it('should send global canonical highlight history to the evaluator', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await saveArticle({
+      id: 'legacy-only',
+      title: 'Legacy only story',
+      summary: 'Legacy only summary',
+      createdAt: new Date('2026-03-03T08:00:00.000Z'),
+    });
+    await saveArticle({
+      id: 'canonical-1',
+      title: 'Canonical story',
+      summary: 'Canonical summary',
+      createdAt: new Date('2026-03-03T08:30:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh story',
+      createdAt: new Date('2026-03-03T09:20:00.000Z'),
+    });
+    await con.getRepository(PostHighlight).save({
+      channel: 'vibes',
+      postId: 'legacy-only',
+      highlightedAt: new Date('2026-03-03T09:00:00.000Z'),
+      headline: 'Legacy only headline',
+    });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'canonical-1',
+      channels: ['backend'],
+      highlightedAt: new Date('2026-03-03T09:10:00.000Z'),
+      headline: 'Canonical headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'canonical history',
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await runChannelHighlights({ con, now });
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'canonical-1',
+        headline: 'Canonical headline',
+        summary: 'Canonical summary',
+        reason: 'canonical history',
+      }),
+    ]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postId: 'fresh-1',
+          title: 'Fresh story',
+        }),
+      ]),
+    );
   });
 
   it('should publish admitted highlights in publish mode and trim FIFO by maxItems', async () => {
@@ -385,7 +507,7 @@ describe('channel highlight generation cron', () => {
       },
     ]);
 
-    jest.spyOn(evaluator, 'evaluateChannelHighlights').mockResolvedValue({
+    jest.spyOn(evaluator, 'evaluateHighlights').mockResolvedValue({
       items: [
         {
           postId: 'fresh-1',
@@ -475,7 +597,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -491,10 +613,7 @@ describe('channel highlight generation cron', () => {
 
     expect(evaluatorSpy).toHaveBeenCalledTimes(1);
     expect(evaluatorSpy.mock.calls[0][0]).toMatchObject({
-      channel: 'global',
-      targetAudience:
-        'software engineers and engineering leaders who want to stay current on meaningful developments that affect how modern software is built, shipped, operated, and grown',
-      maxItems: 5,
+      maxItems: 20,
     });
     expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
       expect.objectContaining({
@@ -527,7 +646,7 @@ describe('channel highlight generation cron', () => {
     expect(canonicalHighlights).toEqual([
       expect.objectContaining({
         postId: 'global-fresh',
-        channels: ['backend', 'vibes'],
+        channels: ['backend', 'disabled', 'vibes'],
         headline: 'Global headline',
         significance: PostHighlightSignificance.Major,
       }),
@@ -538,12 +657,7 @@ describe('channel highlight generation cron', () => {
     });
     expect(runs).toMatchObject([
       {
-        channel: 'backend',
-        status: 'completed',
-        comparison: expect.objectContaining({ published: true }),
-      },
-      {
-        channel: 'vibes',
+        channel: 'global',
         status: 'completed',
         comparison: expect.objectContaining({ published: true }),
       },
@@ -581,16 +695,25 @@ describe('channel highlight generation cron', () => {
       significance: PostHighlightSignificance.Major,
       reason: 'existing',
     });
-    await con.getRepository(HighlightsCanonical).save({
-      postId: 'child-upgrade',
-      channels: ['vibes'],
-      highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
-      headline: 'Original child headline',
-      significance: PostHighlightSignificance.Major,
-      reason: 'existing',
-    });
+    const originalCanonicalUpdatedAt = new Date('2026-03-03T10:30:00.000Z');
+    const originalCanonical = await con
+      .getRepository(HighlightsCanonical)
+      .save({
+        postId: 'child-upgrade',
+        channels: ['vibes'],
+        highlightedAt: new Date('2026-03-03T11:00:00.000Z'),
+        headline: 'Original child headline',
+        significance: PostHighlightSignificance.Major,
+        reason: 'existing',
+      });
+    await con.getRepository(HighlightsCanonical).update(
+      { id: originalCanonical.id },
+      {
+        updatedAt: originalCanonicalUpdatedAt,
+      },
+    );
 
-    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateHighlights');
 
     await runChannelHighlights({ con, now });
 
@@ -627,6 +750,9 @@ describe('channel highlight generation cron', () => {
         reason: 'existing',
       }),
     ]);
+    expect(canonicalHighlights[0].updatedAt.getTime()).toBeGreaterThan(
+      originalCanonicalUpdatedAt.getTime(),
+    );
   });
 
   it('should exclude retired highlights from candidates and keep them retired', async () => {
@@ -658,7 +784,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -673,12 +799,14 @@ describe('channel highlight generation cron', () => {
     await runChannelHighlights({ con, now });
 
     expect(evaluatorSpy).toHaveBeenCalledTimes(1);
-    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
-      expect.objectContaining({
-        postId: 'fresh-1',
-        title: 'Fresh candidate',
-      }),
-    ]);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          postId: 'fresh-1',
+          title: 'Fresh candidate',
+        }),
+      ]),
+    );
 
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes', retiredAt: IsNull() },
@@ -697,7 +825,7 @@ describe('channel highlight generation cron', () => {
     expect(retiredHighlights[0].retiredAt).toBeInstanceOf(Date);
   });
 
-  it('should send recent retired highlights to the evaluator while excluding resurfaced stories', async () => {
+  it('should send recent canonical history to the evaluator while excluding resurfaced stories', async () => {
     const now = new Date('2026-03-03T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
@@ -745,9 +873,16 @@ describe('channel highlight generation cron', () => {
       significance: PostHighlightSignificance.Notable,
       retiredAt: new Date('2026-03-03T11:40:00.000Z'),
     });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'retired-child',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Retired child headline',
+      significance: PostHighlightSignificance.Notable,
+    });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({ items: [] });
 
     await runChannelHighlights({ con, now });
@@ -789,6 +924,14 @@ describe('channel highlight generation cron', () => {
       significance: PostHighlightSignificance.Major,
       reason: 'previous run',
     });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'underlying-1',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Original headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'previous run',
+    });
     // A user shares the article between runs.
     await saveShare({
       id: 'share-1',
@@ -798,7 +941,7 @@ describe('channel highlight generation cron', () => {
     });
 
     jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({ items: [] });
 
     await runChannelHighlights({ con, now });
@@ -840,9 +983,17 @@ describe('channel highlight generation cron', () => {
       significance: PostHighlightSignificance.Major,
       reason: 'pre-fix run',
     });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'share-2',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-03T11:30:00.000Z'),
+      headline: 'Legacy share headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'pre-fix run',
+    });
 
     jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({ items: [] });
 
     await runChannelHighlights({ con, now });
@@ -876,9 +1027,7 @@ describe('channel highlight generation cron', () => {
       title: 'CVE collection',
       createdAt: new Date('2026-02-15T10:00:00.000Z'),
     });
-    // Old child highlighted >14 days ago (outside eval window) and retired.
-    // It is in retiredHighlightPostIds (kept forever) but not in any
-    // share-fallback / canonicalization path.
+    // Existing canonical story is a child that now belongs to the collection.
     await saveArticle({
       id: 'old-child',
       title: 'Original CVE writeup',
@@ -898,6 +1047,14 @@ describe('channel highlight generation cron', () => {
       reason: 'first run',
       retiredAt: new Date('2026-02-15T20:00:00.000Z'),
     });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'old-child',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-15T11:30:00.000Z'),
+      headline: 'Original CVE headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'first run',
+    });
     // Brand-new child article. Its relation to the collection is created
     // *after* fetchRelations runs (simulated below) — exactly the race
     // observed in production for collection NB1YEYCZ6 on 2026-05-06.
@@ -908,7 +1065,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockImplementation(async () => {
         await con.getRepository(PostRelation).save({
           postId: 'collection-cve',
@@ -936,11 +1093,17 @@ describe('channel highlight generation cron', () => {
       expect.objectContaining({ postId: 'new-child' }),
     ]);
 
-    // The admit-time guard re-fetches relations and drops the duplicate.
+    // The admit-time guard re-fetches relations and drops the duplicate,
+    // leaving the canonical collection projected into legacy.
     const liveHighlights = await con.getRepository(PostHighlight).find({
       where: { channel: 'vibes', retiredAt: IsNull() },
     });
-    expect(liveHighlights).toHaveLength(0);
+    expect(liveHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'collection-cve',
+        headline: 'Original CVE headline',
+      }),
+    ]);
 
     const allHighlightsForNewChild = await con
       .getRepository(PostHighlight)
@@ -1002,7 +1165,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -1042,7 +1205,7 @@ describe('channel highlight generation cron', () => {
     expect(retiredDigestHighlight.retiredAt).toBeInstanceOf(Date);
   });
 
-  it('should remove highlights that aged past the configured horizon', async () => {
+  it('should remove legacy highlights that aged past the projection horizon', async () => {
     const now = new Date('2026-03-03T12:00:00.000Z');
     await con.getRepository(ChannelHighlightDefinition).save({
       channel: 'vibes',
@@ -1053,7 +1216,7 @@ describe('channel highlight generation cron', () => {
     await saveArticle({
       id: 'expired-live',
       title: 'Expired live story',
-      createdAt: new Date('2026-03-01T10:00:00.000Z'),
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
     });
     await con.getRepository(PostHighlight).save({
       channel: 'vibes',
@@ -1062,7 +1225,7 @@ describe('channel highlight generation cron', () => {
       headline: 'Expired headline',
     });
 
-    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateHighlights');
 
     await runChannelHighlights({ con, now });
 
@@ -1101,7 +1264,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -1171,7 +1334,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockImplementation(async ({ newCandidates }) => ({
         items: [
           {
@@ -1239,7 +1402,7 @@ describe('channel highlight generation cron', () => {
       private: true,
     });
 
-    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateChannelHighlights');
+    const evaluatorSpy = jest.spyOn(evaluator, 'evaluateHighlights');
 
     await runChannelHighlights({ con, now });
 
@@ -1258,7 +1421,17 @@ describe('channel highlight generation cron', () => {
       mode: 'shadow',
       candidateHorizonHours: 72,
       maxItems: 3,
-      lastFetchedAt: new Date('2026-03-03T12:20:00.000Z'),
+    });
+    await con.getRepository(ChannelHighlightRun).save({
+      channel: 'global',
+      scheduledAt: new Date('2026-03-03T12:20:00.000Z'),
+      status: 'completed',
+      baselineSnapshot: [],
+      inputSummary: {},
+      internalSnapshot: [],
+      comparison: {},
+      metrics: {},
+      completedAt: new Date('2026-03-03T12:21:00.000Z'),
     });
     await saveArticle({
       id: 'stats-only-1',
@@ -1274,7 +1447,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({
         items: [
           {
@@ -1337,7 +1510,7 @@ describe('channel highlight generation cron', () => {
     });
 
     const evaluatorSpy = jest
-      .spyOn(evaluator, 'evaluateChannelHighlights')
+      .spyOn(evaluator, 'evaluateHighlights')
       .mockResolvedValue({ items: [] });
 
     await runChannelHighlights({ con, now });

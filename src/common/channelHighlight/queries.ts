@@ -1,13 +1,6 @@
-import {
-  Brackets,
-  In,
-  IsNull,
-  MoreThanOrEqual,
-  Not,
-  type DataSource,
-} from 'typeorm';
+import { Brackets, In, Not, type DataSource } from 'typeorm';
 import { ONE_HOUR_IN_SECONDS, ONE_WEEK_IN_SECONDS } from '../constants';
-import { PostHighlight } from '../../entity/PostHighlight';
+import { HighlightsCanonical } from '../../entity/HighlightsCanonical';
 import { Post } from '../../entity/posts/Post';
 import {
   PostRelation,
@@ -68,149 +61,26 @@ export const getFetchStart = ({
   return overlapStart > horizonStart ? overlapStart : horizonStart;
 };
 
-export const fetchCurrentHighlights = async ({
-  con,
-  channel,
-}: {
-  con: DataSource;
-  channel: string;
-}): Promise<PostHighlight[]> =>
-  con.getRepository(PostHighlight).find({
-    where: {
-      channel,
-      retiredAt: IsNull(),
-    },
-    order: {
-      highlightedAt: 'DESC',
-    },
-  });
-
-export const fetchCurrentHighlightsForChannels = async ({
-  con,
-  channels,
-}: {
-  con: DataSource;
-  channels: string[];
-}): Promise<PostHighlight[]> => {
-  if (!channels.length) {
-    return [];
-  }
-
-  return con.getRepository(PostHighlight).find({
-    where: {
-      channel: In(channels),
-      retiredAt: IsNull(),
-    },
-    order: {
-      highlightedAt: 'DESC',
-    },
-  });
-};
-
 export const getEvaluationHistoryStart = ({ now }: { now: Date }): Date =>
   new Date(now.getTime() - HIGHLIGHT_EVALUATION_HISTORY_SECONDS * 1000);
 
-export const fetchEvaluationHistoryHighlights = async ({
+export const fetchEvaluationHistoryCanonicalHighlights = async ({
   con,
-  channel,
   now,
 }: {
   con: DataSource;
-  channel: string;
   now: Date;
-}): Promise<PostHighlight[]> =>
-  con.getRepository(PostHighlight).find({
-    where: {
-      channel,
-      highlightedAt: MoreThanOrEqual(
-        getEvaluationHistoryStart({
-          now,
-        }),
-      ),
-    },
-    order: {
-      highlightedAt: 'DESC',
-    },
-  });
-
-export const fetchEvaluationHistoryHighlightsForChannels = async ({
-  con,
-  channels,
-  now,
-}: {
-  con: DataSource;
-  channels: string[];
-  now: Date;
-}): Promise<PostHighlight[]> => {
-  if (!channels.length) {
-    return [];
-  }
-
-  return con.getRepository(PostHighlight).find({
-    where: {
-      channel: In(channels),
-      highlightedAt: MoreThanOrEqual(
-        getEvaluationHistoryStart({
-          now,
-        }),
-      ),
-    },
-    order: {
-      highlightedAt: 'DESC',
-    },
-  });
-};
-
-export const fetchRetiredHighlightPostIds = async ({
-  con,
-  channel,
-}: {
-  con: DataSource;
-  channel: string;
-}): Promise<string[]> => {
-  const highlights = await con.getRepository(PostHighlight).find({
-    select: {
-      postId: true,
-    },
-    where: {
-      channel,
-      retiredAt: Not(IsNull()),
-    },
-  });
-
-  return highlights.map((highlight) => highlight.postId);
-};
-
-export const fetchRetiredHighlightPostIdsForChannels = async ({
-  con,
-  channels,
-}: {
-  con: DataSource;
-  channels: string[];
-}): Promise<Map<string, Set<string>>> => {
-  if (!channels.length) {
-    return new Map();
-  }
-
-  const highlights = await con.getRepository(PostHighlight).find({
-    select: {
-      channel: true,
-      postId: true,
-    },
-    where: {
-      channel: In(channels),
-      retiredAt: Not(IsNull()),
-    },
-  });
-
-  const retiredByChannel = new Map<string, Set<string>>();
-  for (const highlight of highlights) {
-    const postIds = retiredByChannel.get(highlight.channel) || new Set();
-    postIds.add(highlight.postId);
-    retiredByChannel.set(highlight.channel, postIds);
-  }
-
-  return retiredByChannel;
+}): Promise<HighlightsCanonical[]> => {
+  return con
+    .getRepository(HighlightsCanonical)
+    .createQueryBuilder('highlight')
+    .where('highlight.highlightedAt >= :historyStart', {
+      historyStart: getEvaluationHistoryStart({
+        now,
+      }),
+    })
+    .orderBy('highlight.highlightedAt', 'DESC')
+    .getMany();
 };
 
 export const fetchPostsByIds = async ({
@@ -240,47 +110,6 @@ export const fetchPostsByIds = async ({
 };
 
 export const fetchIncrementalPosts = async ({
-  con,
-  channel,
-  fetchStart,
-  horizonStart,
-  excludedSourceIds = [],
-}: {
-  con: DataSource;
-  channel: string;
-  fetchStart: Date;
-  horizonStart: Date;
-  excludedSourceIds?: string[];
-}): Promise<HighlightPost[]> =>
-  con
-    .getRepository(Post)
-    .createQueryBuilder('post')
-    .where('post.createdAt >= :horizonStart', { horizonStart })
-    .andWhere('post.visible = true')
-    .andWhere('post.deleted = false')
-    .andWhere('post.banned = false')
-    .andWhere('post.showOnFeed = true')
-    .andWhere('post.sharedPostId IS NULL')
-    .andWhere(`(post."contentMeta"->'channels') ? :channel`, { channel })
-    .andWhere(`NOT (post."contentCuration" && :rejectedCurations)`, {
-      rejectedCurations: REJECTED_CONTENT_CURATIONS,
-    })
-    .andWhere(
-      excludedSourceIds.length
-        ? 'post."sourceId" NOT IN (:...excludedSourceIds)'
-        : '1=1',
-      { excludedSourceIds },
-    )
-    .andWhere(
-      new Brackets((builder) => {
-        builder
-          .where('post.createdAt >= :fetchStart', { fetchStart })
-          .orWhere('post.metadataChangedAt >= :fetchStart', { fetchStart });
-      }),
-    )
-    .getMany() as unknown as Promise<HighlightPost[]>;
-
-export const fetchGlobalIncrementalPosts = async ({
   con,
   fetchStart,
   horizonStart,
