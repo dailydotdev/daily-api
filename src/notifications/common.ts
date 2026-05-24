@@ -88,7 +88,6 @@ export enum NotificationType {
   FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
-  MajorHeadlineAdded = 'major_headline_added',
   LiveRoomStarted = 'live_room_started',
   LiveRoomStartingSoon = 'live_room_starting_soon',
 }
@@ -317,10 +316,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   [NotificationType.DigestReady]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
-  },
-  [NotificationType.MajorHeadlineAdded]: {
-    email: NotificationPreferenceStatus.Muted,
-    inApp: NotificationPreferenceStatus.Muted,
   },
   [NotificationType.LiveRoomStarted]: {
     email: NotificationPreferenceStatus.Muted,

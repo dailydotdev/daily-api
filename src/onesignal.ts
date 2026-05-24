@@ -73,7 +73,6 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SourcePostRejected]: 'Post review',
   [NotificationType.SourcePostSubmitted]: 'Post pending review',
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
-  [NotificationType.MajorHeadlineAdded]: 'Happening now',
   [NotificationType.LiveRoomStarted]: 'Room is live',
   [NotificationType.LiveRoomStartingSoon]: 'Standup starts soon',
 };
