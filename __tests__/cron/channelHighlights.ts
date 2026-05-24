@@ -179,12 +179,22 @@ describe('channel highlight generation cron', () => {
       .delete()
       .from('post')
       .where('"sourceId" IN (:...sourceIds)', {
-        sourceIds: ['content-source', 'secondary-source', AGENTS_DIGEST_SOURCE],
+        sourceIds: [
+          'content-source',
+          'secondary-source',
+          AGENTS_DIGEST_SOURCE,
+          UNKNOWN_SOURCE,
+        ],
       })
       .execute();
     await con
       .getRepository(Source)
-      .delete(['content-source', 'secondary-source', AGENTS_DIGEST_SOURCE]);
+      .delete([
+        'content-source',
+        'secondary-source',
+        AGENTS_DIGEST_SOURCE,
+        UNKNOWN_SOURCE,
+      ]);
   });
 
   it('should be registered', () => {
@@ -453,6 +463,68 @@ describe('channel highlight generation cron', () => {
         }),
       ]),
     );
+  });
+
+  it('should send underlying post summary for canonical share fallback history', async () => {
+    const now = new Date('2026-03-03T10:30:00.000Z');
+    await con.getRepository(ChannelHighlightDefinition).save({
+      channel: 'vibes',
+      mode: 'shadow',
+      candidateHorizonHours: 72,
+      maxItems: 3,
+    });
+    await con
+      .getRepository(Source)
+      .save(
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+          undefined,
+          true,
+        ),
+      );
+    await saveArticle({
+      id: 'unk-under-1',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Unknown source story',
+      summary: 'Underlying story summary',
+      createdAt: new Date('2026-03-03T08:30:00.000Z'),
+    });
+    await saveShare({
+      id: 'pub-share-h',
+      sharedPostId: 'unk-under-1',
+      createdAt: new Date('2026-03-03T08:35:00.000Z'),
+    });
+    await saveArticle({
+      id: 'fresh-1',
+      title: 'Fresh story',
+      createdAt: new Date('2026-03-03T10:20:00.000Z'),
+    });
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'pub-share-h',
+      channels: ['vibes'],
+      highlightedAt: new Date('2026-03-03T09:10:00.000Z'),
+      headline: 'Canonical share headline',
+      significance: PostHighlightSignificance.Major,
+      reason: 'canonical history',
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await runChannelHighlights({ con, now });
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].currentHighlights).toEqual([
+      expect.objectContaining({
+        postId: 'pub-share-h',
+        headline: 'Canonical share headline',
+        summary: 'Underlying story summary',
+        reason: 'canonical history',
+      }),
+    ]);
   });
 
   it('should publish admitted highlights in publish mode and trim FIFO by maxItems', async () => {
