@@ -16,6 +16,8 @@ describe('isLowEffortComment', () => {
       ['this is good'],
       ['OK'],
       ['thx'],
+      ['Damnnnnnn'],
+      ['Greatt!!!'],
     ])('flags %p as low-effort', (content) => {
       expect(isLowEffortComment(content)).toBe(true);
     });
@@ -23,12 +25,30 @@ describe('isLowEffortComment', () => {
 
   describe('negative cases (substantive)', () => {
     it.each([
+      // Templated @user welcome … greetings (any continuation, not just "welcome to")
       ['@alice welcome to The Awesome Squad!'],
+      ['@bob welcome aboard! Glad to have you'],
+      ['@giovannicompitiliceo welcome as well!!!'],
+      ['@carol welcome back!'],
+
+      // Image / GIF markdown embeds — anywhere in the comment, with or without surrounding text
+      ['![GIF](https://media.tenor.com/PXOXwsJKbSYAAAAC/where-you.gif)'],
+      ['![GIF](https://media.tenor.com/PXOXwsJKbSYAAAAC/where-you.gif) ??'],
+      ['![GIF](<https://static.klipy.com/abc.gif>)'],
+      ['check this out ![GIF](https://media.tenor.com/x.gif)'],
+
+      // Real questions
       ['is this secure?'],
       ['free version?'],
+      ['is the github repo down?'],
+      ['And what is that extension?'],
+
+      // Substantive short comments / opinions / answers
       ['Concerning'],
       ['Too verbose'],
       ['Embrace Enshittification!'],
+      ['Certified NPM classic.'],
+      ['Typescript supremacy'],
       ['Option D'],
       ['Answer: C (NoSQL Database)'],
       ['Awesome, a PR from Taylor!'],

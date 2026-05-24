@@ -280,9 +280,16 @@ const LOW_VOCAB = new Set<string>([
 ]);
 
 const APOSTROPHE_FRAGMENTS = /\b(?:s|t|d|m|ll|ve|re)\b/g;
+const TEMPLATED_WELCOME = /^\s*@[A-Za-z0-9_-]+\s+welcome\b/i;
+const IMAGE_EMBED = /!\[[^\]]*\]\(<?[^)]+>?\)/;
 
 export const isLowEffortComment = (content: string): boolean => {
-  if (/^\s*@[A-Za-z0-9_-]+\s+welcome\s+to\s+.+$/i.test(content)) return false;
+  // Carve-outs — intentional/templated content that should never be flagged:
+  //   * "@user welcome …" greetings ("welcome to <Squad>", "welcome aboard",
+  //     "welcome back", "welcome as well", …)
+  //   * any comment containing a markdown image / GIF embed
+  if (TEMPLATED_WELCOME.test(content)) return false;
+  if (IMAGE_EMBED.test(content)) return false;
 
   const normalized = content
     .toLowerCase()
