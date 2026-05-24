@@ -1,5 +1,5 @@
 import { getChannelHighlightDefinitions } from '../common/channelHighlight/definitions';
-import { generateChannelHighlights } from '../common/channelHighlight/generate';
+import { generateHighlights } from '../common/channelHighlight/generate';
 import { Cron } from './cron';
 import type { DataSource } from 'typeorm';
 
@@ -13,16 +13,10 @@ export const runChannelHighlights = async ({
   const definitions = await getChannelHighlightDefinitions({
     con,
   });
-  const enabledDefinitions = definitions.filter(
-    (definition) => definition.mode !== 'disabled',
-  );
-  if (!enabledDefinitions.length) {
-    return;
-  }
 
-  await generateChannelHighlights({
+  await generateHighlights({
     con,
-    definitions: enabledDefinitions,
+    definitions,
     now,
   });
 };

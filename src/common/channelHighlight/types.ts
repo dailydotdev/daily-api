@@ -69,7 +69,7 @@ export type HighlightItem = {
   reason: string | null;
 };
 
-export type GenerateChannelHighlightResult = {
+export type GenerateHighlightsResult = {
   runs: ChannelHighlightRun[];
   published: boolean;
 };
