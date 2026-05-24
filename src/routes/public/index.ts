@@ -138,6 +138,10 @@ export default async function (
     timeWindow: '1 minute',
     keyGenerator: (request: FastifyRequest) => request.ip,
     errorResponseBuilder: () => ({
+      // statusCode is required so the global setErrorHandler preserves 429.
+      // @fastify/rate-limit throws this body as a plain object (no Error
+      // class), so without an explicit statusCode it falls through to 500.
+      statusCode: 429,
       error: 'rate_limit_exceeded',
       message: 'Too many requests from this IP. Please slow down.',
       retryAfter: 60,
@@ -178,6 +182,9 @@ export default async function (
     keyGenerator: (request: FastifyRequest) => request.apiUserId,
     skip: (request: FastifyRequest) => !request.apiUserId,
     errorResponseBuilder: () => ({
+      // statusCode is required so the global setErrorHandler preserves 429.
+      // See IP rate limiter above for the same workaround.
+      statusCode: 429,
       error: 'rate_limit_exceeded',
       message: 'User rate limit exceeded. Please slow down.',
       retryAfter: 60,

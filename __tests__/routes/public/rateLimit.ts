@@ -53,5 +53,28 @@ describe('Public API Rate Limiting', () => {
 
       expect(remaining2).toBeLessThan(remaining1);
     });
+
+    // Regression: errorResponseBuilder must include statusCode so the global
+    // setErrorHandler preserves 429. Without it, exceeding the limit returns
+    // a misleading 500.
+    it('should return 429 (not 500) when user rate limit is exceeded', async () => {
+      const token = await createTokenForUser(state.con, '5');
+
+      // Fire 61 requests in a row — limit is 60/min/user.
+      let lastRes;
+      for (let i = 0; i < 61; i++) {
+        lastRes = await request(state.app.server)
+          .get('/public/v1/feeds/foryou')
+          .set('Authorization', `Bearer ${token}`);
+        if (lastRes.status === 429) break;
+      }
+
+      expect(lastRes!.status).toBe(429);
+      expect(lastRes!.body).toMatchObject({
+        statusCode: 429,
+        error: 'rate_limit_exceeded',
+        message: expect.stringContaining('rate limit'),
+      });
+    });
   });
 });
