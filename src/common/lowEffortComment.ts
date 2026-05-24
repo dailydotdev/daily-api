@@ -1,5 +1,4 @@
 const LOW_VOCAB = new Set<string>([
-  '',
   'a',
   'an',
   'the',
@@ -196,7 +195,6 @@ const LOW_VOCAB = new Set<string>([
   'wow',
   'omg',
   'damn',
-  'damnn',
   'ouch',
   'rip',
   'lol',
@@ -241,7 +239,6 @@ const LOW_VOCAB = new Set<string>([
   'farewell',
   'lets',
   'go',
-  'goo',
   'lessgo',
   'lessgoo',
   'lfg',
@@ -250,7 +247,6 @@ const LOW_VOCAB = new Set<string>([
   'said',
   'put',
   'done',
-  'deserved',
   'banger',
   'game',
   'changer',
@@ -285,25 +281,22 @@ const LOW_VOCAB = new Set<string>([
 
 const APOSTROPHE_FRAGMENTS = /\b(?:s|t|d|m|ll|ve|re)\b/g;
 
-const normalize = (content: string): { norm: string; words: string[] } => {
-  let c = content.toLowerCase();
-  c = c.replace(/<[^>]+>/g, ' ');
-  c = c.replace(/https?:\/\/\S+/g, ' ');
-  c = c.replace(/@[A-Za-z0-9_-]+/g, ' ');
-  c = c.replace(/['`’]/g, ' ');
-  c = c.replace(/[^a-z0-9 ]+/g, ' ');
-  c = c.replace(/([a-z])\1{2,}/g, '$1$1');
-  c = c.replace(APOSTROPHE_FRAGMENTS, ' ');
-  c = c.replace(/\s+/g, ' ').trim();
-  return { norm: c, words: c.length ? c.split(' ') : [] };
-};
-
 export const isLowEffortComment = (content: string): boolean => {
   if (/^\s*@[A-Za-z0-9_-]+\s+welcome\s+to\s+.+$/i.test(content)) return false;
 
-  const { norm, words } = normalize(content);
-  if (norm.length === 0) return true;
-  if (norm.length <= 4) return true;
-  if (words.length <= 6 && words.every((w) => LOW_VOCAB.has(w))) return true;
-  return false;
+  const normalized = content
+    .toLowerCase()
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/@[A-Za-z0-9_-]+/g, ' ')
+    .replace(/['`’]/g, ' ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/([a-z])\1{2,}/g, '$1$1')
+    .replace(APOSTROPHE_FRAGMENTS, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized.length <= 4) return true;
+  const words = normalized.split(' ');
+  return words.length <= 6 && words.every((w) => LOW_VOCAB.has(w));
 };

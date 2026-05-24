@@ -1081,14 +1081,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             content,
           });
 
-          const lowEffort = isLowEffortComment(createdComment.content);
+          const lowEffort = isLowEffortComment(content);
           if (lowEffort) {
             logger.info(
-              {
-                userId: ctx.userId,
-                commentId: createdComment.id,
-                postId,
-              },
+              { userId: ctx.userId, commentId, postId },
               'comment_low_effort_autoflagged',
             );
             counters?.api?.vordr?.add(1, {
@@ -1102,11 +1098,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             vordr:
               lowEffort ||
               (await checkWithVordr(
-                {
-                  id: createdComment.id,
-                  type: VordrFilterType.Comment,
-                  content: createdComment.content,
-                },
+                { id: commentId, type: VordrFilterType.Comment, content },
                 ctx,
               )),
           };
