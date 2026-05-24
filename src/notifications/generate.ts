@@ -3,7 +3,6 @@ import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
   generateDevCard,
-  getHighlightLink,
   getOrganizationPermalink,
   notificationsLink,
   squadsFeaturedPage,
@@ -41,7 +40,6 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
-  type NotificationMajorHeadlineContext,
   type NotificationLiveRoomContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
@@ -248,8 +246,6 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
-  major_headline_added: (ctx: NotificationMajorHeadlineContext) =>
-    `<b>${ctx.headline}</b>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
     `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
   live_room_starting_soon: (ctx: NotificationLiveRoomContext) =>
@@ -770,17 +766,6 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.metadataChangedAt?.toString());
   },
-  major_headline_added: (
-    builder: NotificationBuilder,
-    ctx: NotificationMajorHeadlineContext,
-  ) =>
-    builder
-      .icon(NotificationIcon.Megaphone)
-      .description(ctx.headline)
-      .avatarSource(ctx.source)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
-      .targetUrl(getHighlightLink(ctx.highlightId))
-      .uniqueKey(ctx.post.id),
   live_room_started: (
     builder: NotificationBuilder,
     ctx: NotificationLiveRoomContext,

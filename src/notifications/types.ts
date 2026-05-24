@@ -225,13 +225,6 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementImage: string;
 };
 
-export type NotificationMajorHeadlineContext = NotificationPostContext & {
-  headline: string;
-  channel: string;
-  significance: number;
-  highlightId: string;
-};
-
 export type NotificationLiveRoomContext = NotificationBaseContext & {
   host: Reference<User>;
   room: Reference<LiveRoom>;
