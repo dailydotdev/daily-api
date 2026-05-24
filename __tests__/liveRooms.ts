@@ -393,6 +393,44 @@ describe('live rooms', () => {
     expect(scope.isDone()).toBe(true);
   });
 
+  it('creates a community-moderated live room and forwards its speaker limit to flyting', async () => {
+    loggedUser = '1';
+    await grantStandupAccess(loggedUser);
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        mode: 'community_moderated',
+        speakerLimit: 6,
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, { room: { roomId: 'ignored' } });
+
+    const res = await client.mutate(CREATE_MUTATION, {
+      variables: {
+        input: {
+          topic: 'Community floor',
+          mode: 'community_moderated',
+          speakerLimit: 6,
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createLiveRoom.room).toMatchObject({
+      topic: 'Community floor',
+      mode: 'community_moderated',
+      status: 'created',
+      participantCount: null,
+    });
+
+    const room = await con.getRepository(LiveRoom).findOneByOrFail({
+      id: res.data.createLiveRoom.room.id,
+    });
+
+    expect(room.mode).toBe('community_moderated');
+    expect(scope.isDone()).toBe(true);
+  });
+
   it('rejects speaker limits for moderated live rooms', async () => {
     loggedUser = '1';
     const scope = nock(flytingOrigin)
@@ -1126,6 +1164,33 @@ describe('live rooms', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
       'Anonymous viewers can only join live rooms or scheduled lobbies',
+    );
+  });
+
+  it('rejects anonymous join tokens for community-moderated rooms', async () => {
+    loggedTrackingId = 'tracking-anon-1';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: 'ca4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        hostId: '1',
+        topic: 'Community room',
+        mode: 'community_moderated',
+        status: LiveRoomStatus.Live,
+        startedAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: JOIN_TOKEN_MUTATION,
+        variables: {
+          roomId: 'ca4bb4ae-a0af-4310-b1ff-7d6345cb5253',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Community-moderated rooms require authenticated participants',
     );
   });
 

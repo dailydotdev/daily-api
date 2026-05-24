@@ -527,6 +527,14 @@ export const resolvers: IResolvers = {
       }
 
       const authKind = ctx.userId ? 'authenticated' : 'anonymous';
+      if (
+        authKind === 'anonymous' &&
+        room.mode === LiveRoomMode.CommunityModerated
+      ) {
+        throw new ValidationError(
+          'Community-moderated rooms require authenticated participants',
+        );
+      }
       if (authKind === 'anonymous' && !isAnonymousJoinableRoom(room)) {
         throw new ValidationError(
           'Anonymous viewers can only join live rooms or scheduled lobbies',

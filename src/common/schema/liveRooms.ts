@@ -4,6 +4,7 @@ import { enumValues } from './utils';
 export enum LiveRoomMode {
   Moderated = 'moderated',
   FreeForAll = 'free_for_all',
+  CommunityModerated = 'community_moderated',
 }
 
 export enum LiveRoomStatus {
@@ -60,12 +61,14 @@ export const createLiveRoomSchema = z
   .superRefine((input, ctx) => {
     if (
       input.mode !== LiveRoomMode.FreeForAll &&
+      input.mode !== LiveRoomMode.CommunityModerated &&
       input.speakerLimit !== undefined
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['speakerLimit'],
-        message: 'Speaker limit can only be set for free-for-all rooms',
+        message:
+          'Speaker limit can only be set for free-for-all or community-moderated rooms',
       });
     }
   });
