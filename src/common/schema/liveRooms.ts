@@ -4,6 +4,7 @@ import { enumValues } from './utils';
 export enum LiveRoomMode {
   Moderated = 'moderated',
   FreeForAll = 'free_for_all',
+  CommunityModerated = 'community_moderated',
 }
 
 export enum LiveRoomStatus {
@@ -30,6 +31,10 @@ export const liveRoomSpeakerLimitSchema = z
   .number()
   .int()
   .positive('Speaker limit must be at least 1');
+export const liveRoomMinParticipantsToGoLiveSchema = z
+  .number()
+  .int()
+  .min(2, 'Minimum participants to go live must be at least 2');
 
 export const liveRoomStatusSchema = z.enum(enumValues(LiveRoomStatus), {
   error: 'Invalid live room status',
@@ -53,6 +58,7 @@ export const createLiveRoomSchema = z
   .object({
     topic: z.string().trim().min(1).max(280),
     description: z.string().trim().max(20_000).optional().nullable(),
+    minParticipantsToGoLive: liveRoomMinParticipantsToGoLiveSchema.optional(),
     mode: liveRoomModeSchema.default(LiveRoomMode.Moderated),
     speakerLimit: liveRoomSpeakerLimitSchema.optional(),
     scheduledStart: z.coerce.date().optional().nullable(),
@@ -60,12 +66,49 @@ export const createLiveRoomSchema = z
   .superRefine((input, ctx) => {
     if (
       input.mode !== LiveRoomMode.FreeForAll &&
+      input.mode !== LiveRoomMode.CommunityModerated &&
       input.speakerLimit !== undefined
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['speakerLimit'],
-        message: 'Speaker limit can only be set for free-for-all rooms',
+        message:
+          'Speaker limit can only be set for free-for-all or community-moderated rooms',
+      });
+    }
+    if (
+      input.mode !== LiveRoomMode.CommunityModerated &&
+      input.minParticipantsToGoLive !== undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['minParticipantsToGoLive'],
+        message:
+          'Minimum participants can only be set for community-moderated rooms',
+      });
+    }
+    if (
+      input.mode === LiveRoomMode.CommunityModerated &&
+      input.minParticipantsToGoLive === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['minParticipantsToGoLive'],
+        message:
+          'Community-moderated rooms require a minimum participant count',
+      });
+    }
+    if (
+      input.mode === LiveRoomMode.CommunityModerated &&
+      input.minParticipantsToGoLive !== undefined &&
+      input.speakerLimit !== undefined &&
+      input.minParticipantsToGoLive > input.speakerLimit
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['minParticipantsToGoLive'],
+        message:
+          'Minimum participants cannot exceed the community-moderated room speaker limit',
       });
     }
   });

@@ -26,6 +26,7 @@ export class FlytingClient {
   }
 
   async prepareRoom(input: {
+    minParticipantsToGoLive?: number;
     mode: LiveRoomMode;
     roomId: string;
     speakerLimit?: number;
@@ -41,6 +42,7 @@ export class FlytingClient {
             'x-flyting-internal-key': this.internalApiKey,
           },
           body: JSON.stringify({
+            minParticipantsToGoLive: input.minParticipantsToGoLive,
             mode: input.mode,
             speakerLimit: input.speakerLimit,
           }),
