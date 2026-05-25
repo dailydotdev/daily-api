@@ -79,6 +79,7 @@ export const typeDefs = /* GraphQL */ `
     topic: String!
     mode: LiveRoomMode = moderated
     speakerLimit: Int
+    minParticipantsToGoLive: Int
     scheduledStart: DateTime
     description: String
   }
@@ -379,6 +380,7 @@ export const resolvers: IResolvers = {
       args: {
         input: {
           description?: string | null;
+          minParticipantsToGoLive?: number;
           mode: LiveRoomMode;
           speakerLimit?: number;
           scheduledStart?: string | null;
@@ -430,6 +432,7 @@ export const resolvers: IResolvers = {
 
       try {
         await getFlytingClient().prepareRoom({
+          minParticipantsToGoLive: input.minParticipantsToGoLive,
           mode: room.mode,
           roomId: room.id,
           speakerLimit: input.speakerLimit,
@@ -527,6 +530,14 @@ export const resolvers: IResolvers = {
       }
 
       const authKind = ctx.userId ? 'authenticated' : 'anonymous';
+      if (
+        authKind === 'anonymous' &&
+        room.mode === LiveRoomMode.CommunityModerated
+      ) {
+        throw new ValidationError(
+          'Community-moderated rooms require authenticated participants',
+        );
+      }
       if (authKind === 'anonymous' && !isAnonymousJoinableRoom(room)) {
         throw new ValidationError(
           'Anonymous viewers can only join live rooms or scheduled lobbies',
