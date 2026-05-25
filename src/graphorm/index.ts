@@ -40,6 +40,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  ONE_HOUR_IN_SECONDS,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -54,6 +55,10 @@ import {
 import { whereVordrFilter } from '../common/vordr';
 import { MIN_INDEXABLE_REPUTATION } from '../common/users';
 import { UserCompany, Post } from '../entity';
+import {
+  PostHighlightSignificance,
+  toPostHighlightSignificanceLabel,
+} from '../entity/PostHighlight';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -92,6 +97,15 @@ export enum LocationVerificationStatus {
   UserProvided = 'user_provided',
   Verified = 'verified',
 }
+
+const getPostHighlightTtlSeconds = (): number => {
+  const DEFAULT_POST_HIGHLIGHT_TTL_SECONDS = 12 * ONE_HOUR_IN_SECONDS;
+
+  return (
+    remoteConfig.vars.postHighlightTtlSeconds ??
+    DEFAULT_POST_HIGHLIGHT_TTL_SECONDS
+  );
+};
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -724,6 +738,25 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
               .andWhere(`${childAlias}."deleted" = false`),
+        },
+      },
+      postHighlight: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."postId" = ${parentAlias}."id"`)
+              .andWhere(`${childAlias}."significance" != :unspecified`, {
+                unspecified: PostHighlightSignificance.Unspecified,
+              })
+              .andWhere(`${childAlias}."retiredAt" IS NULL`)
+              .andWhere(
+                `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                { ttlSeconds: getPostHighlightTtlSeconds() },
+              )
+              .orderBy(`${childAlias}."significance"`, 'ASC')
+              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
         },
       },
       liveRoom: {
@@ -2735,6 +2768,17 @@ const obj = new GraphORM({
           parentColumn: 'achievementId',
         },
       },
+      createdAt: { transform: transformDate },
+      updatedAt: { transform: transformDate },
+    },
+  },
+  PostHighlight: {
+    fields: {
+      significance: {
+        transform: (value: PostHighlightSignificance) =>
+          toPostHighlightSignificanceLabel(value),
+      },
+      highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },
       updatedAt: { transform: transformDate },
     },

@@ -776,6 +776,13 @@ export const typeDefs = /* GraphQL */ `
     sharedPost: Post
 
     """
+    Currently-active highlight for this post, across all significance tiers
+    (breaking, major, notable, routine). Null when no highlight is active or
+    it has expired.
+    """
+    postHighlight: PostHighlight
+
+    """
     Additional information required for analytics purposes
     """
     feedMeta: String

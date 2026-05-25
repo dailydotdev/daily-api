@@ -53,6 +53,7 @@ export type RemoteConfigValue = {
   newViewLogs: boolean;
   verboseGqlLogging: boolean;
   engagementAdsEnabled: boolean;
+  postHighlightTtlSeconds: number;
 };
 
 class RemoteConfig {
