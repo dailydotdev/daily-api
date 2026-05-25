@@ -755,7 +755,8 @@ const obj = new GraphORM({
                 { ttlSeconds: getPostHighlightTtlSeconds() },
               )
               .orderBy(`${childAlias}."significance"`, 'ASC')
-              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC'),
+              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
         },
       },
       liveRoom: {

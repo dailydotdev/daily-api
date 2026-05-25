@@ -983,6 +983,49 @@ describe('postHighlight field', () => {
       highlightedAt: expect.any(String),
     });
   });
+
+  it('returns null when the highlight significance is unspecified', async () => {
+    await con.getRepository(PostHighlight).save({
+      postId: 'p1',
+      channel: 'vibes',
+      highlightedAt: new Date(),
+      headline: 'Unspecified headline',
+      significance: PostHighlightSignificance.Unspecified,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.postHighlight).toBeNull();
+  });
+
+  it('returns null when the highlight is retired', async () => {
+    await con.getRepository(PostHighlight).save({
+      postId: 'p1',
+      channel: 'vibes',
+      highlightedAt: new Date(),
+      headline: 'Retired headline',
+      significance: PostHighlightSignificance.Breaking,
+      retiredAt: new Date(),
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.postHighlight).toBeNull();
+  });
+
+  it('returns null when the highlight is older than the TTL', async () => {
+    await con.getRepository(PostHighlight).save({
+      postId: 'p1',
+      channel: 'vibes',
+      highlightedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      headline: 'Stale headline',
+      significance: PostHighlightSignificance.Breaking,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.postHighlight).toBeNull();
+  });
 });
 
 describe('type field', () => {
