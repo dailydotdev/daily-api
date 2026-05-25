@@ -175,9 +175,15 @@ export default async function app(
 
     req.log.warn({ err }, err.message);
 
+    // Plugins like @fastify/rate-limit throw a plain object (the return value
+    // of errorResponseBuilder). Prefer that object's own `error` field so the
+    // public response shape is preserved (e.g. 'rate_limit_exceeded').
+    const errorCode =
+      (err as unknown as { error?: string }).error || err.name || 'Error';
+
     return res.code(statusCode).send({
       statusCode,
-      error: err.name || 'Error',
+      error: errorCode,
       message: err.message,
     });
   });

@@ -67,8 +67,11 @@ describe('Public API Rate Limiting', () => {
       }
 
       expect(lastRes!.status).toBe(429);
-      expect(lastRes!.body.statusCode).toBe(429);
-      expect(lastRes!.body.message).toMatch(/rate limit/i);
+      expect(lastRes!.body).toMatchObject({
+        statusCode: 429,
+        error: 'rate_limit_exceeded',
+        message: expect.stringMatching(/rate limit/i),
+      });
     });
   });
 });
