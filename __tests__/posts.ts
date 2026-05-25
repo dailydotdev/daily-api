@@ -47,6 +47,10 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../src/entity';
+import {
+  PostHighlight,
+  PostHighlightSignificance,
+} from '../src/entity/PostHighlight';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -937,6 +941,46 @@ describe('sharedPost field', () => {
           url: 'https://example.com/failed-scrape',
         },
       },
+    });
+  });
+});
+
+describe('postHighlight field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      postHighlight {
+        id
+        channel
+        headline
+        significance
+        highlightedAt
+      }
+    }
+  }`;
+
+  it('returns null when the post has no active highlight', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.postHighlight).toBeNull();
+  });
+
+  it('returns the active highlight when one exists', async () => {
+    await con.getRepository(PostHighlight).save({
+      postId: 'p1',
+      channel: 'vibes',
+      highlightedAt: new Date(),
+      headline: 'Breaking headline',
+      significance: PostHighlightSignificance.Breaking,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.postHighlight).toEqual({
+      id: expect.any(String),
+      channel: 'vibes',
+      headline: 'Breaking headline',
+      significance: 'breaking',
+      highlightedAt: expect.any(String),
     });
   });
 });

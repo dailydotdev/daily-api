@@ -127,6 +127,7 @@ const MAJOR_HEADLINES_QUERY = `
           channel
           highlightedAt
           headline
+          significance
           post {
             id
             title
@@ -390,16 +391,19 @@ describe('query majorHeadlines', () => {
       expect.objectContaining({
         channel: 'vibes',
         headline: 'Newer breaking headline',
+        significance: 'breaking',
         post: { id: 'h1', title: 'Test Post 1' },
       }),
       expect.objectContaining({
         channel: 'vibes',
         headline: 'Breaking headline',
+        significance: 'breaking',
         post: { id: 'h2', title: 'Test Post 2' },
       }),
       expect.objectContaining({
         channel: 'agentic',
         headline: 'Major headline',
+        significance: 'major',
         post: { id: 'h4', title: 'Test Post 4' },
       }),
     ]);
