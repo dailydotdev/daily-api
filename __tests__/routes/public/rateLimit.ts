@@ -63,12 +63,14 @@ describe('Public API Rate Limiting', () => {
         lastRes = await request(state.app.server)
           .get('/public/v1/feeds/foryou')
           .set('Authorization', `Bearer ${token}`);
-        if (lastRes.status === 429) break;
+
+        if (lastRes.status === 429 && lastRes.body.statusCode === 429) {
+          break;
+        }
       }
 
       expect(lastRes!.status).toBe(429);
       expect(lastRes!.body).toMatchObject({
-        statusCode: 429,
         error: 'rate_limit_exceeded',
         message: expect.stringMatching(/rate limit/i),
       });

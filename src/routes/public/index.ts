@@ -141,7 +141,9 @@ export default async function (
       // @fastify/rate-limit throws the return value of this builder. Return
       // a proper Error so the global setErrorHandler can read err.name and
       // err.statusCode (plain objects lose both).
-      const err = new Error('Too many requests from this IP. Please slow down.');
+      const err = new Error(
+        'Too many requests from this IP. Please slow down.',
+      );
       err.name = 'rate_limit_exceeded';
       (err as Error & { statusCode: number }).statusCode = 429;
       return err;
