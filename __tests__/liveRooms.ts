@@ -399,6 +399,7 @@ describe('live rooms', () => {
 
     const scope = nock(flytingOrigin)
       .post(/\/internal\/live-rooms\/[^/]+\/prepare/, {
+        minParticipantsToGoLive: 3,
         mode: 'community_moderated',
         speakerLimit: 6,
       })
@@ -409,6 +410,7 @@ describe('live rooms', () => {
       variables: {
         input: {
           topic: 'Community floor',
+          minParticipantsToGoLive: 3,
           mode: 'community_moderated',
           speakerLimit: 6,
         },
@@ -429,6 +431,33 @@ describe('live rooms', () => {
 
     expect(room.mode).toBe('community_moderated');
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('rejects community-moderated live rooms without a minimum participant count', async () => {
+    loggedUser = '1';
+    await grantStandupAccess(loggedUser);
+
+    const scope = nock(flytingOrigin)
+      .post(/\/internal\/live-rooms\/[^/]+\/prepare/)
+      .reply(200, { room: { roomId: 'ignored' } });
+
+    const res = await client.mutate(CREATE_MUTATION, {
+      variables: {
+        input: {
+          topic: 'Community without minimum',
+          mode: 'community_moderated',
+          speakerLimit: 6,
+        },
+      },
+    });
+
+    expect(res.errors?.[0]?.message).toBe('Validation error');
+    expect(scope.isDone()).toBe(false);
+    await expect(
+      con
+        .getRepository(LiveRoom)
+        .findOneBy({ topic: 'Community without minimum' }),
+    ).resolves.toBeNull();
   });
 
   it('rejects speaker limits for moderated live rooms', async () => {
