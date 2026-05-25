@@ -9,7 +9,11 @@ import { queryReadReplica } from './common/queryReadReplica';
 import type { FindOneOptions } from 'typeorm';
 import { getRedisObject } from './redis';
 import { generateStorageKey, StorageKey, StorageTopic } from './config';
-import { getLiveRoomParticipantCounts } from './common/liveRoom/participantCount';
+import {
+  getLiveRoomParticipantCounts,
+  getLiveRoomRuntimeStates,
+  type LiveRoomRuntimeState,
+} from './common/liveRoom/participantCount';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -248,6 +252,28 @@ export class DataLoaderService {
         });
 
         return roomIds.map((roomId) => countsByRoomId.get(roomId) ?? null);
+      },
+      cacheKeyFn: defaultCacheKeyFn,
+      maxBatchSize: 100,
+    });
+  }
+
+  get liveRoomRuntimeState() {
+    return this.getBatchLoader<string, LiveRoomRuntimeState>({
+      type: 'liveRoomRuntimeState',
+      batchLoadFn: async (roomIds) => {
+        const statesByRoomId = await getLiveRoomRuntimeStates({
+          ctx: this.ctx,
+          roomIds: [...roomIds],
+        });
+
+        return roomIds.map(
+          (roomId) =>
+            statesByRoomId.get(roomId) ?? {
+              activityStatus: null,
+              participantCount: null,
+            },
+        );
       },
       cacheKeyFn: defaultCacheKeyFn,
       maxBatchSize: 100,

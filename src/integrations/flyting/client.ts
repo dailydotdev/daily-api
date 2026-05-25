@@ -2,7 +2,10 @@ import type { RequestInit } from 'node-fetch';
 import { GarmrNoopService, GarmrService, type IGarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { AbortError, HttpError, retryFetch } from '../retry';
-import type { LiveRoomMode } from '../../common/schema/liveRooms';
+import type {
+  LiveRoomActivityStatus,
+  LiveRoomMode,
+} from '../../common/schema/liveRooms';
 
 export class FlytingClient {
   private readonly fetchOptions: RequestInit;
@@ -168,6 +171,7 @@ export class FlytingClient {
 
   async getParticipantCounts(input: { roomIds: string[] }): Promise<{
     rooms: {
+      activityStatus?: LiveRoomActivityStatus | null;
       roomId: string;
       participantCount: number | null;
     }[];

@@ -4,6 +4,7 @@ import type { GraphQLResolveInfo } from 'graphql';
 import type { EntityManager } from 'typeorm';
 import type { Context } from '../Context';
 import { ONE_HOUR_IN_SECONDS, toGQLEnum } from '../common';
+import { getLiveRoomRuntimeStates } from '../common/liveRoom/participantCount';
 import { GQLEmptyResponse } from './common';
 import { createLiveRoomJoinToken } from '../common/liveRoom/token';
 import {
@@ -15,11 +16,13 @@ import { renderMarkdown } from '../common/markdown';
 import {
   activeLiveRoomsQuerySchema,
   createLiveRoomSchema,
+  LiveRoomActivityStatus,
   LiveRoomMode,
   LiveRoomParticipantRole,
   liveRoomIdInputSchema,
   LiveRoomStatus,
 } from '../common/schema/liveRooms';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { ContentEmbedParentType } from '../entity/ContentEmbed';
 import { NotFoundError } from '../errors';
 import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
@@ -49,6 +52,7 @@ type GQLLiveRoomJoinToken = {
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(LiveRoomMode, 'LiveRoomMode')}
   ${toGQLEnum(LiveRoomStatus, 'LiveRoomStatus')}
+  ${toGQLEnum(LiveRoomActivityStatus, 'LiveRoomActivityStatus')}
   ${toGQLEnum(LiveRoomParticipantRole, 'LiveRoomParticipantRole')}
 
   type LiveRoom {
@@ -58,6 +62,7 @@ export const typeDefs = /* GraphQL */ `
     topic: String!
     mode: LiveRoomMode!
     status: LiveRoomStatus!
+    activityStatus: LiveRoomActivityStatus
     startedAt: DateTime
     endedAt: DateTime
     scheduledStart: DateTime
@@ -288,6 +293,82 @@ const isAnonymousJoinableRoom = (room: LiveRoom): boolean =>
   room.status === LiveRoomStatus.Live ||
   (room.status === LiveRoomStatus.Created && !!room.scheduledStart);
 
+const getStoredRoomActivityStatus = (
+  room: Pick<LiveRoom, 'status'>,
+): LiveRoomActivityStatus | null => {
+  if (room.status === LiveRoomStatus.Ended) {
+    return null;
+  }
+
+  return room.status === LiveRoomStatus.Live
+    ? LiveRoomActivityStatus.Live
+    : LiveRoomActivityStatus.Pending;
+};
+
+const getActiveLiveRoomIds = async ({
+  ctx,
+  limit,
+}: {
+  ctx: Context;
+  limit: number;
+}): Promise<string[]> => {
+  const candidateLimit = Math.max(limit * 5, 50);
+  const [liveRooms, communityRooms] = await queryReadReplica(
+    ctx.con,
+    async ({ queryRunner }) => {
+      const roomRepo = queryRunner.manager.getRepository(LiveRoom);
+      const liveRoomCandidates = await roomRepo
+        .createQueryBuilder('room')
+        .select(['room.id', 'room.mode', 'room.status', 'room.createdAt'])
+        .where('room.status = :liveStatus', {
+          liveStatus: LiveRoomStatus.Live,
+        })
+        .orderBy('room.createdAt', 'DESC')
+        .limit(limit)
+        .getMany();
+      const communityRoomCandidates = await roomRepo
+        .createQueryBuilder('room')
+        .select(['room.id', 'room.mode', 'room.status', 'room.createdAt'])
+        .where('room.mode = :communityMode', {
+          communityMode: LiveRoomMode.CommunityModerated,
+        })
+        .andWhere('room.status != :endedStatus', {
+          endedStatus: LiveRoomStatus.Ended,
+        })
+        .orderBy('room.createdAt', 'DESC')
+        .limit(candidateLimit)
+        .getMany();
+
+      return [liveRoomCandidates, communityRoomCandidates];
+    },
+  );
+  const candidateRooms = [
+    ...new Map(
+      [...liveRooms, ...communityRooms].map((room) => [room.id, room]),
+    ).values(),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const communityCandidateIds = communityRooms.map((room) => room.id);
+  const communityRuntimeStates = await getLiveRoomRuntimeStates({
+    ctx,
+    roomIds: communityCandidateIds,
+  });
+
+  return candidateRooms
+    .filter((room) => {
+      if (room.status === LiveRoomStatus.Live) {
+        return true;
+      }
+
+      return (
+        room.mode === LiveRoomMode.CommunityModerated &&
+        communityRuntimeStates.get(room.id)?.activityStatus ===
+          LiveRoomActivityStatus.Live
+      );
+    })
+    .slice(0, limit)
+    .map((room) => room.id);
+};
+
 const queryLiveRoomById = (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -310,13 +391,37 @@ export const resolvers: IResolvers = {
     ): Promise<GQLLiveRoom> => queryLiveRoomById(ctx, info, payload.room.id),
   },
   LiveRoom: {
+    activityStatus: async (
+      room: GQLLiveRoom,
+      _,
+      ctx: Context,
+    ): Promise<LiveRoomActivityStatus | null> => {
+      if (room.mode !== LiveRoomMode.CommunityModerated) {
+        return getStoredRoomActivityStatus(room);
+      }
+
+      const runtimeState = await ctx.dataLoader.liveRoomRuntimeState.load(
+        room.id,
+      );
+      return runtimeState.activityStatus ?? getStoredRoomActivityStatus(room);
+    },
     participantCount: async (
       room: GQLLiveRoom,
       _,
       ctx: Context,
     ): Promise<number | null> => {
-      if (room.status !== LiveRoomStatus.Live) {
+      if (
+        room.status !== LiveRoomStatus.Live &&
+        room.mode !== LiveRoomMode.CommunityModerated
+      ) {
         return null;
+      }
+
+      if (room.mode === LiveRoomMode.CommunityModerated) {
+        const runtimeState = await ctx.dataLoader.liveRoomRuntimeState.load(
+          room.id,
+        );
+        return runtimeState.participantCount;
       }
 
       return ctx.dataLoader.liveRoomParticipantCount.load(room.id);
@@ -357,14 +462,22 @@ export const resolvers: IResolvers = {
       info,
     ): Promise<GQLLiveRoom[]> => {
       const input = activeLiveRoomsQuerySchema.parse(args);
+      const roomIds = await getActiveLiveRoomIds({
+        ctx,
+        limit: input.limit,
+      });
+
+      if (roomIds.length === 0) {
+        return [];
+      }
 
       return graphorm.query<GQLLiveRoom>(
         ctx,
         info,
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."status" = :status`, {
-              status: LiveRoomStatus.Live,
+            .where(`"${builder.alias}"."id" IN (:...roomIds)`, {
+              roomIds,
             })
             .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
             .limit(input.limit);

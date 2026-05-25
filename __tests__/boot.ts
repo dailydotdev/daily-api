@@ -93,7 +93,10 @@ import { UserExperienceEducation } from '../src/entity/user/experiences/UserExpe
 import * as betterAuthModule from '../src/betterAuth';
 import { remoteConfig } from '../src/remoteConfig';
 import { LiveRoom } from '../src/entity/LiveRoom';
-import { LiveRoomStatus } from '../src/common/schema/liveRooms';
+import { LiveRoomMode, LiveRoomStatus } from '../src/common/schema/liveRooms';
+
+const flytingOrigin = 'http://flyting.test';
+const flytingInternalKey = 'flyting-internal-key';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -220,6 +223,9 @@ jest.mock('../src/growthbook', () => ({
 }));
 
 beforeAll(async () => {
+  process.env.FLYTING_INTERNAL_KEY = flytingInternalKey;
+  process.env.FLYTING_ORIGIN = flytingOrigin;
+
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
   app = state.app;
@@ -272,6 +278,38 @@ describe('anonymous boot', () => {
       .expect(200);
 
     expect(res.body.liveRooms).toEqual({ hasLive: true });
+  });
+
+  it('should indicate when community-moderated room activity is live', async () => {
+    await con.getRepository(LiveRoom).save({
+      id: '40ad3407-0d6a-4d95-98c2-bc5a3d7cf4d1',
+      hostId: '1',
+      topic: 'Community boot hint',
+      mode: LiveRoomMode.CommunityModerated,
+      status: LiveRoomStatus.Created,
+    });
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: ['40ad3407-0d6a-4d95-98c2-bc5a3d7cf4d1'],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            activityStatus: 'live',
+            roomId: '40ad3407-0d6a-4d95-98c2-bc5a3d7cf4d1',
+            participantCount: 3,
+          },
+        ],
+      });
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body.liveRooms).toEqual({ hasLive: true });
+    expect(scope.isDone()).toBe(true);
   });
 
   it('should reuse the cached live rooms boot hint', async () => {

@@ -106,7 +106,12 @@ import {
   type EngagementCreative,
 } from '../integrations/skadi';
 import { LiveRoom } from '../entity/LiveRoom';
-import { LiveRoomStatus } from '../common/schema/liveRooms';
+import {
+  LiveRoomActivityStatus,
+  LiveRoomMode,
+  LiveRoomStatus,
+} from '../common/schema/liveRooms';
+import { getFlytingClient } from '../integrations/flyting/client';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -251,14 +256,48 @@ const getLiveRoomsBoot = async (
       where: { status: LiveRoomStatus.Live },
     }),
   );
+  const communityRooms = hasLive
+    ? []
+    : await queryReadReplica(con, async ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(LiveRoom)
+          .createQueryBuilder('room')
+          .select(['room.id'])
+          .where('room.mode = :communityMode', {
+            communityMode: LiveRoomMode.CommunityModerated,
+          })
+          .andWhere('room.status != :endedStatus', {
+            endedStatus: LiveRoomStatus.Ended,
+          })
+          .orderBy('room.createdAt', 'DESC')
+          .limit(50)
+          .getMany(),
+      );
+  let hasCommunityLive = hasLive;
+  if (!hasCommunityLive && communityRooms.length > 0) {
+    try {
+      const response = await getFlytingClient().getParticipantCounts({
+        roomIds: communityRooms.map((room) => room.id),
+      });
+
+      hasCommunityLive = response.rooms.some(
+        (room) => room.activityStatus === LiveRoomActivityStatus.Live,
+      );
+    } catch (error) {
+      logger.warn(
+        { err: error },
+        'Unable to load community live room activity for boot',
+      );
+    }
+  }
 
   await setRedisObjectWithExpiry(
     cacheKey,
-    hasLive ? '1' : '0',
+    hasCommunityLive ? '1' : '0',
     LIVE_ROOMS_BOOT_CACHE_TTL_SECONDS,
   );
 
-  return { hasLive };
+  return { hasLive: hasCommunityLive };
 };
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
