@@ -137,11 +137,17 @@ export default async function (
     max: IP_RATE_LIMIT_PER_MINUTE,
     timeWindow: '1 minute',
     keyGenerator: (request: FastifyRequest) => request.ip,
-    errorResponseBuilder: () => ({
-      error: 'rate_limit_exceeded',
-      message: 'Too many requests from this IP. Please slow down.',
-      retryAfter: 60,
-    }),
+    errorResponseBuilder: () => {
+      // @fastify/rate-limit throws the return value of this builder. Return
+      // a proper Error so the global setErrorHandler can read err.name and
+      // err.statusCode (plain objects lose both).
+      const err = new Error(
+        'Too many requests from this IP. Please slow down.',
+      );
+      err.name = 'rate_limit_exceeded';
+      (err as Error & { statusCode: number }).statusCode = 429;
+      return err;
+    },
     skipOnError: false,
     addHeadersOnExceeding: {
       'x-ratelimit-limit': false,
@@ -177,11 +183,14 @@ export default async function (
     hook: 'preHandler',
     keyGenerator: (request: FastifyRequest) => request.apiUserId,
     skip: (request: FastifyRequest) => !request.apiUserId,
-    errorResponseBuilder: () => ({
-      error: 'rate_limit_exceeded',
-      message: 'User rate limit exceeded. Please slow down.',
-      retryAfter: 60,
-    }),
+    errorResponseBuilder: () => {
+      // See IP rate limiter above. Return a proper Error so name/statusCode
+      // survive the throw and reach the global setErrorHandler.
+      const err = new Error('User rate limit exceeded. Please slow down.');
+      err.name = 'rate_limit_exceeded';
+      (err as Error & { statusCode: number }).statusCode = 429;
+      return err;
+    },
     skipOnError: false,
     addHeadersOnExceeding: {
       'x-ratelimit-limit': true,

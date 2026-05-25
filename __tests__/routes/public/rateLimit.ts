@@ -53,5 +53,27 @@ describe('Public API Rate Limiting', () => {
 
       expect(remaining2).toBeLessThan(remaining1);
     });
+
+    it('should return 429 when user rate limit is exceeded', async () => {
+      const token = await createTokenForUser(state.con, '5');
+
+      // Limit is 60/min/user. Fire until we hit the limit.
+      let lastRes;
+      for (let i = 0; i < 61; i++) {
+        lastRes = await request(state.app.server)
+          .get('/public/v1/feeds/foryou')
+          .set('Authorization', `Bearer ${token}`);
+
+        if (lastRes.status === 429 && lastRes.body.statusCode === 429) {
+          break;
+        }
+      }
+
+      expect(lastRes!.status).toBe(429);
+      expect(lastRes!.body).toMatchObject({
+        error: 'rate_limit_exceeded',
+        message: expect.stringMatching(/rate limit/i),
+      });
+    });
   });
 });
