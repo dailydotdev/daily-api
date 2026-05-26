@@ -1,5 +1,5 @@
-import { APIError, betterAuth, type BetterAuthOptions } from 'better-auth';
-import { createAuthMiddleware, getOAuthState } from 'better-auth/api';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api';
 import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
@@ -548,7 +548,9 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
               requestPath.endsWith('/callback/github') &&
               user.emailVerified === false
             ) {
-              throwBadRequest('github_email_not_verified');
+              const err = new Error('github_email_not_verified');
+              err.name = 'APIError';
+              throw err;
             }
 
             const resolved = await resolveSignUpUserId(pool, user, ctx);
