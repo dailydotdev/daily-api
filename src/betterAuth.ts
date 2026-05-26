@@ -1,5 +1,5 @@
-import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api';
+import { APIError, betterAuth, type BetterAuthOptions } from 'better-auth';
+import { createAuthMiddleware, getOAuthState } from 'better-auth/api';
 import { captcha, emailOTP } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
