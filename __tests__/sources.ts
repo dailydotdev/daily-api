@@ -5214,6 +5214,93 @@ describe('mutation expandPinnedPosts', () => {
   });
 });
 
+describe('mutation toggleFavoriteSource', () => {
+  const MUTATION = `
+    mutation ToggleFavoriteSource($sourceId: ID!) {
+      toggleFavoriteSource(sourceId: $sourceId) {
+        _
+      }
+    }`;
+
+  const variables = { sourceId: 's1' };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt-fav',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { sourceId: 's1', userId: '1' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set favoritedAt when unset and clear when set', async () => {
+    loggedUser = '1';
+
+    let sourceMember = await con
+      .getRepository(SourceMember)
+      .findOneBy({ sourceId: 's1', userId: '1' });
+    expect(sourceMember?.favoritedAt).toBeNull();
+
+    await client.mutate(MUTATION, { variables });
+    sourceMember = await con
+      .getRepository(SourceMember)
+      .findOneBy({ sourceId: 's1', userId: '1' });
+    expect(sourceMember?.favoritedAt).toBeInstanceOf(Date);
+
+    await client.mutate(MUTATION, { variables });
+    sourceMember = await con
+      .getRepository(SourceMember)
+      .findOneBy({ sourceId: 's1', userId: '1' });
+    expect(sourceMember?.favoritedAt).toBeNull();
+  });
+
+  it('should expose favoritedAt on mySourceMemberships', async () => {
+    loggedUser = '1';
+    await client.mutate(MUTATION, { variables });
+
+    const res = await client.query(
+      `{
+        mySourceMemberships {
+          edges { node { source { id } favoritedAt } }
+        }
+      }`,
+    );
+    expect(res.errors).toBeFalsy();
+    const edge = res.data.mySourceMemberships.edges.find(
+      (e: { node: { source: { id: string } } }) => e.node.source.id === 's1',
+    );
+    expect(edge?.node.favoritedAt).toBeTruthy();
+  });
+});
+
 describe('SourceMember flags field', () => {
   const QUERY = `{
     source(id: "a") {
