@@ -35,12 +35,11 @@ describe('POST /public/v1/feeds/filters/tags/follow', () => {
   it('should require tags array', async () => {
     const token = await createTokenForUser(state.con, '5');
 
-    // Server returns 500 for schema validation errors due to global error handler
     await request(state.app.server)
       .post('/public/v1/feeds/filters/tags/follow')
       .set('Authorization', `Bearer ${token}`)
       .send({})
-      .expect(500);
+      .expect(400);
   });
 });
 

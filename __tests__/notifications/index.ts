@@ -1925,6 +1925,7 @@ describe('award notifications', () => {
       receiver,
       transaction,
       targetUrl: `/${receiver.username}`,
+      targetType: 'user',
     };
 
     const actual = generateNotificationV2(type, ctx);
@@ -1933,8 +1934,44 @@ describe('award notifications', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(transaction.id);
     expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.title).toEqual(
+      `<b>${sender.username}</b> awarded you +100 Cores for being awesome!`,
+    );
     expect(actual.notification.targetUrl).toEqual(`/${receiver.username}`);
     expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should not append "for being awesome!" when award is on a post', async () => {
+    const sender = usersFixture[1] as Reference<User>;
+    const receiver = usersFixture[0] as Reference<User>;
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: receiver.id,
+      senderId: sender.id,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: null,
+      status: UserTransactionStatus.Success,
+    });
+
+    const type = NotificationType.UserReceivedAward;
+    const ctx: NotificationAwardContext = {
+      userIds: [receiver.id],
+      sender,
+      receiver,
+      transaction,
+      targetUrl: `/posts/p1`,
+      targetType: 'post',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.title).toEqual(
+      `<b>${sender.username}</b> awarded you +100 Cores`,
+    );
   });
 });
 

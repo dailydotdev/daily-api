@@ -156,4 +156,23 @@ describe('query postsByTag', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return the same tag feed for uppercase and mixed-case tags', async () => {
+    const latest = new Date().toISOString();
+    const lowerRes = await client.query(QUERY, {
+      variables: { params: { latest, tag: 'javascript' } },
+    });
+    const upperRes = await client.query(QUERY, {
+      variables: { params: { latest, tag: 'JAVASCRIPT' } },
+    });
+    const mixedRes = await client.query(QUERY, {
+      variables: { params: { latest, tag: 'JavaScript' } },
+    });
+    const lowerIds = lowerRes.data.postsByTag.map(({ id }) => id);
+    const upperIds = upperRes.data.postsByTag.map(({ id }) => id);
+    const mixedIds = mixedRes.data.postsByTag.map(({ id }) => id);
+
+    expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
+    expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
+  });
 });

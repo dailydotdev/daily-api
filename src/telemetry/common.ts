@@ -25,6 +25,7 @@ export const getAppVersion = (req: AppVersionRequest): string => {
 export const SEMATTRS_DAILY_STAFF = 'dailydev.staff';
 export const SEMATTRS_DAILY_APPS_VERSION = 'dailydev.apps.version';
 export const SEMATTRS_DAILY_APPS_USER_ID = 'dailydev.apps.userId';
+export const SEMATTRS_DAILY_PUBLIC_API_TOKEN_ID = 'dailydev.publicApi.tokenId';
 
 export type CounterOptions = { name: string } & MetricOptions;
 

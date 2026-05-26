@@ -22,6 +22,7 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
+  UserPost,
   UserTopReader,
   WelcomePost,
 } from '../entity';
@@ -53,6 +54,7 @@ import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { UserTransaction } from '../entity/user/UserTransaction';
+import { UserComment } from '../entity/user/UserComment';
 import { formatCoresCurrency } from '../common/number';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import { BriefPost } from '../entity/posts/BriefPost';
@@ -137,7 +139,6 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
-  major_headline_added: '',
   live_room_started: '',
   live_room_starting_soon: '',
 };
@@ -947,18 +948,29 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     });
 
-    const sender = await transaction.sender;
-    const product = await transaction.product;
+    const [sender, product, userPost, userComment] = await Promise.all([
+      transaction.sender,
+      transaction.product,
+      con.getRepository(UserPost).findOneBy({
+        awardTransactionId: transaction.id,
+      }),
+      con.getRepository(UserComment).findOneBy({
+        awardTransactionId: transaction.id,
+      }),
+    ]);
 
     const coreAmount =
       transaction.valueIncFees === 0
         ? 'Free'
         : `+${formatCoresCurrency(transaction.valueIncFees)}`;
 
+    const isProfileDirect = !userPost && !userComment;
+    const suffix = isProfileDirect ? ' for being awesome!' : '!';
+
     const title =
       transaction.valueIncFees === 0
-        ? 'You just received an Award!'
-        : `You just received ${coreAmount} Cores!`;
+        ? `You just received an Award${suffix}`
+        : `You just received ${coreAmount} Cores${suffix}`;
 
     return {
       title,
@@ -1293,9 +1305,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
-  },
-  major_headline_added: async () => {
-    return null;
   },
   live_room_started: async () => {
     return null;

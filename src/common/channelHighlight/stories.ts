@@ -1,6 +1,7 @@
 import type { PostContentQuality } from '../../entity/posts/Post';
 import { toPostHighlightSignificanceLabel } from '../../entity/PostHighlight';
 import type { PostRelation } from '../../entity/posts/PostRelation';
+import { buildStoryFamilies } from './storyFamilies';
 import type {
   CurrentHighlight,
   HighlightCandidate,
@@ -35,26 +36,6 @@ export const toQualitySummary = (
       ? quality.self_promotion_score
       : null,
 });
-
-const buildCollectionByChildId = (
-  relations: PostRelation[],
-  availablePostIds: Set<string>,
-): Map<string, string> => {
-  const collectionByChildId = new Map<string, string>();
-
-  for (const relation of relations) {
-    if (
-      !availablePostIds.has(relation.postId) ||
-      !availablePostIds.has(relation.relatedPostId)
-    ) {
-      continue;
-    }
-
-    collectionByChildId.set(relation.relatedPostId, relation.postId);
-  }
-
-  return collectionByChildId;
-};
 
 type EngagementPost = {
   upvotes: number;
@@ -105,6 +86,17 @@ const groupPostsByCanonicalPostId = ({
 
   return groupedPosts;
 };
+
+const getPostSummary = ({
+  post,
+  postsById,
+}: {
+  post: HighlightPost;
+  postsById: Map<string, HighlightPost>;
+}): string | null =>
+  post.summary ||
+  (post.sharedPostId && postsById.get(post.sharedPostId)?.summary) ||
+  null;
 
 const buildCandidate = ({
   canonicalPostId,
@@ -168,13 +160,13 @@ export const buildCandidates = ({
   horizonStart: Date;
 }): HighlightCandidate[] => {
   const availablePostIds = new Set(posts.map((post) => post.id));
-  const collectionByChildId = buildCollectionByChildId(
+  const storyFamilies = buildStoryFamilies({
     relations,
-    availablePostIds,
-  );
+    postIds: availablePostIds,
+  });
   const groupedPosts = groupPostsByCanonicalPostId({
     posts,
-    collectionByChildId,
+    collectionByChildId: storyFamilies.collectionByChild,
   });
 
   return [...groupedPosts.entries()]
@@ -220,10 +212,10 @@ export const canonicalizeCurrentHighlights = ({
   inaccessiblePostIds: Set<string>;
 }): HighlightItem[] => {
   const postsById = new Map(posts.map((post) => [post.id, post]));
-  const collectionByChildId = buildCollectionByChildId(
+  const storyFamilies = buildStoryFamilies({
     relations,
-    new Set(postsById.keys()),
-  );
+    postIds: new Set(postsById.keys()),
+  });
   const sharedByShareId = new Map<string, string>();
   for (const post of posts) {
     if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
@@ -243,7 +235,7 @@ export const canonicalizeCurrentHighlights = ({
   for (const highlight of highlights) {
     const downgradedPostId = downgradeShareToUnderlying(highlight.postId);
     const canonicalPostId =
-      collectionByChildId.get(downgradedPostId) || downgradedPostId;
+      storyFamilies.collectionByChild.get(downgradedPostId) || downgradedPostId;
     const canonicalPost = postsById.get(canonicalPostId);
 
     if (!canonicalPost) {
@@ -257,7 +249,11 @@ export const canonicalizeCurrentHighlights = ({
     canonicalHighlights.set(canonicalPostId, {
       postId: canonicalPostId,
       headline: highlight.headline,
-      summary: canonicalPost.summary || highlight.summary,
+      summary:
+        getPostSummary({
+          post: canonicalPost,
+          postsById,
+        }) || highlight.summary,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
       reason: highlight.reason,

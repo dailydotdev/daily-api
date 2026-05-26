@@ -57,6 +57,7 @@ export const typeDefs = /* GraphQL */ `
     channel: String!
     highlightedAt: DateTime!
     headline: String!
+    significance: String
     createdAt: DateTime!
     updatedAt: DateTime!
   }

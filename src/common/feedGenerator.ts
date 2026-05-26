@@ -59,7 +59,9 @@ export const whereTags = (
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
-    .where(`pk.keyword IN (:...${variableAlias})`, { [variableAlias]: tags })
+    .where(`pk.keyword IN (:...${variableAlias})`, {
+      [variableAlias]: tags.map((tag) => tag.toLowerCase()),
+    })
     .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;
@@ -86,7 +88,7 @@ export const whereKeyword = (
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
-    .where(`pk.keyword = :keyword`, { keyword })
+    .where(`pk.keyword = :keyword`, { keyword: keyword.toLowerCase() })
     .andWhere(postIdMatch)
     .getQuery();
   return `EXISTS${query}`;

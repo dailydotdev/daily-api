@@ -22,9 +22,6 @@ export const getDiscussionLink = (postSlug: string, commentId = ''): string =>
     commentId && `#c-${commentId}`
   }`;
 
-export const getHighlightLink = (highlightId: string): string =>
-  `${process.env.COMMENTS_PREFIX}/highlights?highlight=${highlightId}`;
-
 export const getSourceLink = (
   source: Pick<Source, 'handle' | 'type'>,
 ): string =>

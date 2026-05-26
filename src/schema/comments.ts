@@ -49,6 +49,9 @@ import {
   VordrFilterType,
   whereVordrFilter,
 } from '../common/vordr';
+import { isLowEffortComment } from '../common/lowEffortComment';
+import { logger } from '../logger';
+import { counters } from '../telemetry';
 import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
@@ -1078,16 +1081,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             content,
           });
 
+          const lowEffort = isLowEffortComment(content);
+          if (lowEffort) {
+            logger.info(
+              { userId: ctx.userId, commentId, postId },
+              'comment_low_effort_autoflagged',
+            );
+            counters?.api?.vordr?.add(1, {
+              reason: 'low_effort',
+              type: VordrFilterType.Comment,
+            });
+          }
+
           createdComment.flags = {
             ...createdComment.flags,
-            vordr: await checkWithVordr(
-              {
-                id: createdComment.id,
-                type: VordrFilterType.Comment,
-                content: createdComment.content,
-              },
-              ctx,
-            ),
+            vordr:
+              lowEffort ||
+              (await checkWithVordr(
+                { id: commentId, type: VordrFilterType.Comment, content },
+                ctx,
+              )),
           };
 
           return saveNewComment(entityManager, createdComment, squadId);

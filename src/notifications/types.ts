@@ -99,6 +99,7 @@ export type NotificationAwardContext = NotificationBaseContext & {
   sender: Reference<User>;
   receiver: Reference<User>;
   targetUrl: string;
+  targetType: 'user' | 'post' | 'comment';
   source?: Reference<Source>;
 };
 
@@ -222,13 +223,6 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementName: string;
   achievementDescription: string;
   achievementImage: string;
-};
-
-export type NotificationMajorHeadlineContext = NotificationPostContext & {
-  headline: string;
-  channel: string;
-  significance: number;
-  highlightId: string;
 };
 
 export type NotificationLiveRoomContext = NotificationBaseContext & {
