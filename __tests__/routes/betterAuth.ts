@@ -146,7 +146,7 @@ describe('betterAuth routes', () => {
               body: {},
             },
           ),
-        ).rejects.toMatchObject({ message: 'github_email_not_verified' });
+        ).rejects.toThrow('github_email_not_verified');
       });
 
       it('should allow GitHub OAuth sign-ups when email is verified', async () => {
