@@ -540,6 +540,17 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
       user: {
         create: {
           before: async (user, ctx) => {
+            const hookCtx = ctx as BetterAuthDbHookContext;
+            const requestPath = hookCtx?.request?.url
+              ? new URL(hookCtx.request.url).pathname
+              : '';
+            if (
+              requestPath.endsWith('/callback/github') &&
+              user.emailVerified === false
+            ) {
+              throwBadRequest('github_email_not_verified');
+            }
+
             const resolved = await resolveSignUpUserId(pool, user, ctx);
             resolved.data.id = await ensureNonDeletedUserId(
               pool,

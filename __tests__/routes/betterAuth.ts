@@ -129,6 +129,66 @@ describe('betterAuth routes', () => {
         return before;
       };
 
+      it('should reject GitHub OAuth sign-ups when email is not verified', async () => {
+        const before = await getBeforeHook();
+
+        await expect(
+          before(
+            {
+              email: 'unverified@github.example',
+              name: 'Unverified GitHub User',
+              emailVerified: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+            {
+              request: new Request('http://localhost/auth/callback/github'),
+              body: {},
+            },
+          ),
+        ).rejects.toMatchObject({ message: 'github_email_not_verified' });
+      });
+
+      it('should allow GitHub OAuth sign-ups when email is verified', async () => {
+        const before = await getBeforeHook();
+
+        const result = await before(
+          {
+            email: 'verified@github.example',
+            name: 'Verified GitHub User',
+            emailVerified: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            request: new Request('http://localhost/auth/callback/github'),
+            body: {},
+          },
+        );
+
+        expect((result as { data: { id: string } }).data.id).toBeDefined();
+      });
+
+      it('should not reject email/password sign-ups when email is unverified', async () => {
+        const before = await getBeforeHook();
+
+        const result = await before(
+          {
+            email: 'pending@example.com',
+            name: 'Pending User',
+            emailVerified: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            request: new Request('http://localhost/auth/sign-up/email'),
+            body: {},
+          },
+        );
+
+        expect((result as { data: { id: string } }).data.id).toBeDefined();
+      });
+
       it('should regenerate id when tracking cookie matches a deleted user', async () => {
         const before = await getBeforeHook();
         const deletedUserId = 'aBcDeFgHiJkLmNoPqRsTu';
