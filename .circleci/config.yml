@@ -29,7 +29,7 @@ jobs:
           paths:
             - build
   test:
-    resource_class: large
+    resource_class: xlarge
     docker:
       - image: cimg/node:24.14
       - image: postgres:18-alpine
@@ -69,7 +69,7 @@ jobs:
             ./node_modules/.bin/jest --listTests | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings --timings-type=filename
           environment:
             LOG_LEVEL: silent
-            NODE_OPTIONS: --max-old-space-size=6144 # 75% of 8GB which is the memory of large resource class
+            NODE_OPTIONS: --max-old-space-size=12288 # 75% of 16GB which is the memory of xlarge resource class
             JEST_JUNIT_OUTPUT_DIR: ./test-results
             JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"
             JEST_JUNIT_CLASSNAME: "{filepath}"
