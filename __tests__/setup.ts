@@ -61,15 +61,36 @@ jest.mock('../src/remoteConfig', () => ({
   },
 }));
 
+const escapeTablePath = (tablePath: string): string =>
+  tablePath
+    .split('.')
+    .map((part) => `"${part.replaceAll('"', '""')}"`)
+    .join('.');
+
+const deleteProtectedTables = new Set(['dataset_location', 'feed', 'user']);
+const truncateExtraTables = ['ba_account', 'ba_session', 'comment_upvote'];
+
 const cleanDatabase = async (): Promise<void> => {
   await remoteConfig.init();
 
   const con = await createOrGetConnection();
+  const tables = con.entityMetadatas
+    .filter(
+      ({ tableName, tableType }) =>
+        tableType !== 'view' && !deleteProtectedTables.has(tableName),
+    )
+    .map(({ tablePath }) => escapeTablePath(tablePath));
+
+  if (tables.length > 0) {
+    await con.query(
+      `TRUNCATE TABLE ${[...tables, ...truncateExtraTables.map((tableName) => `"${tableName}"`)].join(', ')} RESTART IDENTITY`,
+    );
+  }
+
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
-    if (repository.metadata.tableType === 'view') continue;
-    await repository.query(`DELETE
-                            FROM "${entity.tableName}";`);
+    if (!deleteProtectedTables.has(repository.metadata.tableName)) continue;
+    await repository.query(`DELETE FROM "${repository.metadata.tableName}";`);
 
     for (const column of entity.primaryColumns) {
       if (column.generationStrategy === 'increment') {
