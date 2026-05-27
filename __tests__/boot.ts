@@ -2321,13 +2321,9 @@ describe('engagement creatives', () => {
     gen_id: GENERATION_ID,
   };
 
-  beforeEach(() => {
-    remoteConfig.vars.engagementAdsEnabled = true;
-  });
-
   afterEach(() => {
     nock.cleanAll();
-    remoteConfig.vars.engagementAdsEnabled = false;
+    remoteConfig.vars.engagementAdsEnabled = true;
   });
 
   it('should not fetch engagement creatives when remote config is disabled', async () => {
