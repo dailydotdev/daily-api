@@ -31,6 +31,7 @@ export * from './KeywordNiche';
 export * from './Niche';
 export * from './Persona';
 export * from './PostKeyword';
+export * from './PostNiche';
 export * from './CommentMention';
 export * from './ReputationEvent';
 export * from './Submission';
