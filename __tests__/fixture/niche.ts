@@ -14,7 +14,11 @@ import {
 export const nichesFixture: DeepPartial<Niche>[] = [
   { slug: 'js_ts', title: 'JS/TS', bucketGroup: NicheBucketGroup.Ecosystem },
   { slug: 'rust', title: 'Rust', bucketGroup: NicheBucketGroup.Ecosystem },
-  { slug: 'ai_llm', title: 'LLMs & GenAI', bucketGroup: NicheBucketGroup.Theme },
+  {
+    slug: 'ai_llm',
+    title: 'LLMs & GenAI',
+    bucketGroup: NicheBucketGroup.Theme,
+  },
   {
     slug: 'sec_threats',
     title: 'Cyber threats',
@@ -73,7 +77,11 @@ export const keywordNichesFixture: KeywordNicheLabel[] = [
   { keyword: 'llm', primarySlug: 'ai_llm' },
   { keyword: 'openai', primarySlug: 'ai_llm', secondarySlug: 'sec_threats' },
   // generic — should be dampened
-  { keyword: 'programming', primarySlug: 'software_craft', weightMultiplier: 0.3 },
+  {
+    keyword: 'programming',
+    primarySlug: 'software_craft',
+    weightMultiplier: 0.3,
+  },
   // 'unlabeled-tag' deliberately has no keyword_niche row
 ];
 

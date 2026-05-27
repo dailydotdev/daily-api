@@ -6,20 +6,17 @@ import {
   Keyword,
   KeywordNiche,
   Niche,
-  Post,
   PostNiche,
   Source,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import {
-  keywordNichesFixture,
   nicheKeywordsFixture,
   nichesFixture,
   resolveKeywordNichesFixture,
 } from '../fixture/niche';
 
 let con: DataSource;
-let nicheBySlug: Map<string, string>; // slug -> nicheId
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -30,7 +27,6 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Niche, nichesFixture);
   const niches = await con.getRepository(Niche).find();
-  nicheBySlug = new Map(niches.map((n) => [n.slug, n.id]));
   await saveFixtures(con, Keyword, nicheKeywordsFixture);
   await saveFixtures(
     con,
@@ -170,15 +166,13 @@ describe('post_niche trigger', () => {
     // Insert without going through the trigger: do an insert, then truncate
     // post_niche to simulate a pre-existing post that hasn't been derived yet.
     await insertPost('np13', 'rust,cli');
-    await con
-      .getRepository(PostNiche)
-      .delete({ postId: 'np13' });
+    await con.getRepository(PostNiche).delete({ postId: 'np13' });
     expect(await getNiches('np13')).toEqual([]);
 
-    await con.query(
-      'SELECT post_niche_recompute($1, $2)',
-      ['np13', 'rust,cli'],
-    );
+    await con.query('SELECT post_niche_recompute($1, $2)', [
+      'np13',
+      'rust,cli',
+    ]);
     const niches = await getNiches('np13');
     expect(niches[0]).toEqual({ rank: 1, slug: 'rust' });
   });
