@@ -27,6 +27,8 @@ export * from './TagSegment';
 export * from './View';
 export * from './Comment';
 export * from './Keyword';
+export * from './KeywordNiche';
+export * from './Niche';
 export * from './Persona';
 export * from './PostKeyword';
 export * from './CommentMention';
