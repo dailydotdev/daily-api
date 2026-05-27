@@ -10,7 +10,7 @@ import {
  * Mapping from a keyword (tag) to its niche assignment(s).
  *
  * Each tag maps to a single primary niche and optionally a secondary niche.
- * The diversifier derives a post's niche(s) from the niches of its tags via
+ * The diversifier derives a post's niches from the niches of its tags via
  * weighted vote (see docs/feed-niche-taxonomy.md for the derivation rules).
  *
  *  - weightMultiplier  per-tag dampening factor (e.g. 0.3 for very generic
@@ -24,11 +24,11 @@ export class KeywordNiche {
   @PrimaryColumn({ type: 'text' })
   keyword: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'uuid' })
   @Index('IDX_keyword_niche_primary')
   primaryNicheId: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   @Index('IDX_keyword_niche_secondary')
   secondaryNicheId?: string | null;
 

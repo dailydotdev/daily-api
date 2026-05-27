@@ -6,7 +6,8 @@ export class PostNiches1779878138923 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
       CREATE TABLE "niche" (
-        "id" text NOT NULL,
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "slug" text NOT NULL,
         "title" text NOT NULL,
         "bucketGroup" text NOT NULL DEFAULT 'theme',
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -18,10 +19,14 @@ export class PostNiches1779878138923 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE UNIQUE INDEX "IDX_niche_slug" ON "niche" ("slug")
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE TABLE "keyword_niche" (
         "keyword" text NOT NULL,
-        "primaryNicheId" text NOT NULL,
-        "secondaryNicheId" text,
+        "primaryNicheId" uuid NOT NULL,
+        "secondaryNicheId" uuid,
         "weightMultiplier" real NOT NULL DEFAULT 1,
         "confidence" smallint NOT NULL DEFAULT 2,
         "labelerVersion" text,
