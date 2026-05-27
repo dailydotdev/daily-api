@@ -43,7 +43,7 @@ jobs:
           -c full_page_writes=off
           -c max_connections=200
       - image: redis/redis-stack:7.2.0-v13
-    parallelism: 6
+    parallelism: 8
     steps:
       - checkout
       - run:
