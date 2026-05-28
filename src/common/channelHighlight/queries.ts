@@ -190,6 +190,7 @@ export const fetchPublicShareFallbackPostIds = async ({
   const shares = await con
     .getRepository(SharePost)
     .createQueryBuilder('post')
+    .select(['post.id', 'post.sharedPostId'])
     .where('post."sharedPostId" IN (:...sharedPostIds)', {
       sharedPostIds,
     })

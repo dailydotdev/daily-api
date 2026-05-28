@@ -15,6 +15,8 @@ import {
   PostRelation,
   PostRelationType,
 } from '../../entity/posts/PostRelation';
+import { UNKNOWN_SOURCE } from '../../entity/Source';
+import { fetchPublicShareFallbackPostIds } from '../channelHighlight/queries';
 import {
   getChannelDigestLookbackSeconds,
   getChannelDigestSourceIds,
@@ -22,6 +24,7 @@ import {
 
 type DigestPostRow = {
   id: string;
+  sourceId: string;
   title: string | null;
   summary: string | null;
   content: string | null;
@@ -104,6 +107,7 @@ const findDigestPosts = async ({
       },
     )
     .select('post.id', 'id')
+    .addSelect('post."sourceId"', 'sourceId')
     .addSelect('post.title', 'title')
     .addSelect('post.summary', 'summary')
     .addSelect('post.content', 'content')
@@ -121,6 +125,48 @@ const findDigestPosts = async ({
     .andWhere('relation."relatedPostId" IS NULL')
     .orderBy('post.createdAt', 'DESC')
     .getRawMany<DigestPostRow>();
+};
+
+const remapUnknownSourcePostIds = async ({
+  con,
+  posts,
+  excludedSourceIds,
+}: {
+  con: DataSource;
+  posts: DigestPostRow[];
+  excludedSourceIds: string[];
+}): Promise<DigestPostRow[]> => {
+  const unknownPostIds = posts
+    .filter((post) => post.sourceId === UNKNOWN_SOURCE)
+    .map((post) => post.id);
+
+  if (!unknownPostIds.length) {
+    return posts;
+  }
+
+  const fallbacks = await fetchPublicShareFallbackPostIds({
+    con,
+    sharedPostIds: unknownPostIds,
+    excludedSourceIds,
+  });
+
+  const seen = new Set<string>();
+  const remapped: DigestPostRow[] = [];
+
+  for (const post of posts) {
+    const fallbackId =
+      post.sourceId === UNKNOWN_SOURCE ? fallbacks.get(post.id) : undefined;
+    const id = fallbackId ?? post.id;
+
+    if (seen.has(id)) {
+      continue;
+    }
+
+    seen.add(id);
+    remapped.push(fallbackId ? { ...post, id } : post);
+  }
+
+  return remapped;
 };
 
 const buildDigestPosts = ({
@@ -265,10 +311,15 @@ export const generateChannelDigest = async ({
   const excludedSourceIds = await getChannelDigestSourceIds({
     con,
   });
-  const posts = await findDigestPosts({
+  const rawPosts = await findDigestPosts({
     con,
     from,
     channel: definition.channel,
+    excludedSourceIds,
+  });
+  const posts = await remapUnknownSourcePostIds({
+    con,
+    posts: rawPosts,
     excludedSourceIds,
   });
 
