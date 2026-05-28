@@ -34,6 +34,7 @@ interface GQLSettings {
   optOutReadingStreak: boolean;
   optOutLevelSystem: boolean;
   optOutQuestSystem: boolean;
+  optOutAchievements: boolean;
   showFeedbackButton: boolean;
   flags?: SettingsFlagsPublic;
 }
@@ -60,6 +61,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   optOutReadingStreak?: boolean;
   optOutLevelSystem?: boolean;
   optOutQuestSystem?: boolean;
+  optOutAchievements?: boolean;
   showFeedbackButton?: boolean;
   defaultWriteTab?: DefaultWriteTab;
 }
@@ -202,6 +204,11 @@ export const typeDefs = /* GraphQL */ `
     optOutQuestSystem: Boolean!
 
     """
+    Whether the user opted out from achievements
+    """
+    optOutAchievements: Boolean!
+
+    """
     Whether the user opted out from the companion app
     """
     optOutCompanion: Boolean!
@@ -328,6 +335,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the quest system
     """
     optOutQuestSystem: Boolean
+
+    """
+    Whether the user opted out from achievements
+    """
+    optOutAchievements: Boolean
 
     """
     Whether the user opted out from the companion app
