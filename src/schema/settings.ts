@@ -86,6 +86,7 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
+    highlightCardsOptOut: Boolean
     readerInstallPromptAcknowledged: Boolean
     shortcutsMode: ShortcutsMode
     shortcutsAppearance: ShortcutsAppearance
@@ -107,6 +108,7 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
+    highlightCardsOptOut: Boolean
     readerInstallPromptAcknowledged: Boolean
     shortcutsMode: String
     shortcutsAppearance: String

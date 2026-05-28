@@ -63,6 +63,7 @@ export type SettingsFlags = Partial<{
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
   legacyPostLayoutOptOut: boolean;
+  highlightCardsOptOut: boolean;
   readerInstallPromptAcknowledged: boolean;
   shortcutsMode: ShortcutsMode;
   shortcutsAppearance: ShortcutsAppearance;
@@ -85,6 +86,7 @@ export type SettingsFlagsPublic = Pick<
   | 'lastPrompt'
   | 'defaultWriteTab'
   | 'legacyPostLayoutOptOut'
+  | 'highlightCardsOptOut'
   | 'readerInstallPromptAcknowledged'
   | 'shortcutsMode'
   | 'shortcutsAppearance'
