@@ -7,8 +7,14 @@ import {
 } from '@dailydotdev/schema';
 import createOrGetConnection from '../../src/db';
 import { ChannelDigest } from '../../src/entity/ChannelDigest';
-import { AGENTS_DIGEST_SOURCE, Source } from '../../src/entity/Source';
+import {
+  AGENTS_DIGEST_SOURCE,
+  Source,
+  UNKNOWN_SOURCE,
+} from '../../src/entity/Source';
 import { FreeformPost } from '../../src/entity/posts/FreeformPost';
+import { PostType } from '../../src/entity/posts/Post';
+import { SharePost } from '../../src/entity/posts/SharePost';
 import { generateChannelDigest } from '../../src/common/channelDigest/generate';
 import { createSource } from '../fixture/source';
 import * as bragiClients from '../../src/integrations/bragi/clients';
@@ -290,6 +296,152 @@ describe('generateChannelDigest', () => {
           },
         ],
       }),
+    );
+  });
+
+  it('should remap unknown-source posts to their public SharePost counterpart', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    let request: TopicalDigestRequest | undefined;
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          generateTopicalDigest: async (data: TopicalDigestRequest) => {
+            request = data;
+
+            return new TopicalDigest({
+              title: 'Remap digest',
+              tldr: 'Remap summary',
+              mainItems: [
+                new TopicalDigestItem({
+                  title: 'Remap item',
+                  body: 'Remap body',
+                  postIds: ['sh-pub'],
+                }),
+              ],
+            });
+          },
+        } as ServiceClient<typeof Pipelines>['instance'],
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+        ),
+        createSource(
+          'squad-public',
+          'Public Squad',
+          'https://daily.dev/sq.png',
+        ),
+        createSource(
+          'remap-digest-source',
+          'Digest',
+          'https://daily.dev/d.png',
+        ),
+      ]);
+    const definition = await saveDefinition({
+      key: 'remap-test',
+      sourceId: 'remap-digest-source',
+      channel: 'remap',
+      frequency: 'daily',
+    });
+    await savePost({
+      id: 'unk-art',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Unknown article',
+      content: 'Article content',
+      createdAt: new Date('2026-03-03T09:00:00.000Z'),
+      channel: 'remap',
+    });
+    await con.getRepository(SharePost).save({
+      id: 'sh-pub',
+      shortId: 'sh-pub',
+      sourceId: 'squad-public',
+      type: PostType.Share,
+      sharedPostId: 'unk-art',
+      visible: true,
+      private: false,
+      showOnFeed: true,
+      deleted: false,
+      banned: false,
+      createdAt: new Date('2026-03-03T09:30:00.000Z'),
+    });
+
+    const result = await generateChannelDigest({ con, definition, now });
+
+    expect(request?.posts.map((post) => post.postId)).toEqual(['sh-pub']);
+    expect(request?.posts[0]).toMatchObject({
+      title: 'Unknown article',
+      summary: 'Article content',
+    });
+    expect(result?.content).toContain(
+      '[Read more](http://localhost:5002/posts/sh-pub)',
+    );
+  });
+
+  it('should keep the unknown-source post id when no public SharePost exists', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    let request: TopicalDigestRequest | undefined;
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          generateTopicalDigest: async (data: TopicalDigestRequest) => {
+            request = data;
+
+            return new TopicalDigest({
+              title: 'Keep digest',
+              tldr: 'Keep summary',
+              mainItems: [
+                new TopicalDigestItem({
+                  title: 'Keep item',
+                  body: 'Keep body',
+                  postIds: ['orph-art'],
+                }),
+              ],
+            });
+          },
+        } as ServiceClient<typeof Pipelines>['instance'],
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+        ),
+        createSource('keep-digest-source', 'Digest', 'https://daily.dev/d.png'),
+      ]);
+    const definition = await saveDefinition({
+      key: 'keep-test',
+      sourceId: 'keep-digest-source',
+      channel: 'keep',
+      frequency: 'daily',
+    });
+    await savePost({
+      id: 'orph-art',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Orphan article',
+      content: 'Orphan content',
+      createdAt: new Date('2026-03-03T09:00:00.000Z'),
+      channel: 'keep',
+    });
+
+    const result = await generateChannelDigest({ con, definition, now });
+
+    expect(request?.posts.map((post) => post.postId)).toEqual(['orph-art']);
+    expect(result?.content).toContain(
+      '[Read more](http://localhost:5002/posts/orph-art)',
     );
   });
 });
