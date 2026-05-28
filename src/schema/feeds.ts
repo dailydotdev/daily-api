@@ -4,6 +4,7 @@ import {
   FeedAdvancedSettings,
   FeedFlagsPublic,
   FeedOrderBy,
+  FeedOrigin,
   FeedSource,
   FeedTag,
   FeedType,
@@ -26,7 +27,6 @@ import {
   applyFeedWhere,
   base64,
   configuredFeedBuilder,
-  customFeedsPlusDate,
   FeedArgs,
   feedResolver,
   feedToFilters,
@@ -105,6 +105,7 @@ import {
   toFeedV2PostConnection,
 } from './feedV2';
 import { feedByTagsInputSchema } from '../common/schema/feedByTags';
+import { seedTagChipFeedsIfNeeded } from '../common/seedTagChipFeeds';
 
 interface GQLTagsCategory {
   id: string;
@@ -288,6 +289,11 @@ export const typeDefs = /* GraphQL */ `
     Icon
     """
     icon: String
+
+    """
+    How the feed was created (e.g. "TAG_CHIP" for auto-seeded tag-chip feeds)
+    """
+    origin: String
   }
 
   type Feed {
@@ -967,6 +973,12 @@ export const typeDefs = /* GraphQL */ `
       Paginate last
       """
       last: Int
+      """
+      When true, lazily seed one custom feed per main-feed followed keyword
+      (with recswipe backfill) for the caller if they have none yet. The client
+      decides when to opt in (e.g. behind a GrowthBook rollout flag).
+      """
+      includeTagChipFeeds: Boolean = false
     ): FeedConnection! @auth
 
     """
@@ -1828,9 +1840,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
       const feedId = feed.id;
 
-      if (feed.createdAt > customFeedsPlusDate && !ctx.isPlus) {
-        throw new ForbiddenError(
-          'Access denied! You need to be authorized to perform this action!',
+      const isTagChipFeed = feed.flags?.origin === FeedOrigin.TagChip;
+
+      // Tag-chip feeds for non-Plus users use the simpler ForYouByTag config
+      // — same as the legacy `feedByTags` query — with the feed's followed
+      // keywords as the tag set.
+      if (isTagChipFeed && !ctx.isPlus) {
+        const { includeTags = [] } = await feedToFilters(
+          ctx.con,
+          feedId,
+          ctx.userId,
+        );
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: getForYouByTagFeedGenerator(includeTags),
+          },
+          ctx,
+          info,
         );
       }
 
@@ -2297,10 +2325,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
-      args: ConnectionArguments,
+      args: ConnectionArguments & { includeTagChipFeeds?: boolean },
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLFeed>> => {
+      const includeTagChipFeeds = args.includeTagChipFeeds === true;
+
+      if (includeTagChipFeeds) {
+        try {
+          await seedTagChipFeedsIfNeeded({
+            con: ctx.con,
+            userId: ctx.userId,
+          });
+        } catch (err) {
+          ctx.log.error(
+            { err, userId: ctx.userId },
+            'failed to seed tag-chip feeds',
+          );
+        }
+      }
+
       const pageGenerator = createDatePageGenerator<GQLFeed, 'createdAt'>({
         key: 'createdAt',
       });
@@ -2319,6 +2363,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           builder.queryBuilder.andWhere(`${builder.alias}."id" != :userId`, {
             userId: ctx.userId,
           });
+
+          if (!includeTagChipFeeds) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->>'origin' IS DISTINCT FROM :tagChipOrigin)`,
+              { tagChipOrigin: FeedOrigin.TagChip },
+            );
+          }
 
           builder.queryBuilder.limit(page.limit);
 

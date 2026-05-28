@@ -12,6 +12,7 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedOrderBy,
+  FeedOrigin,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -67,6 +68,7 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
+import { feedClient } from '../src/integrations/feed/generators';
 import { recswipeClient } from '../src/integrations/recswipe/clients';
 import {
   ContentPreferenceStatus,
@@ -4692,6 +4694,109 @@ describe('query feedList', () => {
       '1',
     );
   });
+
+  describe('includeTagChipFeeds arg', () => {
+    const QUERY_WITH_ARG = `
+      query FeedList($includeTagChipFeeds: Boolean) {
+        feedList(includeTagChipFeeds: $includeTagChipFeeds) {
+          edges {
+            node {
+              id
+              flags {
+                name
+                origin
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let getUserTagsSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      recommendTagsMock.mockReset();
+      recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
+      getUserTagsSpy = jest
+        .spyOn(feedClient, 'getUserTags')
+        .mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      getUserTagsSpy.mockRestore();
+    });
+
+    it('does not seed when omitted (default false)', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_ARG, { variables: {} });
+      expect(res.errors).toBeFalsy();
+
+      const chipFeeds = await con
+        .getRepository(Feed)
+        .createQueryBuilder('feed')
+        .where(`feed.flags->>'origin' = :origin`, {
+          origin: FeedOrigin.TagChip,
+        })
+        .getMany();
+      expect(chipFeeds).toHaveLength(0);
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
+      expect(recommendTagsMock).not.toHaveBeenCalled();
+    });
+
+    it('excludes existing tag-chip feeds from the response when omitted', async () => {
+      await con.getRepository(Feed).save({
+        id: 'tcfL1',
+        userId: '1',
+        flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+      });
+
+      const res = await client.query(QUERY_WITH_ARG, { variables: {} });
+      expect(res.errors).toBeFalsy();
+      const ids = res.data.feedList.edges.map((e) => e.node.id);
+      expect(ids).toEqual(expect.arrayContaining(['cf1', 'cf2', 'cf3']));
+      expect(ids).not.toContain('tcfL1');
+    });
+
+    it('seeds and returns tag-chip feeds when true', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_ARG, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const seededNames = res.data.feedList.edges
+        .filter((e) => e.node.flags.origin === FeedOrigin.TagChip)
+        .map((e) => e.node.flags.name);
+      expect(seededNames).toEqual(expect.arrayContaining(['javascript']));
+    });
+
+    it('returns existing tag-chip feeds and is idempotent when true', async () => {
+      await con.getRepository(Feed).save({
+        id: 'tcfL2',
+        userId: '1',
+        flags: { name: 'Rust', origin: FeedOrigin.TagChip },
+      });
+
+      const res = await client.query(QUERY_WITH_ARG, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+      const ids = res.data.feedList.edges.map((e) => e.node.id);
+      expect(ids).toContain('tcfL2');
+
+      const chipFeeds = await con
+        .getRepository(Feed)
+        .createQueryBuilder('feed')
+        .where('feed."userId" = :userId', { userId: '1' })
+        .andWhere(`feed.flags->>'origin' = :origin`, {
+          origin: FeedOrigin.TagChip,
+        })
+        .getMany();
+      expect(chipFeeds).toHaveLength(1);
+    });
+  });
 });
 
 describe('query getFeed', () => {
@@ -5643,6 +5748,75 @@ describe('query customFeed', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  it('should let non-Plus users view a tag-chip feed and use the for_you_by_tag config', async () => {
+    loggedUser = '1';
+    isPlus = false;
+
+    await con.getRepository(Feed).save({
+      id: 'tcf1',
+      userId: '1',
+      flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+    });
+    await con.getRepository(ContentPreferenceKeyword).save({
+      feedId: 'tcf1',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    });
+
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, { data: [{ post_id: 'p1' }], cursor: 'b' });
+
+    const res = await client.query(QUERY, {
+      variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'tcf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed).toBeTruthy();
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.ForYouByTag);
+    expect(capturedBody.allowed_tags).toEqual(['webdev']);
+  });
+
+  it('should keep using CustomFeedV1 for Plus users on a tag-chip feed', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Feed).save({
+      id: 'tcf3',
+      userId: '1',
+      flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+    });
+    await con.getRepository(ContentPreferenceKeyword).save({
+      feedId: 'tcf3',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    });
+
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, { data: [{ post_id: 'p1' }], cursor: 'b' });
+
+    await client.query(QUERY, {
+      variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'tcf3' },
+    });
+
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedV1);
   });
 
   it('should use sort config if order_by is set', async () => {

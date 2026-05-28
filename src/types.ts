@@ -194,7 +194,7 @@ export enum UserVoteEntity {
   HotTake = 'hot_take',
 }
 
-export const maxFeedsPerUser = 20;
+export const maxFeedsPerUser = 30;
 
 export const maxBookmarksPerMutation = 10;
 
