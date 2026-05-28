@@ -110,6 +110,7 @@ import { LiveRoomStatus } from '../common/schema/liveRooms';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
+  favoritedAt: Date | null;
   currentMember: {
     permissions: SourcePermissions[];
   };
@@ -402,6 +403,7 @@ const getSquads = async (
       .addSelect('role')
       .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
+      .addSelect('sm."favoritedAt"', 'favoritedAt')
       .from(SourceMember, 'sm')
       .innerJoin(
         SquadSource,
@@ -410,13 +412,20 @@ const getSquads = async (
       )
       .where('sm."userId" = :userId', { userId })
       .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
-      .orderBy('LOWER(s.name)', 'ASC')
+      .orderBy('sm."favoritedAt" IS NULL', 'ASC')
+      .addOrderBy('sm."favoritedAt"', 'DESC', 'NULLS LAST')
+      .addOrderBy('LOWER(s.name)', 'ASC')
       .getRawMany<
-        GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+        GQLSource & {
+          role: SourceMemberRoles;
+          memberPostingRank: number;
+          favoritedAt: Date | null;
+        }
       >();
 
     return sources.map((source) => {
-      const { role, memberPostingRank, image, ...restSource } = source;
+      const { role, memberPostingRank, image, favoritedAt, ...restSource } =
+        source;
 
       const permissions = getPermissionsForMember(
         { role },
@@ -432,6 +441,7 @@ const getSquads = async (
         ...restSource,
         image: mapCloudinaryUrl(image),
         permalink: getSourceLink(source),
+        favoritedAt,
         currentMember: {
           permissions: essentialPermissions,
         },

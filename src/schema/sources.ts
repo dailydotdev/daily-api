@@ -388,6 +388,11 @@ export const typeDefs = /* GraphQL */ `
     All the flags for source member
     """
     flags: SourceMemberFlagsPublic
+
+    """
+    When the viewer favorited this membership (null if not favorited)
+    """
+    favoritedAt: DateTime
   }
 
   type SourceMemberConnection {
@@ -985,6 +990,17 @@ export const typeDefs = /* GraphQL */ `
     expandPinnedPosts(
       """
       Source id to expand posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Toggle the favorited state of the viewer's membership in a squad.
+    Sets favoritedAt to now() when null, clears to null when set.
+    """
+    toggleFavoriteSource(
+      """
+      Source id to toggle favorite for
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -1615,6 +1631,26 @@ const updateHideFeedPostsFlag = async (
       },
     );
   });
+
+  return { _: true };
+};
+
+const toggleFavoriteSourceMembership = async (
+  ctx: Context,
+  sourceId: string,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con
+    .getRepository(SourceMember)
+    .createQueryBuilder()
+    .update()
+    .set({
+      favoritedAt: () =>
+        `CASE WHEN "favoritedAt" IS NULL THEN now() ELSE NULL END`,
+    })
+    .where({ sourceId, userId: ctx.userId })
+    .execute();
 
   return { _: true };
 };
@@ -3019,6 +3055,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
     ) => {
       return togglePinnedPosts(ctx, sourceId, false);
+    },
+    toggleFavoriteSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: AuthContext,
+    ) => {
+      return toggleFavoriteSourceMembership(ctx, sourceId);
     },
   },
   Source: {

@@ -1573,6 +1573,7 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
         type: SourceType.Squad,
+        favoritedAt: null,
         currentMember: {
           permissions: [SourcePermissions.Post],
         },
@@ -1587,6 +1588,7 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
         type: SourceType.Squad,
+        favoritedAt: null,
         currentMember: {
           permissions: [SourcePermissions.Post],
         },
@@ -1601,6 +1603,7 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s5',
         public: false,
         type: SourceType.Squad,
+        favoritedAt: null,
         currentMember: {
           permissions: [],
         },
@@ -1663,6 +1666,7 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
         type: SourceType.Squad,
+        favoritedAt: null,
         currentMember: {
           permissions: [SourcePermissions.Post],
         },
