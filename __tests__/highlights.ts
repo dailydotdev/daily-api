@@ -138,6 +138,41 @@ const MAJOR_HEADLINES_QUERY = `
   }
 `;
 
+const POST_HIGHLIGHTS_FEED_QUERY = `
+  query PostHighlightsFeed(
+    $channel: String
+    $significance: [String!]
+    $first: Int
+    $after: String
+  ) {
+    postHighlightsFeed(
+      channel: $channel
+      significance: $significance
+      first: $first
+      after: $after
+    ) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          channel
+          highlightedAt
+          headline
+          significance
+          post {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+`;
+
 const CHANNEL_CONFIGURATIONS_QUERY = `
   query ChannelConfigurations {
     channelConfigurations {
@@ -489,6 +524,304 @@ describe('query majorHeadlines', () => {
     expect(res.data.majorHeadlines.edges[0].node).toMatchObject({
       channel: 'vibes',
       headline: 'Live breaking headline',
+      post: { id: 'h1' },
+    });
+  });
+});
+
+describe('query postHighlightsFeed', () => {
+  it('should return all highlights deduplicated by post and ordered desc when no filters are provided', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Older agentic',
+        significance: PostHighlightSignificance.Major,
+      },
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Newer vibes',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Notable headline',
+        significance: PostHighlightSignificance.Notable,
+      },
+      {
+        postId: 'h3',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
+        headline: 'Routine headline',
+        significance: PostHighlightSignificance.Routine,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.pageInfo.hasNextPage).toBe(false);
+    expect(res.data.postHighlightsFeed.edges.map(({ node }) => node)).toEqual([
+      expect.objectContaining({
+        channel: 'vibes',
+        headline: 'Newer vibes',
+        significance: 'breaking',
+        post: { id: 'h1', title: 'Test Post 1' },
+      }),
+      expect.objectContaining({
+        channel: 'vibes',
+        headline: 'Notable headline',
+        significance: 'notable',
+        post: { id: 'h2', title: 'Test Post 2' },
+      }),
+      expect.objectContaining({
+        channel: 'agentic',
+        headline: 'Routine headline',
+        significance: 'routine',
+        post: { id: 'h3', title: 'Test Post 3' },
+      }),
+    ]);
+  });
+
+  it('should filter by channel', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Vibes headline',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Agentic headline',
+        significance: PostHighlightSignificance.Major,
+      },
+      {
+        postId: 'h3',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Another agentic headline',
+        significance: PostHighlightSignificance.Notable,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { channel: 'agentic', first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.edges).toHaveLength(2);
+    expect(
+      res.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
+    ).toEqual(['h2', 'h3']);
+  });
+
+  it('should filter by significance', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Breaking headline',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Major headline',
+        significance: PostHighlightSignificance.Major,
+      },
+      {
+        postId: 'h3',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Notable headline',
+        significance: PostHighlightSignificance.Notable,
+      },
+      {
+        postId: 'h4',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:25:00.000Z'),
+        headline: 'Routine headline',
+        significance: PostHighlightSignificance.Routine,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { significance: ['breaking', 'major'], first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.edges).toHaveLength(2);
+    expect(
+      res.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
+    ).toEqual(['h1', 'h2']);
+  });
+
+  it('should combine channel and significance filters', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Vibes breaking',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Agentic breaking',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h3',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Agentic notable',
+        significance: PostHighlightSignificance.Notable,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: {
+        channel: 'agentic',
+        significance: ['breaking'],
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.edges).toHaveLength(1);
+    expect(res.data.postHighlightsFeed.edges[0].node).toMatchObject({
+      channel: 'agentic',
+      headline: 'Agentic breaking',
+      post: { id: 'h2' },
+    });
+  });
+
+  it('should ignore unknown significance values', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Breaking headline',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Routine headline',
+        significance: PostHighlightSignificance.Routine,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { significance: ['nonsense'], first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.edges).toHaveLength(2);
+  });
+
+  it('should paginate ordered by highlightedAt desc', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Headline 1',
+        significance: PostHighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Headline 2',
+        significance: PostHighlightSignificance.Notable,
+      },
+      {
+        postId: 'h3',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Headline 3',
+        significance: PostHighlightSignificance.Routine,
+      },
+    ]);
+
+    const firstPage = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { first: 2 },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.postHighlightsFeed.pageInfo.hasNextPage).toBe(true);
+    expect(
+      firstPage.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
+    ).toEqual(['h1', 'h2']);
+
+    const secondPage = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: {
+        first: 2,
+        after: firstPage.data.postHighlightsFeed.pageInfo.endCursor,
+      },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.postHighlightsFeed.pageInfo.hasNextPage).toBe(false);
+    expect(
+      secondPage.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
+    ).toEqual(['h3']);
+  });
+
+  it('should exclude retired highlights', async () => {
+    await createTestPosts();
+    await con.getRepository(PostHighlight).save([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Live headline',
+        significance: PostHighlightSignificance.Breaking,
+        retiredAt: null,
+      },
+      {
+        postId: 'h2',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Retired headline',
+        significance: PostHighlightSignificance.Major,
+        retiredAt: new Date('2026-03-19T10:45:00.000Z'),
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postHighlightsFeed.edges).toHaveLength(1);
+    expect(res.data.postHighlightsFeed.edges[0].node).toMatchObject({
+      channel: 'vibes',
+      headline: 'Live headline',
       post: { id: 'h1' },
     });
   });
