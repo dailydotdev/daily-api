@@ -1842,6 +1842,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const isTagChipFeed = feed.flags?.origin === FeedOrigin.TagChip;
 
+      if (!isTagChipFeed && !ctx.isPlus) {
+        throw new ForbiddenError(
+          'Access denied! You need to be authorized to perform this action!',
+        );
+      }
+
       // Tag-chip feeds for non-Plus users use the simpler ForYouByTag config
       // — same as the legacy `feedByTags` query — with the feed's followed
       // keywords as the tag set.

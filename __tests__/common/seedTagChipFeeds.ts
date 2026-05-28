@@ -166,7 +166,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
   it("caps the seed count at the user's remaining feed headroom", async () => {
     // user '1' already has the main feed (id='1') saved in beforeEach.
     // Fill up to maxFeedsPerUser - 2 → 2 slots remaining.
-    const fillerFeeds = Array.from({ length: 27 }, (_, i) => ({
+    const fillerFeeds = Array.from({ length: 32 }, (_, i) => ({
       id: `pre-${i}`,
       userId: '1',
       flags: { name: `Pre ${i}` },
@@ -189,8 +189,8 @@ describe('seedTagChipFeedsIfNeeded', () => {
   });
 
   it('skips seeding entirely when the user is already at the feed cap', async () => {
-    // Fill to exactly maxFeedsPerUser (main feed + 29 = 30).
-    const fillerFeeds = Array.from({ length: 29 }, (_, i) => ({
+    // Fill to exactly maxFeedsPerUser (main feed + 34 = 35).
+    const fillerFeeds = Array.from({ length: 34 }, (_, i) => ({
       id: `cap-${i}`,
       userId: '1',
       flags: { name: `Cap ${i}` },
