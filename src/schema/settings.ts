@@ -81,7 +81,6 @@ export const typeDefs = /* GraphQL */ `
     browsingContextEnabled: Boolean
     highlightsPlacement: HighlightsPlacement
     timezoneMismatchIgnore: String
-    lastPrompt: String
     defaultWriteTab: DefaultWriteTab
     legacyPostLayoutOptOut: Boolean
     readerInstallPromptAcknowledged: Boolean

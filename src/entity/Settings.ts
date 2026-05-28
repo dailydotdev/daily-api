@@ -60,7 +60,6 @@ export type SettingsFlags = Partial<{
   highlightsPlacement: HighlightsPlacement;
   prompt: object;
   timezoneMismatchIgnore: string;
-  lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
   legacyPostLayoutOptOut: boolean;
   readerInstallPromptAcknowledged: boolean;
@@ -82,7 +81,6 @@ export type SettingsFlagsPublic = Pick<
   | 'highlightsPlacement'
   | 'prompt'
   | 'timezoneMismatchIgnore'
-  | 'lastPrompt'
   | 'defaultWriteTab'
   | 'legacyPostLayoutOptOut'
   | 'readerInstallPromptAcknowledged'
