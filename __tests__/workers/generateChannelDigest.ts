@@ -239,12 +239,20 @@ describe('generateChannelDigest worker', () => {
 
     const digest = await con.getRepository(FreeformPost).findOneBy({
       sourceId: AGENTS_DIGEST_SOURCE,
-      title: 'Mock sentiment digest',
+      title: 'Mock topical digest',
     });
     expect(digest).toMatchObject({
       sourceId: AGENTS_DIGEST_SOURCE,
-      title: 'Mock sentiment digest',
-      content: 'Mock digest content',
+      title: 'Mock topical digest',
+      content: [
+        '**TLDR:** Mock digest summary',
+        '---',
+        '## Mock main item',
+        'Mock main item body [Read more](http://localhost:5002/posts/post-1)',
+        '---',
+        '## Also notable',
+        '- **Mock notable item:** Mock notable item body',
+      ].join('\n\n'),
     });
     expect(
       await checkRedisObjectExists(getDoneKey('agentic', scheduledAt)),
@@ -317,7 +325,7 @@ describe('generateChannelDigest worker', () => {
     });
     expect(digests).toHaveLength(digestCountBefore);
     expect(
-      digests.find((digest) => digest.title === 'Mock sentiment digest'),
+      digests.find((digest) => digest.title === 'Mock topical digest'),
     ).toBeUndefined();
   });
 
