@@ -141,6 +141,9 @@ export class Settings {
   optOutQuestSystem: boolean;
 
   @Column({ default: false })
+  optOutAchievements: boolean;
+
+  @Column({ default: false })
   optOutCompanion: boolean;
 
   @Column({ type: 'text', default: SortCommentsBy.OldestFirst })
@@ -190,6 +193,7 @@ export const SETTINGS_DEFAULT = {
   optOutReadingStreak: false,
   optOutLevelSystem: false,
   optOutQuestSystem: false,
+  optOutAchievements: false,
   sortingEnabled: false,
   sortCommentsBy: SortCommentsBy.OldestFirst,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
