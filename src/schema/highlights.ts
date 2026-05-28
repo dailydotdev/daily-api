@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import type { GraphQLResolveInfo } from 'graphql';
 import {
   ConnectionArguments,
   getOffsetWithDefault,
@@ -13,6 +14,7 @@ import type { OffsetPage } from './common';
 import {
   PostHighlight,
   PostHighlightSignificance,
+  toPostHighlightSignificance,
 } from '../entity/PostHighlight';
 import type { GQLSource } from './sources';
 
@@ -87,6 +89,18 @@ export const typeDefs = /* GraphQL */ `
     Get major headlines across all channels, deduplicated by post and ordered by recency
     """
     majorHeadlines(first: Int, after: String): PostHighlightConnection!
+
+    """
+    Get highlights deduplicated by post and ordered by recency.
+    Accepts optional channel and significance filters so it can power per-channel,
+    major-headlines and global feeds from a single endpoint.
+    """
+    postHighlightsFeed(
+      channel: String
+      significance: [String!]
+      first: Int
+      after: String
+    ): PostHighlightConnection!
   }
 
   extend type Subscription {
@@ -99,38 +113,104 @@ const majorHeadlineSignificances = [
   PostHighlightSignificance.Major,
 ];
 
-const defaultMajorHeadlinesLimit = 10;
-const maxMajorHeadlinesLimit = 50;
+const defaultHighlightsLimit = 10;
+const maxHighlightsLimit = 50;
 
-const getMajorHeadlinesPage = (args: ConnectionArguments): OffsetPage => ({
-  limit:
-    Math.min(args.first || defaultMajorHeadlinesLimit, maxMajorHeadlinesLimit) +
-    1,
+const getHighlightsPage = (args: ConnectionArguments): OffsetPage => ({
+  limit: Math.min(args.first || defaultHighlightsLimit, maxHighlightsLimit) + 1,
   offset: getOffsetWithDefault(args.after, -1) + 1,
 });
 
-const addMajorHeadlineFilter = <T extends PostHighlight>(
-  builder: SelectQueryBuilder<T>,
-): SelectQueryBuilder<T> =>
-  builder
-    .where('highlight.significance IN (:...significances)', {
-      significances: majorHeadlineSignificances,
-    })
-    .andWhere('highlight."retiredAt" IS NULL');
+type HighlightsFilters = {
+  channel?: string | null;
+  significances?: PostHighlightSignificance[];
+};
 
-const getDedupedMajorHeadlinesQuery = (
+const applyHighlightsFilters = <T extends PostHighlight>(
+  builder: SelectQueryBuilder<T>,
+  { channel, significances }: HighlightsFilters,
+): SelectQueryBuilder<T> => {
+  let qb = builder.where('highlight."retiredAt" IS NULL');
+
+  if (significances && significances.length > 0) {
+    qb = qb.andWhere('highlight.significance IN (:...significances)', {
+      significances,
+    });
+  }
+
+  if (channel) {
+    qb = qb.andWhere('highlight.channel = :channel', { channel });
+  }
+
+  return qb;
+};
+
+const getDedupedHighlightsQuery = (
   queryBuilder: SelectQueryBuilder<PostHighlight>,
+  filters: HighlightsFilters,
 ) =>
-  addMajorHeadlineFilter(
+  applyHighlightsFilters(
     queryBuilder
       .subQuery()
       .select('highlight.id', 'id')
       .from(PostHighlight, 'highlight'),
+    filters,
   )
     .distinctOn(['highlight.postId'])
     .orderBy('highlight.postId', 'ASC')
     .addOrderBy('highlight.highlightedAt', 'DESC')
     .addOrderBy('highlight.id', 'DESC');
+
+const resolveDedupedHighlightsFeed = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  args: ConnectionArguments,
+  filters: HighlightsFilters,
+) => {
+  const page = getHighlightsPage(args);
+
+  return graphorm.queryPaginated(
+    ctx,
+    info,
+    () => page.offset > 0,
+    (nodeSize) => nodeSize >= page.limit,
+    (_, index) => offsetToCursor(page.offset + index),
+    (builder) => {
+      const dedupedIdsQuery = getDedupedHighlightsQuery(
+        builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
+        filters,
+      );
+
+      builder.queryBuilder
+        .innerJoin(
+          `(${dedupedIdsQuery.getQuery()})`,
+          'deduped',
+          `deduped.id = ${builder.alias}.id`,
+        )
+        .setParameters(dedupedIdsQuery.getParameters())
+        .orderBy(`${builder.alias}."highlightedAt"`, 'DESC')
+        .addOrderBy(`${builder.alias}."id"`, 'DESC')
+        .offset(page.offset)
+        .limit(page.limit);
+
+      return builder;
+    },
+    (nodes) => nodes.slice(0, page.limit - 1),
+    true,
+  );
+};
+
+type PostHighlightsFeedArgs = ConnectionArguments & {
+  channel?: string | null;
+  significance?: string[] | null;
+};
+
+const parseSignificanceFilters = (
+  values: string[] | null | undefined,
+): PostHighlightSignificance[] =>
+  (values ?? [])
+    .map(toPostHighlightSignificance)
+    .filter((value) => value !== PostHighlightSignificance.Unspecified);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -164,43 +244,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
         true,
       ),
-    majorHeadlines: async (
+    majorHeadlines: async (_, args: ConnectionArguments, ctx: Context, info) =>
+      resolveDedupedHighlightsFeed(ctx, info, args, {
+        significances: majorHeadlineSignificances,
+      }),
+    postHighlightsFeed: async (
       _,
-      args: ConnectionArguments,
+      args: PostHighlightsFeedArgs,
       ctx: Context,
       info,
-    ) => {
-      const page = getMajorHeadlinesPage(args);
-
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        () => page.offset > 0,
-        (nodeSize) => nodeSize >= page.limit,
-        (_, index) => offsetToCursor(page.offset + index),
-        (builder) => {
-          const dedupedIdsQuery = getDedupedMajorHeadlinesQuery(
-            builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
-          );
-
-          builder.queryBuilder
-            .innerJoin(
-              `(${dedupedIdsQuery.getQuery()})`,
-              'deduped',
-              `deduped.id = ${builder.alias}.id`,
-            )
-            .setParameters(dedupedIdsQuery.getParameters())
-            .orderBy(`${builder.alias}."highlightedAt"`, 'DESC')
-            .addOrderBy(`${builder.alias}."id"`, 'DESC')
-            .offset(page.offset)
-            .limit(page.limit);
-
-          return builder;
-        },
-        (nodes) => nodes.slice(0, page.limit - 1),
-        true,
-      );
-    },
+    ) =>
+      resolveDedupedHighlightsFeed(ctx, info, args, {
+        channel: args.channel,
+        significances: parseSignificanceFilters(args.significance),
+      }),
   },
   Subscription: {
     newHighlight: {

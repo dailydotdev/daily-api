@@ -29,10 +29,11 @@ import {
   PersonaQuizRevealText,
   ParseFeedbackResponse,
   Pipelines,
-  SentimentDigestResponse,
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
+  TopicalDigest,
+  TopicalDigestItem,
   UserFeedbackClassification,
   UserFeedbackSentiment,
   UserFeedbackTeam,
@@ -122,11 +123,24 @@ export const getBragiClient = (
             id: 'mock-id',
             emailBody: '',
           }),
-        generateSentimentDigest: async () =>
-          new SentimentDigestResponse({
-            id: 'mock-id',
-            title: 'Mock sentiment digest',
-            content: 'Mock digest content',
+        generateTopicalDigest: async () =>
+          new TopicalDigest({
+            title: 'Mock topical digest',
+            tldr: 'Mock digest summary',
+            mainItems: [
+              new TopicalDigestItem({
+                title: 'Mock main item',
+                body: 'Mock main item body',
+                postIds: ['post-1'],
+              }),
+            ],
+            alsoNotable: [
+              new TopicalDigestItem({
+                title: 'Mock notable item',
+                body: 'Mock notable item body',
+                postIds: ['post-2'],
+              }),
+            ],
           }),
         evaluateChannelHighlights: async () =>
           new EvaluateChannelHighlightsResponse({
