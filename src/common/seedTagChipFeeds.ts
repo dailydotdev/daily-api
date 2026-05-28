@@ -46,11 +46,12 @@ const resolveLabel = async ({
       select: ['value', 'flags'],
     }),
   );
+  const keywordByValue = new Map(keywords.map((k) => [k.value, k]));
   return new Map(
-    values.map((value) => {
-      const title = keywords.find((k) => k.value === value)?.flags?.title;
-      return [value, title || value];
-    }),
+    values.map((value) => [
+      value,
+      keywordByValue.get(value)?.flags?.title || value,
+    ]),
   );
 };
 
@@ -70,12 +71,13 @@ const reserveSeedSlot = async ({
   const result = await con
     .createQueryBuilder()
     .update(User)
-    .set({
-      flags: () =>
-        `flags || '${JSON.stringify({ tagChipFeedsSeededAt: new Date().toISOString() })}'::jsonb`,
-    })
+    .set({ flags: () => `flags || :seededJson::jsonb` })
     .where({ id: userId })
     .andWhere(`(flags->>'tagChipFeedsSeededAt') IS NULL`)
+    .setParameter(
+      'seededJson',
+      JSON.stringify({ tagChipFeedsSeededAt: new Date().toISOString() }),
+    )
     .execute();
 
   return (result.affected ?? 0) > 0;
@@ -142,7 +144,9 @@ export const seedTagChipFeedsIfNeeded = async ({
     return;
   }
 
-  const existingFeedsCount = await con.getRepository(Feed).countBy({ userId });
+  const existingFeedsCount = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Feed).countBy({ userId }),
+  );
   const effectiveLimit = Math.min(limit, maxFeedsPerUser - existingFeedsCount);
 
   if (effectiveLimit <= 0) {
