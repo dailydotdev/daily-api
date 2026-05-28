@@ -1447,6 +1447,7 @@ describe('boot misc', () => {
         sidebarSquadExpanded: true,
         sidebarBookmarksExpanded: true,
         clickbaitShieldEnabled: true,
+        highlightCardsOptOut: false,
         browsingContextEnabled: false,
         highlightsPlacement: 'default',
         legacyPostLayoutOptOut: false,
