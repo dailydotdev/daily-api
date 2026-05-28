@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import type { GraphQLResolveInfo } from 'graphql';
 import {
   ConnectionArguments,
   getOffsetWithDefault,
@@ -162,7 +163,7 @@ const getDedupedHighlightsQuery = (
 
 const resolveDedupedHighlightsFeed = (
   ctx: Context,
-  info: Parameters<typeof graphorm.queryPaginated>[1],
+  info: GraphQLResolveInfo,
   args: ConnectionArguments,
   filters: HighlightsFilters,
 ) => {
@@ -206,15 +207,10 @@ type PostHighlightsFeedArgs = ConnectionArguments & {
 
 const parseSignificanceFilters = (
   values: string[] | null | undefined,
-): PostHighlightSignificance[] => {
-  if (!values?.length) {
-    return [];
-  }
-
-  return values
+): PostHighlightSignificance[] =>
+  (values ?? [])
     .map(toPostHighlightSignificance)
     .filter((value) => value !== PostHighlightSignificance.Unspecified);
-};
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
