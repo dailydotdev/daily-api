@@ -2341,9 +2341,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ): Promise<Connection<GQLFeed>> => {
       const includeTagChipFeeds = args.includeTagChipFeeds === true;
 
+      let didSeed = false;
+
       if (includeTagChipFeeds) {
         try {
-          await seedTagChipFeedsIfNeeded({
+          didSeed = await seedTagChipFeedsIfNeeded({
             con: ctx.con,
             userId: ctx.userId,
           });
@@ -2393,7 +2395,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           return builder;
         },
         undefined,
-        true,
+        !didSeed, // use master to show seeded chips, else replica
       );
     },
     getFeed: async (

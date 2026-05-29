@@ -138,10 +138,10 @@ export const seedTagChipFeedsIfNeeded = async ({
   con: DataSource;
   userId: string;
   limit?: number;
-}): Promise<void> => {
+}): Promise<boolean> => {
   const reserved = await reserveSeedSlot({ con, userId });
   if (!reserved) {
-    return;
+    return false;
   }
 
   const existingFeedsCount = await queryReadReplica(con, ({ queryRunner }) =>
@@ -150,12 +150,12 @@ export const seedTagChipFeedsIfNeeded = async ({
   const effectiveLimit = Math.min(limit, maxFeedsPerUser - existingFeedsCount);
 
   if (effectiveLimit <= 0) {
-    return;
+    return false;
   }
 
   const values = await getSeedTagValues({ userId, limit: effectiveLimit });
   if (!values.length) {
-    return;
+    return false;
   }
 
   const labelByValue = await resolveLabel({ con, values });
@@ -182,4 +182,6 @@ export const seedTagChipFeedsIfNeeded = async ({
       await manager.getRepository(FeedTag).save({ feedId, tag: value });
     }
   });
+
+  return true;
 };
