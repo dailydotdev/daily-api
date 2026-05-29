@@ -1831,6 +1831,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ) => {
+      if (isMockEnabled()) {
+        return anonymousFeedResolverV1(source, args, ctx, info);
+      }
+
       const feedIdOrSlug = args.feedId;
 
       const feed = await getFeedByIdentifiersOrFail({
