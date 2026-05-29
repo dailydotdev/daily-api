@@ -55,6 +55,7 @@ export type UserFlags = Partial<{
     tags: { value: string; label: string }[];
     updatedAt: string;
   };
+  tagChipFeedsSeededAt: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
