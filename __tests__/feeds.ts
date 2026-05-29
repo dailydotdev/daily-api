@@ -5733,23 +5733,6 @@ describe('query customFeed', () => {
     );
   });
 
-  it('should not return the feed by slug if not plus', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: {
-          ranking: Ranking.POPULARITY,
-          first: 10,
-          feedId: 'cool-feed-cf1',
-        },
-      },
-      'FORBIDDEN',
-    );
-  });
-
   it('should let non-Plus users view a tag-chip feed and use the for_you_by_tag config', async () => {
     loggedUser = '1';
     isPlus = false;

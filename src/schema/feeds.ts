@@ -1831,10 +1831,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ) => {
-      if (isMockEnabled()) {
-        return anonymousFeedResolverV1(source, args, ctx, info);
-      }
-
       const feedIdOrSlug = args.feedId;
 
       const feed = await getFeedByIdentifiersOrFail({
@@ -1846,10 +1842,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const isTagChipFeed = feed.flags?.origin === FeedOrigin.TagChip;
 
-      if (!isTagChipFeed && !ctx.isPlus) {
-        throw new ForbiddenError(
-          'Access denied! You need to be authorized to perform this action!',
-        );
+      if (isMockEnabled()) {
+        return anonymousFeedResolverV1(source, args, ctx, info);
       }
 
       // Tag-chip feeds for non-Plus users use the simpler ForYouByTag config
