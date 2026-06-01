@@ -10,10 +10,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const { r, link_id: linkId } = req.query;
 
       if (linkId) {
-        const trackingDomain = process.env.EMAIL_TRACKING_ORIGIN;
+        const trackingOrigin = process.env.EMAIL_TRACKING_ORIGIN;
 
-        if (!trackingDomain) {
-          throw new Error('No tracking domain');
+        if (!trackingOrigin) {
+          throw new Error('No tracking origin');
         }
 
         const url = `${process.env.EMAIL_TRACKING_ORIGIN}/click/${encodeURIComponent(

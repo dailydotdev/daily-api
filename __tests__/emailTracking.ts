@@ -54,4 +54,14 @@ describe('GET /em/t', () => {
       .expect(307)
       .expect('Location', 'http://localhost:5002/');
   });
+
+  it('should return 500 when link_id is present but the tracking origin is not configured', async () => {
+    delete process.env.EMAIL_TRACKING_ORIGIN;
+
+    await request(app.server)
+      .get('/em/t/c?r=/posts/p1&link_id=token123')
+      .expect(500);
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
