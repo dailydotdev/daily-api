@@ -41,9 +41,11 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  UserPost,
   WelcomePost,
   Organization,
 } from '../../src/entity';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -800,6 +802,7 @@ it('should not send award email notification if the user prefers not to receive 
     receiver: receiver as Reference<User>,
     sender: sender as Reference<User>,
     targetUrl: `${env.COMMENTS_PREFIX}/idoshamun`,
+    targetType: 'user',
   };
 
   const notificationId = await saveNotificationV2Fixture(
@@ -814,6 +817,105 @@ it('should not send award email notification if the user prefers not to receive 
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+describe('user_received_award email', () => {
+  const productId = '9104b834-6fac-4276-a168-0be1294ab371';
+
+  const setupAwardFixture = async ({
+    valueIncFees,
+  }: {
+    valueIncFees: number;
+  }) => {
+    const repo = con.getRepository(User);
+    const receiver = (await repo.findOneBy({ id: '1' })) as Reference<User>;
+    const sender = (await repo.findOneBy({ id: '2' })) as Reference<User>;
+
+    await saveFixtures(con, Product, [
+      {
+        id: productId,
+        name: 'Test Award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 100,
+        flags: { description: 'Test award description' },
+      },
+    ]);
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: '1',
+      senderId: '2',
+      value: valueIncFees,
+      valueIncFees,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId,
+      status: UserTransactionStatus.Success,
+    });
+
+    const ctx: NotificationAwardContext = {
+      userIds: ['1'],
+      transaction,
+      receiver,
+      sender,
+      targetUrl: `${env.COMMENTS_PREFIX}/idoshamun`,
+      targetType: 'user',
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.UserReceivedAward,
+      ctx,
+    );
+    return { transaction, notificationId };
+  };
+
+  it('appends "for being awesome!" on a profile-direct award with Cores', async () => {
+    const { notificationId } = await setupAwardFixture({ valueIncFees: 100 });
+    await expectSuccessfulBackground(worker, {
+      notification: { id: notificationId, userId: '1' },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data!.title).toEqual(
+      'You just received +100 Cores for being awesome!',
+    );
+  });
+
+  it('appends "for being awesome!" on a profile-direct Award with no Cores', async () => {
+    const { notificationId } = await setupAwardFixture({ valueIncFees: 0 });
+    await expectSuccessfulBackground(worker, {
+      notification: { id: notificationId, userId: '1' },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data!.title).toEqual(
+      'You just received an Award for being awesome!',
+    );
+  });
+
+  it('does not append the suffix on a post-targeted award', async () => {
+    const { transaction, notificationId } = await setupAwardFixture({
+      valueIncFees: 100,
+    });
+    await con.getRepository(ArticlePost).save(postsFixture[0]);
+    await con.getRepository(UserPost).save({
+      postId: postsFixture[0].id,
+      userId: '2',
+      awardTransactionId: transaction.id,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      notification: { id: notificationId, userId: '1' },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data!.title).toEqual('You just received +100 Cores!');
+  });
 });
 
 it('should set parameters for squad_post_added email for sharedPost', async () => {
@@ -2366,6 +2468,51 @@ describe('briefing_ready notification', () => {
     expect(args.send_at).toEqual(Math.floor(sendAtMs / 1000));
   });
 
+  it('should send email even when showAt is in the future', async () => {
+    const sendAtMs = Date.now() + 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['u-bnp-1'],
+      sendAtMs,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+
+    // verify showAt was actually set on the user_notification
+    const userNotif = await con.getRepository(UserNotification).findOneBy({
+      notificationId,
+      userId: 'u-bnp-1',
+    });
+    expect(userNotif?.showAt).toBeTruthy();
+    expect(userNotif!.showAt!.getTime()).toBeGreaterThan(Date.now());
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: 'u-bnp-1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('should send email instead of schedule sentAtMs is in the past', async () => {
     const sendAtMs = Date.now() - 100_000;
 
@@ -3027,7 +3174,7 @@ describe('recruiter_opportunity_live notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
 
     expect(args.message_data).toEqual({
-      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+      opportunity_link: `http://localhost:5002/jobs/${opportunitiesFixture[0].id}`,
     });
   });
 });

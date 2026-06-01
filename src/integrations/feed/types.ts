@@ -2,11 +2,36 @@ import { Context } from '../../Context';
 import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
+export type FeedResponsePostItem = {
+  type?: 'post';
+  id: string;
+  feedMeta: string | null;
+};
+
+export type FeedResponseHighlightItem = {
+  type: 'highlight';
+  highlightIds: string[];
+  feedMeta: string | null;
+};
+
+export type FeedResponseItem = FeedResponsePostItem | FeedResponseHighlightItem;
+
 export type FeedResponse = {
-  data: [postId: string, metadata: string | null][];
+  data: FeedResponseItem[];
   cursor?: string;
   staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
+
+export const isFeedResponseHighlightItem = (
+  item: FeedResponseItem,
+): item is FeedResponseHighlightItem => item.type === 'highlight';
+
+export const getFeedResponsePostIds = (
+  response: Pick<FeedResponse, 'data'>,
+): string[] =>
+  response.data.flatMap((item) =>
+    isFeedResponseHighlightItem(item) ? [] : [item.id],
+  );
 
 export enum FeedConfigName {
   Personalise = 'personalise',
@@ -21,6 +46,8 @@ export enum FeedConfigName {
   Popular = 'popular',
   // currently used when sorting custom feed by other option then recommended
   CustomFeedNaV1 = 'custom_feed_na_v1',
+  ForYouByDate = 'for_you_by_date',
+  ForYouByTag = 'for_you_by_tag',
 }
 
 export type FeedProvider = {
@@ -57,6 +84,8 @@ export type FeedConfig = {
   allowed_sources?: string[];
   blocked_sources?: string[];
   allowed_post_types?: string[];
+  highlights_limit?: number;
+  highlights_first?: boolean;
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
   allowed_author_ids?: string[];
@@ -97,12 +126,13 @@ export interface IFeedClient {
   /**
    * Fetches the feed from the service
    * @param ctx GraphQL context
-   * @param feedId The feed ID (used for caching primarily)
+   * @param path The feed-service request path (e.g. `/api/feed`, `/api/personalised`)
    * @param config The feed config
+   * @param extraMetadata Metadata merged into every item's feedMeta
    */
   fetchFeed(
     ctx: Context,
-    feedId: string,
+    path: string,
     config: FeedConfig,
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;

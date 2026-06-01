@@ -73,14 +73,20 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.SourcePostRejected]: 'Post review',
   [NotificationType.SourcePostSubmitted]: 'Post pending review',
   [NotificationType.SquadSubscribeToNotification]: 'Squad notifications',
+  [NotificationType.LiveRoomStarted]: 'Room is live',
+  [NotificationType.LiveRoomStartingSoon]: 'Standup starts soon',
 };
 
 const pushHeadingFnMap: Partial<
   Record<NotificationType, (title: string) => string>
 > = {
   [NotificationType.SquadPostAdded]: (title) => {
-    const match = title.match(/<b>([^<]+)<\/b>[^<]*<b>([^<]+)<\/b>/);
-    return match ? `New post in ${match[2]}` : 'New squad post';
+    const twoMatch = title.match(/<b>([^<]+)<\/b>[^<]*<b>([^<]+)<\/b>/);
+    if (twoMatch) {
+      return `New post in ${twoMatch[2]}`;
+    }
+    const oneMatch = title.match(/<b>([^<]+)<\/b>/);
+    return oneMatch ? `New post in ${oneMatch[1]}` : 'New squad post';
   },
   [NotificationType.SquadNewComment]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);
@@ -89,6 +95,14 @@ const pushHeadingFnMap: Partial<
   [NotificationType.ArticleNewComment]: (title) => {
     const match = title.match(/<b>([^<]+)<\/b>/);
     return match ? `${match[1]} commented` : 'New comment';
+  },
+  [NotificationType.LiveRoomStarted]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} is live` : 'Room is live';
+  },
+  [NotificationType.LiveRoomStartingSoon]: (title) => {
+    const match = title.match(/<b>([^<]+)<\/b>/);
+    return match ? `${match[1]} starts soon` : 'Standup starts soon';
   },
 };
 
@@ -136,6 +150,7 @@ export async function sendPushNotification(
     targetUrl,
   }: Pick<NotificationV2, 'id' | 'title' | 'type' | 'targetUrl'>,
   avatar?: Pick<NotificationAvatarV2, 'image'>,
+  sendAfter?: Date,
 ): Promise<void> {
   if (!appId || !apiKey) return;
 
@@ -145,6 +160,9 @@ export async function sendPushNotification(
   push.data = { notificationId: id };
   if (avatar) {
     push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
+  }
+  if (sendAfter) {
+    push.send_after = sendAfter.toISOString();
   }
   await client.createNotification(push);
 }

@@ -49,6 +49,13 @@ export type UserFlags = Partial<{
   subdivision: string | null;
   lastCVParseAt: Date | null;
   lastExtensionUse: Date | null;
+  inDeletion: boolean;
+  hackathonParticipant: boolean;
+  feedTagsList: {
+    tags: { value: string; label: string }[];
+    updatedAt: string;
+  };
+  tagChipFeedsSeededAt: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;

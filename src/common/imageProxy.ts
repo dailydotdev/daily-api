@@ -9,7 +9,7 @@ const ALLOWED_DOMAINS = [
   'res.cloudinary.com',
   'daily-now-res.cloudinary.com',
   // GIF providers - excluded to reduce CDN costs
-  'tenor.com',
+  'klipy.com',
   'giphy.com',
 ];
 

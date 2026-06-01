@@ -454,4 +454,47 @@ describe('postAddedSlackChannelSend worker', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('linked sources', () => {
+    it('should send to slack integrations of squads with the post source in linkedSourceIds', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update(
+          { id: 'squadslackchannel' },
+          { linkedSourceIds: ['a'], private: false },
+        );
+      // Distinct channel so we can verify the fan-out lands on the squad's
+      // channel, not just a double-send to the direct integration's channel.
+      await con
+        .getRepository(UserSourceIntegrationSlack)
+        .update({ sourceId: 'squadslackchannel' }, { channelIds: ['2'] });
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: 'p1',
+      });
+
+      await expectSuccessfulTypedBackground(worker, {
+        post: post as unknown as ChangeObject<ArticlePost>,
+      });
+
+      expect(chatPostMessage).toHaveBeenCalledTimes(2);
+      const channels = chatPostMessage.mock.calls.map(([arg]) => arg.channel);
+      expect(channels.sort()).toEqual(['1', '2']);
+    });
+
+    it('should not send when no squad links the post source', async () => {
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: 'p1',
+      });
+
+      await expectSuccessfulTypedBackground(worker, {
+        post: post as unknown as ChangeObject<ArticlePost>,
+      });
+
+      expect(chatPostMessage).toHaveBeenCalledTimes(1);
+      expect(chatPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: '1' }),
+      );
+    });
+  });
 });

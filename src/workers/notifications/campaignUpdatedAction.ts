@@ -45,7 +45,7 @@ const worker: TypedNotificationWorker<'skadi.v2.campaign-updated'> = {
 
       if (err?.name === 'EntityNotFoundError') {
         // some campaigns do not exist on API so just warn in case we need to check later
-        logger.warn({ err, params }, 'could not find campaign');
+        logger.debug({ err, params }, 'could not find campaign');
 
         return;
       }

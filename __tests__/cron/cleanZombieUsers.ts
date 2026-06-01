@@ -4,7 +4,7 @@ import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { DeletedUser } from '../../src/entity/user/DeletedUser';
+import type { UserFlags } from '../../src/entity/user/User';
 
 let con: DataSource;
 
@@ -16,12 +16,13 @@ beforeEach(async () => {
   await saveFixtures(
     con,
     User,
-    usersFixture.map((u) => ({ ...u, emailConfirmed: true })),
+    usersFixture.map((u) => ({ ...u, emailConfirmed: true, flags: {} })),
   );
+  await con.query(`UPDATE "user" SET flags = '{}'`);
 });
 
 describe('cleanZombieUsers', () => {
-  it('should delete users with info confirmed false that are older than one hour', async () => {
+  it('should mark users with info confirmed false that are older than one hour for deletion', async () => {
     await con
       .getRepository(User)
       .update({ id: Not('1') }, { infoConfirmed: false });
@@ -30,13 +31,18 @@ describe('cleanZombieUsers', () => {
       .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(4);
-    expect(users[0].id).toEqual('1');
-    expect(users[1].id).toEqual('2');
+
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
+    );
+    expect(marked.map((u) => u.id)).toEqual(['3', '4']);
   });
 
-  it('should delete users with email confirmed false that are older than one hour', async () => {
+  it('should mark users with email confirmed false that are older than one hour for deletion', async () => {
     await con
       .getRepository(User)
       .update({ id: Not('1') }, { infoConfirmed: true, emailConfirmed: false });
@@ -45,43 +51,31 @@ describe('cleanZombieUsers', () => {
       .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(4);
-    expect(users[0].id).toEqual('1');
-    expect(users[1].id).toEqual('2');
+
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
+    );
+    expect(marked.map((u) => u.id)).toEqual(['3', '4']);
   });
 
-  it('should not delete users with info confirmed true and email confirmed true', async () => {
+  it('should not mark users with info confirmed true and email confirmed true', async () => {
     await con
       .getRepository(User)
       .update({ id: Not('1') }, { infoConfirmed: true, emailConfirmed: true });
-    await con
-      .getRepository(User)
-      .update({ id: '2' }, { createdAt: new Date() });
 
     await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(6);
-    expect(users[0].id).toEqual('1');
-    expect(users[1].id).toEqual('2');
-  });
 
-  it('should create deleted user records', async () => {
-    await con
-      .getRepository(User)
-      .update({ id: Not('1') }, { infoConfirmed: false });
-    await con
-      .getRepository(User)
-      .update({ id: '2' }, { createdAt: new Date() });
-
-    await expectSuccessfulCron(cron);
-    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(4);
-
-    const deletedUsers = await con.getRepository(DeletedUser).find();
-    expect(deletedUsers.length).toEqual(2);
-    expect(deletedUsers.map((item) => item.id)).toEqual(
-      expect.arrayContaining(['3', '4']),
+    const markedUsers = await con.getRepository(User).find({
+      where: usersFixture.map((u) => ({ id: u.id as string })),
+      order: { id: 'ASC' },
+    });
+    const marked = markedUsers.filter(
+      (u) => (u.flags as UserFlags)?.inDeletion,
     );
+    expect(marked.length).toEqual(0);
   });
 });

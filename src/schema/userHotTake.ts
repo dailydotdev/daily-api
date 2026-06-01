@@ -1,7 +1,9 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
+import { checkQuestProgress } from '../common/quest';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
+import { QuestEventType } from '../entity';
 import { HotTake } from '../entity/user/HotTake';
 import { ValidationError } from 'apollo-server-errors';
 import {
@@ -204,6 +206,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       await ctx.con.getRepository(HotTake).save(hotTake);
+      await checkQuestProgress({
+        con: ctx.con.manager,
+        logger: ctx.log,
+        userId: ctx.userId,
+        eventType: QuestEventType.HotTakeCreate,
+      });
 
       return graphorm.queryOneOrFail(ctx, info, (builder) => {
         builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {

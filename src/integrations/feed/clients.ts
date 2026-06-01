@@ -1,14 +1,24 @@
 import { FeedConfig, FeedResponse, IFeedClient, BriefingModel } from './types';
-import { RequestInit } from 'node-fetch';
+import fetch, { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
 import { GenericMetadata } from '../lofn';
 import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
 import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
+import { ServiceError } from '../../errors';
+import { isMockEnabled } from '../../mocks/common';
+import { mockUserTagsResponse } from '../../mocks/feed/userTags';
+
+type RawFeedDataItem = {
+  post_id: string;
+  type?: string;
+  highlight_ids?: string[];
+  metadata: Record<string, string>;
+};
 
 type RawFeedServiceResponse = {
-  data: { post_id: string; metadata: Record<string, string> }[];
+  data: RawFeedDataItem[];
   cursor?: string;
   stale_cursor?: boolean;
 };
@@ -44,12 +54,12 @@ export class FeedClient implements IFeedClient, IGarmrClient {
 
   async fetchFeed(
     ctx: unknown,
-    feedId: string,
+    path: string,
     config: FeedConfig,
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse> {
     const res = await this.garmr.execute(() => {
-      return fetchParse<RawFeedServiceResponse>(this.url, {
+      return fetchParse<RawFeedServiceResponse>(`${this.url}${path}`, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(config),
@@ -60,18 +70,29 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       return { data: [] };
     }
     return {
-      data: res.data.map(({ post_id, metadata }) => {
-        const hasMetadata = !!(metadata || extraMetadata);
+      data: res.data.map(({ post_id, type, highlight_ids, metadata }) => {
+        const mergedMetadata = Object.fromEntries(
+          Object.entries({
+            ...metadata,
+            ...extraMetadata,
+          }).filter(([, value]) => value !== undefined),
+        );
+        const hasMetadata = Object.keys(mergedMetadata).length > 0;
+        const feedMeta = hasMetadata ? JSON.stringify(mergedMetadata) : null;
 
-        return [
-          post_id,
-          (hasMetadata &&
-            JSON.stringify({
-              ...metadata,
-              ...extraMetadata,
-            })) ||
-            null,
-        ];
+        if (type === 'highlight') {
+          return {
+            type: 'highlight',
+            highlightIds: highlight_ids || [],
+            feedMeta,
+          };
+        }
+
+        return {
+          type: 'post',
+          id: post_id,
+          feedMeta,
+        };
       }),
       cursor: res.cursor,
       staleCursor: res.stale_cursor,
@@ -89,9 +110,8 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       recentBriefing,
     } = request;
 
-    const result = await this.garmr.execute(() => {
-      return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {
-        ...this.fetchOptions,
+    const result = await this.garmr.execute<JsonValue>(async () => {
+      const response = await fetch(`${this.url}/api/user/briefing`, {
         method: 'POST',
         body: JSON.stringify({
           user_id: userId,
@@ -116,6 +136,18 @@ export class FeedClient implements IFeedClient, IGarmrClient {
             : undefined,
         }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new ServiceError({
+          message: 'Brief request to feed failed',
+          data: result,
+          statusCode: response.status,
+        });
+      }
+
+      return result;
     });
 
     return Briefing.fromJson(result);
@@ -141,5 +173,24 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     return {
       updatedAt,
     };
+  }
+
+  async getUserTags(userId: string, limit: number): Promise<string[]> {
+    if (isMockEnabled()) {
+      return mockUserTagsResponse(limit);
+    }
+
+    const result = await this.garmr.execute(() =>
+      fetchParse<{ data: string[] }>(`${this.url}/api/user_tags`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId, limit }),
+      }),
+    );
+
+    return result?.data ?? [];
   }
 }

@@ -1,13 +1,47 @@
-import type { Settings } from '../entity';
+import { HighlightsPlacement, type Settings } from '../entity';
 
 export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
+  const {
+    sidebarSquadExpanded,
+    sidebarCustomFeedsExpanded,
+    sidebarOtherExpanded,
+    sidebarResourcesExpanded,
+    sidebarBookmarksExpanded,
+    clickbaitShieldEnabled,
+    browsingContextEnabled,
+    highlightsPlacement,
+    prompt,
+    timezoneMismatchIgnore,
+    lastPrompt,
+    defaultWriteTab,
+    legacyPostLayoutOptOut,
+    highlightCardsOptOut,
+    readerInstallPromptAcknowledged,
+    shortcutsMode,
+    shortcutsAppearance,
+    showShortcutsOnWebapp,
+    shortcutMeta,
+  } = flags ?? {};
+
   return {
-    sidebarSquadExpanded: flags?.sidebarSquadExpanded ?? true,
-    sidebarCustomFeedsExpanded: flags?.sidebarCustomFeedsExpanded ?? true,
-    sidebarOtherExpanded: flags?.sidebarOtherExpanded ?? true,
-    sidebarResourcesExpanded: flags?.sidebarResourcesExpanded ?? true,
-    sidebarBookmarksExpanded: flags?.sidebarBookmarksExpanded ?? true,
-    clickbaitShieldEnabled: flags?.clickbaitShieldEnabled ?? true,
-    ...flags,
+    sidebarSquadExpanded: sidebarSquadExpanded ?? true,
+    sidebarCustomFeedsExpanded: sidebarCustomFeedsExpanded ?? true,
+    sidebarOtherExpanded: sidebarOtherExpanded ?? true,
+    sidebarResourcesExpanded: sidebarResourcesExpanded ?? true,
+    sidebarBookmarksExpanded: sidebarBookmarksExpanded ?? true,
+    clickbaitShieldEnabled: clickbaitShieldEnabled ?? true,
+    browsingContextEnabled: browsingContextEnabled ?? false,
+    highlightsPlacement: highlightsPlacement ?? HighlightsPlacement.Default,
+    prompt,
+    timezoneMismatchIgnore,
+    lastPrompt,
+    defaultWriteTab,
+    legacyPostLayoutOptOut: legacyPostLayoutOptOut ?? false,
+    highlightCardsOptOut: highlightCardsOptOut ?? false,
+    readerInstallPromptAcknowledged: readerInstallPromptAcknowledged ?? false,
+    shortcutsMode,
+    shortcutsAppearance,
+    showShortcutsOnWebapp,
+    shortcutMeta,
   };
 };

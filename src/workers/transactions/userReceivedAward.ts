@@ -59,12 +59,15 @@ export const userReceivedAward: TypedNotificationWorker<'api.v1.user-transaction
       ]);
 
       let targetUrl = `/${receiver.username}`;
+      let targetType: 'user' | 'post' | 'comment' = 'user';
 
       if (userPost) {
         targetUrl = `/posts/${userPost.postId}`;
+        targetType = 'post';
       } else if (userComment) {
         const comment = await userComment.comment;
         targetUrl = `/posts/${comment.postId}#c-${userComment.commentId}`;
+        targetType = 'comment';
       }
 
       return [
@@ -76,6 +79,7 @@ export const userReceivedAward: TypedNotificationWorker<'api.v1.user-transaction
             sender,
             receiver,
             targetUrl: `${env.COMMENTS_PREFIX}${targetUrl}`,
+            targetType,
             source,
           },
         },

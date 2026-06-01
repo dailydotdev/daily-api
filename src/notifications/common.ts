@@ -88,6 +88,8 @@ export enum NotificationType {
   FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
+  LiveRoomStarted = 'live_room_started',
+  LiveRoomStartingSoon = 'live_room_starting_soon',
 }
 
 export enum NotificationPreferenceType {
@@ -160,6 +162,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.ArticleReportApproved]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.UserFollow]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
@@ -311,6 +317,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
+  [NotificationType.LiveRoomStarted]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.LiveRoomStartingSoon]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
 };
 
 export const commentReplyNotificationTypes = [
@@ -455,19 +469,29 @@ export const getNotificationV2AndChildren = (
   ]);
 };
 
-export const streamNotificationUsers = (
-  con: DataSource,
-  id: string,
-  channel: NotificationChannel,
-): Promise<ReadStream> => {
+export const streamNotificationUsers = ({
+  con,
+  id,
+  channel,
+  disableShowAtFilter = false,
+}: {
+  con: DataSource;
+  id: string;
+  channel: NotificationChannel;
+  disableShowAtFilter?: boolean;
+}): Promise<ReadStream> => {
   let query = con
     .createQueryBuilder()
     .select('un."userId"')
+    .addSelect('un."showAt"')
     .from(UserNotification, 'un')
     .innerJoin('user', 'u', 'un."userId" = u.id')
     .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
-    .where('un."notificationId" = :id', { id })
-    .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
+    .where('un."notificationId" = :id', { id });
+
+  if (!disableShowAtFilter) {
+    query = query.andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
+  }
 
   if (channel === NotificationChannel.InApp) {
     query = query

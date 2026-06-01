@@ -32,8 +32,14 @@ import updateAchievementRarity from './updateAchievementRarity';
 import rotateDailyQuests from './rotateDailyQuests';
 import rotateWeeklyQuests from './rotateWeeklyQuests';
 import backfillGearCategory from './backfillGearCategory';
-import agentsDigest from './agentsDigest';
+import channelDigests from './channelDigests';
+import channelHighlights from './channelHighlights';
 import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
+import { cleanChannelHighlights } from './cleanChannelHighlights';
+import updateTagMaterializedViews from './updateTagMaterializedViews';
+import { materializeMonthlyBestPostArchives } from './materializeMonthlyBestPostArchives';
+import { materializeYearlyBestPostArchives } from './materializeYearlyBestPostArchives';
+import cleanOldNotifications from './cleanOldNotifications';
 
 export const crons: Cron[] = [
   updateViews,
@@ -69,6 +75,12 @@ export const crons: Cron[] = [
   rotateDailyQuests,
   rotateWeeklyQuests,
   backfillGearCategory,
-  agentsDigest,
+  channelDigests,
+  channelHighlights,
+  cleanChannelHighlights,
   cleanExpiredBetterAuthSessions,
+  updateTagMaterializedViews,
+  materializeMonthlyBestPostArchives,
+  materializeYearlyBestPostArchives,
+  cleanOldNotifications,
 ];

@@ -106,12 +106,14 @@ export class Feature<T extends JSONValue> {
 const digestFeatureBaseConfig = {
   templateId: '48',
   feedConfig: 'digest',
+  coldStartFeedConfig: 'digest_cs_v1',
   maxPosts: 5,
   longTextLimit: 150,
   newUserSendType: UserPersonalizedDigestSendType.weekly,
   adIndex: 2,
   title: '',
   preview: '',
+  campaignId: 'default',
 };
 
 export type PersonalizedDigestFeatureConfig = typeof digestFeatureBaseConfig;
@@ -123,7 +125,6 @@ export const features = {
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
   }),
-  authStrategy: new Feature<'kratos' | 'betterauth'>('auth_strategy', 'kratos'),
 };
 
 export class ExperimentAllocationClient {

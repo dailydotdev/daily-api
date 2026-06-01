@@ -27,6 +27,8 @@ import {
   Keyword,
   PostType,
   postTypes,
+  HighlightsPlacement,
+  Settings,
   Source,
   SourceMember,
   User,
@@ -45,7 +47,7 @@ import { ContentPreferenceUser } from '../../src/entity/contentPreference/Conten
 let con: DataSource;
 let ctx: Context;
 
-const url = 'http://localhost:3000/feed.json';
+const url = 'http://localhost:3000';
 const config: FeedConfig = {
   page_size: 2,
   offset: 0,
@@ -66,12 +68,12 @@ const rawFeedResponse = {
 };
 const feedResponse: FeedResponse = {
   data: [
-    ['1', '{"p":"a"}'],
-    ['2', '{"p":"b"}'],
-    ['3', '{"p":"c"}'],
-    ['4', null],
-    ['5', null],
-    ['6', null],
+    { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+    { type: 'post', id: '2', feedMeta: '{"p":"b"}' },
+    { type: 'post', id: '3', feedMeta: '{"p":"c"}' },
+    { type: 'post', id: '4', feedMeta: null },
+    { type: 'post', id: '5', feedMeta: null },
+    { type: 'post', id: '6', feedMeta: null },
   ],
 };
 
@@ -106,32 +108,87 @@ describe('FeedClient', () => {
   it('should parse feed service response', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed).toEqual(feedResponse);
   });
 
   it('should merge tyr metadata with feed metadata', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config, {
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config, {
       mab: { test: 'da' },
     });
     expect(feed).toEqual({
       data: [
-        ['1', '{"p":"a","mab":{"test":"da"}}'],
-        ['2', '{"p":"b","mab":{"test":"da"}}'],
-        ['3', '{"p":"c","mab":{"test":"da"}}'],
-        ['4', '{"mab":{"test":"da"}}'],
-        ['5', '{"mab":{"test":"da"}}'],
-        ['6', '{"mab":{"test":"da"}}'],
+        {
+          type: 'post',
+          id: '1',
+          feedMeta: '{"p":"a","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '2',
+          feedMeta: '{"p":"b","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '3',
+          feedMeta: '{"p":"c","mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '4',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '5',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+        {
+          type: 'post',
+          id: '6',
+          feedMeta: '{"mab":{"test":"da"}}',
+        },
+      ],
+    });
+  });
+
+  it('should preserve highlight items from the feed service response', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('/api/feed', config as any)
+      .reply(200, {
+        data: [
+          { post_id: '1', metadata: { p: 'a' } },
+          {
+            type: 'highlight',
+            post_id: '',
+            highlight_ids: ['h1', 'h2'],
+            metadata: { p: 'highlight' },
+          },
+        ],
+      });
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
+
+    expect(feed).toEqual({
+      data: [
+        { type: 'post', id: '1', feedMeta: '{"p":"a"}' },
+        {
+          type: 'highlight',
+          highlightIds: ['h1', 'h2'],
+          feedMeta: '{"p":"highlight"}',
+        },
       ],
     });
   });
@@ -145,11 +202,11 @@ describe('FeedClient', () => {
 
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, responseWithStaleCursor);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed).toMatchObject({
       cursor: 'abc123',
       staleCursor: true,
@@ -159,12 +216,34 @@ describe('FeedClient', () => {
   it('should not include staleCursor when not present in response', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .post('', config as any)
+      .post('/api/feed', config as any)
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    const feed = await feedClient.fetchFeed(ctx, '/api/feed', config);
     expect(feed.staleCursor).toBeUndefined();
+  });
+
+  describe('getUserTags', () => {
+    const expectedBody = { user_id: 'u1', limit: 10 };
+
+    it('should return the data array from the feed service', async () => {
+      nock(url)
+        .post('/api/user_tags', expectedBody)
+        .reply(200, { data: ['ai-coding', 'llm'] });
+
+      const feedClient = new FeedClient(url);
+      const tags = await feedClient.getUserTags('u1', 10);
+      expect(tags).toEqual(['ai-coding', 'llm']);
+    });
+
+    it('should return an empty array when data is missing', async () => {
+      nock(url).post('/api/user_tags', expectedBody).reply(200, {});
+
+      const feedClient = new FeedClient(url);
+      const tags = await feedClient.getUserTags('u1', 10);
+      expect(tags).toEqual([]);
+    });
   });
 });
 
@@ -176,8 +255,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
       staleCursor: true,
@@ -201,8 +280,8 @@ describe('connectionFromNodes with staleCursor', () => {
     const page = { limit: 30 };
     const queryParams: FeedResponse = {
       data: [
-        ['1', null],
-        ['2', null],
+        { type: 'post', id: '1', feedMeta: null },
+        { type: 'post', id: '2', feedMeta: null },
       ],
       cursor: 'next-cursor',
     };
@@ -553,6 +632,43 @@ describe('FeedPreferencesConfigGenerator', () => {
     });
   });
 
+  it('should exclude social posts when the default content type is opt-in', async () => {
+    await con.getRepository(FeedAdvancedSettings).delete({
+      feedId: '1',
+      advancedSettingsId: 4,
+    });
+    await con
+      .getRepository(AdvancedSettings)
+      .update({ id: 4 }, { defaultEnabledState: false });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includePostTypes: true,
+      },
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual).toEqual({
+      config: {
+        allowed_post_types: postTypes.filter(
+          (x) => x !== PostType.VideoYouTube && x !== PostType.SocialTwitter,
+        ),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
+    });
+  });
+
   it('should generate feed config with blocked tags and sources', async () => {
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
       config,
@@ -679,6 +795,68 @@ describe('FeedPreferencesConfigGenerator', () => {
 
     expect(actual.config.experience_level).toBe('MORE_THAN_6_YEARS');
     expect(actual.config.country).toBe('US');
+  });
+
+  it('should set highlights_first when highlightsPlacement is pinned', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsPlacement: HighlightsPlacement.Pinned },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+
+    expect(actual.config.highlights_first).toBe(true);
+    expect(actual.config.highlights_limit).toBeUndefined();
+  });
+
+  it('should zero out highlights_limit when highlightsPlacement is disabled', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsPlacement: HighlightsPlacement.Disabled },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+      highlights_limit: 2,
+    });
+
+    expect(actual.config.highlights_limit).toBe(0);
+    expect(actual.config.highlights_first).toBeUndefined();
+  });
+
+  it('should leave highlights config untouched when placement is default', async () => {
+    await con.getRepository(Settings).save({
+      userId: '1',
+      flags: { highlightsPlacement: HighlightsPlacement.Default },
+    });
+
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+      highlights_limit: 2,
+    });
+
+    expect(actual.config.highlights_first).toBeUndefined();
+    expect(actual.config.highlights_limit).toBe(2);
   });
 });
 
@@ -925,7 +1103,7 @@ describe('versionToTimeFeedGenerator', () => {
   it('should generate config with chronological settings and no lofn', async () => {
     let capturedBody: Record<string, unknown> = {};
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         capturedBody = body;
         return true;
       })
@@ -940,7 +1118,7 @@ describe('versionToTimeFeedGenerator', () => {
       offset: 0,
     });
 
-    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedNaV1);
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.ForYouByDate);
     expect(capturedBody.order_by).toBe(FeedOrderBy.Date);
     expect(capturedBody.disable_engagement_filter).toBe(true);
   });

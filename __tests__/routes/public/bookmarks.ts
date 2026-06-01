@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
 import { Bookmark, BookmarkList } from '../../../src/entity';
+import { FreeformPost } from '../../../src/entity/posts/FreeformPost';
 import { v4 as uuidv4 } from 'uuid';
 
 const state = setupPublicApiTests();
@@ -69,6 +70,32 @@ describe('GET /public/v1/bookmarks', () => {
       source: expect.any(Object),
     });
   });
+
+  it('should include bookmarked non-article post types (e.g. freeform)', async () => {
+    await state.con.getRepository(FreeformPost).save({
+      id: 'ff-bm',
+      shortId: 'ffbm',
+      sourceId: 'a',
+      title: 'Freeform bookmarked post',
+      content: 'body',
+      contentHtml: '<p>body</p>',
+    });
+    await state.con.getRepository(Bookmark).save({
+      userId: '5',
+      postId: 'ff-bm',
+      createdAt: new Date(Date.now() + 1000),
+    });
+
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/bookmarks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const ids = body.data.map((p: { id: string }) => p.id);
+    expect(ids).toContain('ff-bm');
+  });
 });
 
 // Note: searchBookmarks endpoint depends on external search services
@@ -124,7 +151,7 @@ describe('POST /public/v1/bookmarks/lists', () => {
     const { body } = await request(state.app.server)
       .post('/public/v1/bookmarks/lists')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'New List', icon: '🚀' }) // Must use valid emoji from VALID_FOLDER_EMOJIS
+      .send({ name: 'New List', icon: '🚀' })
       .expect(200);
 
     expect(body.data).toMatchObject({

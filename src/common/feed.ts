@@ -2,7 +2,6 @@ import { DataSource } from 'typeorm';
 import { Feed } from '../entity/Feed';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
-import { isOneValidEmoji } from './utils';
 
 export const getFeedByIdentifiersOrFail = async ({
   con,
@@ -39,7 +38,6 @@ export const feedThresholdMax = 1000;
 
 export const validateFeedPayload = ({
   name,
-  icon,
   minDayRange,
   minUpvotes,
   minViews,
@@ -54,10 +52,6 @@ export const validateFeedPayload = ({
 
   if (!feedNameMatcher.test(name)) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_INVALID);
-  }
-
-  if (icon && !isOneValidEmoji(icon)) {
-    throw new ValidationError(SubmissionFailErrorMessage.FEED_ICON_INVALID);
   }
 
   if (

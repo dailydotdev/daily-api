@@ -39,6 +39,9 @@ export const demoCompany = {
   id: 'e8c7a930-ca69-4cba-b26c-b6c810d6ab7d',
 };
 
+export const isDemoCompanyId = (organizationId: string | null | undefined) =>
+  organizationId === demoCompany.id;
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;
@@ -223,23 +226,6 @@ export function isNumber(value: string | number): boolean {
 
   return !isNaN(Number(value.toString()));
 }
-
-export const VALID_FOLDER_EMOJIS = [
-  `🐹`,
-  '🐍',
-  '☕️',
-  '🔥',
-  '📦',
-  '⚙️',
-  '🐙',
-  '🐳',
-  '💡',
-  '📜',
-  '🚀',
-];
-export const isOneValidEmoji = (text: string): boolean => {
-  return VALID_FOLDER_EMOJIS.includes(text);
-};
 
 export const validateWorkEmailDomain = (domain: string): boolean => {
   const lowerCaseDomain = domain.toLowerCase();

@@ -8,8 +8,8 @@ describe('imageProxy', () => {
   describe('isAllowedDomain', () => {
     it('should return true for allowed domains and their subdomains', () => {
       // Test main domain and subdomain with one representative example
-      expect(isAllowedDomain('https://tenor.com/image.gif')).toBe(true);
-      expect(isAllowedDomain('https://media.tenor.com/image.gif')).toBe(true);
+      expect(isAllowedDomain('https://klipy.com/image.gif')).toBe(true);
+      expect(isAllowedDomain('https://media.klipy.com/image.gif')).toBe(true);
 
       // Test other allowed domains (main domain only - subdomain logic already verified above)
       expect(isAllowedDomain('https://media.daily.dev/image.jpg')).toBe(true);
@@ -33,7 +33,7 @@ describe('imageProxy', () => {
 
   describe('isExternalImageUrl', () => {
     it('should return false for allowed domains', () => {
-      expect(isExternalImageUrl('https://tenor.com/image.gif')).toBe(false);
+      expect(isExternalImageUrl('https://klipy.com/image.gif')).toBe(false);
       expect(isExternalImageUrl('https://giphy.com/image.gif')).toBe(false);
     });
 
@@ -52,8 +52,8 @@ describe('imageProxy', () => {
 
   describe('getProxiedImageUrl', () => {
     it('should return original URL unchanged for allowed domains', () => {
-      expect(getProxiedImageUrl('https://tenor.com/image.gif')).toBe(
-        'https://tenor.com/image.gif',
+      expect(getProxiedImageUrl('https://klipy.com/image.gif')).toBe(
+        'https://klipy.com/image.gif',
       );
       expect(getProxiedImageUrl('https://giphy.com/image.gif')).toBe(
         'https://giphy.com/image.gif',

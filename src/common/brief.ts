@@ -11,8 +11,10 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { ConflictError } from '../errors';
 import { generateShortId } from '../ids';
 import { BRIEFING_SOURCE, Post, PostType } from '../entity';
+import { QuestEventType } from '../entity/Quest';
 import { triggerTypedEvent } from './typedPubsub';
 import { logger } from '../logger';
+import { checkQuestProgress } from './quest/progress';
 import {
   ExperimentAllocationClient,
   getUserGrowthBookInstance,
@@ -172,6 +174,20 @@ export const requestBriefGeneration = async (
     }),
     postId,
   });
+
+  try {
+    await checkQuestProgress({
+      con,
+      logger,
+      userId,
+      eventType: QuestEventType.BriefGenerate,
+    });
+  } catch (err) {
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      'Failed to track brief generate quest progress',
+    );
+  }
 
   return { postId };
 };

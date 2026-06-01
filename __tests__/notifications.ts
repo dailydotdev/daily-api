@@ -28,7 +28,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { notificationV2Fixture } from './fixture/notifications';
-import { addDays, subDays } from 'date-fns';
+import { addDays, subDays, subHours } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import {
@@ -489,6 +489,73 @@ describe('query notifications', () => {
     expect(titles).toContain('visible');
     expect(titles).toContain('past showAt');
     expect(titles).not.toContain('future');
+  });
+
+  it('should return showAt as createdAt for scheduled notifications', async () => {
+    loggedUser = '1';
+    const showAt = subHours(new Date(), 1);
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: subHours(showAt, 2),
+        showAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const edges = res.data.notifications.edges;
+    expect(edges).toHaveLength(1);
+    expect(new Date(edges[0].node.createdAt).getTime()).toBe(showAt.getTime());
+  });
+
+  it('should order notifications by effective timestamp using showAt', async () => {
+    loggedUser = '1';
+    const now = new Date();
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture, title: 'scheduled' },
+      { ...notificationV2Fixture, uniqueKey: '2', title: 'regular' },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: subHours(now, 3),
+        showAt: subHours(now, 1),
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: subHours(now, 2),
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const titles = res.data.notifications.edges.map(
+      (e: { node: { title: string } }) => e.node.title,
+    );
+    expect(titles).toEqual(['scheduled', 'regular']);
+  });
+
+  it('should return original createdAt when showAt is null', async () => {
+    loggedUser = '1';
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const edges = res.data.notifications.edges;
+    expect(edges).toHaveLength(1);
+    expect(new Date(edges[0].node.createdAt).getTime()).toBe(
+      new Date(notificationV2Fixture.createdAt).getTime(),
+    );
   });
 });
 
@@ -1400,11 +1467,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1418,11 +1485,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(2);
@@ -1454,11 +1521,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1490,11 +1557,11 @@ describe('streamNotificationUsers', () => {
     ];
 
     const notifId = await setupNotificationAndUsers(users);
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
@@ -1518,19 +1585,19 @@ describe('streamNotificationUsers', () => {
 
     const notifId = await setupNotificationAndUsers(users);
 
-    const inAppStream = await streamNotificationUsers(
+    const inAppStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.InApp,
-    );
+      id: notifId,
+      channel: NotificationChannel.InApp,
+    });
     const inAppResults = await streamToArray(inAppStream);
     expect(inAppResults).toHaveLength(0);
 
-    const emailStream = await streamNotificationUsers(
+    const emailStream = await streamNotificationUsers({
       con,
-      notifId,
-      NotificationChannel.Email,
-    );
+      id: notifId,
+      channel: NotificationChannel.Email,
+    });
     const emailResults = await streamToArray(emailStream);
     expect(emailResults).toHaveLength(1);
     expect(emailResults[0].userId).toBe('user9');
@@ -1577,11 +1644,11 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(0);
@@ -1616,15 +1683,56 @@ describe('streamNotificationUsers', () => {
       },
     ]);
 
-    const stream = await streamNotificationUsers(
+    const stream = await streamNotificationUsers({
       con,
-      notif.id,
-      NotificationChannel.InApp,
-    );
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+    });
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(1);
     expect(results[0].userId).toBe('user16');
+  });
+
+  it('should return all users including future showAt when disableShowAtFilter is true', async () => {
+    const users = [
+      { id: 'user17', name: 'User 17', email: 'user17@test.com' },
+      { id: 'user18', name: 'User 18', email: 'user18@test.com' },
+    ];
+
+    await con.getRepository(User).save(users);
+
+    const notif = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.ArticleNewComment,
+    });
+
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: 'user17',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+      {
+        userId: 'user18',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+
+    const stream = await streamNotificationUsers({
+      con,
+      id: notif.id,
+      channel: NotificationChannel.InApp,
+      disableShowAtFilter: true,
+    });
+    const results = await streamToArray(stream);
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.userId).sort()).toEqual(['user17', 'user18']);
   });
 });
 

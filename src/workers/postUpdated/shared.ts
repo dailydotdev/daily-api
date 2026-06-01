@@ -29,6 +29,7 @@ import { updateFlagsStatement } from '../../common';
 import { counters } from '../../telemetry';
 import { BriefPost } from '../../entity/posts/BriefPost';
 import { DigestPost } from '../../entity/posts/DigestPost';
+import { LiveRoomPost } from '../../entity/posts/LiveRoomPost';
 import { PollPost } from '../../entity/posts/PollPost';
 import { isTwitterSocialType } from '../../common/twitterSocial';
 import type {
@@ -108,6 +109,7 @@ export const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Digest]: DigestPost,
   [PostType.Poll]: PollPost,
   [PostType.SocialTwitter]: SocialTwitterPost,
+  [PostType.LiveRoom]: LiveRoomPost,
 };
 
 export const createPost = async ({

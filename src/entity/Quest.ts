@@ -9,6 +9,8 @@ import {
 export enum QuestType {
   Daily = 'daily',
   Weekly = 'weekly',
+  Milestone = 'milestone',
+  Intro = 'intro',
 }
 
 export enum QuestEventType {
@@ -20,9 +22,24 @@ export enum QuestEventType {
   BookmarkPost = 'bookmark_post',
   BriefRead = 'brief_read',
   HotTakeVote = 'hot_take_vote',
+  HotTakeCreate = 'hot_take_create',
   UserFollow = 'user_follow',
+  ViewUserProfile = 'view_user_profile',
   PostShare = 'post_share',
+  VisitArena = 'visit_arena',
+  VisitExplorePage = 'visit_explore_page',
+  VisitDiscussionsPage = 'visit_discussions_page',
+  VisitReadItLaterPage = 'visit_read_it_later_page',
+  FeedbackSubmit = 'feedback_submit',
   SquadJoin = 'squad_join',
+  FollowerGain = 'follower_gain',
+  ReferralCount = 'referral_count',
+  QuestComplete = 'quest_complete',
+  UpvoteReceived = 'upvote_received',
+  ExtensionInstall = 'extension_install',
+  NotificationsEnable = 'notifications_enable',
+  BriefGenerate = 'brief_generate',
+  ProfileComplete = 'profile_complete',
 }
 
 export interface QuestCriteria {

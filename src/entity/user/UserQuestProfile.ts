@@ -25,6 +25,9 @@ export class UserQuestProfile {
   @Column({ type: 'integer', default: 0 })
   totalXp: number;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastViewedQuestRotationsAt: Date | null;
+
   @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',

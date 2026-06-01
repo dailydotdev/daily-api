@@ -12,10 +12,12 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedOrderBy,
+  FeedOrigin,
   FreeformPost,
   Keyword,
   MachineSource,
   Post,
+  PostHighlight,
   PostKeyword,
   PostTag,
   PostType,
@@ -23,6 +25,7 @@ import {
   Source,
   SourceMember,
   SourceType,
+  SquadSource,
   User,
   UserPost,
   View,
@@ -32,6 +35,7 @@ import {
 import { PollOption } from '../src/entity/polls/PollOption';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
+import { Persona } from '../src/entity/Persona';
 import { FastifyInstance } from 'fastify';
 import {
   feedFields,
@@ -64,6 +68,8 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
+import { feedClient } from '../src/integrations/feed/generators';
+import { recswipeClient } from '../src/integrations/recswipe/clients';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -73,6 +79,17 @@ import { ContentPreferenceKeyword } from '../src/entity/contentPreference/Conten
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { SubscriptionCycles } from '../src/paddle';
+
+jest.mock('../src/integrations/recswipe/clients', () => ({
+  ...jest.requireActual('../src/integrations/recswipe/clients'),
+  recswipeClient: {
+    recommendTags: jest.fn(),
+  },
+}));
+
+const recommendTagsMock = recswipeClient.recommendTags as jest.MockedFunction<
+  typeof recswipeClient.recommendTags
+>;
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -159,6 +176,16 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     group: 'content_types',
     options: {
       type: PostType.VideoYouTube,
+    },
+  },
+  {
+    id: 8,
+    title: 'Standups',
+    description: 'Live standup posts hosted on daily.dev.',
+    defaultEnabledState: true,
+    group: 'content_types',
+    options: {
+      type: PostType.LiveRoom,
     },
   },
 ];
@@ -437,7 +464,7 @@ describe('query anonymousFeed', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -467,7 +494,7 @@ describe('query anonymousFeed', () => {
 
   it('should safetly handle a case where the feed is empty', async () => {
     loggedUser = '1';
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/api/feed').reply(200, {
       data: [],
     });
     const res = await client.query(QUERY, {
@@ -532,7 +559,7 @@ describe('query anonymousFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -623,10 +650,10 @@ describe('query anonymousFeed by time', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         // Verify the request includes order_by: 'date' for TIME ranking
         expect(body.order_by).toBe(FeedOrderBy.Date);
-        expect(body.feed_config_name).toBe('popular');
+        expect(body.feed_config_name).toBe('for_you_by_date');
         return true;
       })
       .reply(200, {
@@ -648,7 +675,7 @@ describe('query anonymousFeed by time', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         expect(body.order_by).toBe(FeedOrderBy.Date);
         return true;
       })
@@ -945,7 +972,7 @@ describe('query feed', () => {
         },
       });
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         total_pages: 1,
         page_size: 10,
         offset: 0,
@@ -977,7 +1004,7 @@ describe('query feed', () => {
         },
       });
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => body.cursor === 'a')
+      .post('/api/feed', (body) => body.cursor === 'a')
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
         cursor: 'b',
@@ -1001,7 +1028,7 @@ describe('query feed', () => {
         },
       });
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         expect(body.allowed_post_types).toEqual(['article']);
         return true;
       })
@@ -1031,7 +1058,7 @@ describe('query feed', () => {
         },
       });
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         expect(body.allowed_post_types).toEqual(['article', 'collections']);
         return true;
       })
@@ -1061,7 +1088,7 @@ describe('query feed', () => {
         },
       });
     nock('http://localhost:6000')
-      .post('/feed.json')
+      .post('/api/feed')
       .reply(200, {
         data: [{ post_id: 'yt2' }],
         cursor: 'b',
@@ -1076,8 +1103,8 @@ describe('query feed', () => {
   it('should return feed v2 with TIME ranking using chronological config', async () => {
     loggedUser = '1';
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
-        expect(body.feed_config_name).toBe('custom_feed_na_v1');
+      .post('/api/feed', (body) => {
+        expect(body.feed_config_name).toBe('for_you_by_date');
         expect(body.order_by).toBe(FeedOrderBy.Date);
         expect(body.disable_engagement_filter).toBe(true);
         return true;
@@ -1118,6 +1145,396 @@ describe('query feed', () => {
   });
 });
 
+describe('query feedV2', () => {
+  const variables = {
+    ranking: Ranking.POPULARITY,
+    first: 10,
+    version: 20,
+  };
+
+  const QUERY = `
+  query FeedV2($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!], $highlightsLimit: Int) {
+    feedV2(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes, highlightsLimit: $highlightsLimit) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        cursor
+        node {
+          __typename
+          ... on FeedPostItem {
+            feedMeta
+            post {
+              id
+              title
+              type
+            }
+          }
+          ... on FeedHighlightsItem {
+            feedMeta
+            highlights {
+              id
+              headline
+              post {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
+
+  it('should pass highlights_limit only when highlights are supported', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        expect(body.allowed_post_types).toEqual(['article']);
+        expect(body.highlights_limit).toEqual(4);
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article', 'highlight'],
+        highlightsLimit: 4,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.edges).toHaveLength(1);
+  });
+
+  it('should return mixed post and highlight items', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(PostHighlight).save([
+      {
+        id: '3c75fab6-e28b-431d-ab54-a927708de085',
+        postId: 'p1',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:10:00.000Z'),
+        headline: 'First highlight',
+      },
+      {
+        id: 'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+        postId: 'p4',
+        channel: 'happening-now',
+        highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
+        headline: 'Second highlight',
+      },
+    ]);
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/api/feed')
+      .reply(200, {
+        data: [
+          { post_id: 'p1', metadata: { p: 'post' } },
+          {
+            type: 'highlight',
+            highlight_ids: [
+              '3c75fab6-e28b-431d-ab54-a927708de085',
+              'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+            ],
+            metadata: { p: 'highlight' },
+          },
+          { post_id: 'p4' },
+        ],
+        cursor: 'next-cursor',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article', 'highlight'],
+        highlightsLimit: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2).toEqual({
+      pageInfo: {
+        endCursor: 'next-cursor',
+        hasNextPage: false,
+      },
+      edges: [
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedPostItem',
+            feedMeta: base64('{"p":"post"}'),
+            post: {
+              id: 'p1',
+              title: 'P1',
+              type: 'article',
+            },
+          },
+        },
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedHighlightsItem',
+            feedMeta: base64('{"p":"highlight"}'),
+            highlights: [
+              {
+                id: '3c75fab6-e28b-431d-ab54-a927708de085',
+                headline: 'First highlight',
+                post: {
+                  id: 'p1',
+                  title: 'P1',
+                },
+              },
+              {
+                id: 'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
+                headline: 'Second highlight',
+                post: {
+                  id: 'p4',
+                  title: 'P4',
+                },
+              },
+            ],
+          },
+        },
+        {
+          cursor: 'next-cursor',
+          node: {
+            __typename: 'FeedPostItem',
+            feedMeta: null,
+            post: {
+              id: 'p4',
+              title: 'P4',
+              type: 'article',
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it('should apply the same post filtering as feed for returned post items', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/api/feed')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'next-cursor',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        supportedTypes: ['article'],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.edges).toEqual([
+      {
+        cursor: 'next-cursor',
+        node: {
+          __typename: 'FeedPostItem',
+          feedMeta: null,
+          post: {
+            id: 'p1',
+            title: 'P1',
+            type: 'article',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('should fall back to the local feed resolver for legacy versions', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    const fallbackQuery = `
+      query FeedFallback($first: Int, $version: Int) {
+        feed(first: $first, version: $version, unreadOnly: false) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              id
+              title
+              type
+              feedMeta
+            }
+          }
+        }
+        feedV2(first: $first, version: $version, unreadOnly: false) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              __typename
+              ... on FeedPostItem {
+                feedMeta
+                post {
+                  id
+                  title
+                  type
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(fallbackQuery, {
+      variables: {
+        first: 10,
+        version: 1,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.pageInfo).toEqual(res.data.feed.pageInfo);
+    expect(res.data.feedV2.edges).toEqual(
+      res.data.feed.edges.map((edge) => ({
+        cursor: edge.cursor,
+        node: {
+          __typename: 'FeedPostItem',
+          feedMeta: edge.node.feedMeta,
+          post: {
+            id: edge.node.id,
+            title: edge.node.title,
+            type: edge.node.type,
+          },
+        },
+      })),
+    );
+  });
+});
+
+describe('query feedByTags', () => {
+  const QUERY = `
+    query FeedByTags($tags: [String!]!, $ranking: Ranking, $first: Int, $version: Int) {
+      feedByTags(tags: $tags, ranking: $ranking, first: $first, version: $version) {
+        edges {
+          node {
+            id
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags: ['javascript'] } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should override allowed_tags with the provided tags and use for_you_by_tag config', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, { data: [{ post_id: 'p1' }] });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        tags: ['rust', 'webdev'],
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        version: 20,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(capturedBody.feed_config_name).toBe('for_you_by_tag');
+    expect(capturedBody.allowed_tags).toEqual(['rust', 'webdev']);
+    expect(capturedBody.blocked_tags).toEqual(
+      expect.arrayContaining(['golang']),
+    );
+    expect(capturedBody.blocked_sources).toEqual(
+      expect.arrayContaining(['b', 'c']),
+    );
+  });
+
+  it('should reject empty tags array', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags: [], version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should reject more than 20 tags', async () => {
+    loggedUser = '1';
+    const tags = Array.from({ length: 21 }, (_, i) => `tag-${i}`);
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags, version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should reject empty-string tags', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { tags: ['rust', ''], version: 20 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+});
+
 describe('query feedByConfig', () => {
   const variables = {
     first: 10,
@@ -1147,7 +1564,7 @@ describe('query feedByConfig', () => {
 
   it('should send provided config to feed service', async () => {
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         key: 'value',
         total_pages: 1,
         page_size: 10,
@@ -1495,6 +1912,64 @@ describe('query sourceFeed', () => {
       expect(res.data.sourceFeed.edges.length).toBe(4);
     });
   });
+
+  describe('linkedSourceIds', () => {
+    beforeEach(async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { type: SourceType.Squad });
+    });
+
+    it('should include posts from linked sources in the squad feed', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a', 'c'] });
+
+      const res = await client.query(QUERY('b'));
+      const sourceIds = new Set(
+        res.data.sourceFeed.edges.map(({ node }) => node.source.id),
+      );
+
+      expect(sourceIds).toContain('b');
+      expect(sourceIds).toContain('a');
+      expect(sourceIds).toContain('c');
+    });
+
+    it('should ignore linked source ids that do not exist', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['does-not-exist'] });
+
+      const res = await client.query(QUERY('b'));
+      res.data.sourceFeed.edges.forEach(({ node }) =>
+        expect(node.source.id).toEqual('b'),
+      );
+    });
+
+    it('should filter out banned and showOnFeed=false posts from linked sources', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a'] });
+      await con.getRepository(Post).update({ id: 'p1' }, { banned: true });
+      await con.getRepository(Post).update({ id: 'p4' }, { showOnFeed: false });
+
+      const res = await client.query(QUERY('b'));
+      const ids = res.data.sourceFeed.edges.map(({ node }) => node.id);
+      expect(ids).not.toContain('p1');
+      expect(ids).not.toContain('p4');
+    });
+
+    it('should filter out private posts from linked sources', async () => {
+      await con
+        .getRepository(SquadSource)
+        .update({ id: 'b' }, { linkedSourceIds: ['a'] });
+      await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+
+      const res = await client.query(QUERY('b'));
+      const ids = res.data.sourceFeed.edges.map(({ node }) => node.id);
+      expect(ids).not.toContain('p1');
+    });
+  });
 });
 
 describe('query tagFeed', () => {
@@ -1513,6 +1988,45 @@ describe('query tagFeed', () => {
     const res = await client.query(QUERY('javascript'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return the same tag feed for uppercase and mixed-case tags', async () => {
+    const now = new Date();
+    const lowerRes = await client.query(
+      QUERY('javascript', Ranking.POPULARITY, now),
+    );
+    const upperRes = await client.query(
+      QUERY('JAVASCRIPT', Ranking.POPULARITY, now),
+    );
+    const mixedRes = await client.query(
+      QUERY('JavaScript', Ranking.POPULARITY, now),
+    );
+    const lowerIds = lowerRes.data.tagFeed.edges.map(({ node }) => node.id);
+    const upperIds = upperRes.data.tagFeed.edges.map(({ node }) => node.id);
+    const mixedIds = mixedRes.data.tagFeed.edges.map(({ node }) => node.id);
+
+    expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
+    expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
+  });
+
+  it('should include share posts whose shared post matches the tag', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'tagShare1',
+      shortId: 'tShr1',
+      sourceId: 'a',
+      title: 'Shared js post',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+      visible: true,
+    });
+
+    const res = await client.query(`{
+      tagFeed(tag: "javascript", ranking: ${Ranking.POPULARITY}, first: 10, supportedTypes: ["article", "share"]) {
+        ${feedFields()}
+      }
+    }`);
+    const ids = res.data.tagFeed.edges.map(({ node }) => node.id);
+    expect(ids).toContain('tagShare1');
+  });
 });
 
 describe('query keywordFeed', () => {
@@ -1529,6 +2043,18 @@ describe('query keywordFeed', () => {
   it('should return a single keyword feed', async () => {
     const res = await client.query(QUERY('javascript'));
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the same keyword feed for uppercase and mixed-case keywords', async () => {
+    const lowerRes = await client.query(QUERY('javascript'));
+    const upperRes = await client.query(QUERY('JAVASCRIPT'));
+    const mixedRes = await client.query(QUERY('JavaScript'));
+    const lowerIds = lowerRes.data.keywordFeed.edges.map(({ node }) => node.id);
+    const upperIds = upperRes.data.keywordFeed.edges.map(({ node }) => node.id);
+    const mixedIds = mixedRes.data.keywordFeed.edges.map(({ node }) => node.id);
+
+    expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
+    expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
   });
 });
 
@@ -1895,7 +2421,7 @@ describe('query postReposts', () => {
     expect(ids).toEqual(['rp-default']);
   });
 
-  it('should return visible non-deleted reposts including private ones', async () => {
+  it('should return visible non-deleted reposts excluding private ones', async () => {
     const now = Date.now();
     await createSharePost({
       id: 'rp3',
@@ -1934,7 +2460,7 @@ describe('query postReposts', () => {
     });
 
     const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
-    expect(ids).toEqual(['rp4', 'rp3']);
+    expect(ids).toEqual(['rp3']);
   });
 
   it('should filter reposts from blocked users', async () => {
@@ -2080,18 +2606,50 @@ describe('query mostUpvotedFeed', () => {
     });
   });
 
-  it('should return posts from provided tag', async () => {
+  it('should return posts from provided tag case-insensitively', async () => {
     const repo = con.getRepository(Post);
     await repo.update({ id: 'p1' }, { upvotes: 20 });
     await repo.update({ id: 'p3' }, { upvotes: 15 });
     await repo.update({ id: 'p4' }, { upvotes: 30 });
 
-    const res = await client.query(QUERY(30, 10, '', 'javascript'));
-    expect(res.errors).toBeFalsy();
-    expect(res.data.mostUpvotedFeed.edges.length).toEqual(2);
-    res.data.mostUpvotedFeed.edges.forEach(({ node }) => {
+    const lowerRes = await client.query(QUERY(30, 10, '', 'javascript'));
+    const upperRes = await client.query(QUERY(30, 10, '', 'JAVASCRIPT'));
+    const lowerIds = lowerRes.data.mostUpvotedFeed.edges.map(
+      ({ node }) => node.id,
+    );
+    const upperIds = upperRes.data.mostUpvotedFeed.edges.map(
+      ({ node }) => node.id,
+    );
+
+    expect(lowerRes.errors || upperRes.errors).toBeFalsy();
+    expect(lowerRes.data.mostUpvotedFeed.edges.length).toEqual(2);
+    expect(upperIds).toEqual(lowerIds);
+    upperRes.data.mostUpvotedFeed.edges.forEach(({ node }) => {
       expect(node.tags).toContain('javascript');
     });
+  });
+
+  it('should include share posts whose shared post matches the tag', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'mostUpShare1',
+      shortId: 'muShr1',
+      sourceId: 'a',
+      title: 'Shared js post',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+      visible: true,
+      upvotes: 50,
+    });
+
+    const QUERY_WITH_TYPES = `{
+      mostUpvotedFeed(first: 10, period: 30, tag: "javascript", supportedTypes: ["article", "share"]) {
+        ${feedFields()}
+      }
+    }`;
+    const res = await client.query(QUERY_WITH_TYPES);
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.mostUpvotedFeed.edges.map(({ node }) => node.id);
+    expect(ids).toContain('mostUpShare1');
   });
 });
 
@@ -2167,6 +2725,29 @@ describe('query mostDiscussedFeed', () => {
       expect(node.tags).toContain('javascript');
     });
   });
+
+  it('should include share posts whose shared post matches the tag', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'mostDiscShare1',
+      shortId: 'mdShr1',
+      sourceId: 'a',
+      title: 'Shared js post',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+      visible: true,
+      comments: 10,
+    });
+
+    const QUERY_WITH_TYPES = `{
+      mostDiscussedFeed(first: 10, tag: "javascript", supportedTypes: ["article", "share"]) {
+        ${feedFields()}
+      }
+    }`;
+    const res = await client.query(QUERY_WITH_TYPES);
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.mostDiscussedFeed.edges.map(({ node }) => node.id);
+    expect(ids).toContain('mostDiscShare1');
+  });
 });
 
 describe('query randomTrendingPosts', () => {
@@ -2223,7 +2804,7 @@ describe('query channelFeed', () => {
     const cursor = base64('10');
 
     nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/feed', (body) => {
         expect(body).toMatchObject({
           feed_config_name: FeedConfigName.Channel,
           channel: 'devops',
@@ -2271,7 +2852,7 @@ describe('query channelFeed', () => {
     'should $name',
     async ({ contentCuration, expectedAllowedContentCurations }) => {
       nock('http://localhost:6000')
-        .post('/feed.json', (body) => {
+        .post('/api/feed', (body) => {
           expect(body).toMatchObject({
             feed_config_name: FeedConfigName.Channel,
             channel,
@@ -2309,7 +2890,7 @@ describe('query similarPostsFeed', () => {
 
   it('should return posts from feed service', async () => {
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         feed_config_name: 'post_similarity',
         total_pages: 1,
         page_size: 30,
@@ -2343,7 +2924,7 @@ describe('query randomSimilarPostsByTags', () => {
 
   // it('should return posts from feed service', async () => {
   //   nock('http://localhost:6000')
-  //     .post('/feed.json', {
+  //     .post('/api/feed', {
   //       feed_config_name: 'post_similarity',
   //       total_pages: 1,
   //       page_size: 3,
@@ -2365,7 +2946,7 @@ describe('query randomSimilarPostsByTags', () => {
 
   it('should fallback to old algorithm', async () => {
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         feed_config_name: 'post_similarity',
         total_pages: 1,
         page_size: 3,
@@ -2409,7 +2990,7 @@ describe('query randomSimilarPostsByTags', () => {
 
   it('should fallback to old algorithm even when tags not provided', async () => {
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         feed_config_name: 'post_similarity',
         total_pages: 1,
         page_size: 3,
@@ -2496,6 +3077,69 @@ describe('query tagsCategories', () => {
     const res = await client.query(QUERY);
 
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query onboardingPersonas', () => {
+  const QUERY = `{
+    onboardingPersonas {
+      id
+      title
+      emoji
+      tags
+    }
+  }`;
+
+  it('should return personas ordered by sortOrder', async () => {
+    await saveFixtures(con, Persona, [
+      {
+        id: 'beta',
+        title: 'Beta Persona',
+        emoji: '🅱️',
+        tags: ['javascript', 'react'],
+        sortOrder: 2,
+      },
+      {
+        id: 'alpha',
+        title: 'Alpha Persona',
+        emoji: '🅰️',
+        tags: ['python', 'golang'],
+        sortOrder: 1,
+      },
+      {
+        id: 'gamma',
+        title: 'Gamma Persona',
+        emoji: '🅶',
+        tags: ['rust'],
+        sortOrder: 3,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      onboardingPersonas: [
+        {
+          id: 'alpha',
+          title: 'Alpha Persona',
+          emoji: '🅰️',
+          tags: ['python', 'golang'],
+        },
+        {
+          id: 'beta',
+          title: 'Beta Persona',
+          emoji: '🅱️',
+          tags: ['javascript', 'react'],
+        },
+        {
+          id: 'gamma',
+          title: 'Gamma Persona',
+          emoji: '🅶',
+          tags: ['rust'],
+        },
+      ],
+    });
   });
 });
 
@@ -3418,6 +4062,20 @@ describe('function feedToFilters', () => {
     expect(filters.excludeTypes).toEqual(['video:youtube']);
   });
 
+  it('should return filters having excluded standups based on advanced settings', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    await saveFixtures(con, FeedAdvancedSettings, [
+      { feedId: '1', advancedSettingsId: 8, enabled: false },
+    ]);
+
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeTypes).toEqual([
+      PostType.VideoYouTube,
+      PostType.LiveRoom,
+    ]);
+  });
+
   it('should return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
@@ -3697,7 +4355,7 @@ describe('query feedPreview', () => {
       },
     ]);
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         feed_config_name: 'onboarding',
         total_pages: 1,
         page_size: 20,
@@ -3720,7 +4378,7 @@ describe('query feedPreview', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 20,
         offset: 0,
@@ -4036,6 +4694,109 @@ describe('query feedList', () => {
       '1',
     );
   });
+
+  describe('includeTagChipFeeds arg', () => {
+    const QUERY_WITH_ARG = `
+      query FeedList($includeTagChipFeeds: Boolean) {
+        feedList(includeTagChipFeeds: $includeTagChipFeeds) {
+          edges {
+            node {
+              id
+              flags {
+                name
+                origin
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let getUserTagsSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      recommendTagsMock.mockReset();
+      recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
+      getUserTagsSpy = jest
+        .spyOn(feedClient, 'getUserTags')
+        .mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      getUserTagsSpy.mockRestore();
+    });
+
+    it('does not seed when omitted (default false)', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_ARG, { variables: {} });
+      expect(res.errors).toBeFalsy();
+
+      const chipFeeds = await con
+        .getRepository(Feed)
+        .createQueryBuilder('feed')
+        .where(`feed.flags->>'origin' = :origin`, {
+          origin: FeedOrigin.TagChip,
+        })
+        .getMany();
+      expect(chipFeeds).toHaveLength(0);
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
+      expect(recommendTagsMock).not.toHaveBeenCalled();
+    });
+
+    it('excludes existing tag-chip feeds from the response when omitted', async () => {
+      await con.getRepository(Feed).save({
+        id: 'tcfL1',
+        userId: '1',
+        flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+      });
+
+      const res = await client.query(QUERY_WITH_ARG, { variables: {} });
+      expect(res.errors).toBeFalsy();
+      const ids = res.data.feedList.edges.map((e) => e.node.id);
+      expect(ids).toEqual(expect.arrayContaining(['cf1', 'cf2', 'cf3']));
+      expect(ids).not.toContain('tcfL1');
+    });
+
+    it('seeds and returns tag-chip feeds when true', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_ARG, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const seededNames = res.data.feedList.edges
+        .filter((e) => e.node.flags.origin === FeedOrigin.TagChip)
+        .map((e) => e.node.flags.name);
+      expect(seededNames).toEqual(expect.arrayContaining(['javascript']));
+    });
+
+    it('returns existing tag-chip feeds and is idempotent when true', async () => {
+      await con.getRepository(Feed).save({
+        id: 'tcfL2',
+        userId: '1',
+        flags: { name: 'Rust', origin: FeedOrigin.TagChip },
+      });
+
+      const res = await client.query(QUERY_WITH_ARG, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+      const ids = res.data.feedList.edges.map((e) => e.node.id);
+      expect(ids).toContain('tcfL2');
+
+      const chipFeeds = await con
+        .getRepository(Feed)
+        .createQueryBuilder('feed')
+        .where('feed."userId" = :userId', { userId: '1' })
+        .andWhere(`feed.flags->>'origin' = :origin`, {
+          origin: FeedOrigin.TagChip,
+        })
+        .getMany();
+      expect(chipFeeds).toHaveLength(1);
+    });
+  });
 });
 
 describe('query getFeed', () => {
@@ -4215,19 +4976,20 @@ describe('mutation createFeed', () => {
     });
   });
 
-  it('should throw error when feed is created with invalid icon', async () => {
+  it('should accept any emoji as icon', async () => {
     loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          name: 'Cool feed',
-          icon: '😈',
-        },
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        name: 'Cool feed',
+        icon: '😈',
       },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    });
+
+    expect(res.data).toMatchObject({
+      createFeed: {
+        flags: { icon: '😈' },
+      },
+    });
   });
 
   it('should not create a new feed when name is missing', async () => {
@@ -4429,19 +5191,24 @@ describe('mutation updateFeed', () => {
     });
   });
 
-  it('should throw error when feed is updated with invalid icon', async () => {
+  it('should accept any emoji as icon when updating', async () => {
     loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          name: 'Cool feed',
-          icon: '💼',
-        },
+    isPlus = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+        name: 'Cool feed',
+        icon: '💼',
       },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    });
+
+    expect(res.data).toMatchObject({
+      updateFeed: {
+        id: 'cf1',
+        flags: { icon: '💼' },
+      },
+    });
   });
 
   it('should not update the feed when feedId is missing', async () => {
@@ -4792,7 +5559,7 @@ describe('query customFeed', () => {
     isPlus = true;
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 10,
         offset: 0,
@@ -4852,7 +5619,7 @@ describe('query customFeed', () => {
     isPlus = true;
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 10,
         offset: 0,
@@ -4888,7 +5655,7 @@ describe('query customFeed', () => {
     isPlus = true;
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 10,
         offset: 0,
@@ -4936,7 +5703,7 @@ describe('query customFeed', () => {
     isPlus = true;
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 10,
         offset: 0,
@@ -4966,21 +5733,73 @@ describe('query customFeed', () => {
     );
   });
 
-  it('should not return the feed by slug if not plus', async () => {
+  it('should let non-Plus users view a tag-chip feed and use the for_you_by_tag config', async () => {
     loggedUser = '1';
+    isPlus = false;
 
-    await testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: {
-          ranking: Ranking.POPULARITY,
-          first: 10,
-          feedId: 'cool-feed-cf1',
-        },
-      },
-      'FORBIDDEN',
-    );
+    await con.getRepository(Feed).save({
+      id: 'tcf1',
+      userId: '1',
+      flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+    });
+    await con.getRepository(ContentPreferenceKeyword).save({
+      feedId: 'tcf1',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    });
+
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, { data: [{ post_id: 'p1' }], cursor: 'b' });
+
+    const res = await client.query(QUERY, {
+      variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'tcf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed).toBeTruthy();
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.ForYouByTag);
+    expect(capturedBody.allowed_tags).toEqual(['webdev']);
+  });
+
+  it('should keep using CustomFeedV1 for Plus users on a tag-chip feed', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Feed).save({
+      id: 'tcf3',
+      userId: '1',
+      flags: { name: 'JavaScript', origin: FeedOrigin.TagChip },
+    });
+    await con.getRepository(ContentPreferenceKeyword).save({
+      feedId: 'tcf3',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    });
+
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, { data: [{ post_id: 'p1' }], cursor: 'b' });
+
+    await client.query(QUERY, {
+      variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'tcf3' },
+    });
+
+    expect(capturedBody.feed_config_name).toBe(FeedConfigName.CustomFeedV1);
   });
 
   it('should use sort config if order_by is set', async () => {
@@ -4997,7 +5816,7 @@ describe('query customFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/api/feed', {
         user_id: '1',
         page_size: 10,
         offset: 0,
@@ -5185,5 +6004,297 @@ describe('poll options ordering in feeds', () => {
       expect(option.order).toBe(expectedOrder[index].order);
       expect(option.text).toBe(expectedOrder[index].text);
     });
+  });
+});
+
+describe('query feedTagsList', () => {
+  const QUERY = /* GraphQL */ `
+    query FeedTagsList($limit: Int) {
+      feedTagsList(limit: $limit) {
+        tags {
+          value
+          label
+        }
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    recommendTagsMock.mockReset();
+  });
+
+  it('should require auth', async () => {
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { limit: 5 } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should fetch tags from feed service and cache them in user flags', async () => {
+    loggedUser = '1';
+    let capturedBody: Record<string, unknown> = {};
+    nock('http://localhost:6000')
+      .post('/api/user_tags', (body) => {
+        capturedBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: ['ai-coding', 'llm', 'claude-code', 'ai-agents', 'anthropic'],
+      });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
+    ]);
+    expect(capturedBody).toEqual({ user_id: '1', limit: 5 });
+    expect(recommendTagsMock).not.toHaveBeenCalled();
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
+    ]);
+  });
+
+  it('should resolve human-friendly labels from Keyword.flags.title', async () => {
+    loggedUser = '1';
+    await con.getRepository(Keyword).save([
+      { value: 'reactjs', status: 'allow', flags: { title: 'React.js' } },
+      { value: 'nodejs', status: 'allow', flags: { title: 'Node.js' } },
+    ]);
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['reactjs', 'nodejs', 'no-title-tag'] });
+
+    const res = await client.query(QUERY, { variables: { limit: 3 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'reactjs', label: 'React.js' },
+      { value: 'nodejs', label: 'Node.js' },
+      { value: 'no-title-tag', label: 'no-title-tag' },
+    ]);
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([
+      { value: 'reactjs', label: 'React.js' },
+      { value: 'nodejs', label: 'Node.js' },
+      { value: 'no-title-tag', label: 'no-title-tag' },
+    ]);
+  });
+
+  it('should return cached tags when fresh', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: {
+          feedTagsList: {
+            tags: [
+              { value: 'cached-tag-1', label: 'cached-tag-1' },
+              { value: 'cached-tag-2', label: 'Cached 2' },
+            ],
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'cached-tag-1', label: 'cached-tag-1' },
+      { value: 'cached-tag-2', label: 'Cached 2' },
+    ]);
+    // No nock interceptor set up — if getUserTags were called, the request would error.
+    expect(nock.pendingMocks()).toEqual([]);
+  });
+
+  it('should re-fetch when cache is older than 24h', async () => {
+    loggedUser = '1';
+    const stale = new Date();
+    stale.setDate(stale.getDate() - 2);
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: {
+          feedTagsList: {
+            tags: [{ value: 'stale-tag', label: 'stale-tag' }],
+            updatedAt: stale.toISOString(),
+          },
+        },
+      },
+    );
+
+    const userTagsScope = nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: [
+          'fresh-tag-1',
+          'fresh-tag-2',
+          'fresh-tag-3',
+          'fresh-tag-4',
+          'fresh-tag-5',
+        ],
+      });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'fresh-tag-1', label: 'fresh-tag-1' },
+      { value: 'fresh-tag-2', label: 'fresh-tag-2' },
+      { value: 'fresh-tag-3', label: 'fresh-tag-3' },
+      { value: 'fresh-tag-4', label: 'fresh-tag-4' },
+      { value: 'fresh-tag-5', label: 'fresh-tag-5' },
+    ]);
+    expect(userTagsScope.isDone()).toBe(true);
+  });
+
+  it('should reject limit greater than 30', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { limit: 31 } },
+      'ZOD_VALIDATION_ERROR',
+    );
+    expect(nock.pendingMocks()).toEqual([]);
+  });
+
+  it('should backfill with recswipe when feed returns fewer than limit', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['ai-coding', 'llm'] });
+
+    recommendTagsMock.mockResolvedValue({
+      recommended_tags: [
+        { tag: 'machine-learning', score: 0.9 },
+        { tag: 'pytorch', score: 0.8 },
+        { tag: 'tensorflow', score: 0.7 },
+      ],
+    });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'machine-learning', label: 'machine-learning' },
+      { value: 'pytorch', label: 'pytorch' },
+      { value: 'tensorflow', label: 'tensorflow' },
+    ]);
+    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
+      selectedTags: ['ai-coding', 'llm'],
+      n: 3,
+    });
+  });
+
+  it('should cache empty and return empty when feed service fails', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .replyWithError('feed service down');
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([]);
+    expect(recommendTagsMock).not.toHaveBeenCalled();
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([]);
+    expect(user?.flags?.feedTagsList?.updatedAt).toEqual(expect.any(String));
+  });
+
+  it('should dedupe overlap between feed and recswipe results', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['ai-coding', 'llm'] });
+
+    recommendTagsMock.mockResolvedValue({
+      recommended_tags: [
+        { tag: 'llm', score: 0.95 },
+        { tag: 'machine-learning', score: 0.9 },
+        { tag: 'pytorch', score: 0.8 },
+        { tag: 'tensorflow', score: 0.7 },
+      ],
+    });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'machine-learning', label: 'machine-learning' },
+      { value: 'pytorch', label: 'pytorch' },
+      { value: 'tensorflow', label: 'tensorflow' },
+    ]);
+  });
+
+  it('should dedupe duplicates within the feed-service response', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: ['rust', 'rust', 'golang', 'rust'] });
+
+    recommendTagsMock.mockResolvedValue({
+      recommended_tags: [
+        { tag: 'docker', score: 0.9 },
+        { tag: 'kubernetes', score: 0.8 },
+        { tag: 'python', score: 0.7 },
+      ],
+    });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'rust', label: 'rust' },
+      { value: 'golang', label: 'golang' },
+      { value: 'docker', label: 'docker' },
+      { value: 'kubernetes', label: 'kubernetes' },
+      { value: 'python', label: 'python' },
+    ]);
+  });
+
+  it('should re-fetch when cached updatedAt is more than 24h in the future', async () => {
+    loggedUser = '1';
+    const farFuture = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: {
+          feedTagsList: {
+            tags: [{ value: 'stale-future-tag', label: 'stale-future-tag' }],
+            updatedAt: farFuture.toISOString(),
+          },
+        },
+      },
+    );
+
+    const userTagsScope = nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: ['fresh-1', 'fresh-2', 'fresh-3', 'fresh-4', 'fresh-5'],
+      });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'fresh-1', label: 'fresh-1' },
+      { value: 'fresh-2', label: 'fresh-2' },
+      { value: 'fresh-3', label: 'fresh-3' },
+      { value: 'fresh-4', label: 'fresh-4' },
+      { value: 'fresh-5', label: 'fresh-5' },
+    ]);
+    expect(userTagsScope.isDone()).toBe(true);
   });
 });

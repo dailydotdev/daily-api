@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
+import { postTypes } from '../../entity/posts/Post';
 import {
   parseLimit,
   ensureDbConnection,
@@ -10,10 +11,12 @@ import {
   BookmarkedPostNode,
 } from './common';
 
+const FEED_SUPPORTED_TYPES = postTypes;
+
 // GraphQL query for bookmarks feed
 const BOOKMARKS_FEED_QUERY = `
-  query PublicApiBookmarksFeed($first: Int, $after: String, $unreadOnly: Boolean, $listId: ID) {
-    bookmarksFeed(first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId) {
+  query PublicApiBookmarksFeed($first: Int, $after: String, $unreadOnly: Boolean, $listId: ID, $supportedTypes: [String!]) {
+    bookmarksFeed(first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -27,8 +30,8 @@ const BOOKMARKS_FEED_QUERY = `
 
 // GraphQL query for searching bookmarks
 const SEARCH_BOOKMARKS_QUERY = `
-  query PublicApiSearchBookmarks($query: String!, $first: Int, $after: String, $unreadOnly: Boolean, $listId: ID) {
-    searchBookmarks(query: $query, first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId) {
+  query PublicApiSearchBookmarks($query: String!, $first: Int, $after: String, $unreadOnly: Boolean, $listId: ID, $supportedTypes: [String!]) {
+    searchBookmarks(query: $query, first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId, supportedTypes: $supportedTypes) {
       edges {
         node {
           ${POST_NODE_FIELDS}
@@ -203,6 +206,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             after: cursor ?? null,
             unreadOnly: unreadOnly ? true : null,
             listId: listId ?? null,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
@@ -298,6 +302,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             after: cursor ?? null,
             unreadOnly: unreadOnly ? true : null,
             listId: listId ?? null,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {

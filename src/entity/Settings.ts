@@ -26,6 +26,29 @@ export enum DefaultWriteTab {
   Poll = 'Poll',
 }
 
+export enum ShortcutsMode {
+  Auto = 'auto',
+  Manual = 'manual',
+}
+
+export enum ShortcutsAppearance {
+  Tile = 'tile',
+  Icon = 'icon',
+  Chip = 'chip',
+}
+
+export enum HighlightsPlacement {
+  Default = 'default',
+  Pinned = 'pinned',
+  Disabled = 'disabled',
+}
+
+export type ShortcutMeta = {
+  name?: string;
+  iconUrl?: string;
+  color?: string;
+};
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -33,10 +56,19 @@ export type SettingsFlags = Partial<{
   sidebarResourcesExpanded: boolean;
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
+  browsingContextEnabled: boolean;
+  highlightsPlacement: HighlightsPlacement;
   prompt: object;
   timezoneMismatchIgnore: string;
   lastPrompt: string;
   defaultWriteTab: DefaultWriteTab;
+  legacyPostLayoutOptOut: boolean;
+  highlightCardsOptOut: boolean;
+  readerInstallPromptAcknowledged: boolean;
+  shortcutsMode: ShortcutsMode;
+  shortcutsAppearance: ShortcutsAppearance;
+  showShortcutsOnWebapp: boolean;
+  shortcutMeta: Record<string, ShortcutMeta>;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -47,10 +79,19 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarResourcesExpanded'
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
+  | 'browsingContextEnabled'
+  | 'highlightsPlacement'
   | 'prompt'
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'
   | 'defaultWriteTab'
+  | 'legacyPostLayoutOptOut'
+  | 'highlightCardsOptOut'
+  | 'readerInstallPromptAcknowledged'
+  | 'shortcutsMode'
+  | 'shortcutsAppearance'
+  | 'showShortcutsOnWebapp'
+  | 'shortcutMeta'
 >;
 
 @Entity()
@@ -102,6 +143,9 @@ export class Settings {
   optOutQuestSystem: boolean;
 
   @Column({ default: false })
+  optOutAchievements: boolean;
+
+  @Column({ default: false })
   optOutCompanion: boolean;
 
   @Column({ type: 'text', default: SortCommentsBy.OldestFirst })
@@ -151,6 +195,7 @@ export const SETTINGS_DEFAULT = {
   optOutReadingStreak: false,
   optOutLevelSystem: false,
   optOutQuestSystem: false,
+  optOutAchievements: false,
   sortingEnabled: false,
   sortCommentsBy: SortCommentsBy.OldestFirst,
   campaignCtaPlacement: CampaignCtaPlacement.Header,

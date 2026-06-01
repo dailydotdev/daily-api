@@ -111,7 +111,12 @@ import {
 } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
-import { markdown, saveMentions } from '../common/markdown';
+import { renderMarkdown, saveMentions } from '../common/markdown';
+import {
+  MAX_POST_CONTENT_EMBEDS,
+  replaceContentEmbeds,
+} from '../common/contentEmbeds';
+import { ContentEmbed, ContentEmbedParentType } from '../entity/ContentEmbed';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
@@ -159,6 +164,7 @@ import {
 import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { PollPost } from '../entity/posts/PollPost';
+import type { LiveRoom } from '../entity/LiveRoom';
 
 export interface GQLPollOption {
   id: string;
@@ -206,9 +212,12 @@ export interface GQLPost {
   isScout?: number;
   isAuthor?: number;
   sharedPost?: GQLPost;
+  liveRoom?: LiveRoom;
+  liveRoomId?: string | null;
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+  contentEmbeds?: ContentEmbed[];
   downvoted?: boolean;
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
@@ -607,6 +616,11 @@ export const typeDefs = /* GraphQL */ `
     url: String
 
     """
+    Live room promoted by this post
+    """
+    liveRoom: LiveRoom
+
+    """
     Title of the post
     """
     title: String
@@ -762,6 +776,13 @@ export const typeDefs = /* GraphQL */ `
     sharedPost: Post
 
     """
+    Currently-active highlight for this post, across all significance tiers
+    (breaking, major, notable, routine). Null when no highlight is active or
+    it has expired.
+    """
+    postHighlight: PostHighlight
+
+    """
     Additional information required for analytics purposes
     """
     feedMeta: String
@@ -775,6 +796,11 @@ export const typeDefs = /* GraphQL */ `
     HTML Parsed content of the comment
     """
     contentHtml: String
+
+    """
+    Embeds extracted from standalone links in the post body.
+    """
+    contentEmbeds: [ContentEmbed!]!
 
     """
     Whether the user downvoted this post
@@ -926,6 +952,17 @@ export const typeDefs = /* GraphQL */ `
     The original query in case of a search operation
     """
     query: String
+  }
+
+  type ContentEmbed {
+    id: ID!
+    referenceType: String!
+    referenceId: String!
+    url: String!
+    sortOrder: Int!
+    startOffset: Int!
+    endOffset: Int!
+    post: Post
   }
 
   type LinkPreview {
@@ -1744,6 +1781,10 @@ export const typeDefs = /* GraphQL */ `
       Moderator message for the post
       """
       moderatorMessage: String
+      """
+      Whether this moderation decision was made by AI
+      """
+      aiModerated: Boolean
     ): [SourcePostModeration]! @auth
 
     """
@@ -1854,8 +1895,15 @@ const nullableImageType = [
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
 
-export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
-  `${process.env.URL_PREFIX}/r/${post.shortId}`;
+export const getPostPermalink = (
+  post: Pick<GQLPost, 'shortId' | 'type' | 'liveRoomId'>,
+): string => {
+  if (post.type === PostType.LiveRoom && post.liveRoomId) {
+    return `${process.env.COMMENTS_PREFIX}/standups/${post.liveRoomId}`;
+  }
+
+  return `${process.env.URL_PREFIX}/r/${post.shortId}`;
+};
 
 export const getPostByUrl = async (
   ctx: Context,
@@ -2584,7 +2632,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
-        await deletePost({ con: ctx.con, id, userId: ctx.userId });
+        await ctx.con.transaction(async (manager) => {
+          await deletePost({ con: manager, id, userId: ctx.userId });
+        });
         return { _: true };
       }
 
@@ -2788,7 +2838,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             post.sourceId,
           );
           updated.content = content;
-          updated.contentHtml = markdown.render(content, { mentions });
+          const { contentHtml, tokens } = renderMarkdown(content, { mentions });
+          updated.contentHtml = contentHtml;
           await saveMentions(
             manager,
             post.id,
@@ -2796,6 +2847,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             mentions,
             PostMention,
           );
+          await replaceContentEmbeds({
+            con: manager,
+            parentType: ContentEmbedParentType.Post,
+            parentId: post.id,
+            content,
+            tokens,
+            limit: MAX_POST_CONTENT_EMBEDS,
+          });
         }
 
         if (post.type === PostType.Welcome) {
@@ -3120,12 +3179,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         status,
         rejectionReason = null,
         moderatorMessage = null,
+        aiModerated = false,
       }: {
         postIds: string[];
       } & Pick<
         SourcePostModeration,
         'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
-      >,
+      > & { aiModerated?: boolean },
       ctx: AuthContext,
       info,
     ) => {
@@ -3175,6 +3235,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         update.rejectionReason = rejectionReason;
         update.moderatorMessage = moderatorMessage;
+      }
+
+      if (aiModerated) {
+        (update as Record<string, unknown>).flags =
+          updateFlagsStatement<SourcePostModeration>({
+            aiModerated: true,
+          });
       }
 
       await ctx.con

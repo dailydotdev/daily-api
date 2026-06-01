@@ -31,6 +31,10 @@ const counterMap = {
       description:
         'How many graphql operations have been performed, their operation type and name',
     },
+    graphqlErrors: {
+      name: 'graphql_errors',
+      description: 'How many graphql errors have been returned, by error code',
+    },
     rateLimit: {
       name: 'rate_limit',
       description: 'How many times a rate limit has been hit',

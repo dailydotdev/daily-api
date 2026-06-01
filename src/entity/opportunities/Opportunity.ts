@@ -44,6 +44,7 @@ export type OpportunityFlags = Partial<{
     trackingId?: string;
   } | null;
   parseError: string | null;
+  parseErrorUserMessage: string | null;
   isTrial: boolean;
   public_draft: boolean;
   sourceUrl: string | null;
@@ -52,7 +53,7 @@ export type OpportunityFlags = Partial<{
 
 export type OpportunityFlagsPublic = Pick<
   OpportunityFlags,
-  'batchSize' | 'plan' | 'showSlack' | 'showFeedback'
+  'batchSize' | 'plan' | 'showSlack' | 'showFeedback' | 'parseErrorUserMessage'
 >;
 
 @Entity()

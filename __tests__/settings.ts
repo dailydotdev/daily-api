@@ -121,6 +121,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded
       sidebarBookmarksExpanded
       clickbaitShieldEnabled
+      highlightsPlacement
       defaultWriteTab
     }
   }
@@ -157,6 +158,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
   });
@@ -176,6 +178,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
 
@@ -312,8 +315,40 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
+  });
+
+  it('should persist highlightsPlacement in user settings flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(repo.create({ userId: '1' }));
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { flags: { highlightsPlacement: 'pinned' } } },
+    });
+
+    expect(res.data.updateUserSettings.flags.highlightsPlacement).toBe(
+      'pinned',
+    );
+
+    const updated = await repo.findOneByOrFail({ userId: '1' });
+    expect(updated.flags.highlightsPlacement).toBe('pinned');
+  });
+
+  it('should reject invalid highlightsPlacement values', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { flags: { highlightsPlacement: 'bogus' } } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should update but not remove user settings flags', async () => {
@@ -347,6 +382,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      highlightsPlacement: null,
       defaultWriteTab: null,
     });
   });
@@ -462,6 +498,91 @@ describe('mutation updateUserSettings', () => {
 
     expect(res.data.updateUserSettings.onboardingChecklistView).toBe(
       ChecklistViewState.Open,
+    );
+  });
+
+  it('should round-trip shortcuts flags', async () => {
+    loggedUser = '1';
+
+    const SHORTCUTS_MUTATION = `
+      mutation UpdateUserSettings($data: UpdateSettingsInput!) {
+        updateUserSettings(data: $data) {
+          customLinks
+          flags {
+            shortcutsMode
+            shortcutsAppearance
+            showShortcutsOnWebapp
+            shortcutMeta
+          }
+        }
+      }`;
+
+    const res = await client.mutate(SHORTCUTS_MUTATION, {
+      variables: {
+        data: {
+          customLinks: ['https://daily.dev'],
+          flags: {
+            shortcutsMode: 'auto',
+            shortcutsAppearance: 'chip',
+            showShortcutsOnWebapp: true,
+            shortcutMeta: {
+              'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+            },
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings).toEqual({
+      customLinks: ['https://daily.dev'],
+      flags: {
+        shortcutsMode: 'auto',
+        shortcutsAppearance: 'chip',
+        showShortcutsOnWebapp: true,
+        shortcutMeta: {
+          'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+        },
+      },
+    });
+
+    const persisted = await con
+      .getRepository(Settings)
+      .findOneOrFail({ where: { userId: '1' } });
+    expect(persisted.flags).toMatchObject({
+      shortcutsMode: 'auto',
+      shortcutsAppearance: 'chip',
+      showShortcutsOnWebapp: true,
+      shortcutMeta: {
+        'https://daily.dev': { name: 'daily.dev', color: 'cabbage' },
+      },
+    });
+  });
+
+  it('should reject invalid shortcutsMode', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { flags: { shortcutsMode: 'bogus' } } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should reject malformed shortcutMeta', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: {
+            flags: { shortcutMeta: { 'https://x.com': 'not-an-object' } },
+          },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 });

@@ -26,7 +26,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
     ): Promise<string> => {
       if (!isValidHttpUrl(url) || !isAllowedShortenerUrl(url)) {
-        throw new ValidationError('Invalid url');
+        throw new ValidationError('Invalid URL');
       }
 
       const result = await getShortUrl(url, ctx.log);

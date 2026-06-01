@@ -3,10 +3,11 @@ import { customAlphabet } from 'nanoid/async';
 import { FastifyRequest } from 'fastify';
 import { counters } from './telemetry';
 
-const alphabet =
+export const alphabet =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+export const shortIdLength = 9;
 export const generateLongId = customAlphabet(alphabet, 21);
-export const generateShortId = customAlphabet(alphabet, 9);
+export const generateShortId = customAlphabet(alphabet, shortIdLength);
 export const generateVerifyCode = customAlphabet('1234567890', 6);
 export const generateUUID = () => randomUUID();
 

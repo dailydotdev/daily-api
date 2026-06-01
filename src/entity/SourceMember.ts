@@ -40,6 +40,9 @@ export class SourceMember {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  favoritedAt: Date | null;
+
   @Column({ type: 'text' })
   role: SourceMemberRoles;
 

@@ -16,7 +16,6 @@ declare global {
       TYPEORM_USERNAME: string;
       TYPEORM_PASSWORD: string;
       TYPEORM_DATABASE: string;
-      HEIMDALL_ORIGIN: string;
       ENABLE_PRIVATE_ROUTES: string;
       ACCESS_SECRET: string;
       ALLOCATION_QUEUE_CONCURRENCY: string;
@@ -34,8 +33,6 @@ declare global {
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
       COOKIES_KEY: string;
-      KRATOS_ORIGIN: string;
-      BETTER_AUTH_REDIRECT_URL?: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
       REDIS_HOST: string;
@@ -91,6 +88,9 @@ declare global {
       GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
       OUTBOUND_SERVICE_SECRET: string;
+      FLYTING_ORIGIN: string;
+      FLYTING_INTERNAL_KEY: string;
+      FLYTING_JOIN_TOKEN_SECRET: string;
 
       OTEL_SERVICE_NAME: string;
       OTEL_SERVICE_VERSION: string;
@@ -124,6 +124,12 @@ declare module 'fastify' {
   interface FastifyInstance {
     // Used for public API routes to access database
     con?: DataSource;
+  }
+}
+
+declare module 'mercurius' {
+  interface MercuriusContext {
+    graphqlOperationName?: string;
   }
 }
 
@@ -188,9 +194,15 @@ export enum UserVoteEntity {
   HotTake = 'hot_take',
 }
 
-export const maxFeedsPerUser = 20;
+export const maxFeedsPerUser = 35;
 
 export const maxBookmarksPerMutation = 10;
+
+export const RECOMMENDED_TAGS_LIMIT = 5;
+
+export const MIN_SEARCH_QUERY_LENGTH = 2;
+
+export const SEARCH_TAGS_LIMIT = 100;
 
 export enum BookmarkListCountLimit {
   Free = 0,

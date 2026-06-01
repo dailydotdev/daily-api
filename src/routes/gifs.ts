@@ -6,7 +6,7 @@ import {
   type Gif,
 } from '../entity/UserIntegration';
 import { logger } from '../logger';
-import { tenorClient } from '../integrations/tenor/clients';
+import { klipyClient } from '../integrations/gifs/clients';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
@@ -20,7 +20,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const limit = parseInt(query.limit ?? '10', 10);
       const pos = query.pos;
 
-      const result = await tenorClient.search({ q, limit, pos });
+      const result = await klipyClient.search({ q, limit, pos });
 
       return res.send(result);
     } catch (err) {

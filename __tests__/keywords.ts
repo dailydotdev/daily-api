@@ -192,8 +192,8 @@ describe('query keyword', () => {
 
 describe('mutation allowKeyword', () => {
   const MUTATION = `
-  mutation AllowKeyword($keyword: String!) {
-    allowKeyword(keyword: $keyword) {
+  mutation AllowKeyword($keyword: String!, $title: String) {
+    allowKeyword(keyword: $keyword, title: $title) {
       _
     }
   }`;
@@ -231,6 +231,65 @@ describe('mutation allowKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
+  });
+
+  it('should persist title to flags when provided', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'ai-coding', title: 'AI Coding' },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'ai-coding' });
+    expect(keyword?.status).toEqual('allow');
+    expect(keyword?.flags).toEqual({ title: 'AI Coding' });
+  });
+
+  it('should merge title into existing flags without overwriting other keys', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'llm',
+      occurrences: 20,
+      flags: { description: 'Large language model', onboarding: true },
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'llm', title: 'LLM' },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'llm' });
+    expect(keyword?.status).toEqual('allow');
+    expect(keyword?.flags).toEqual({
+      title: 'LLM',
+      description: 'Large language model',
+      onboarding: true,
+    });
+  });
+
+  it('should leave existing flags untouched when title is omitted', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'rust',
+      occurrences: 20,
+      flags: { title: 'Rust', description: 'A systems language' },
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'rust' },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'rust' });
+    expect(keyword?.status).toEqual('allow');
+    expect(keyword?.flags).toEqual({
+      title: 'Rust',
+      description: 'A systems language',
+    });
   });
 });
 

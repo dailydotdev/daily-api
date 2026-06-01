@@ -28,12 +28,11 @@ describe('POST /public/v1/feeds/custom', () => {
   it('should require name', async () => {
     const token = await createTokenForUser(state.con, '5');
 
-    // Server returns 500 for schema validation errors due to global error handler
     await request(state.app.server)
       .post('/public/v1/feeds/custom')
       .set('Authorization', `Bearer ${token}`)
       .send({ icon: '🚀' })
-      .expect(500);
+      .expect(400);
   });
 });
 
@@ -85,7 +84,7 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
 
     // Mock the feed service
     nock('http://localhost:6000')
-      .post('/feed.json')
+      .post('/api/feed')
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p2' }],
         cursor: null,

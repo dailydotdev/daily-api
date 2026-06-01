@@ -17,6 +17,7 @@ import {
   FreeformPost,
   WelcomePost,
   SharePost,
+  LiveRoomPost,
 } from '../entity/posts';
 
 export type GQLUserIntegration = {
@@ -125,8 +126,9 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
     }
     case PostType.Freeform:
     case PostType.Welcome:
+    case PostType.LiveRoom:
     case PostType.Brief: {
-      const freeformPost = post as FreeformPost & WelcomePost;
+      const freeformPost = post as FreeformPost & WelcomePost & LiveRoomPost;
 
       if (freeformPost.title) {
         attachment.title = freeformPost.title;

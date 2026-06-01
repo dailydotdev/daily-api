@@ -72,15 +72,13 @@ config:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
     growthbookClientKey:
       secure: AAABAIVkkeJGes/CVRjekXu8GfXXhC9FihKkcb2C4peMA7yS7HbO52uViOrP5uIFmgAQ2A==
-    heimdallOrigin: http://heimdall-api.heimdall
-    internalFeed: http://feed.feed.svc.cluster.local/api/feed?
+    internalFeed: http://feed.feed.svc.cluster.local
     jwtAudience:
       secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
     jwtIssuer:
       secure: AAABAG0AuSVweFAmuLEMRDzVrVKMoXasHIRf0Md6aIyBlqTbvvCWDzU=
     jwtSecret:
       secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
-    kratosOrigin: http://heimdall-kratos-public.heimdall
     lofnOrigin: http://lofn-config-api.lofn
     magniOrigin: http://magni-search-api
     meiliIndex:
@@ -108,7 +106,7 @@ config:
     paddleEnvironment: production
     paddleWebhookSecret:
       secure: AAABAMlKmiJ3FUQOJKHlOEbgpKnYDi6z62jEVcWDLdvhWuqRAah/dUZrgF9aISC86B56vR9M0wbp2/C7gJVy5if2n+O25cz6VJtJpSvgkSkfua6kDHX1qzNe1ewqxYh6VOBz1zLH
-    personalizedDigestFeed: http://feed-digest-server.feed/api/personalised
+    personalizedDigestFeed: http://feed-digest-server.feed
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
     postScraperOrigin: http://post-scraper-one-ai-server.content.svc.cluster.local
@@ -202,6 +200,9 @@ config:
     tenorApiKey:
       secure: AAABAApa5GEV473b7T+WtKazqzPbyQDc7qFT3SZjqmU1LL1n24jwcpn2/bwRINsUz4vwduduqh0/0ey1JpoWfEFJ1LvxlLk=
     tenorGifSearchUrl: https://tenor.googleapis.com/v2/search
+    klipyApiKey:
+      secure: AAABADCz8pDVkU6+4S9ePSsZZns8/GmH89qpZpXK51LLA52CMXrY8ktOI9+MHLzROb8neJ371IP/UxnLlPzX++wFTmRtC7q++KgM2Qi8xWDAli88vVmy54lLDjJUvUgk
+    klipyGifSearchUrl: https://api.klipy.com/v2/search
     gondulOpportunityServerOrigin:
       secure: AAABADfUUbSK5WvKYJM6lgpfvaPChqDYdUolX6Kv6/TMy0D7hWJWPbkipmq9W8vXbkuM97XzU2RlJGFB/9eiVfEdB6jBvu2C9iu5GbJ276481jB8Q+lw1do=
     intercomSecretKey:
@@ -239,11 +240,11 @@ config:
     brandDevApiKey:
       secure: AAABADzaXl3Rom9QsMVgGtWwvGejxfHgUk/nM+uc/2p777yB5eT8ppDPUyssld6ipcXjpKpF+mfr/IanuBo5U9pj8M1ntw==
     twitterBearerToken:
-      secure: AAABAM40I6hXKdm/8cjBZBTR+00tTGatLi7WBMGmwoslDjqasqWy3hyMsQFLQQ8gaYuod7yaIhLVXqbeSc39CykCivJRaooukd7Vn8BKTmNHQuyJ3PdmF1FUSmOVci1nVL/L5AWB5pWD5vRbqm+e+nJzsXA1rjgmh+y7+qxnxl82JeOqxCxuTzZn+F4i0WfNhkc=
+      secure: AAABAHs0QZnsuqiiSZp9Bwjy4Ups9jOeKO+AN4xf6J9rZ3mdBAHkTUpDZH4v2nj5oPVpiTbVP5iYbblNsGBRjHR9Zzk7kGKuA4HaGGkthMuTVgxAO4inFzpovCx6u0n0u7BdXcKxG/1BpexLAZIYeGJNDDH1Rx5NoiqaVizMF50ydiObHKFor/ind98hzOoWA+j3Uw==
     betterAuthSecret:
       secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
     betterAuthBaseUrl: https://api.daily.dev
-    betterAuthTrustedOrigins: https://app.daily.dev
+    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.app.daily.dev
     betterAuthRedirectUrl: https://sso.daily.dev/api
     googleClientId:
       secure: AAABAKpAJnPFQwwZoZubPX++3FKQhi0/gw+Kh6AP0Ax7GApzkXoxOUXYrezrUyf02MIzIrsNlJAeZisv6p12U0ziCdKKhj7Jv/CZThEX9FB8uSWArHS68NdrQkcTL8gUk/PK/GU4cAM=
@@ -257,10 +258,19 @@ config:
       secure: AAABAEfjThwIBs0n3204XYFwZxshz0PuyY1bW1STItI8wzIb9z8WZcGcVpLHER0=
     facebookClientSecret:
       secure: AAABAPPqGlgKF6TZr2fIXHfVNcQEnRwrFfEScvb5Ogi+BEI9z9nSz47AF0KDM/dnSrV9ijKcRGloq3d3M34QAQ==
-    appleClientSecret:
-      secure: AAABANU4dhuW72E0PeXkpvEy3S4G1K25dkUXuY6Wb0Z8r/yN29vG+zklxwW7ZJsWpUcf306DVFVdSnKtqB8bFMbCI5lQH7GTvRo7uBI69BlruexXl9zpWDu53/hRZxzVZYXVUaxrkk7eog7vybLw/HCG8SqdEKg8La6dCXOTK8NaUwpL2VKfA9OTguTeD0JJKPutEW2qvYVYON+ECKV+J9chAyVONOBIiHcozNnIHSsqCEQy3unpmk/WgPLbNn9Vs+jtOerZNwhnZi4ddlLjXidWQhd9dIyTq5ETW1DUSzhaa7oo/x6KPnTqDZzn6GeR74uYiC65eXzdWwPlIBU4KzxQbSoKmswQt9UqucqYInd/IcvmPaYxkamqFnT8OdfSdGcz2/oBvmT+YLR4MXgpaZu0pLz7viVSfv4V8TUtGx95/OL3
     appleClientId:
       secure: AAABABe5GePYDxcK+9QGqmQV7zE3Pv5wWtGkfFOV1MosH+KVFIfK6Is=
+    googleIosClientId:
+      secure: AAABAENK/HL3DH78uShJwePe91GmOlM4YkNuaLsXkPrWp8p6tvW5XAlTMCN5XCSFCkQog94YZHEO0idbBTKPF1H727qb7XvUqVjkEP8yY7Sf77geK2VHUN+NMAkkeuaFar5dlJUkqCY=
+    snotraUserApiOrigin:
+      secure: AAABADX/8nmDxoZRpWxaAYCBL52wANtG5kR34DGnQgBkZKd0DKaxc8DQyXbRt/XuhNfj2+vI3xfDeSThDWlzKQFCNK0fAO4IUcuRBdDx6Q==
+    flytingOrigin: http://flyting.daily.svc.cluster.local:3000
+    flytingJoinTokenSecret:
+      secure: AAABAALaAGQ1uwwU5q3Ep8ro0VNLMUyhrb3MR8zm6FqHe83mdrCNuAFlcYhgvWaiBlI46U4j4zbjuT44xYV31ew6S9IRsMs6mZEBRPq+tIQiGBdM9j0sRU/unVaPDpBa
+    flytingInternalKey:
+      secure: AAABANX83TDkPUQk7zofUmwW7Y8iGjKRMi1qjYQEcYwFcsraNkMXo48lLNRFKNFfGFNC6kNl+5QAHkzURLLP5MQxP7KIAyKUBMOEGFI3ft3YiYVhENmcymvVNfoP0pBk
+    recswipeOrigin:
+      secure: AAABAA85JTyvqc0H0ymWJ4UZ+btCk31WpH78pgaNOIiIRKW9jr6p7W1xBMzmCbO6vBfL90LeadptoNV9KQnaPnsmIVlQhTDEERY17PoQ
   api:k8s:
     host: subs.daily.dev
     namespace: daily
@@ -271,3 +281,11 @@ config:
       secure: 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
   gcp:project: devkit-prod
   gcp:region: us-central1
+  api:tag: 8a7bc7c1afab1d2bce67a6bc22e1be2662135cc4
+  api:appleAuth:
+    teamId:
+      secure: AAABACONn3aOuJjNxn+VlHZL1YCA7swTqY6JzEGvnhcMtawnjot1qAOb
+    keyId:
+      secure: AAABAH16I8xQAJjTyasPQzLDqd3AAo7q4dMEBGHVbgJJVvSviQelQT09
+    signingKey:
+      secure: AAABAGxRaqkffmtnKxeVFwStkBB2QUM1t5XtIOBJN0T/AcAJOac8oaovU/4H41JxFS5tnOOvWqN6HLvyejByOZ6UtxF6DqC27mvRiOKu863MKg7JrL3wPhHqEEgDJmdoGfqJw4Yady/CLRMqn58TCUwwNHRlcESng2RmwT9+BDXZywRFXfE5NKp41qLtLeOU6piAooQghHjVX6EQd8AG9Ffl2ehijRcwNnpgkQR8oz1V+Ilat6fvn9qQT1bjrBSE6oagdOxeLBdsVOmoa0H6ZbocsGmtvETEypK1uW62QD/Ar2PYtRSsFhvY9YiUf5qMxa6Kp1fJ4IdupoOKaAZY3yHlTFHXkU6pg0GGpfhktfaEgZaEgxcoknpQzPwEknjiAQ==
