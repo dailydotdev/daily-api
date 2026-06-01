@@ -7694,7 +7694,7 @@ describe('mutation updateNotificationSettings', () => {
     expect(user?.acceptedMarketing).toBeFalsy();
   });
 
-  it('should throw error because of invalid notification flags', async () => {
+  it('should ignore invalid notification flags', async () => {
     loggedUser = '1';
 
     const updatedFlags = {
@@ -7705,14 +7705,16 @@ describe('mutation updateNotificationSettings', () => {
       },
     };
 
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { notificationFlags: updatedFlags },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { notificationFlags: updatedFlags },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+    expect(user).not.toBeNull();
+    expect(user?.notificationFlags['new_pokemon']).toBeUndefined();
   });
 });
 

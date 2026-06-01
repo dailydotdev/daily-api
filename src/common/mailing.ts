@@ -14,6 +14,7 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  type UserNotificationFlags,
 } from '../entity';
 import { blockingBatchRunner, callWithRetryDefault } from './async';
 import {
@@ -149,15 +150,16 @@ export const syncSubscription = async function (
         ...(user?.notificationFlags || {}),
       };
 
-      const mergedNotificationFlags = getCioTopicsToNotificationFlags(
-        subs,
-        existingFlags,
-      );
+      const mergedNotificationFlagsPreValidation =
+        getCioTopicsToNotificationFlags(subs, existingFlags);
 
       const validation = notificationFlagsSchema.safeParse(
-        mergedNotificationFlags,
+        mergedNotificationFlagsPreValidation,
       );
       if (validation.success) {
+        const mergedNotificationFlags =
+          validation.data as UserNotificationFlags;
+
         await manager.getRepository(User).update(
           { id: customer.id },
           {
@@ -171,7 +173,7 @@ export const syncSubscription = async function (
           {
             userId: customer.id,
             errors: validation.error.issues,
-            flags: mergedNotificationFlags,
+            flags: mergedNotificationFlagsPreValidation,
           },
           'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
         );
