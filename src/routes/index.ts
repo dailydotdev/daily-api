@@ -23,6 +23,7 @@ import gifs from './gifs';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
 import outbound from './outbound';
 import betterAuth from './betterAuth';
+import emailTracking from './emailTracking';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -46,6 +47,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     { prefix: '/notifications' },
   );
   fastify.register(redirector, { prefix: '/r' });
+  fastify.register(emailTracking, { prefix: '/em/t' });
   fastify.register(devcards, { prefix: '/devcards' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });

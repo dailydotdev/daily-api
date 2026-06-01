@@ -30,6 +30,7 @@ declare global {
       CIO_REPORTING_WEBHOOK_SECRET: string;
       CIO_WEBHOOK_SECRET: string;
       COMMENTS_PREFIX: string;
+      EMAIL_TRACKING_ORIGIN?: string;
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
       COOKIES_KEY: string;
