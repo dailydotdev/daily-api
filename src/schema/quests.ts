@@ -29,6 +29,11 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
+
+import {
+  AchievementEventType,
+  checkAchievementProgress,
+} from '../common/achievement';
 import { NotFoundError } from '../errors';
 import { redisPubSub } from '../redis';
 import { GQLEmptyResponse } from './common';
@@ -782,6 +787,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         userId: ctx.userId,
         updatedAt: now,
       });
+
+      await checkAchievementProgress(
+        ctx.con,
+        ctx.log,
+        ctx.userId,
+        AchievementEventType.QuestClaim,
+      );
 
       return dashboard;
     },
