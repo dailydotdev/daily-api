@@ -4620,6 +4620,7 @@ describe('query feedList', () => {
         flags: {
           name: 'Cool feed',
         },
+        createdAt: new Date('2024-01-03T00:00:00Z'),
       },
       {
         id: 'cf2',
@@ -4627,6 +4628,7 @@ describe('query feedList', () => {
         flags: {
           name: 'PHP feed',
         },
+        createdAt: new Date('2024-01-01T00:00:00Z'),
       },
       {
         id: 'cf3',
@@ -4634,6 +4636,7 @@ describe('query feedList', () => {
         flags: {
           name: 'Awful feed',
         },
+        createdAt: new Date('2024-01-02T00:00:00Z'),
       },
     ]);
   });
@@ -4644,7 +4647,7 @@ describe('query feedList', () => {
     return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
   });
 
-  it('should return the feed list', async () => {
+  it('should return the feed list ordered by createdAt ascending', async () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
@@ -4654,16 +4657,6 @@ describe('query feedList', () => {
           hasNextPage: false,
         },
         edges: [
-          {
-            node: {
-              id: 'cf1',
-              userId: '1',
-              flags: {
-                name: 'Cool feed',
-              },
-              slug: 'cool-feed-cf1',
-            },
-          },
           {
             node: {
               id: 'cf2',
@@ -4682,6 +4675,16 @@ describe('query feedList', () => {
                 name: 'Awful feed',
               },
               slug: 'awful-feed-cf3',
+            },
+          },
+          {
+            node: {
+              id: 'cf1',
+              userId: '1',
+              flags: {
+                name: 'Cool feed',
+              },
+              slug: 'cool-feed-cf1',
             },
           },
         ],

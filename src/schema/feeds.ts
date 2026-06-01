@@ -2377,11 +2377,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             );
           }
 
-          builder.queryBuilder.limit(page.limit);
+          builder.queryBuilder
+            .addOrderBy(`${builder.alias}."createdAt"`, 'ASC')
+            .limit(page.limit);
 
           if (page.timestamp) {
             builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
+              `${builder.alias}."createdAt" > :timestamp`,
               { timestamp: page.timestamp },
             );
           }
