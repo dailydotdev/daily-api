@@ -11,8 +11,8 @@ import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
 import { redisPubSub } from '../redis';
 import type { OffsetPage } from './common';
+import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import {
-  PostHighlight,
   PostHighlightSignificance,
   toPostHighlightSignificance,
 } from '../entity/PostHighlight';
@@ -30,16 +30,15 @@ type GQLChannelConfiguration = {
 };
 
 type GQLSubscribedPostHighlight = Pick<
-  PostHighlight,
+  HighlightsCanonical,
   | 'id'
   | 'post'
   | 'postId'
-  | 'channel'
   | 'highlightedAt'
   | 'headline'
   | 'createdAt'
   | 'updatedAt'
->;
+> & { channel: string };
 
 export const typeDefs = /* GraphQL */ `
   type ChannelDigestConfiguration {
@@ -86,14 +85,14 @@ export const typeDefs = /* GraphQL */ `
     postHighlights(channel: String!): [PostHighlight!]!
 
     """
-    Get major headlines across all channels, deduplicated by post and ordered by recency
+    Get major canonical headlines across all channels, ordered by recency
     """
     majorHeadlines(first: Int, after: String): PostHighlightConnection!
 
     """
-    Get highlights deduplicated by post and ordered by recency.
-    Accepts optional channel and significance filters so it can power per-channel,
-    major-headlines and global feeds from a single endpoint.
+    Get canonical highlights ordered by recency.
+    Accepts optional channel and significance filters for channel-specific and
+    global feeds from a single endpoint.
     """
     postHighlightsFeed(
       channel: String
@@ -126,42 +125,27 @@ type HighlightsFilters = {
   significances?: PostHighlightSignificance[];
 };
 
-const applyHighlightsFilters = <T extends PostHighlight>(
+const applyHighlightsFilters = <T extends HighlightsCanonical>(
   builder: SelectQueryBuilder<T>,
+  alias: string,
   { channel, significances }: HighlightsFilters,
 ): SelectQueryBuilder<T> => {
-  let qb = builder.where('highlight."retiredAt" IS NULL');
+  builder.setParameter('highlightChannel', channel ?? null);
 
   if (significances && significances.length > 0) {
-    qb = qb.andWhere('highlight.significance IN (:...significances)', {
+    builder.andWhere(`"${alias}"."significance" IN (:...significances)`, {
       significances,
     });
   }
 
   if (channel) {
-    qb = qb.andWhere('highlight.channel = :channel', { channel });
+    builder.andWhere(`:highlightChannel = ANY("${alias}"."channels")`);
   }
 
-  return qb;
+  return builder;
 };
 
-const getDedupedHighlightsQuery = (
-  queryBuilder: SelectQueryBuilder<PostHighlight>,
-  filters: HighlightsFilters,
-) =>
-  applyHighlightsFilters(
-    queryBuilder
-      .subQuery()
-      .select('highlight.id', 'id')
-      .from(PostHighlight, 'highlight'),
-    filters,
-  )
-    .distinctOn(['highlight.postId'])
-    .orderBy('highlight.postId', 'ASC')
-    .addOrderBy('highlight.highlightedAt', 'DESC')
-    .addOrderBy('highlight.id', 'DESC');
-
-const resolveDedupedHighlightsFeed = (
+const resolveCanonicalHighlightsFeed = (
   ctx: Context,
   info: GraphQLResolveInfo,
   args: ConnectionArguments,
@@ -176,20 +160,13 @@ const resolveDedupedHighlightsFeed = (
     (nodeSize) => nodeSize >= page.limit,
     (_, index) => offsetToCursor(page.offset + index),
     (builder) => {
-      const dedupedIdsQuery = getDedupedHighlightsQuery(
-        builder.queryBuilder as SelectQueryBuilder<PostHighlight>,
+      builder.queryBuilder = applyHighlightsFilters(
+        builder.queryBuilder as SelectQueryBuilder<HighlightsCanonical>,
+        builder.alias,
         filters,
-      );
-
-      builder.queryBuilder
-        .innerJoin(
-          `(${dedupedIdsQuery.getQuery()})`,
-          'deduped',
-          `deduped.id = ${builder.alias}.id`,
-        )
-        .setParameters(dedupedIdsQuery.getParameters())
-        .orderBy(`${builder.alias}."highlightedAt"`, 'DESC')
-        .addOrderBy(`${builder.alias}."id"`, 'DESC')
+      )
+        .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
+        .addOrderBy(`"${builder.alias}"."id"`, 'DESC')
         .offset(page.offset)
         .limit(page.limit);
 
@@ -235,17 +212,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         info,
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."channel" = :channel`, {
-              channel: args.channel,
+            .where(`:highlightChannel = ANY("${builder.alias}"."channels")`, {
+              highlightChannel: args.channel,
             })
-            .andWhere(`"${builder.alias}"."retiredAt" IS NULL`)
-            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC');
+            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
+            .addOrderBy(`"${builder.alias}"."id"`, 'DESC');
           return builder;
         },
         true,
       ),
     majorHeadlines: async (_, args: ConnectionArguments, ctx: Context, info) =>
-      resolveDedupedHighlightsFeed(ctx, info, args, {
+      resolveCanonicalHighlightsFeed(ctx, info, args, {
         significances: majorHeadlineSignificances,
       }),
     postHighlightsFeed: async (
@@ -254,7 +231,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: Context,
       info,
     ) =>
-      resolveDedupedHighlightsFeed(ctx, info, args, {
+      resolveCanonicalHighlightsFeed(ctx, info, args, {
         channel: args.channel,
         significances: parseSignificanceFilters(args.significance),
       }),

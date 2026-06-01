@@ -749,7 +749,6 @@ const obj = new GraphORM({
               .andWhere(`${childAlias}."significance" != :unspecified`, {
                 unspecified: PostHighlightSignificance.Unspecified,
               })
-              .andWhere(`${childAlias}."retiredAt" IS NULL`)
               .andWhere(
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
                 { ttlSeconds: getPostHighlightTtlSeconds() },
@@ -2773,7 +2772,15 @@ const obj = new GraphORM({
     },
   },
   PostHighlight: {
+    from: 'HighlightsCanonical',
+    requiredColumns: ['postId'],
+    additionalQuery: (_ctx, _alias, qb): QueryBuilder =>
+      qb.setParameter('highlightChannel', null),
     fields: {
+      channel: {
+        select: (_ctx, alias) =>
+          `coalesce(:highlightChannel, "${alias}"."channels"[1], '')`,
+      },
       significance: {
         transform: (value: PostHighlightSignificance) =>
           toPostHighlightSignificanceLabel(value),

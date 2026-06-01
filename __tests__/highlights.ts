@@ -11,11 +11,9 @@ import createOrGetConnection from '../src/db';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
 import { ChannelDigest } from '../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
+import { HighlightsCanonical } from '../src/entity/HighlightsCanonical';
 import { Source, SourceType } from '../src/entity/Source';
-import {
-  PostHighlight,
-  PostHighlightSignificance,
-} from '../src/entity/PostHighlight';
+import { PostHighlightSignificance } from '../src/entity/PostHighlight';
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 
@@ -91,12 +89,26 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await con.getRepository(ChannelDigest).clear();
   await con.getRepository(ChannelHighlightDefinition).clear();
-  await con.getRepository(PostHighlight).clear();
+  await con.getRepository(HighlightsCanonical).clear();
   await con.getRepository(ArticlePost).delete(['h1', 'h2', 'h3', 'h4']);
   await con
     .getRepository(Source)
     .delete(['a', 'b', 'c', 'backend_digest', 'career_digest']);
 });
+
+const saveCanonicalHighlights = (
+  highlights: Array<
+    Partial<HighlightsCanonical> & {
+      channel?: string;
+    }
+  >,
+): Promise<HighlightsCanonical[]> =>
+  con.getRepository(HighlightsCanonical).save(
+    highlights.map(({ channel, channels, ...highlight }) => ({
+      ...highlight,
+      channels: channels ?? (channel ? [channel] : []),
+    })),
+  );
 
 const QUERY = `
   query PostHighlights($channel: String!) {
@@ -269,7 +281,7 @@ describe('query postHighlights', () => {
 
   it('should return highlights ordered by highlightedAt desc', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h2',
         channel: 'happening-now',
@@ -313,7 +325,7 @@ describe('query postHighlights', () => {
 
   it('should filter by channel', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'happening-now',
@@ -340,54 +352,15 @@ describe('query postHighlights', () => {
       post: { id: 'h2' },
     });
   });
-
-  it('should hide retired highlights', async () => {
-    await createTestPosts();
-    await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T10:00:00.000Z'),
-        headline: 'Still live',
-        retiredAt: null,
-      },
-      {
-        postId: 'h2',
-        channel: 'happening-now',
-        highlightedAt: new Date('2026-03-19T10:05:00.000Z'),
-        headline: 'Retired headline',
-        retiredAt: new Date('2026-03-19T10:10:00.000Z'),
-      },
-    ]);
-
-    const res = await client.query(QUERY, {
-      variables: { channel: 'happening-now' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.postHighlights).toHaveLength(1);
-    expect(res.data.postHighlights[0]).toMatchObject({
-      channel: 'happening-now',
-      headline: 'Still live',
-      post: { id: 'h1' },
-    });
-  });
 });
 
 describe('query majorHeadlines', () => {
-  it('should return only breaking and major headlines deduplicated by postId', async () => {
+  it('should return only breaking and major headlines ordered by highlightedAt desc', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
-        channel: 'agentic',
-        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
-        headline: 'Major agentic headline',
-        significance: PostHighlightSignificance.Major,
-      },
-      {
-        postId: 'h1',
-        channel: 'vibes',
+        channels: ['vibes', 'agentic'],
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Newer breaking headline',
         significance: PostHighlightSignificance.Breaking,
@@ -446,7 +419,7 @@ describe('query majorHeadlines', () => {
 
   it('should paginate major headlines ordered by highlightedAt desc', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -493,56 +466,15 @@ describe('query majorHeadlines', () => {
       secondPage.data.majorHeadlines.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
   });
-
-  it('should exclude retired major headlines', async () => {
-    await createTestPosts();
-    await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'vibes',
-        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
-        headline: 'Live breaking headline',
-        significance: PostHighlightSignificance.Breaking,
-        retiredAt: null,
-      },
-      {
-        postId: 'h2',
-        channel: 'agentic',
-        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
-        headline: 'Retired major headline',
-        significance: PostHighlightSignificance.Major,
-        retiredAt: new Date('2026-03-19T10:45:00.000Z'),
-      },
-    ]);
-
-    const res = await client.query(MAJOR_HEADLINES_QUERY, {
-      variables: { first: 10 },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.majorHeadlines.edges).toHaveLength(1);
-    expect(res.data.majorHeadlines.edges[0].node).toMatchObject({
-      channel: 'vibes',
-      headline: 'Live breaking headline',
-      post: { id: 'h1' },
-    });
-  });
 });
 
 describe('query postHighlightsFeed', () => {
-  it('should return all highlights deduplicated by post and ordered desc when no filters are provided', async () => {
+  it('should return all highlights ordered desc when no filters are provided', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
-        channel: 'agentic',
-        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
-        headline: 'Older agentic',
-        significance: PostHighlightSignificance.Major,
-      },
-      {
-        postId: 'h1',
-        channel: 'vibes',
+        channels: ['vibes', 'agentic'],
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Newer vibes',
         significance: PostHighlightSignificance.Breaking,
@@ -593,7 +525,7 @@ describe('query postHighlightsFeed', () => {
 
   it('should filter by channel', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -630,7 +562,7 @@ describe('query postHighlightsFeed', () => {
 
   it('should filter by significance', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -674,7 +606,7 @@ describe('query postHighlightsFeed', () => {
 
   it('should combine channel and significance filters', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -717,7 +649,7 @@ describe('query postHighlightsFeed', () => {
 
   it('should ignore unknown significance values', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -744,7 +676,7 @@ describe('query postHighlightsFeed', () => {
 
   it('should paginate ordered by highlightedAt desc', async () => {
     await createTestPosts();
-    await con.getRepository(PostHighlight).save([
+    await saveCanonicalHighlights([
       {
         postId: 'h1',
         channel: 'vibes',
@@ -790,39 +722,5 @@ describe('query postHighlightsFeed', () => {
     expect(
       secondPage.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
-  });
-
-  it('should exclude retired highlights', async () => {
-    await createTestPosts();
-    await con.getRepository(PostHighlight).save([
-      {
-        postId: 'h1',
-        channel: 'vibes',
-        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
-        headline: 'Live headline',
-        significance: PostHighlightSignificance.Breaking,
-        retiredAt: null,
-      },
-      {
-        postId: 'h2',
-        channel: 'agentic',
-        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
-        headline: 'Retired headline',
-        significance: PostHighlightSignificance.Major,
-        retiredAt: new Date('2026-03-19T10:45:00.000Z'),
-      },
-    ]);
-
-    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
-      variables: { first: 10 },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.postHighlightsFeed.edges).toHaveLength(1);
-    expect(res.data.postHighlightsFeed.edges[0].node).toMatchObject({
-      channel: 'vibes',
-      headline: 'Live headline',
-      post: { id: 'h1' },
-    });
   });
 });
