@@ -19,6 +19,18 @@ import {
 import { LofnClient } from '../lofn';
 import { GarmrService } from '../garmr';
 import { FeedOrderBy } from '../../entity/Feed';
+import { postTypes } from '../../entity/posts/Post';
+
+// for_you_by_date skips Lofn, so default allowed_post_types to all types to
+// mirror For You; client supportedTypes and user exclusions still take priority.
+const ensureAllowedPostTypes = (
+  result: FeedConfigGeneratorResult,
+): FeedConfigGeneratorResult => {
+  if (result.config.allowed_post_types == null) {
+    result.config.allowed_post_types = postTypes;
+  }
+  return result;
+};
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -169,7 +181,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
         },
       ),
       'time',
-    ),
+    ).withConfigTransform(ensureAllowedPostTypes),
     onboarding: new FeedGenerator(
       feedClient,
       new FeedPreferencesConfigGenerator(
@@ -213,5 +225,5 @@ export const versionToTimeFeedGenerator = (_version: number): FeedGenerator => {
       },
       opts,
     ),
-  );
+  ).withConfigTransform(ensureAllowedPostTypes);
 };
