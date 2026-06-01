@@ -7,7 +7,7 @@ const notificationPreferenceSchema = z.object({
   inApp: z.enum(['muted', 'subscribed']),
 });
 
-export const notificationFlagsSchema = z.strictObject({
+export const notificationFlagsSchema = z.object({
   [NotificationType.ArticleNewComment]: notificationPreferenceSchema,
   [NotificationType.CommentReply]: notificationPreferenceSchema,
   [NotificationType.ArticleUpvoteMilestone]: notificationPreferenceSchema,
