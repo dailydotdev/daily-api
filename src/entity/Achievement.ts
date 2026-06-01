@@ -58,6 +58,7 @@ export enum AchievementEventType {
   ShareClick = 'share_click',
   ShareClickMilestone = 'share_click_milestone',
   SharePostsClicked = 'share_posts_clicked',
+  QuestClaim = 'quest_claim',
 }
 
 export interface AchievementCriteria {
