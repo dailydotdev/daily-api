@@ -18,7 +18,7 @@ import {
   fixedIdsFeedBuilder,
   Ranking,
 } from '../common';
-import { type PostHighlight } from '../entity';
+import { HighlightsCanonical } from '../entity';
 
 export type FeedV2Args = FeedArgs & {
   unreadOnly: boolean;
@@ -35,12 +35,13 @@ type GQLFeedPostItem = {
 
 type GQLFeedHighlightsItem = {
   itemType: 'highlight';
-  highlightIds: string[];
-  highlights?: PostHighlight[];
+  highlights?: GQLPostHighlight[];
   feedMeta: string | null;
 };
 
 type GQLFeedItem = GQLFeedPostItem | GQLFeedHighlightsItem;
+
+type GQLPostHighlight = HighlightsCanonical & { channel: string };
 
 export const feedV2TypeDefs = /* GraphQL */ `
   type FeedItemConnection {
@@ -175,7 +176,7 @@ const toFeedV2Items = ({
 }: {
   response: FeedResponse;
   postsById: Map<string, GQLPost>;
-  highlightsById: Map<string, PostHighlight>;
+  highlightsById: Map<string, GQLPostHighlight>;
 }): GQLFeedItem[] =>
   response.data.reduce<GQLFeedItem[]>((acc, item) => {
     if (isFeedResponseHighlightItem(item)) {
@@ -183,16 +184,14 @@ const toFeedV2Items = ({
         return acc;
       }
 
+      const highlights = item.highlightIds.flatMap((id) => {
+        const highlight = highlightsById.get(id);
+        return highlight ? [highlight] : [];
+      });
+
       acc.push({
         itemType: 'highlight',
-        highlightIds: item.highlightIds,
-        highlights: item.highlightIds.reduce<PostHighlight[]>((items, id) => {
-          const highlight = highlightsById.get(id);
-          if (highlight) {
-            items.push(highlight);
-          }
-          return items;
-        }, []),
+        highlights,
         feedMeta: item.feedMeta,
       });
       return acc;
@@ -307,13 +306,13 @@ export const feedV2QueryResolver: IFieldResolver<
         )
       : Promise.resolve([]),
     highlightIds.length && highlightsFieldTree
-      ? graphorm.queryResolveTree<PostHighlight>(
+      ? graphorm.queryResolveTree<GQLPostHighlight>(
           ctx,
           highlightsFieldTree,
           (builder) => {
-            builder.queryBuilder
-              .where(`${builder.alias}.id IN (:...ids)`, {
-                ids: highlightIds,
+            builder.queryBuilder = builder.queryBuilder
+              .where(`"${builder.alias}"."id" IN (:...highlightIds)`, {
+                highlightIds,
               })
               .limit(highlightIds.length);
             return builder;
@@ -350,7 +349,7 @@ export const feedV2Resolvers: IResolvers<unknown, BaseContext> = {
       encodeFeedMeta(item.feedMeta),
   },
   FeedHighlightsItem: {
-    highlights: (item: GQLFeedHighlightsItem): PostHighlight[] =>
+    highlights: (item: GQLFeedHighlightsItem): GQLPostHighlight[] =>
       item.highlights ?? [],
     feedMeta: (item: GQLFeedHighlightsItem): string | null =>
       encodeFeedMeta(item.feedMeta),

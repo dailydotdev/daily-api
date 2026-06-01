@@ -14,10 +14,10 @@ import {
   FeedOrderBy,
   FeedOrigin,
   FreeformPost,
+  HighlightsCanonical,
   Keyword,
   MachineSource,
   Post,
-  PostHighlight,
   PostKeyword,
   PostTag,
   PostType,
@@ -1231,18 +1231,18 @@ describe('query feedV2', () => {
   it('should return mixed post and highlight items', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    await con.getRepository(PostHighlight).save([
+    await con.getRepository(HighlightsCanonical).save([
       {
         id: '3c75fab6-e28b-431d-ab54-a927708de085',
         postId: 'p1',
-        channel: 'happening-now',
+        channels: ['happening-now'],
         highlightedAt: new Date('2026-03-19T10:10:00.000Z'),
         headline: 'First highlight',
       },
       {
         id: 'c2e332bf-83ac-4651-8a05-8e19fbefc5ac',
         postId: 'p4',
-        channel: 'happening-now',
+        channels: ['happening-now'],
         highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
         headline: 'Second highlight',
       },
