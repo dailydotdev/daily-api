@@ -16,7 +16,7 @@ import { generateShortId } from '../ids';
 import { logger } from '../logger';
 import { maxFeedsPerUser } from '../types';
 
-export const TAG_CHIP_FEED_LIMIT = 7;
+export const TAG_CHIP_FEED_LIMIT = 5;
 
 const dedupeKeepOrder = (values: string[]): string[] => {
   const seen = new Set<string>();
