@@ -14,6 +14,7 @@ import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
+import { createUniversalDeepLinkUrl } from './deepLink';
 import { findPostImageFromContent, pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
 import { DataSource, SelectQueryBuilder, type EntityManager } from 'typeorm';
@@ -111,11 +112,9 @@ const getPostsTemplateData = ({
           findPostImageFromContent({ post }) ||
           pickImageUrl(post),
       ),
-      post_link: addNotificationUtm(
-        getDiscussionLink(post.id),
-        'email',
-        'digest',
-      ),
+      post_link: createUniversalDeepLinkUrl({
+        url: addNotificationUtm(getDiscussionLink(post.id), 'email', 'digest'),
+      }),
       post_upvotes: post.upvotes || 0,
       post_comments: post.comments || 0,
       post_summary:
@@ -162,7 +161,9 @@ const digestCampaignBuilders: Record<
     post_title: 'Want the digest daily? No problem!',
     post_image:
       'https://media.daily.dev/image/upload/s--obIsql4---/f_auto,q_auto/v1/recruiter-landing/6581377512ef38140313c902_image_20_103_f74000bd3e?_a=BAMAMiB80',
-    post_link: 'https://app.daily.dev/settings/notifications',
+    post_link: createUniversalDeepLinkUrl({
+      url: 'https://app.daily.dev/settings/notifications',
+    }),
     post_summary:
       'Customize your daily.dev digest preferences in your notifications settings',
     post_upvotes: 0,

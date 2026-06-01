@@ -2304,7 +2304,7 @@ describe('briefing_ready notification', () => {
     expect(args.message_data).toMatchObject({
       isPlus: false,
       posts_number: '91',
-      read_link: 'http://localhost:5002/posts/bnp-1',
+      read_link: 'http://localhost:5002/em/t/c?r=%2Fposts%2Fbnp-1',
       read_time: '4 minutes',
       saved_time: '5 hours',
       sources_number: '42',

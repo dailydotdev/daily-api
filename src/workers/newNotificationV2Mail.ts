@@ -62,6 +62,7 @@ import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { isNullOrUndefined } from '../common/object';
+import { createUniversalDeepLinkUrl } from '../common/deepLink';
 import { generateCampaignPostEmail } from '../common/campaign/post';
 import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
@@ -1059,7 +1060,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         value: new Date(),
         now: new Date(Date.now() + (post.flags.savedTime ?? 0) * 60 * 1000),
       }),
-      read_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+      read_link: createUniversalDeepLinkUrl({
+        url: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+      }),
       sections: post.contentJSON.map((item: JsonValue) =>
         BriefingSection.fromJson(item),
       ),
