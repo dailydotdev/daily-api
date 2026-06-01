@@ -39,7 +39,6 @@ export enum SubmissionFailErrorKeys {
   FeedNameRequired = 'FEED_NAME_REQUIRED',
   FeedNameInvalid = 'FEED_NAME_INVALID',
   FeedNameLength = 'FEED_NAME_LENGTH',
-  FeedIconInvalid = 'FEED_ICON_INVALID',
   FeedThresholdInvalid = 'FEED_THRESHOLD_INVALID',
   CommunityPicksDeprecated = 'COMMUNITY_PICKS_DEPRECATED',
 }
@@ -49,7 +48,7 @@ export const SubmissionFailErrorMessage: Record<
   string
 > = {
   GENERIC_ERROR:
-    'Unfortunately there was an error and we were unable to gather the required information from the URL submitted to add',
+    'Unfortunately there was an error and we were unable to gather the required information from the URL submitted.',
   PAYWALL:
     'Unfortunately the article submitted is behind a paywall, so we cannot add it to the daily.dev feed.',
   MISSING_FIELDS:
@@ -60,7 +59,7 @@ export const SubmissionFailErrorMessage: Record<
   AUTHOR_BANNED:
     'Unfortunately the article submitted is written by a creator who violated our community guidelines and is banned. We no longer accept submissions from this creator.',
   ACCESS_DENIED:
-    'You do not have sufficient permissions and or reputation to submit a community link yet.',
+    'You do not have sufficient permissions and/or reputation to submit a community link yet.',
   LIMIT_REACHED: `You can only submit ${submissionLimit} links per day and have reached your limit. Please try again tomorrow.`,
   INVITE_LIMIT_REACHED: 'You have reached your limit of available invites',
   INVALID_URL:
@@ -70,16 +69,14 @@ export const SubmissionFailErrorMessage: Record<
   EXISTS_STARTED:
     'This article has already been submitted and is currently being processed.',
   EXISTS_ACCEPTED:
-    'This article has already been submitted and is currently being added to the daily.dev feed',
+    'This article has already been submitted and is currently being added to the daily.dev feed.',
   EXISTS_REJECTED:
     'This article has already been submitted but did not meet our technical requirements, it cannot be submitted again',
   ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
-  FEED_COUNT_LIMIT_REACHED:
-    'You have reached maximum number of feeds for your user',
+  FEED_COUNT_LIMIT_REACHED: 'You have reached the maximum number of feeds.',
   FEED_NAME_REQUIRED: 'Feed name is required',
   FEED_NAME_INVALID: 'Feed name should not contain special characters',
   FEED_NAME_LENGTH: 'Feed name is too long',
-  FEED_ICON_INVALID: 'Feed icon is invalid',
   FEED_THRESHOLD_INVALID: 'Feed threshold should be between 0 and 1000',
   COMMUNITY_PICKS_DEPRECATED:
     'The community picks feature has been deprecated and is no longer available. Please update your extension to remove this feature.',
@@ -93,9 +90,9 @@ export enum SourceRequestErrorKeys {
 export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
   {
     [SourceRequestErrorKeys.AccessDenied]:
-      'You do not have sufficient permissions and or reputation to submit a source request yet.',
+      'You do not have sufficient permissions and/or reputation to submit a source request yet.',
     [SourceRequestErrorKeys.SquadIneligible]:
-      'Squad has not been approved yet of becoming public',
+      'Squad has not yet been approved to become public.',
   };
 
 export enum BookmarkFailErrorKeys {
@@ -225,6 +222,13 @@ export class PaymentRequiredError extends ApolloError {
     super(message, 'PAYMENT_REQUIRED', extensions);
 
     Object.defineProperty(this, 'name', { value: 'PaymentRequiredError' });
+  }
+}
+
+export class ParseOpportunityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ParseOpportunityError';
   }
 }
 

@@ -63,12 +63,13 @@ export type CurrentHighlight = {
 export type HighlightItem = {
   postId: string;
   headline: string;
+  summary: string | null;
   highlightedAt: Date;
   significanceLabel: string | null;
   reason: string | null;
 };
 
-export type GenerateChannelHighlightResult = {
-  run: ChannelHighlightRun;
+export type GenerateHighlightsResult = {
+  runs: ChannelHighlightRun[];
   published: boolean;
 };

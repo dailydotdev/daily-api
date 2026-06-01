@@ -34,6 +34,11 @@ const plugin = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.addHook('preHandler', async (req, res) => {
     req.isBot = isBotRequest(req);
+
+    if (req.url.startsWith('/sitemaps')) {
+      return;
+    }
+
     req.sessionId = req.cookies[cookies.session.key];
 
     const trackingCookie = req.cookies[cookies.tracking.key];

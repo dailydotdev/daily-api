@@ -9,11 +9,19 @@ import {
 import { redisPubSub } from '../../redis';
 import { Quest, QuestEventType, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
+import { User } from '../../entity/user/User';
 import { UserQuest, UserQuestStatus } from '../../entity/user/UserQuest';
+import { syncMilestoneQuestProgress } from './milestone';
 
 type QuestTarget = {
   rotationId: string;
   targetCount: number;
+  type: QuestType;
+};
+
+type QuestProgressUpdateResult = {
+  didUpdate: boolean;
+  didComplete: boolean;
 };
 
 type QuestUpdatePayload = {
@@ -38,7 +46,7 @@ const toSafeTargetCount = (targetCount?: number): number =>
   Math.max(1, Math.floor(targetCount ?? 1));
 
 const toSafeIncrement = (incrementBy: number): number =>
-  Math.max(0, Math.floor(incrementBy));
+  Math.trunc(incrementBy);
 
 const getQuestTargetsByEventType = async ({
   con,
@@ -51,6 +59,7 @@ const getQuestTargetsByEventType = async ({
 }): Promise<QuestTarget[]> => {
   const rotations = await con.getRepository(QuestRotation).find({
     where: {
+      type: In([QuestType.Daily, QuestType.Weekly, QuestType.Intro]),
       periodStart: LessThanOrEqual(now),
       periodEnd: MoreThan(now),
     },
@@ -89,6 +98,7 @@ const getQuestTargetsByEventType = async ({
       questTargets.push({
         rotationId,
         targetCount,
+        type: quest.type,
       });
     }
   }
@@ -167,9 +177,9 @@ const updateExistingUserQuestProgress = async ({
   target: QuestTarget;
   safeIncrement: number;
   now: Date;
-}): Promise<boolean> => {
+}): Promise<QuestProgressUpdateResult> => {
   const boundedProgressExpression =
-    'least(:targetCount, greatest(0, "progress") + :safeIncrement)';
+    'least(:targetCount, greatest(0, "progress" + :safeIncrement))';
 
   const updateResult = await con
     .createQueryBuilder()
@@ -187,6 +197,7 @@ const updateExistingUserQuestProgress = async ({
       terminalStatuses: TERMINAL_USER_QUEST_STATUSES,
     })
     .andWhere('"progress" < :targetCount')
+    .returning(['status'])
     .setParameters({
       targetCount: target.targetCount,
       safeIncrement,
@@ -196,7 +207,17 @@ const updateExistingUserQuestProgress = async ({
     })
     .execute();
 
-  return (updateResult.affected ?? 0) > 0;
+  const didUpdate = (updateResult.affected ?? 0) > 0;
+
+  return {
+    didUpdate,
+    didComplete:
+      didUpdate &&
+      updateResult.raw.some(
+        ({ status }: { status?: UserQuestStatus }) =>
+          status === UserQuestStatus.Completed,
+      ),
+  };
 };
 
 const insertNewUserQuestProgress = async ({
@@ -211,7 +232,7 @@ const insertNewUserQuestProgress = async ({
   target: QuestTarget;
   safeIncrement: number;
   now: Date;
-}): Promise<boolean> => {
+}): Promise<QuestProgressUpdateResult> => {
   const progress = Math.min(target.targetCount, safeIncrement);
   const status =
     progress >= target.targetCount
@@ -235,7 +256,12 @@ const insertNewUserQuestProgress = async ({
     .orIgnore()
     .execute();
 
-  return Boolean(insertResult.generatedMaps?.[0]?.id);
+  const didUpdate = Boolean(insertResult.generatedMaps?.[0]?.id);
+
+  return {
+    didUpdate,
+    didComplete: didUpdate && status === UserQuestStatus.Completed,
+  };
 };
 
 export const checkQuestProgress = async ({
@@ -254,7 +280,19 @@ export const checkQuestProgress = async ({
   now?: Date;
 }): Promise<boolean> => {
   const safeIncrement = toSafeIncrement(incrementBy);
-  if (!safeIncrement) {
+  if (safeIncrement === 0) {
+    return false;
+  }
+
+  if (!userId) {
+    return false;
+  }
+
+  const userExists = await con.getRepository(User).exists({
+    where: { id: userId },
+  });
+
+  if (!userExists) {
     return false;
   }
 
@@ -265,14 +303,11 @@ export const checkQuestProgress = async ({
       now,
     });
 
-    if (!targets.length) {
-      return false;
-    }
-
     let didUpdate = false;
+    let didCompleteQuest = false;
 
     for (const target of targets) {
-      const didUpdateExisting = await updateExistingUserQuestProgress({
+      const updateExistingResult = await updateExistingUserQuestProgress({
         con,
         userId,
         target,
@@ -280,12 +315,21 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      if (didUpdateExisting) {
+      if (updateExistingResult.didUpdate) {
         didUpdate = true;
+        didCompleteQuest = didCompleteQuest || updateExistingResult.didComplete;
         continue;
       }
 
-      const didInsertNew = await insertNewUserQuestProgress({
+      if (target.type === QuestType.Intro) {
+        continue;
+      }
+
+      if (safeIncrement < 0) {
+        continue;
+      }
+
+      const insertNewResult = await insertNewUserQuestProgress({
         con,
         userId,
         target,
@@ -293,13 +337,14 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      if (didInsertNew) {
+      if (insertNewResult.didUpdate) {
         didUpdate = true;
+        didCompleteQuest = didCompleteQuest || insertNewResult.didComplete;
         continue;
       }
 
       // A concurrent event can insert between update and insert; retrying update applies this increment.
-      const didUpdateAfterConflict = await updateExistingUserQuestProgress({
+      const updateAfterConflictResult = await updateExistingUserQuestProgress({
         con,
         userId,
         target,
@@ -307,7 +352,30 @@ export const checkQuestProgress = async ({
         now,
       });
 
-      didUpdate = didUpdate || didUpdateAfterConflict;
+      didUpdate = didUpdate || updateAfterConflictResult.didUpdate;
+      didCompleteQuest =
+        didCompleteQuest || updateAfterConflictResult.didComplete;
+    }
+
+    const didUpdateMilestones = await syncMilestoneQuestProgress({
+      con,
+      userId,
+      eventType,
+      now,
+    });
+
+    didUpdate = didUpdate || didUpdateMilestones;
+
+    if (didCompleteQuest && eventType !== QuestEventType.QuestComplete) {
+      const didUpdateQuestCompletionMilestones =
+        await syncMilestoneQuestProgress({
+          con,
+          userId,
+          eventType: QuestEventType.QuestComplete,
+          now,
+        });
+
+      didUpdate = didUpdate || didUpdateQuestCompletionMilestones;
     }
 
     if (didUpdate) {

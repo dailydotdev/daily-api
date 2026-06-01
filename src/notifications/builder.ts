@@ -36,6 +36,7 @@ import {
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
+import type { LiveRoomPost } from '../entity/posts/LiveRoomPost';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
@@ -241,6 +242,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceLiveRoom(roomId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: roomId,
+      referenceType: 'live_room',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -267,6 +275,16 @@ export class NotificationBuilder {
     post: Reference<Post>,
     comment?: Reference<Comment>,
   ): NotificationBuilder {
+    if (post.type === PostType.LiveRoom) {
+      const liveRoomPost = post as Reference<LiveRoomPost>;
+
+      if (liveRoomPost.liveRoomId) {
+        return this.enrichNotification({
+          targetUrl: `${process.env.COMMENTS_PREFIX}/standups/${liveRoomPost.liveRoomId}`,
+        });
+      }
+    }
+
     return this.enrichNotification({
       targetUrl: getDiscussionLink(post.id, comment?.id),
     });

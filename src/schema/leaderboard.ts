@@ -214,6 +214,8 @@ const completedQuestStatuses = [
   UserQuestStatus.Claimed,
 ];
 
+const communityPulseQuestTypes = [QuestType.Daily, QuestType.Weekly];
+
 const completedQuestTimestampExpression = `COALESCE(uq."completedAt", uq."claimedAt", uq."updatedAt")`;
 
 const getUserLeaderboardForStat = async ({
@@ -346,6 +348,9 @@ const getTopCompletedQuest = async ({
       completedStatuses: completedQuestStatuses,
     })
     .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+    .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
+      communityPulseQuestTypes,
+    })
     .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
     .groupBy('q.id')
     .addGroupBy('q.name')
@@ -392,11 +397,15 @@ const getQuestCompletionStats = async ({
     con
       .createQueryBuilder()
       .from(UserQuest, 'uq')
+      .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
       .select('COUNT(*)', 'count')
       .where('uq.status IN (:...completedStatuses)', {
         completedStatuses: completedQuestStatuses,
       })
       .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+      .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
+        communityPulseQuestTypes,
+      })
       .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
       .getRawOne<{ count: number | string }>(),
     getTopCompletedQuest({ con }),

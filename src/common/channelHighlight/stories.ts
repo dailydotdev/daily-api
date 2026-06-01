@@ -1,6 +1,7 @@
 import type { PostContentQuality } from '../../entity/posts/Post';
 import { toPostHighlightSignificanceLabel } from '../../entity/PostHighlight';
 import type { PostRelation } from '../../entity/posts/PostRelation';
+import { buildStoryFamilies } from './storyFamilies';
 import type {
   CurrentHighlight,
   HighlightCandidate,
@@ -35,26 +36,6 @@ export const toQualitySummary = (
       ? quality.self_promotion_score
       : null,
 });
-
-const buildCollectionByChildId = (
-  relations: PostRelation[],
-  availablePostIds: Set<string>,
-): Map<string, string> => {
-  const collectionByChildId = new Map<string, string>();
-
-  for (const relation of relations) {
-    if (
-      !availablePostIds.has(relation.postId) ||
-      !availablePostIds.has(relation.relatedPostId)
-    ) {
-      continue;
-    }
-
-    collectionByChildId.set(relation.relatedPostId, relation.postId);
-  }
-
-  return collectionByChildId;
-};
 
 type EngagementPost = {
   upvotes: number;
@@ -105,6 +86,17 @@ const groupPostsByCanonicalPostId = ({
 
   return groupedPosts;
 };
+
+const getPostSummary = ({
+  post,
+  postsById,
+}: {
+  post: HighlightPost;
+  postsById: Map<string, HighlightPost>;
+}): string | null =>
+  post.summary ||
+  (post.sharedPostId && postsById.get(post.sharedPostId)?.summary) ||
+  null;
 
 const buildCandidate = ({
   canonicalPostId,
@@ -168,13 +160,13 @@ export const buildCandidates = ({
   horizonStart: Date;
 }): HighlightCandidate[] => {
   const availablePostIds = new Set(posts.map((post) => post.id));
-  const collectionByChildId = buildCollectionByChildId(
+  const storyFamilies = buildStoryFamilies({
     relations,
-    availablePostIds,
-  );
+    postIds: availablePostIds,
+  });
   const groupedPosts = groupPostsByCanonicalPostId({
     posts,
-    collectionByChildId,
+    collectionByChildId: storyFamilies.collectionByChild,
   });
 
   return [...groupedPosts.entries()]
@@ -196,30 +188,54 @@ export const toHighlightItem = (
 ): HighlightItem => ({
   postId: item.postId,
   headline: item.headline,
+  summary: null,
   highlightedAt: item.highlightedAt,
   significanceLabel: toPostHighlightSignificanceLabel(item.significance),
   reason: item.reason,
 });
 
+// The only post-id transitions we allow are:
+// - share-post → underlying article when the underlying is accessible (downgrade
+//   a SharePost-stored highlight back to its source article so the rail links
+//   stay stable)
+// - child article → collection when both are present (canonical "story" upgrade)
+// Anything else keeps the highlight's stored postId as-is.
 export const canonicalizeCurrentHighlights = ({
   highlights,
   relations,
   posts,
+  inaccessiblePostIds,
 }: {
   highlights: HighlightItem[];
   relations: PostRelation[];
   posts: HighlightPost[];
+  inaccessiblePostIds: Set<string>;
 }): HighlightItem[] => {
   const postsById = new Map(posts.map((post) => [post.id, post]));
-  const collectionByChildId = buildCollectionByChildId(
+  const storyFamilies = buildStoryFamilies({
     relations,
-    new Set(postsById.keys()),
-  );
+    postIds: new Set(postsById.keys()),
+  });
+  const sharedByShareId = new Map<string, string>();
+  for (const post of posts) {
+    if (post.sharedPostId) sharedByShareId.set(post.id, post.sharedPostId);
+  }
+
+  const downgradeShareToUnderlying = (postId: string): string => {
+    const underlyingId = sharedByShareId.get(postId);
+    if (!underlyingId) return postId;
+    if (!postsById.has(underlyingId) || inaccessiblePostIds.has(underlyingId)) {
+      return postId;
+    }
+    return underlyingId;
+  };
+
   const canonicalHighlights = new Map<string, HighlightItem>();
 
   for (const highlight of highlights) {
+    const downgradedPostId = downgradeShareToUnderlying(highlight.postId);
     const canonicalPostId =
-      collectionByChildId.get(highlight.postId) || highlight.postId;
+      storyFamilies.collectionByChild.get(downgradedPostId) || downgradedPostId;
     const canonicalPost = postsById.get(canonicalPostId);
 
     if (!canonicalPost) {
@@ -233,6 +249,11 @@ export const canonicalizeCurrentHighlights = ({
     canonicalHighlights.set(canonicalPostId, {
       postId: canonicalPostId,
       headline: highlight.headline,
+      summary:
+        getPostSummary({
+          post: canonicalPost,
+          postsById,
+        }) || highlight.summary,
       highlightedAt: highlight.highlightedAt,
       significanceLabel: highlight.significanceLabel,
       reason: highlight.reason,
@@ -244,6 +265,72 @@ export const canonicalizeCurrentHighlights = ({
       right.highlightedAt.getTime() - left.highlightedAt.getTime(),
   );
 };
+
+// Substitute a public share for the underlying post only when the underlying
+// is inaccessible (UNKNOWN_SOURCE / banned / deleted). Accessible items keep
+// their original postId — we don't auto-migrate underlying → share when a user
+// happens to share a highlighted article.
+const applyPublicShareFallback = <T extends { postId: string }>({
+  items,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  items: T[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): T[] => {
+  const mappedItems = new Map<string, T>();
+
+  for (const item of items) {
+    let postId = item.postId;
+    if (inaccessiblePostIds.has(postId)) {
+      const fallbackPostId = fallbackPostIds.get(postId);
+      if (!fallbackPostId) continue;
+      postId = fallbackPostId;
+    }
+    if (mappedItems.has(postId)) continue;
+
+    mappedItems.set(
+      postId,
+      postId === item.postId ? item : { ...item, postId },
+    );
+  }
+
+  return [...mappedItems.values()];
+};
+
+export const applyPublicShareFallbackToCandidates = ({
+  candidates,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  candidates: HighlightCandidate[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): HighlightCandidate[] =>
+  applyPublicShareFallback({
+    items: candidates,
+    inaccessiblePostIds,
+    fallbackPostIds,
+  }).sort(compareCandidates);
+
+export const applyPublicShareFallbackToHighlights = ({
+  highlights,
+  inaccessiblePostIds,
+  fallbackPostIds,
+}: {
+  highlights: HighlightItem[];
+  inaccessiblePostIds: Set<string>;
+  fallbackPostIds: Map<string, string>;
+}): HighlightItem[] =>
+  applyPublicShareFallback({
+    items: highlights,
+    inaccessiblePostIds,
+    fallbackPostIds,
+  }).sort(
+    (left, right) =>
+      right.highlightedAt.getTime() - left.highlightedAt.getTime(),
+  );
 
 export const toStoredSnapshotItem = (
   item: HighlightItem,

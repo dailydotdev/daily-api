@@ -88,6 +88,8 @@ export enum NotificationType {
   FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
   DigestReady = 'digest_ready',
+  LiveRoomStarted = 'live_room_started',
+  LiveRoomStartingSoon = 'live_room_starting_soon',
 }
 
 export enum NotificationPreferenceType {
@@ -160,6 +162,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.ArticleReportApproved]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.UserFollow]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
@@ -309,6 +315,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.DigestReady]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.LiveRoomStarted]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.LiveRoomStartingSoon]: {
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
 };

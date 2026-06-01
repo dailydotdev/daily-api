@@ -42,6 +42,7 @@ export enum StorageTopic {
   Paddle = 'paddle',
   RedisCounter = 'redis_counter',
   Cron = 'cron',
+  LiveRoom = 'live_room',
 }
 
 export enum StorageKey {
@@ -54,6 +55,8 @@ export enum StorageKey {
   PricingPreviewCores = 'pricing_preview_cores',
   OrganizationSubscriptionUpdatePreview = 'organization_subscription_update_preview',
   UserLastOnline = 'ulo',
+  ParticipantCount = 'participant_count',
+  HasLiveRooms = 'has_live_rooms',
 }
 
 export const generateStorageKey = (

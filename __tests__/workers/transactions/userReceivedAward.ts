@@ -139,6 +139,9 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
       `${env.COMMENTS_PREFIX}/idoshamun`,
     );
+    expect((result![0].ctx as NotificationAwardContext).targetType).toEqual(
+      'user',
+    );
   });
 
   it('should create notification for user who received an award on a post', async () => {
@@ -181,6 +184,9 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
       `${env.COMMENTS_PREFIX}/posts/p1`,
+    );
+    expect((result![0].ctx as NotificationAwardContext).targetType).toEqual(
+      'post',
     );
   });
 
@@ -234,6 +240,9 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
       `${env.COMMENTS_PREFIX}/posts/p2#c-a-c-1`,
     );
+    expect((result![0].ctx as NotificationAwardContext).targetType).toEqual(
+      'comment',
+    );
   });
 
   it('should create notification for user who received an award on a squad', async () => {
@@ -271,6 +280,9 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
       `${env.COMMENTS_PREFIX}/idoshamun`,
+    );
+    expect((result![0].ctx as NotificationAwardContext).targetType).toEqual(
+      'user',
     );
     expect((result![0].ctx as NotificationAwardContext).source).toBeTruthy();
   });

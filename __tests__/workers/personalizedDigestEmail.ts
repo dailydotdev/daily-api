@@ -28,7 +28,11 @@ import {
 } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
-import { ExperimentAllocationClient, features } from '../../src/growthbook';
+import {
+  ExperimentAllocationClient,
+  features,
+  getUserGrowthBookInstance,
+} from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 import {
   sendReadingReminderPush,
@@ -46,6 +50,8 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
+import { personalizedDigestSnotraClient } from '../../src/common/personalizedDigest';
+import { PersonaliseState } from '../../src/integrations/snotra/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -69,30 +75,53 @@ jest.mock('../../src/integrations/analytics', () => ({
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
   loadFeatures: jest.fn(),
-  getUserGrowthBookInstance: (
-    _userId: string,
-    { allocationClient }: { allocationClient: ExperimentAllocationClient },
-  ) => {
-    return {
-      loadFeatures: jest.fn(),
-      getFeatures: jest.fn(),
-      getFeatureValue: (featureId: string) => {
-        if (allocationClient) {
-          allocationClient.push({
-            event_timestamp: new Date(),
-            user_id: _userId,
-            experiment_id: featureId,
-            variation_id: '0',
-          });
-        }
+  getUserGrowthBookInstance: jest.fn(
+    (
+      _userId: string,
+      { allocationClient }: { allocationClient: ExperimentAllocationClient },
+    ) => {
+      return {
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: (featureId: string) => {
+          if (allocationClient) {
+            allocationClient.push({
+              event_timestamp: new Date(),
+              user_id: _userId,
+              experiment_id: featureId,
+              variation_id: '0',
+            });
+          }
 
-        return Object.values(features).find(
-          (feature) => feature.id === featureId,
-        )?.defaultValue;
-      },
-    };
-  },
+          return Object.values(features).find(
+            (feature) => feature.id === featureId,
+          )?.defaultValue;
+        },
+      };
+    },
+  ),
 }));
+
+const defaultGrowthbookImpl = (
+  _userId: string,
+  { allocationClient }: { allocationClient: ExperimentAllocationClient },
+) => ({
+  loadFeatures: jest.fn(),
+  getFeatures: jest.fn(),
+  getFeatureValue: (featureId: string) => {
+    if (allocationClient) {
+      allocationClient.push({
+        event_timestamp: new Date(),
+        user_id: _userId,
+        experiment_id: featureId,
+        variation_id: '0',
+      });
+    }
+
+    return Object.values(features).find((feature) => feature.id === featureId)
+      ?.defaultValue;
+  },
+});
 
 jest.mock('../../src/common/typedPubsub', () => ({
   ...(jest.requireActual('../../src/common/typedPubsub') as Record<
@@ -112,7 +141,16 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.restoreAllMocks();
   jest.resetAllMocks();
+  (getUserGrowthBookInstance as jest.Mock).mockImplementation(
+    defaultGrowthbookImpl,
+  );
+  jest
+    .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+    .mockResolvedValue({
+      personalise: { state: PersonaliseState.Personalised },
+    });
   nock.cleanAll();
   nockBody = {};
 
@@ -148,7 +186,7 @@ beforeEach(async () => {
     .map((post) => ({ post_id: post.id }));
 
   nockScope = nock('http://localhost:6000')
-    .post('/feed.json', (body) => {
+    .post('/api/personalised', (body) => {
       nockBody = body;
 
       return true;
@@ -572,7 +610,7 @@ describe('personalizedDigestEmail worker', () => {
     nock.cleanAll();
 
     nockScope = nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/personalised', (body) => {
         nockBody = body;
 
         return true;
@@ -796,7 +834,7 @@ describe('personalizedDigestEmail worker', () => {
       .slice(0, 5)
       .map((post) => ({ post_id: post.id }));
 
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/api/personalised').reply(200, {
       data: mockedPostIds,
       rows: mockedPostIds.length,
     });
@@ -882,7 +920,7 @@ describe('personalizedDigestEmail worker', () => {
     nock.cleanAll();
 
     nockScope = nock('http://localhost:6000')
-      .post('/feed.json', (body) => {
+      .post('/api/personalised', (body) => {
         nockBody = body;
         return true;
       })
@@ -967,7 +1005,7 @@ describe('personalizedDigestEmail worker', () => {
       .slice(0, 3)
       .map((post) => ({ post_id: post.id }));
 
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/api/personalised').reply(200, {
       data: newPostIds,
       rows: newPostIds.length,
     });
@@ -1189,6 +1227,127 @@ describe('personalizedDigestEmail worker', () => {
     expect(nockBody).toMatchSnapshot({
       date_from: expect.any(String),
       date_to: expect.any(String),
+    });
+  });
+
+  describe('digest cold start', () => {
+    it('should use feature.coldStartFeedConfig when snotra reports user is non_personalised', async () => {
+      const snotraSpy = jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockResolvedValue({
+          personalise: { state: PersonaliseState.NonPersonalised },
+        });
+
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(snotraSpy).toHaveBeenCalledWith({
+        user_id: '1',
+        providers: { personalise: {} },
+      });
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          attributes: {
+            plus: 0,
+            snotra_personalise_state: PersonaliseState.NonPersonalised,
+          },
+        }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_cold_start');
+    });
+
+    it('should use feature.feedConfig when snotra reports user is personalised', async () => {
+      jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockResolvedValue({
+          personalise: { state: PersonaliseState.Personalised },
+        });
+
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          attributes: {
+            plus: 0,
+            snotra_personalise_state: PersonaliseState.Personalised,
+          },
+        }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_personalised');
+    });
+
+    it('should omit snotra_personalise_state attribute and use feature.feedConfig when snotra call fails', async () => {
+      jest
+        .spyOn(personalizedDigestSnotraClient, 'getUserProfile')
+        .mockRejectedValue(new Error('snotra down'));
+
+      (getUserGrowthBookInstance as jest.Mock).mockImplementation(() => ({
+        loadFeatures: jest.fn(),
+        getFeatures: jest.fn(),
+        getFeatureValue: () => ({
+          templateId: '48',
+          maxPosts: 5,
+          feedConfig: 'feed_for_personalised',
+          coldStartFeedConfig: 'feed_for_cold_start',
+        }),
+      }));
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: '1' });
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(getUserGrowthBookInstance).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          attributes: { plus: 0 },
+        }),
+      );
+      expect(nockBody.feed_config_name).toBe('feed_for_personalised');
     });
   });
 
@@ -1419,7 +1578,7 @@ describe('personalizedDigestEmail worker', () => {
       nock.cleanAll();
 
       nockScope = nock('http://localhost:6000')
-        .post('/feed.json', (body) => {
+        .post('/api/personalised', (body) => {
           nockBody = body;
 
           return true;
@@ -1485,7 +1644,7 @@ describe('personalizedDigestEmail worker', () => {
       nock.cleanAll();
 
       nockScope = nock('http://localhost:6000')
-        .post('/feed.json', (body) => {
+        .post('/api/personalised', (body) => {
           nockBody = body;
 
           return true;

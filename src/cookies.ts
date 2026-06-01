@@ -1,5 +1,9 @@
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { ONE_MONTH_IN_SECONDS } from './common/constants';
+import { generateTrackingId } from './ids';
+import { setTrackingId } from './tracking';
+import { counters } from './telemetry';
 
 const env = process.env.NODE_ENV;
 
@@ -8,7 +12,7 @@ export const cookies: {
 } = {
   tracking: {
     opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+      maxAge: 60 * 60 * 24 * 365 * 10,
       httpOnly: false,
       signed: false,
       secure: false,
@@ -18,7 +22,7 @@ export const cookies: {
   },
   session: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: false,
       signed: false,
       secure: false,
@@ -28,7 +32,7 @@ export const cookies: {
   },
   auth: {
     opts: {
-      maxAge: 1000 * 60 * 15,
+      maxAge: 60 * 15,
       httpOnly: true,
       signed: true,
       secure: env === 'production',
@@ -38,7 +42,7 @@ export const cookies: {
   },
   funnel: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: true,
       signed: false,
       secure: env === 'production',
@@ -48,7 +52,7 @@ export const cookies: {
   },
   onboarding: {
     opts: {
-      maxAge: 1000 * 60 * 30,
+      maxAge: 60 * 30,
       httpOnly: true,
       signed: false,
       secure: env === 'production',
@@ -56,35 +60,12 @@ export const cookies: {
     },
     key: 'da5',
   },
-  kratos: {
-    key: 'ory_kratos_session',
-    opts: {
-      signed: false,
-      httpOnly: true,
-      secure: env === 'production',
-      sameSite: 'lax',
-    },
-  },
-  kratosContinuity: {
-    key: 'ory_kratos_continuity',
-    opts: {},
-  },
   authSession: {
     key: env === 'production' ? '__Secure-dast' : 'dast',
     opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: ONE_MONTH_IN_SECONDS,
       signed: false,
       httpOnly: true,
-      secure: env === 'production',
-      sameSite: 'lax',
-    },
-  },
-  baForce: {
-    key: 'da_ba',
-    opts: {
-      maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
-      httpOnly: true,
-      signed: false,
       secure: env === 'production',
       sameSite: 'lax',
     },
@@ -152,4 +133,43 @@ export const setCookie = (
     return res.clearCookie(config.key, mergedOpts);
   }
   return res.cookie(config.key, value, mergedOpts);
+};
+
+const clearCookieByName = (
+  req: FastifyRequest,
+  res: FastifyReply,
+  key: string,
+  opts: Partial<CookieSerializeOptions> = {},
+): FastifyReply =>
+  res.clearCookie(key, {
+    path: '/',
+    ...addSubdomainOpts(req, {}),
+    ...opts,
+  });
+
+export const clearAuthentication = async (
+  req: FastifyRequest,
+  res: FastifyReply,
+  reason: string,
+): Promise<void> => {
+  req.log.info(
+    {
+      reason,
+      userId: req.userId,
+    },
+    'clearing authentication',
+  );
+  req.trackingId = await generateTrackingId(req, 'clear authentication');
+  req.userId = undefined;
+  setTrackingId(req, res, req.trackingId);
+  setCookie(req, res, 'auth', undefined);
+  setCookie(req, res, 'authSession', undefined);
+  clearCookieByName(req, res, 'ory_kratos_session', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env === 'production',
+  });
+  clearCookieByName(req, res, 'ory_kratos_continuity');
+
+  counters?.api?.clearAuthentication?.add(1, { reason });
 };

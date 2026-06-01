@@ -6,11 +6,10 @@ import {
   EvaluateChannelHighlightsRequest as BragiEvaluateChannelHighlightsRequest,
 } from '@dailydotdev/schema';
 import { getBragiClient } from '../../integrations/bragi/clients';
+import { GLOBAL_HIGHLIGHT_CHANNEL, GLOBAL_TARGET_AUDIENCE } from './constants';
 import type { HighlightCandidate, HighlightItem } from './types';
 
-export type EvaluateChannelHighlightsRequest = {
-  channel: string;
-  targetAudience: string;
+export type EvaluateHighlightsRequest = {
   maxItems: number;
   currentHighlights: HighlightItem[];
   newCandidates: HighlightCandidate[];
@@ -23,7 +22,7 @@ export type EvaluatedHighlightItem = {
   reason: string;
 };
 
-export type EvaluateChannelHighlightsResponse = {
+export type EvaluateHighlightsResponse = {
   items: EvaluatedHighlightItem[];
 };
 
@@ -68,6 +67,8 @@ const toCurrentHighlight = (item: HighlightItem): ChannelHighlightCurrentItem =>
   new ChannelHighlightCurrentItem({
     postId: item.postId,
     headline: item.headline,
+    summary: item.summary || undefined,
+    reason: item.reason || undefined,
     highlightedAt: toTimestamp(item.highlightedAt),
     significance: toProtoSignificance(item.significanceLabel),
   });
@@ -93,13 +94,11 @@ const toCandidate = (
     relatedItemsCount: candidate.relatedItemsCount,
   });
 
-export const evaluateChannelHighlights = async ({
-  channel,
-  targetAudience,
+export const evaluateHighlights = async ({
   maxItems,
   currentHighlights,
   newCandidates,
-}: EvaluateChannelHighlightsRequest): Promise<EvaluateChannelHighlightsResponse> => {
+}: EvaluateHighlightsRequest): Promise<EvaluateHighlightsResponse> => {
   if (!newCandidates.length) {
     return {
       items: [],
@@ -108,8 +107,8 @@ export const evaluateChannelHighlights = async ({
 
   const bragiClient = getBragiClient();
   const request = new BragiEvaluateChannelHighlightsRequest({
-    channel,
-    targetAudience,
+    channel: GLOBAL_HIGHLIGHT_CHANNEL,
+    targetAudience: GLOBAL_TARGET_AUDIENCE,
     maxItems,
     currentHighlights: currentHighlights.map(toCurrentHighlight),
     newCandidates: newCandidates.map(toCandidate),

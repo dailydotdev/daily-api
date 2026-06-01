@@ -64,12 +64,8 @@ export const crons: Cron[] = [
     schedule: '15 4 * * *',
   },
   {
-    name: 'update-source-tag-view',
-    schedule: '20 3 * * 0',
-  },
-  {
-    name: 'update-tag-recommendations',
-    schedule: '5 3 * * 0',
+    name: 'update-tag-materialized-views',
+    schedule: '20 3 * * *',
   },
   {
     name: 'daily-digest',
@@ -177,6 +173,14 @@ export const crons: Cron[] = [
   {
     name: 'channel-highlights',
     schedule: '*/10 * * * *',
+    activeDeadlineSeconds: 9 * 60,
+    limits: {
+      memory: '1Gi',
+    },
+    requests: {
+      cpu: '250m',
+      memory: '1Gi',
+    },
   },
   {
     name: 'clean-channel-highlights',
@@ -185,5 +189,18 @@ export const crons: Cron[] = [
   {
     name: 'clean-expired-better-auth-sessions',
     schedule: '0 3 * * *',
+  },
+  {
+    name: 'materialize-monthly-best-post-archives',
+    schedule: '10 0 1 * *',
+  },
+  {
+    name: 'materialize-yearly-best-post-archives',
+    schedule: '15 0 1 1 *',
+  },
+  {
+    name: 'clean-old-notifications',
+    schedule: '13 * * * *',
+    activeDeadlineSeconds: 5 * 60,
   },
 ];

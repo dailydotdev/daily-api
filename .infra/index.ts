@@ -102,14 +102,14 @@ const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
   tier: 'BASIC',
-  memorySizeGb: 1,
+  memorySizeGb: 2,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_7_2',
   labels: { app: name },
   redisConfigs: {
     'maxmemory-policy': 'volatile-ttl',
-    'maxmemory-gb': '0.95',
+    'maxmemory-gb': '1.9',
   },
   maintenancePolicy: {
     weeklyMaintenanceWindows: [
@@ -144,6 +144,34 @@ const envVars: Record<string, Input<string>> = {
   redisPass: redis.authString,
   redisPort: redis.port.apply((port) => port.toString()),
 };
+
+const appleAuth = config.getObject<{
+  teamId: string;
+  keyId: string;
+  signingKey: string;
+}>('appleAuth');
+
+if (appleAuth) {
+  envVars.appleTeamId = appleAuth.teamId;
+  envVars.appleKeyId = appleAuth.keyId;
+  envVars.appleSigningKeyPath = '/opt/app/apple/AuthKey.p8';
+
+  vols.volumes.push({
+    name: 'apple-auth',
+    secret: { secretName: 'apple-auth-secret' },
+  });
+  vols.volumeMounts.push({
+    name: 'apple-auth',
+    mountPath: '/opt/app/apple',
+  });
+
+  additionalSecrets.push({
+    name: 'apple-auth-secret',
+    data: {
+      'AuthKey.p8': Buffer.from(appleAuth.signingKey).toString('base64'),
+    },
+  });
+}
 
 createSubscriptionsFromWorkers(
   name,
@@ -425,7 +453,7 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 150, memory: 150 },
       disableLifecycle: true,
-      spot: { enabled: true },
+      spot: { enabled: false },
       podAnnotations: podAnnotations,
       ...vols,
     },
@@ -703,6 +731,18 @@ if (vpcNativeProvider) {
         host: subsHost,
         http: {
           paths: [
+            {
+              path: '/flyting/ws',
+              pathType: 'ImplementationSpecific',
+              backend: {
+                service: {
+                  name: 'flyting-public',
+                  port: {
+                    name: 'http',
+                  },
+                },
+              },
+            },
             {
               path: '/*',
               pathType: 'ImplementationSpecific',

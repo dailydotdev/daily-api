@@ -8,10 +8,8 @@ export const getChannelHighlightDefinitions = async ({
   con: DataSource;
 }): Promise<ChannelHighlightDefinition[]> =>
   con.getRepository(ChannelHighlightDefinition).find({
-    where: {
-      mode: Not('disabled'),
-    },
     order: {
+      order: 'ASC',
       channel: 'ASC',
     },
   });

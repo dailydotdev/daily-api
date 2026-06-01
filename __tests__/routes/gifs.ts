@@ -10,18 +10,18 @@ import { usersFixture } from '../fixture';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import request from 'supertest';
-import { tenorClient } from '../../src/integrations/tenor/clients';
+import { klipyClient } from '../../src/integrations/gifs/clients';
 
 let app: FastifyInstance;
 let con: DataSource;
 
-jest.mock('../../src/integrations/tenor/clients', () => ({
-  tenorClient: {
+jest.mock('../../src/integrations/gifs/clients', () => ({
+  klipyClient: {
     search: jest.fn(),
   },
 }));
 
-const mockTenorSearch = tenorClient.search as jest.Mock;
+const mockKlipySearch = klipyClient.search as jest.Mock;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -42,7 +42,7 @@ describe('GET /gifs', () => {
   });
 
   it('should return empty gifs when no query is provided', async () => {
-    mockTenorSearch.mockResolvedValue({ gifs: [], next: undefined });
+    mockKlipySearch.mockResolvedValue({ gifs: [], next: undefined });
 
     const { body } = await authorizeRequest(
       request(app.server).get('/gifs'),
@@ -50,30 +50,30 @@ describe('GET /gifs', () => {
     ).expect(200);
 
     expect(body).toEqual({ gifs: [], next: undefined });
-    expect(mockTenorSearch).toHaveBeenCalledWith({
+    expect(mockKlipySearch).toHaveBeenCalledWith({
       q: '',
       limit: 10,
       pos: undefined,
     });
   });
 
-  it('should return gifs from tenor search', async () => {
+  it('should return gifs from klipy search', async () => {
     const mockGifs = [
       {
         id: 'gif1',
-        url: 'https://tenor.com/gif1.gif',
-        preview: 'https://tenor.com/gif1-preview.gif',
+        url: 'https://klipy.com/gif1.gif',
+        preview: 'https://klipy.com/gif1-preview.gif',
         title: 'Funny cat',
       },
       {
         id: 'gif2',
-        url: 'https://tenor.com/gif2.gif',
-        preview: 'https://tenor.com/gif2-preview.gif',
+        url: 'https://klipy.com/gif2.gif',
+        preview: 'https://klipy.com/gif2-preview.gif',
         title: 'Dancing dog',
       },
     ];
 
-    mockTenorSearch.mockResolvedValue({
+    mockKlipySearch.mockResolvedValue({
       gifs: mockGifs,
       next: 'next-page-token',
     });
@@ -87,30 +87,30 @@ describe('GET /gifs', () => {
       gifs: mockGifs,
       next: 'next-page-token',
     });
-    expect(mockTenorSearch).toHaveBeenCalledWith({
+    expect(mockKlipySearch).toHaveBeenCalledWith({
       q: 'funny',
       limit: 20,
       pos: undefined,
     });
   });
 
-  it('should pass pagination position to tenor search', async () => {
-    mockTenorSearch.mockResolvedValue({ gifs: [], next: undefined });
+  it('should pass pagination position to klipy search', async () => {
+    mockKlipySearch.mockResolvedValue({ gifs: [], next: undefined });
 
     await authorizeRequest(
       request(app.server).get('/gifs').query({ q: 'test', pos: 'page-token' }),
       '1',
     ).expect(200);
 
-    expect(mockTenorSearch).toHaveBeenCalledWith({
+    expect(mockKlipySearch).toHaveBeenCalledWith({
       q: 'test',
       limit: 10,
       pos: 'page-token',
     });
   });
 
-  it('should return empty gifs when tenor search fails', async () => {
-    mockTenorSearch.mockRejectedValue(new Error('Tenor API error'));
+  it('should return empty gifs when klipy search fails', async () => {
+    mockKlipySearch.mockRejectedValue(new Error('Klipy API error'));
 
     const { body } = await authorizeRequest(
       request(app.server).get('/gifs').query({ q: 'test' }),
@@ -123,7 +123,7 @@ describe('GET /gifs', () => {
   it('should preserve pagination position when rate limited', async () => {
     // When rate limited, the client returns empty gifs but preserves the position
     // so the user can retry the same page
-    mockTenorSearch.mockResolvedValue({ gifs: [], next: 'page-2' });
+    mockKlipySearch.mockResolvedValue({ gifs: [], next: 'page-2' });
 
     const { body } = await authorizeRequest(
       request(app.server).get('/gifs').query({ q: 'test', pos: 'page-2' }),
@@ -137,8 +137,8 @@ describe('GET /gifs', () => {
 describe('POST /gifs/favorite', () => {
   const gifToFavorite = {
     id: 'gif1',
-    url: 'https://tenor.com/gif1.gif',
-    preview: 'https://tenor.com/gif1-preview.gif',
+    url: 'https://klipy.com/gif1.gif',
+    preview: 'https://klipy.com/gif1-preview.gif',
     title: 'Funny cat',
   };
 
@@ -168,8 +168,8 @@ describe('POST /gifs/favorite', () => {
   it('should add multiple gifs to favorites', async () => {
     const gif2 = {
       id: 'gif2',
-      url: 'https://tenor.com/gif2.gif',
-      preview: 'https://tenor.com/gif2-preview.gif',
+      url: 'https://klipy.com/gif2.gif',
+      preview: 'https://klipy.com/gif2-preview.gif',
       title: 'Dancing dog',
     };
 
@@ -219,8 +219,8 @@ describe('POST /gifs/favorite', () => {
 
     const gif2 = {
       id: 'gif2',
-      url: 'https://tenor.com/gif2.gif',
-      preview: 'https://tenor.com/gif2-preview.gif',
+      url: 'https://klipy.com/gif2.gif',
+      preview: 'https://klipy.com/gif2-preview.gif',
       title: 'Dancing dog',
     };
 
@@ -272,14 +272,14 @@ describe('GET /gifs/favorites', () => {
   it('should return user favorites', async () => {
     const gif1 = {
       id: 'gif1',
-      url: 'https://tenor.com/gif1.gif',
-      preview: 'https://tenor.com/gif1-preview.gif',
+      url: 'https://klipy.com/gif1.gif',
+      preview: 'https://klipy.com/gif1-preview.gif',
       title: 'Funny cat',
     };
     const gif2 = {
       id: 'gif2',
-      url: 'https://tenor.com/gif2.gif',
-      preview: 'https://tenor.com/gif2-preview.gif',
+      url: 'https://klipy.com/gif2.gif',
+      preview: 'https://klipy.com/gif2-preview.gif',
       title: 'Dancing dog',
     };
 
@@ -306,14 +306,14 @@ describe('GET /gifs/favorites', () => {
   it('should only return favorites for the authenticated user', async () => {
     const gif1 = {
       id: 'gif1',
-      url: 'https://tenor.com/gif1.gif',
-      preview: 'https://tenor.com/gif1-preview.gif',
+      url: 'https://klipy.com/gif1.gif',
+      preview: 'https://klipy.com/gif1-preview.gif',
       title: 'Funny cat',
     };
     const gif2 = {
       id: 'gif2',
-      url: 'https://tenor.com/gif2.gif',
-      preview: 'https://tenor.com/gif2-preview.gif',
+      url: 'https://klipy.com/gif2.gif',
+      preview: 'https://klipy.com/gif2-preview.gif',
       title: 'Dancing dog',
     };
 

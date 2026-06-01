@@ -1,4 +1,8 @@
-import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
+import {
+  OpportunityState,
+  OpportunityType,
+  PostHighlightedMessage,
+} from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -44,9 +48,11 @@ import {
   UserStreak,
   UserTopReader,
   Feedback,
+  PostHighlight,
 } from '../../entity';
 import { BookmarkList } from '../../entity/BookmarkList';
 import { HotTake } from '../../entity/user/HotTake';
+import type { UserFlags } from '../../entity/user/User';
 import { UserStack } from '../../entity/user/UserStack';
 import { SharePost } from '../../entity/posts/SharePost';
 import { PostAnalytics } from '../../entity/posts/PostAnalytics';
@@ -250,6 +256,13 @@ const checkProfileCompletionAchievement = async (
       user.id,
       AchievementEventType.ProfileComplete,
     );
+
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: user.id,
+      eventType: QuestEventType.ProfileComplete,
+    });
   }
 };
 
@@ -478,6 +491,12 @@ const onPostVoteChange = async (
               post.authorId,
               AchievementEventType.UpvoteReceived,
             );
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+            });
           }
         }
       }
@@ -530,6 +549,40 @@ const onPostVoteChange = async (
               post.authorId,
               AchievementEventType.UpvoteReceived,
             );
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+            });
+          }
+        }
+      } else if (
+        data.payload.before!.vote === UserVote.Up &&
+        data.payload.after!.vote !== UserVote.Up
+      ) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.before!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+            incrementBy: -1,
+          });
+          if (post.authorId) {
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+              incrementBy: -1,
+            });
           }
         }
       }
@@ -545,6 +598,32 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (data.payload.before!.vote === UserVote.Up) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.before!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.PostUpvote,
+            incrementBy: -1,
+          });
+          if (post.authorId) {
+            await checkQuestProgress({
+              con,
+              logger,
+              userId: post.authorId,
+              eventType: QuestEventType.UpvoteReceived,
+              incrementBy: -1,
+            });
+          }
+        }
+      }
       break;
   }
 
@@ -594,6 +673,12 @@ const onCommentVoteChange = async (
             comment.userId,
             AchievementEventType.UpvoteReceived,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+          });
         }
       }
       break;
@@ -644,6 +729,38 @@ const onCommentVoteChange = async (
             comment.userId,
             AchievementEventType.UpvoteReceived,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+          });
+        }
+      } else if (
+        data.payload.before!.vote === UserVote.Up &&
+        data.payload.after!.vote !== UserVote.Up
+      ) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.before!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+            incrementBy: -1,
+          });
         }
       }
       break;
@@ -658,6 +775,30 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (data.payload.before!.vote === UserVote.Up) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.before!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.before!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: voterId,
+            eventType: QuestEventType.CommentUpvote,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: comment.userId,
+            eventType: QuestEventType.UpvoteReceived,
+            incrementBy: -1,
+          });
+        }
+      }
       break;
   }
 };
@@ -724,6 +865,13 @@ const onCommentChange = async (
     }
   } else if (data.payload.op === 'd') {
     await notifyCommentDeleted(logger, data.payload.before!);
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.before!.userId,
+      eventType: QuestEventType.CommentCreate,
+      incrementBy: -1,
+    });
   }
 };
 
@@ -750,6 +898,12 @@ const onUserChange = async (
         AchievementEventType.ReferralCount,
         referralCount,
       );
+      await checkQuestProgress({
+        con,
+        logger,
+        userId: data.payload.after!.referralId,
+        eventType: QuestEventType.ReferralCount,
+      });
     }
   } else if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'user-updated', {
@@ -843,7 +997,8 @@ const onUserChange = async (
       (data.payload.after!.subscriptionFlags as unknown as string) || '{}',
     );
     const plusStatus = hasPlusStatusChanged(afterFlags, beforeFlags);
-    if (plusStatus.statusChanged && plusStatus.isPlus) {
+    const isHackathonCycle = afterFlags.cycle === 'hackathon';
+    if (plusStatus.statusChanged && plusStatus.isPlus && !isHackathonCycle) {
       await checkAchievementProgress(
         con,
         logger,
@@ -852,7 +1007,7 @@ const onUserChange = async (
       );
     }
 
-    if (plusStatus.isPlus && afterFlags.createdAt) {
+    if (plusStatus.isPlus && !isHackathonCycle && afterFlags.createdAt) {
       const createdAt = new Date(afterFlags.createdAt);
       const monthsSubscribed = differenceInMonths(new Date(), createdAt);
       if (monthsSubscribed >= 12) {
@@ -882,15 +1037,38 @@ const onUserChange = async (
           AchievementEventType.ReferralCount,
           referralCount,
         );
+        await checkQuestProgress({
+          con,
+          logger,
+          userId: referralUserId,
+          eventType: QuestEventType.ReferralCount,
+        });
       }
     }
 
     await checkProfileCompletionAchievement(con, logger, data.payload.after!);
+
+    const rawBeforeFlags = data.payload.before!.flags;
+    const rawAfterFlags = data.payload.after!.flags;
+    const beforeUserFlags = (
+      typeof rawBeforeFlags === 'string'
+        ? JSON.parse(rawBeforeFlags || '{}')
+        : rawBeforeFlags || {}
+    ) as UserFlags;
+    const afterUserFlags = (
+      typeof rawAfterFlags === 'string'
+        ? JSON.parse(rawAfterFlags || '{}')
+        : rawAfterFlags || {}
+    ) as UserFlags;
+    if (!beforeUserFlags.inDeletion && afterUserFlags.inDeletion) {
+      await triggerTypedEvent(logger, 'api.v1.user-deletion-requested', {
+        userId: data.payload.after!.id,
+      });
+    }
   }
   if (data.payload.op === 'd') {
     await triggerTypedEvent(logger, 'user-deleted', {
       id: data.payload.before!.id,
-      kratosUser: true,
       email: data.payload.before!.email,
     });
   }
@@ -1479,6 +1657,23 @@ const onMarketingCtaChange = async (
   }
 };
 
+const onUserMarketingCtaChange = async (
+  data: ChangeMessage<UserMarketingCta>,
+) => {
+  if (data.payload.op !== 'd') {
+    return;
+  }
+
+  const userId = data.payload.before?.userId;
+  if (!userId) {
+    return;
+  }
+
+  await deleteRedisKey(
+    generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+  );
+};
+
 const onSquadPublicRequestChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1605,6 +1800,24 @@ const onUserStreakChange = async (
   }
 };
 
+const shouldEnrichUserCompany = (data: ChangeMessage<UserCompany>): boolean => {
+  const { op, before, after } = data.payload;
+
+  if (!after?.email || after.companyId !== null) {
+    return false;
+  }
+
+  if (op === 'c') {
+    return true;
+  }
+
+  if (op !== 'u' || before?.companyId !== null) {
+    return false;
+  }
+
+  return !before?.verified && !!after.verified;
+};
+
 const onUserCompanyCompanyChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1624,6 +1837,15 @@ const onUserCompanyCompanyChange = async (
       data.payload.after!.userId,
       AchievementEventType.CompanyVerified,
     );
+  }
+
+  if (shouldEnrichUserCompany(data) && data.payload.after) {
+    const { email, userId } = data.payload.after;
+
+    await triggerTypedEvent(logger, 'api.v1.user-company-enrichment', {
+      email,
+      userId,
+    });
   }
 
   const creationWithCompany =
@@ -1726,7 +1948,8 @@ const onUserTransactionChange = async (
 
     if (
       (transaction.referenceType === UserTransactionType.Post ||
-        transaction.referenceType === UserTransactionType.Comment) &&
+        transaction.referenceType === UserTransactionType.Comment ||
+        transaction.referenceType === UserTransactionType.User) &&
       transaction.senderId &&
       transaction.receiverId !== transaction.senderId
     ) {
@@ -1736,14 +1959,6 @@ const onUserTransactionChange = async (
         transaction.receiverId,
         AchievementEventType.AwardReceived,
       );
-    }
-
-    if (
-      (transaction.referenceType === UserTransactionType.Post ||
-        transaction.referenceType === UserTransactionType.Comment) &&
-      transaction.senderId &&
-      transaction.receiverId !== transaction.senderId
-    ) {
       await checkAchievementProgress(
         con,
         logger,
@@ -1808,6 +2023,14 @@ const onBookmarkChange = async (
       userId: data.payload.after!.userId,
       eventType: QuestEventType.BookmarkPost,
     });
+  } else if (data.payload.op === 'd') {
+    await checkQuestProgress({
+      con,
+      logger,
+      userId: data.payload.before!.userId,
+      eventType: QuestEventType.BookmarkPost,
+      incrementBy: -1,
+    });
   }
 };
 
@@ -1861,6 +2084,44 @@ const onContentPreferenceChange = async (
             AchievementEventType.FollowerGain,
             followerCount,
           );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.referenceId,
+            eventType: QuestEventType.FollowerGain,
+          });
+        }
+        break;
+      }
+      default:
+        return;
+    }
+  } else if (data.payload.op === 'd') {
+    switch (data.payload.before?.type) {
+      case ContentPreferenceType.User: {
+        const contentPreferenceUser = data.payload
+          .before as ChangeObject<ContentPreferenceUser>;
+
+        if (
+          [
+            ContentPreferenceStatus.Follow,
+            ContentPreferenceStatus.Subscribed,
+          ].includes(contentPreferenceUser.status)
+        ) {
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.userId,
+            eventType: QuestEventType.UserFollow,
+            incrementBy: -1,
+          });
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: contentPreferenceUser.referenceId,
+            eventType: QuestEventType.FollowerGain,
+            incrementBy: -1,
+          });
         }
         break;
       }
@@ -2403,6 +2664,33 @@ const onFeedbackChange = async (
   }
 };
 
+const onPostHighlightChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<PostHighlight>,
+) => {
+  if (data.payload.op !== 'c' || !data.payload.after) {
+    return;
+  }
+
+  const { id, channel, postId, headline, significance, reason, highlightedAt } =
+    data.payload.after;
+
+  await triggerTypedEvent(
+    logger,
+    'api.v1.post-highlighted',
+    new PostHighlightedMessage({
+      highlightId: id,
+      channel,
+      postId,
+      headline,
+      significance,
+      reason: reason ?? undefined,
+      highlightedAt,
+    }),
+  );
+};
+
 const onHotTakeChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2483,21 +2771,28 @@ const onPostAnalyticsChange = async (
         );
       }
 
+      const stats = await con
+        .getRepository(SharePost)
+        .createQueryBuilder('sp')
+        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
+        .where('sp.authorId = :userId', { userId: sharePost.authorId })
+        .select('COALESCE(MAX(pa.clicks), 0)::int', 'maxClicks')
+        .addSelect(
+          'COUNT(*) FILTER (WHERE pa.clicks > 0)::int',
+          'postsWithClicks',
+        )
+        .getRawOne<{ maxClicks: number; postsWithClicks: number }>();
+
+      const maxClicks = stats?.maxClicks ?? 0;
+      const postsWithClicks = stats?.postsWithClicks ?? 0;
+
       await checkAchievementProgress(
         con,
         logger,
         sharePost.authorId,
         AchievementEventType.ShareClickMilestone,
-        clicks,
+        maxClicks,
       );
-
-      const postsWithClicks = await con
-        .getRepository(SharePost)
-        .createQueryBuilder('sp')
-        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
-        .where('sp.authorId = :userId', { userId: sharePost.authorId })
-        .andWhere('pa.clicks > 0')
-        .getCount();
 
       await checkAchievementProgress(
         con,
@@ -2630,6 +2925,9 @@ const worker: Worker = {
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
           break;
+        case getTableName(con, UserMarketingCta):
+          await onUserMarketingCtaChange(data);
+          break;
         case getTableName(con, UserStreak):
           await onUserStreakChange(con, logger, data);
           break;
@@ -2671,6 +2969,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
+          break;
+        case getTableName(con, PostHighlight):
+          await onPostHighlightChange(con, logger, data);
           break;
         case getTableName(con, HotTake):
           await onHotTakeChange(con, logger, data);

@@ -8,7 +8,9 @@ import {
   PostType,
   SourceMember,
   SourceType,
+  SquadSource,
 } from '../entity';
+import { In } from 'typeorm';
 import {
   getAttachmentForPostType,
   getSlackClient,
@@ -38,7 +40,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
           return;
         }
 
-        const [post, integrations] = await Promise.all([
+        const [post, linkedSquads] = await Promise.all([
           con.getRepository(Post).findOneOrFail({
             where: {
               id: data.post.id,
@@ -48,15 +50,30 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
               author: true,
             },
           }),
-          con.getRepository(UserSourceIntegrationSlack).find({
-            where: {
+          con
+            .getRepository(SquadSource)
+            .createQueryBuilder('s')
+            .select('s.id', 'id')
+            .where(`s.type = :type`, { type: SourceType.Squad })
+            .andWhere(`s."linkedSourceIds" @> ARRAY[:sourceId]::text[]`, {
               sourceId: data.post.sourceId,
+            })
+            .getRawMany<{ id: string }>(),
+        ]);
+
+        const integrations = await con
+          .getRepository(UserSourceIntegrationSlack)
+          .find({
+            where: {
+              sourceId: In([
+                data.post.sourceId,
+                ...linkedSquads.map(({ id }) => id),
+              ]),
             },
             relations: {
               userIntegration: true,
             },
-          }),
-        ]);
+          });
 
         if (integrations.length === 0) {
           return;

@@ -15,11 +15,14 @@ RUN apt-get update \
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
 
-RUN npm install -g corepack@0.31.0
+RUN npm install -g corepack@0.31.0 \
+    && corepack enable \
+    && corepack prepare pnpm@10.33.4 --activate
 
 COPY .npmrc .
 COPY package.json .
 COPY pnpm-lock.yaml .
+COPY pnpm-workspace.yaml .
 COPY patches patches
 COPY queries queries
 COPY geoip geoip

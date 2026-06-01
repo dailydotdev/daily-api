@@ -25,7 +25,6 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
 import { GQLBookmark } from '../src/schema/bookmarks';
-import { VALID_FOLDER_EMOJIS } from '../src/common';
 import { randomUUID } from 'crypto';
 
 let con: DataSource;
@@ -513,29 +512,8 @@ describe('mutation createBookmarkList', () => {
       );
     });
 
-    it('should throw error if icon is not a single emoji', async () => {
-      loggedUser = '1';
-      isPlus = true;
-      await testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION('list', 'icon'),
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-        'Invalid icon or name',
-      );
-      await testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION('list', '😂💯'),
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-        'Invalid icon or name',
-      );
-    });
-
-    test.each(VALID_FOLDER_EMOJIS)(
-      'should create a new list with icon %s',
+    test.each(['😀', '🚀', '😂💯', 'icon'])(
+      'should create a new list with any icon string %s',
       async (iconToTest: string) => {
         loggedUser = '1';
         isPlus = true;

@@ -40,9 +40,6 @@ describe('channelDigests cron', () => {
         channel: 'vibes',
         targetAudience: 'audience',
         frequency: 'daily',
-        includeSentiment: true,
-        minHighlightScore: 0.65,
-        sentimentGroupIds: ['group-1'],
         enabled: true,
       },
       {
@@ -51,8 +48,6 @@ describe('channelDigests cron', () => {
         channel: 'weekly',
         targetAudience: 'weekly audience',
         frequency: 'weekly',
-        includeSentiment: false,
-        sentimentGroupIds: [],
         enabled: true,
       },
     ]);
@@ -94,9 +89,6 @@ describe('channelDigests cron', () => {
         channel: 'vibes',
         targetAudience: 'audience',
         frequency: 'daily',
-        includeSentiment: true,
-        minHighlightScore: 0.65,
-        sentimentGroupIds: ['group-1'],
         enabled: true,
       },
       {
@@ -105,8 +97,6 @@ describe('channelDigests cron', () => {
         channel: 'weekly',
         targetAudience: 'weekly audience',
         frequency: 'weekly',
-        includeSentiment: false,
-        sentimentGroupIds: [],
         enabled: true,
       },
     ]);

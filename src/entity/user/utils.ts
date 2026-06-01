@@ -397,7 +397,7 @@ export const addNewUser = async (
 
 export const addClaimableItemsToUser = async (
   con: DataSource,
-  body: AddUserData,
+  body: Pick<AddUserData, 'id' | 'email'>,
 ) => {
   const subscription = await con.getRepository(ClaimableItem).findOneBy({
     identifier: body.email,

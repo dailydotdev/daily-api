@@ -28,24 +28,20 @@ export const compareSnapshots = ({
   const changed =
     baseline.map(toItemSignature).join('||') !==
     internal.map(toItemSignature).join('||');
+  const addedPostIds = [...internalByPostId.keys()].filter(
+    (postId) => !baselineByPostId.has(postId),
+  );
+  const removedPostIds = [...baselineByPostId.keys()].filter(
+    (postId) => !internalByPostId.has(postId),
+  );
 
   return {
     changed,
     baselineCount: baseline.length,
     internalCount: internal.length,
     overlapCount: overlap.length,
-    addedPostIds: [...internalByPostId.keys()].filter(
-      (postId) => !baselineByPostId.has(postId),
-    ),
-    removedPostIds: [...baselineByPostId.keys()].filter(
-      (postId) => !internalByPostId.has(postId),
-    ),
-    churnCount:
-      [...internalByPostId.keys()].filter(
-        (postId) => !baselineByPostId.has(postId),
-      ).length +
-      [...baselineByPostId.keys()].filter(
-        (postId) => !internalByPostId.has(postId),
-      ).length,
+    addedPostIds,
+    removedPostIds,
+    churnCount: addedPostIds.length + removedPostIds.length,
   };
 };

@@ -1020,6 +1020,31 @@ describe('generateNotification', () => {
     ]);
   });
 
+  it('should generate squad_post_added notification without doneBy', () => {
+    const type = NotificationType.SquadPostAdded;
+    const ctx: NotificationPostContext = {
+      userIds: [userId],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.title).toEqual('New post in <b>A</b>');
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+    ]);
+  });
+
   it('should generate squad_member_joined notification', async () => {
     const type = NotificationType.SquadMemberJoined;
     await con.getRepository(Source).save(sourcesFixture[0]);
@@ -1290,7 +1315,9 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('opportunity');
     expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
-    expect(actual.notification.title).toEqual('New job match waiting for you');
+    expect(actual.notification.title).toEqual(
+      'A new job match is waiting for you',
+    );
     expect(actual.notification.description).toEqual(
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
@@ -1898,6 +1925,7 @@ describe('award notifications', () => {
       receiver,
       transaction,
       targetUrl: `/${receiver.username}`,
+      targetType: 'user',
     };
 
     const actual = generateNotificationV2(type, ctx);
@@ -1906,8 +1934,44 @@ describe('award notifications', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(transaction.id);
     expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.title).toEqual(
+      `<b>${sender.username}</b> awarded you +100 Cores for being awesome!`,
+    );
     expect(actual.notification.targetUrl).toEqual(`/${receiver.username}`);
     expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should not append "for being awesome!" when award is on a post', async () => {
+    const sender = usersFixture[1] as Reference<User>;
+    const receiver = usersFixture[0] as Reference<User>;
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: receiver.id,
+      senderId: sender.id,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: null,
+      status: UserTransactionStatus.Success,
+    });
+
+    const type = NotificationType.UserReceivedAward;
+    const ctx: NotificationAwardContext = {
+      userIds: [receiver.id],
+      sender,
+      receiver,
+      transaction,
+      targetUrl: `/posts/p1`,
+      targetType: 'post',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.title).toEqual(
+      `<b>${sender.username}</b> awarded you +100 Cores`,
+    );
   });
 });
 
@@ -2203,7 +2267,7 @@ describe('poll result notifications', () => {
       },
     ]);
     expect(actual.notification.title).toEqual(
-      '<b>Poll you voted on has ended!</b> See the results for: <b>What is your favorite programming language?</b>',
+      '<b>The poll you voted on has ended!</b> See the results for: <b>What is your favorite programming language?</b>',
     );
   });
 

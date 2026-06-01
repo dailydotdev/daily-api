@@ -40,6 +40,12 @@ import {
   applyVordrHook,
   applyVordrHookForUpdate,
 } from './hooks';
+import {
+  ContentEmbed,
+  ContentEmbedParentType,
+  ContentEmbedReferenceType,
+} from '../ContentEmbed';
+import { Comment } from '../Comment';
 
 export type PostStats = {
   numPosts: number;
@@ -60,8 +66,8 @@ interface DeletePostProps {
   userId?: string;
 }
 
-export const deletePost = async ({ con, id, userId }: DeletePostProps) =>
-  con.getRepository(Post).update(
+export const deletePost = async ({ con, id, userId }: DeletePostProps) => {
+  const result = await con.getRepository(Post).update(
     { id },
     {
       deleted: true,
@@ -71,6 +77,34 @@ export const deletePost = async ({ con, id, userId }: DeletePostProps) =>
       }),
     },
   );
+
+  const embedRepo = con.getRepository(ContentEmbed);
+  const postCommentIds = embedRepo
+    .createQueryBuilder()
+    .subQuery()
+    .select('comment.id')
+    .from(Comment, 'comment')
+    .where('comment."postId" = :postId')
+    .getQuery();
+
+  await embedRepo
+    .createQueryBuilder()
+    .delete()
+    .where('"referenceType" = :referenceType AND "referenceId" = :postId')
+    .orWhere('"parentType" = :postParentType AND "parentId" = :postId')
+    .orWhere(
+      `"parentType" = :commentParentType AND "parentId" IN ${postCommentIds}`,
+    )
+    .setParameters({
+      referenceType: ContentEmbedReferenceType.Post,
+      postParentType: ContentEmbedParentType.Post,
+      commentParentType: ContentEmbedParentType.Comment,
+      postId: id,
+    })
+    .execute();
+
+  return result;
+};
 
 export const getAuthorPostStats = async (
   con: DataSource,

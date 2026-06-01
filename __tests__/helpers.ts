@@ -50,9 +50,12 @@ import {
   ExtractMarkdownResponse,
   FindCompanyNewsResponse,
   FindContactActivityResponse,
+  ExtractedProfileTag,
   FindJobVacanciesResponse,
+  GitHubProfileTagsResponse,
   JobVacancy,
   NewsItem,
+  OnboardingProfileTagsResponse,
   ParseCVResponse,
   ParseError,
   ParseOpportunityResponse,
@@ -561,6 +564,19 @@ export const createMockBrokkrTransport = ({
     });
   });
 
+export const createMockBrokkrParseGeneralErrorTransport = (
+  errorMessage: string,
+) =>
+  createRouterTransport(({ service }) => {
+    service(BrokkrService, {
+      parseOpportunity: () => {
+        return new ParseOpportunityResponse({
+          errors: [new ParseError({ field: 'general', message: errorMessage })],
+        });
+      },
+    });
+  });
+
 export const createMockNjordTransport = () => {
   return createRouterTransport(({ service }) => {
     const accounts: Record<
@@ -779,6 +795,23 @@ export const createMockBragiPipelinesTransport = () =>
             }),
           ],
         }),
+      gitHubProfileTags: () =>
+        new GitHubProfileTagsResponse({
+          id: 'mock-id',
+          extractedTags: [
+            new ExtractedProfileTag({ name: 'webdev', confidence: 0.95 }),
+            new ExtractedProfileTag({ name: 'rust', confidence: 0.88 }),
+            new ExtractedProfileTag({ name: 'golang', confidence: 0.72 }),
+          ],
+        }),
+      onboardingProfileTags: () =>
+        new OnboardingProfileTagsResponse({
+          id: 'mock-id',
+          extractedTags: [
+            new ExtractedProfileTag({ name: 'webdev', confidence: 0.91 }),
+            new ExtractedProfileTag({ name: 'fullstack', confidence: 0.85 }),
+          ],
+        }),
     });
   });
 
@@ -792,6 +825,12 @@ export const createMockBragiPipelinesNotFoundTransport = () =>
         throw new ConnectError('not found', ConnectCode.NotFound);
       },
       findContactActivity: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      gitHubProfileTags: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      onboardingProfileTags: () => {
         throw new ConnectError('not found', ConnectCode.NotFound);
       },
     });

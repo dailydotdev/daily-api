@@ -72,13 +72,16 @@ interface SearchSourcesResponse {
   searchSources: SourceSummary[];
 }
 
-// Map API time values to GraphQL enum values
+// Maps the public API's coarse time filter values to the actual SearchTime
+// GraphQL enum values (see src/schema/search.ts). Without correct values, any
+// request with ?time=... returns 500 because the enum doesn't have
+// DAY/WEEK/MONTH/YEAR/ALL.
 const TIME_MAP: Record<string, string> = {
-  day: 'DAY',
-  week: 'WEEK',
-  month: 'MONTH',
-  year: 'YEAR',
-  all: 'ALL',
+  day: 'Today',
+  week: 'LastSevenDays',
+  month: 'LastThirtyDays',
+  year: 'ThisYear',
+  all: 'AllTime',
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {

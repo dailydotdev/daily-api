@@ -40,6 +40,7 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationLiveRoomContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -100,9 +101,11 @@ export const notificationTitleMap: Record<
     UPVOTE_TITLES[ctx.upvotes as keyof typeof UPVOTE_TITLES] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   squad_post_added: (
-    ctx: NotificationPostContext & NotificationDoneByContext,
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
   ) =>
-    `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
+    ctx.doneBy
+      ? `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`
+      : `New post in <b>${ctx.source.name}</b>`,
   squad_member_joined: (
     ctx: NotificationPostContext &
       NotificationSourceContext &
@@ -127,7 +130,7 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `<b>${ctx.post.title}</b> collection has been updated`,
+    `The <b>${ctx.post.title}</b> collection has been updated`,
   dev_card_unlocked: () => 'Your DevCard is ready to generate',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
     `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
@@ -177,12 +180,14 @@ export const notificationTitleMap: Record<
       return `<b>${ctx.sender.username}</b> awarded your <b>${ctx.source.name}</b> Squad +${coreAmount} Cores`;
     }
 
+    const suffix = ctx.targetType === 'user' ? ' for being awesome!' : '';
+
     if (ctx.transaction.valueIncFees === 0) {
-      return `<b>${ctx.sender.username}</b> sent you an Award`;
+      return `<b>${ctx.sender.username}</b> sent you an Award${suffix}`;
     }
 
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
-    return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores`;
+    return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores${suffix}`;
   },
   organization_member_joined: ({
     user,
@@ -202,14 +207,14 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New job match waiting for you`,
+  new_opportunity_match: () => `A new job match is waiting for you`,
   rematched_opportunity: () =>
     `You've been re-matched based on updated job requirements`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post reached ${formatMetricValue(ctx.analytics.impressions)} impressions`;
   },
   poll_result: (ctx: NotificationPostContext) =>
-    `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
+    `<b>The poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
@@ -241,6 +246,10 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
+  live_room_started: (ctx: NotificationLiveRoomContext) =>
+    `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
+  live_room_starting_soon: (ctx: NotificationLiveRoomContext) =>
+    `<b>${ctx.host.name || ctx.host.username}</b> will soon go live: <b>${ctx.room.topic}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -377,12 +386,13 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post, ctx.comment),
   squad_post_added: (
     builder,
-    ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
+  ) => {
+    const base = builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
-      .avatarManyUsers([ctx.doneBy]),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!);
+    return ctx.doneBy ? base.avatarManyUsers([ctx.doneBy]) : base;
+  },
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
@@ -756,4 +766,24 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.metadataChangedAt?.toString());
   },
+  live_room_started: (
+    builder: NotificationBuilder,
+    ctx: NotificationLiveRoomContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceLiveRoom(ctx.room.id)
+      .avatarUser(ctx.host)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/standups/${ctx.room.id}`)
+      .uniqueKey(ctx.room.id),
+  live_room_starting_soon: (
+    builder: NotificationBuilder,
+    ctx: NotificationLiveRoomContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceLiveRoom(ctx.room.id)
+      .avatarUser(ctx.host)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/standups/${ctx.room.id}`)
+      .uniqueKey(ctx.room.id),
 };

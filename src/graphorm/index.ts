@@ -16,6 +16,7 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
+  type UserFlags,
   type PostTranslation,
   PostType,
   type PostFlagsPublic,
@@ -26,6 +27,7 @@ import {
 import { type Organization } from '../entity/Organization';
 import {
   OrganizationMemberRole,
+  Roles,
   SourceMemberRoles,
   rankToSourceRole,
   sourceRoleRank,
@@ -38,6 +40,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  ONE_HOUR_IN_SECONDS,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -50,7 +53,12 @@ import {
   UserVote,
 } from '../types';
 import { whereVordrFilter } from '../common/vordr';
+import { MIN_INDEXABLE_REPUTATION } from '../common/users';
 import { UserCompany, Post } from '../entity';
+import {
+  PostHighlightSignificance,
+  toPostHighlightSignificanceLabel,
+} from '../entity/PostHighlight';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -66,6 +74,11 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentEmbedParentType,
+  ContentEmbedReferenceType,
+} from '../entity/ContentEmbed';
+import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { UserExperienceType } from '../entity/user/experiences/types';
@@ -74,14 +87,25 @@ import { extractHandleFromUrl } from '../common/schema/socials';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
-import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
+import type {
+  OpportunityFlags,
+  OpportunityFlagsPublic,
+} from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
-
 export enum LocationVerificationStatus {
   GeoIP = 'geoip',
   UserProvided = 'user_provided',
   Verified = 'verified',
 }
+
+const getPostHighlightTtlSeconds = (): number => {
+  const DEFAULT_POST_HIGHLIGHT_TTL_SECONDS = 12 * ONE_HOUR_IN_SECONDS;
+
+  return (
+    remoteConfig.vars.postHighlightTtlSeconds ??
+    DEFAULT_POST_HIGHLIGHT_TTL_SECONDS
+  );
+};
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -135,6 +159,23 @@ const existsByUserAndHotTake =
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
+
+const defaultChannelDisplayName = ({
+  channel,
+  displayName,
+}: {
+  channel?: string;
+  displayName?: string | null;
+}): string => displayName?.trim() || channel || '';
+
+export const nullIfNotTeamMember = <
+  T,
+  Ctx extends Pick<Context, 'isTeamMember' | 'roles'>,
+>(
+  value: T,
+  ctx: Ctx,
+): T | null =>
+  ctx.isTeamMember || ctx.roles.includes(Roles.Moderator) ? value : null;
 
 const nullIfNotSameUser = <T>(
   value: T,
@@ -291,6 +332,14 @@ const obj = new GraphORM({
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
         transform: (subscriptionFlags: UserSubscriptionFlags) =>
           isPlusMember(subscriptionFlags?.cycle),
+      },
+      isHackathonParticipant: {
+        alias: { field: 'flags', type: 'jsonb' },
+        transform: (flags: UserFlags) => !!flags?.hackathonParticipant,
+      },
+      noindex: {
+        select: (_: Context, alias: string): string =>
+          `(COALESCE((${alias}.flags->>'vordr')::boolean, false) OR ${alias}.reputation <= ${MIN_INDEXABLE_REPUTATION})`,
       },
       plusMemberSince: {
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
@@ -537,6 +586,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'liveRoomId',
       'subType',
       'slug',
       'translation',
@@ -560,6 +610,19 @@ const obj = new GraphORM({
       tags: {
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
+      },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."parentType" = :embedPostParent`, {
+                embedPostParent: ContentEmbedParentType.Post,
+              }),
+        },
       },
       clickbaitTitleDetected: {
         transform: (_, ctx: Context, parent): boolean => {
@@ -675,6 +738,32 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
               .andWhere(`${childAlias}."deleted" = false`),
+        },
+      },
+      postHighlight: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."postId" = ${parentAlias}."id"`)
+              .andWhere(`${childAlias}."significance" != :unspecified`, {
+                unspecified: PostHighlightSignificance.Unspecified,
+              })
+              .andWhere(`${childAlias}."retiredAt" IS NULL`)
+              .andWhere(
+                `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                { ttlSeconds: getPostHighlightTtlSeconds() },
+              )
+              .orderBy(`${childAlias}."significance"`, 'ASC')
+              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      liveRoom: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'liveRoomId',
         },
       },
       downvoted: {
@@ -1038,11 +1127,43 @@ const obj = new GraphORM({
       createdAt: { transform: transformDate },
     },
   },
+  ContentEmbed: {
+    requiredColumns: ['id', 'referenceId', 'referenceType'],
+    fields: {
+      post: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."id" = "${parentAlias}"."referenceId"`)
+              .andWhere(`"${parentAlias}"."referenceType" = :embedReference`, {
+                embedReference: ContentEmbedReferenceType.Post,
+              })
+              .andWhere(`"${childAlias}"."deleted" = false`)
+              .andWhere(`"${childAlias}"."visible" = true`)
+              .andWhere(`"${childAlias}"."private" = false`),
+        },
+      },
+    },
+  },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
     fields: {
       createdAt: { transform: transformDate },
       lastUpdatedAt: { transform: transformDate },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."parentType" = :embedCommentParent`, {
+                embedCommentParent: ContentEmbedParentType.Comment,
+              }),
+        },
+      },
       upvoted: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
@@ -1226,6 +1347,15 @@ const obj = new GraphORM({
               .orderBy(`"${childAlias}".name`),
         },
       },
+      advancedSettings: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."feedId" = "${parentAlias}".id`)
+              .orderBy(`"${childAlias}"."advancedSettingsId"`, 'ASC'),
+        },
+      },
     },
   },
   FeedAdvancedSettings: {
@@ -1273,6 +1403,10 @@ const obj = new GraphORM({
         )
         .addSelect('un."readAt"'),
     fields: {
+      createdAt: {
+        rawSelect: true,
+        select: () => `COALESCE(un."showAt", un."createdAt")`,
+      },
       avatars: {
         relation: {
           isMany: true,
@@ -1356,6 +1490,45 @@ const obj = new GraphORM({
             }),
             ...rest,
           };
+        },
+      },
+    },
+  },
+  ChannelConfiguration: {
+    from: 'ChannelHighlightDefinition',
+    requiredColumns: ['channel'],
+    fields: {
+      displayName: {
+        transform: (value: string, _, parent) =>
+          defaultChannelDisplayName({
+            channel: (parent as { channel?: string }).channel,
+            displayName: value,
+          }),
+      },
+      digest: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."channel" = "${parentAlias}"."channel"`)
+              .andWhere(`"${childAlias}"."enabled" = true`)
+              .orderBy(`"${childAlias}"."key"`, 'ASC')
+              .limit(1),
+        },
+      },
+    },
+  },
+  ChannelDigestConfiguration: {
+    from: 'ChannelDigest',
+    fields: {
+      source: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
+              .andWhere(`"${childAlias}"."active" = true`)
+              .limit(1),
         },
       },
     },
@@ -1893,12 +2066,13 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
-        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+        transform: (value: OpportunityFlags): OpportunityFlagsPublic => {
           return {
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
             plan: value?.plan,
             showSlack: value?.showSlack ?? false,
             showFeedback: value?.showFeedback ?? false,
+            parseErrorUserMessage: value?.parseErrorUserMessage,
           };
         },
       },
@@ -2339,6 +2513,64 @@ const obj = new GraphORM({
       },
     },
   },
+  LiveRoom: {
+    requiredColumns: ['id', 'hostId'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      endedAt: {
+        transform: transformDate,
+      },
+      scheduledStart: {
+        transform: transformDate,
+      },
+      subscribed: {
+        select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
+          if (!ctx.userId) {
+            return 'FALSE';
+          }
+
+          const query = qb
+            .select('1')
+            .from(LiveRoomSubscription, 'lrs')
+            .where(`lrs."roomId" = ${alias}.id`)
+            .andWhere(`lrs."userId" = :liveRoomSubscriptionUserId`, {
+              liveRoomSubscriptionUserId: ctx.userId,
+            })
+            .limit(1);
+
+          return `EXISTS${query.getQuery()}`;
+        },
+      },
+      contentEmbeds: {
+        relation: {
+          isMany: true,
+          sort: 'sortOrder',
+          order: 'ASC',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"::text`)
+              .andWhere(`"${childAlias}"."parentType" = :embedLiveRoomParent`, {
+                embedLiveRoomParent: ContentEmbedParentType.LiveRoom,
+              }),
+        },
+      },
+      host: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'hostId',
+        },
+      },
+    },
+  },
   DatasetTool: {
     requiredColumns: ['id', 'title'],
     fields: {
@@ -2454,6 +2686,72 @@ const obj = new GraphORM({
       },
     },
   },
+  Archive: {
+    requiredColumns: ['id', 'scopeType', 'scopeId'],
+    fields: {
+      periodStart: {
+        transform: transformDate,
+      },
+      items: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."archiveId" = "${parentAlias}".id`)
+              .andWhere(
+                `EXISTS (SELECT 1 FROM "post" "p" WHERE "p".id = ${childAlias}."subjectId" AND "p"."deleted" = false)`,
+              )
+              .orderBy(`${childAlias}.rank`, 'ASC'),
+        },
+      },
+      keyword: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.value = "${parentAlias}"."scopeId"`)
+              .andWhere(`"${parentAlias}"."scopeType" = :tagScopeType`, {
+                tagScopeType: 'tag',
+              })
+              .andWhere(`${childAlias}.status = :keywordStatus`, {
+                keywordStatus: 'allow',
+              }),
+        },
+      },
+      source: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.id = "${parentAlias}"."scopeId"`)
+              .andWhere(`"${parentAlias}"."scopeType" = :sourceScopeType`, {
+                sourceScopeType: 'source',
+              }),
+        },
+      },
+    },
+  },
+  ArchiveItem: {
+    requiredColumns: ['subjectId'],
+    fields: {
+      post: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.id = "${parentAlias}"."subjectId"`)
+              .andWhere(`${childAlias}."deleted" = false`),
+        },
+      },
+    },
+  },
+  FeedbackItem: {
+    fields: {
+      linearIssueUrl: {
+        transform: nullIfNotTeamMember,
+      },
+    },
+  },
   Achievement: {
     fields: {
       criteria: { jsonType: true },
@@ -2470,6 +2768,17 @@ const obj = new GraphORM({
           parentColumn: 'achievementId',
         },
       },
+      createdAt: { transform: transformDate },
+      updatedAt: { transform: transformDate },
+    },
+  },
+  PostHighlight: {
+    fields: {
+      significance: {
+        transform: (value: PostHighlightSignificance) =>
+          toPostHighlightSignificanceLabel(value),
+      },
+      highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },
       updatedAt: { transform: transformDate },
     },

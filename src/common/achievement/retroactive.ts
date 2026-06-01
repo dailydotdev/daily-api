@@ -158,7 +158,7 @@ const handleSquadCreate: RetroactiveHandler = async (con, userIds) => {
 
 const handlePlusSubscribe: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
-    `SELECT id AS "userId" FROM "user" WHERE id = ANY($1) AND "subscriptionFlags"->>'cycle' IS NOT NULL`,
+    `SELECT id AS "userId" FROM "user" WHERE id = ANY($1) AND "subscriptionFlags"->>'cycle' IS NOT NULL AND "subscriptionFlags"->>'cycle' != 'hackathon'`,
     [userIds],
   );
 

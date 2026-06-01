@@ -9,6 +9,10 @@ export enum FeedOrderBy {
   Clicks = 'clicks',
 }
 
+export enum FeedOrigin {
+  TagChip = 'TAG_CHIP',
+}
+
 export type FeedFlags = Partial<{
   name: string;
   orderBy: FeedOrderBy;
@@ -17,6 +21,7 @@ export type FeedFlags = Partial<{
   minViews: number;
   disableEngagementFilter: boolean;
   icon: string;
+  origin: FeedOrigin;
 }>;
 
 export type FeedFlagsPublic = Pick<
@@ -28,6 +33,7 @@ export type FeedFlagsPublic = Pick<
   | 'minViews'
   | 'disableEngagementFilter'
   | 'icon'
+  | 'origin'
 >;
 
 export enum FeedType {

@@ -1,14 +1,29 @@
 import request from 'supertest';
+import nock from 'nock';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
 import { Keyword } from '../../../src/entity';
 
 const state = setupPublicApiTests();
 
-// Note: searchPosts endpoint depends on external search services (Mimir)
-// These tests are skipped as they require mocking the search infrastructure
-describe.skip('GET /public/v1/search/posts', () => {
+afterEach(() => {
+  nock.cleanAll();
+});
+
+const nockMimir = (postIds: string[]) => {
+  nock('http://localhost:7600')
+    .post('/v1/search')
+    .reply(
+      204,
+      JSON.stringify({
+        result: postIds.map((postId) => ({ postId })),
+      }),
+    );
+};
+
+describe('GET /public/v1/search/posts', () => {
   it('should return search results for posts', async () => {
     const token = await createTokenForUser(state.con, '5');
+    nockMimir(['p1', 'p2']);
 
     const { body } = await request(state.app.server)
       .get('/public/v1/search/posts')
@@ -17,9 +32,57 @@ describe.skip('GET /public/v1/search/posts', () => {
       .expect(200);
 
     expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({ id: 'p1' });
     expect(body.pagination).toMatchObject({
       hasNextPage: expect.any(Boolean),
     });
+  });
+
+  // Regression test: TIME_MAP previously emitted DAY/WEEK/MONTH/YEAR/ALL
+  // which are not valid values of the SearchTime GraphQL enum. Every request
+  // with ?time=… returned a 500 (GraphQL variable validation error).
+  // See src/routes/public/search.ts TIME_MAP and src/schema/search.ts SearchTime.
+  it.each(['day', 'week', 'month', 'year', 'all'])(
+    'should accept time=%s and not return 500',
+    async (time) => {
+      const token = await createTokenForUser(state.con, '5');
+      nockMimir(['p1']);
+
+      const { body } = await request(state.app.server)
+        .get('/public/v1/search/posts')
+        .query({ q: 'foo', time })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(Array.isArray(body.data)).toBe(true);
+    },
+  );
+
+  it('should require authentication', async () => {
+    await request(state.app.server)
+      .get('/public/v1/search/posts')
+      .query({ q: 'test' })
+      .expect(401);
+  });
+
+  it('should return 400 for missing required q parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    await request(state.app.server)
+      .get('/public/v1/search/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('should return 400 for invalid time enum value', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    await request(state.app.server)
+      .get('/public/v1/search/posts')
+      .query({ q: 'foo', time: 'forever' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
   });
 });
 

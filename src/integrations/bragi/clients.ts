@@ -19,12 +19,21 @@ import {
   FindJobVacanciesResponse,
   GearCategory as ProtoGearCategory,
   GenerateRecruiterEmailResponse,
+  ExtractedProfileTag,
+  GitHubProfileTagsResponse,
+  NextPersonaQuizQuestionResponse,
+  OnboardingProfileTagsResponse,
+  PersonaQuizOption,
+  PersonaQuizQuestion,
+  PersonaQuizRevealResponse,
+  PersonaQuizRevealText,
   ParseFeedbackResponse,
   Pipelines,
-  SentimentDigestResponse,
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
+  TopicalDigest,
+  TopicalDigestItem,
   UserFeedbackClassification,
   UserFeedbackSentiment,
   UserFeedbackTeam,
@@ -114,11 +123,24 @@ export const getBragiClient = (
             id: 'mock-id',
             emailBody: '',
           }),
-        generateSentimentDigest: async () =>
-          new SentimentDigestResponse({
-            id: 'mock-id',
-            title: 'Mock sentiment digest',
-            content: 'Mock digest content',
+        generateTopicalDigest: async () =>
+          new TopicalDigest({
+            title: 'Mock topical digest',
+            tldr: 'Mock digest summary',
+            mainItems: [
+              new TopicalDigestItem({
+                title: 'Mock main item',
+                body: 'Mock main item body',
+                postIds: ['post-1'],
+              }),
+            ],
+            alsoNotable: [
+              new TopicalDigestItem({
+                title: 'Mock notable item',
+                body: 'Mock notable item body',
+                postIds: ['post-2'],
+              }),
+            ],
           }),
         evaluateChannelHighlights: async () =>
           new EvaluateChannelHighlightsResponse({
@@ -147,6 +169,90 @@ export const getBragiClient = (
             id: 'mock-id',
             category: ProtoGearCategory.OTHER,
             normalizedName: name,
+          }),
+        gitHubProfileTags: async () =>
+          new GitHubProfileTagsResponse({
+            id: 'mock-id',
+            extractedTags: [
+              new ExtractedProfileTag({ name: 'javascript', confidence: 0.95 }),
+              new ExtractedProfileTag({ name: 'php', confidence: 0.88 }),
+              new ExtractedProfileTag({ name: 'typescript', confidence: 0.85 }),
+              new ExtractedProfileTag({ name: 'webdev', confidence: 0.82 }),
+              new ExtractedProfileTag({ name: 'go', confidence: 0.75 }),
+              new ExtractedProfileTag({ name: 'git', confidence: 0.7 }),
+            ],
+          }),
+        onboardingProfileTags: async () =>
+          new OnboardingProfileTagsResponse({
+            id: 'mock-id',
+            extractedTags: [
+              new ExtractedProfileTag({ name: 'javascript', confidence: 0.92 }),
+              new ExtractedProfileTag({ name: 'php', confidence: 0.87 }),
+              new ExtractedProfileTag({ name: 'typescript', confidence: 0.84 }),
+              new ExtractedProfileTag({ name: 'webdev', confidence: 0.8 }),
+              new ExtractedProfileTag({ name: 'go', confidence: 0.73 }),
+              new ExtractedProfileTag({ name: 'ai', confidence: 0.7 }),
+            ],
+          }),
+        nextPersonaQuizQuestion: async ({
+          askedCount,
+          maxQuestions,
+        }: {
+          askedCount?: number;
+          maxQuestions?: number;
+        }) => {
+          const reached = (askedCount ?? 0) >= (maxQuestions ?? 14);
+          if (reached) {
+            return new NextPersonaQuizQuestionResponse({
+              id: 'mock-id',
+              isFinal: true,
+            });
+          }
+          return new NextPersonaQuizQuestionResponse({
+            id: 'mock-id',
+            isFinal: false,
+            question: new PersonaQuizQuestion({
+              id: `mock-q-${askedCount ?? 0}`,
+              prompt: 'Vector databases anchor your retrieval pipeline.',
+              axis: 'tooling',
+              cols: 3,
+              options: [
+                new PersonaQuizOption({
+                  id: 'yes',
+                  label: 'Spot on',
+                  tagHints: ['vector-search'],
+                }),
+                new PersonaQuizOption({
+                  id: 'sort_of',
+                  label: 'Sort of',
+                  tagHints: ['machine-learning'],
+                }),
+                new PersonaQuizOption({
+                  id: 'no',
+                  label: 'Nope',
+                  tagHints: [],
+                }),
+              ],
+              rationale: 'Mock rationale.',
+            }),
+          });
+        },
+        personaQuizReveal: async () =>
+          new PersonaQuizRevealResponse({
+            id: 'mock-id',
+            includeTags: [
+              'machine-learning',
+              'python',
+              'recommendation-systems',
+              'vector-search',
+              'mlops',
+              'data-engineering',
+            ],
+            reveal: new PersonaQuizRevealText({
+              headline: 'Recsys-curious, production-leaning',
+              description:
+                'You actually run model.fit() and squint at retrieval. Feed will lean recsys, vector search, and MLOps.',
+            }),
           }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),

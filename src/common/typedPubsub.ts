@@ -20,6 +20,7 @@ import {
   Submission,
   PostMention,
   SourceMember,
+  LiveRoom,
 } from '../entity';
 import {
   type EventLogger,
@@ -36,6 +37,7 @@ import {
   MatchedCandidate,
   type OpportunityMessage,
   type OpportunityPreviewResult,
+  PostHighlightedMessage,
   RecruiterAcceptedCandidateMatchMessage,
   type TransferResponse,
   type UserBriefingRequest,
@@ -105,8 +107,10 @@ export type PubSubSchema = {
   };
   'user-deleted': {
     id: string;
-    kratosUser: boolean;
     email: string;
+  };
+  'api.v1.user-deletion-requested': {
+    userId: string;
   };
   'api.v1.user-created': {
     user: ChangeObject<User>;
@@ -151,6 +155,10 @@ export type PubSubSchema = {
   'api.v1.user-company-approved': {
     userCompany: ChangeObject<UserCompany>;
   };
+  'api.v1.user-company-enrichment': {
+    email: string;
+    userId: string;
+  };
   'api.v1.user-top-reader': {
     userTopReader: ChangeObject<UserTopReader>;
   };
@@ -175,6 +183,18 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
+  'flyting.v1.room-started': {
+    eventId: string;
+    roomId: LiveRoom['id'];
+    occurredAt: string;
+    type: 'room_started';
+  };
+  'flyting.v1.room-ended': {
+    eventId: string;
+    roomId: LiveRoom['id'];
+    occurredAt: string;
+    type: 'room_ended';
+  };
   'api.v1.brief-generate': {
     payload: UserBriefingRequest;
     postId: string;
@@ -190,6 +210,7 @@ export type PubSubSchema = {
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
+  'api.v1.post-highlighted': PostHighlightedMessage;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
@@ -295,10 +316,6 @@ export type PubSubSchema = {
   };
   'api.v1.generate-channel-digest': {
     digestKey: string;
-    scheduledAt: string;
-  };
-  'api.v1.generate-channel-highlight': {
-    channel: string;
     scheduledAt: string;
   };
 };

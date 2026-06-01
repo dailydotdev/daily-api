@@ -49,6 +49,16 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
+export const renderMarkdown = (
+  content: string,
+  env: Record<string, unknown> = {},
+): { contentHtml: string; tokens: Token[] } => {
+  const tokens = markdown.parse(content, env);
+  const contentHtml = markdown.renderer.render(tokens, markdown.options, env);
+
+  return { contentHtml, tokens };
+};
+
 export const getMentionLink = ({ id, username }: MarkdownMention): string => {
   const href = getUserProfileUrl(username || ghostUser.id);
 

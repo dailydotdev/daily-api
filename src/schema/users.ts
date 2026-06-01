@@ -1,4 +1,20 @@
 import { emailRegex, isNullOrUndefined } from './../common/object';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { getBragiClient } from '../integrations/bragi';
+import { Keyword, KeywordStatus } from '../entity/Keyword';
+import type { z } from 'zod';
+import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
+import { onboardingExtractTagsInputSchema } from '../common/schema/onboardingExtractTags';
+import { onboardingProfileTagsInputSchema } from '../common/schema/onboardingProfileTags';
+import { onboardingRecommendTagsInputSchema } from '../common/schema/onboardingRecommendTags';
+import { personaQuizNextQuestionInputSchema } from '../common/schema/personaQuizNextQuestion';
+import { personaQuizRevealInputSchema } from '../common/schema/personaQuizReveal';
+import { recswipeClient } from '../integrations/recswipe/clients';
+import { HttpError } from '../integrations/retry';
+import { ServiceError } from '../errors';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { Feed } from '../entity/Feed';
+import { FeedTag } from '../entity/FeedTag';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -12,6 +28,7 @@ import {
   getAuthorPostStats,
   Invite,
   MarketingCta,
+  MarketingCtaStatus,
   Post,
   PostStats,
   Settings,
@@ -29,6 +46,7 @@ import {
   UserStreakActionType,
   View,
   PostType,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -79,6 +97,7 @@ import {
   updateFlagsStatement,
   updateNotificationFlags,
   updateSubscriptionFlags,
+  isProd,
   uploadAvatar,
   UploadPreset,
   uploadProfileCover,
@@ -107,6 +126,8 @@ import {
   getUserCoresRole,
   hasUserProfileAnalyticsPermissions,
 } from '../common/user';
+import { getBetterAuth } from '../betterAuth';
+import { fromNodeHeaders } from 'better-auth/node';
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
@@ -176,6 +197,13 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
+import {
+  similarCreatorsSchema,
+  topCreatorsByTagSchema,
+} from '../common/schema/entityRelations';
+import { UserSimilarityView } from '../entity/user/UserSimilarityView';
+import { UserTagView } from '../entity/user/UserTagView';
+import { whereVordrFilter } from '../common/vordr';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -258,6 +286,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  isHackathonParticipant?: boolean;
   notificationFlags: UserNotificationFlags;
   socialLinks: UserSocialLink[];
 }
@@ -581,6 +610,11 @@ export const typeDefs = /* GraphQL */ `
     plusMemberSince: DateTime
 
     """
+    Whether the user has signed up for the daily.dev hackathon
+    """
+    isHackathonParticipant: Boolean
+
+    """
     Verified companies for this user
     """
     companies: [Company]
@@ -614,6 +648,10 @@ export const typeDefs = /* GraphQL */ `
     Flexible social media links array (replaces individual social fields)
     """
     socialLinks: [UserSocialLink!]!
+    """
+    Whether search engines should not index this user's profile
+    """
+    noindex: Boolean!
   }
 
   """
@@ -1247,6 +1285,40 @@ export const typeDefs = /* GraphQL */ `
     impressionsAds: Int!
   }
 
+  """
+  Marketing CTA flags content
+  """
+  type MarketingCtaFlags {
+    title: String!
+    description: String
+    image: String
+    tagText: String
+    tagColor: String
+    ctaUrl: String!
+    ctaText: String!
+  }
+
+  """
+  Marketing CTA platform targets
+  """
+  type MarketingCtaTargets {
+    webapp: Boolean!
+    extension: Boolean!
+    ios: Boolean!
+  }
+
+  """
+  Marketing CTA shown to a user
+  """
+  type MarketingCta {
+    campaignId: String!
+    createdAt: DateTime!
+    variant: String!
+    status: String!
+    flags: MarketingCtaFlags!
+    targets: MarketingCtaTargets!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1272,6 +1344,16 @@ export const typeDefs = /* GraphQL */ `
     Get information about the user streak recovery
     """
     streakRecover: StreakRecoverQuery @auth
+    """
+    Get top creators for a tag
+    """
+    topCreatorsByTag(tag: String!, limit: Int): [User!]!
+      @cacheControl(maxAge: 600)
+    """
+    Get creators similar to the given user
+    """
+    similarCreators(userId: ID!, limit: Int): [User!]!
+      @cacheControl(maxAge: 600)
     """
     Get the most read tags of the user
     """
@@ -1463,6 +1545,11 @@ export const typeDefs = /* GraphQL */ `
     Get daily impressions history for all posts authored by the authenticated user (last 45 days)
     """
     userPostsAnalyticsHistory: [UserPostsAnalyticsHistoryNode!]! @auth
+
+    """
+    Get all active marketing CTAs the user qualifies for and hasn't dismissed, filtered by variant
+    """
+    marketingCtasByVariant(variant: String!): [MarketingCta!]! @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1479,6 +1566,11 @@ export const typeDefs = /* GraphQL */ `
     Clear users image based on type
     """
     clearImage(presets: [UploadPreset]): EmptyResponse @auth
+
+    """
+    Sign the current user up as a daily.dev hackathon participant
+    """
+    joinHackathon: EmptyResponse @auth
 
     """
     Update user profile information
@@ -1689,6 +1781,156 @@ export const typeDefs = /* GraphQL */ `
     Update user's notification preferences
     """
     updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
+
+    """
+    Set a password for the authenticated user (Better Auth)
+    """
+    setPassword(newPassword: String!): EmptyResponse @auth
+
+    """
+    Extract profile tags from the authenticated user's GitHub profile.
+    Reads the GitHub OAuth token from the user's linked account (ba_account).
+    On first call, sends the token to bragi for AI-powered tag extraction,
+    saves matched tags as ContentPreferenceKeyword entries, and returns them.
+    On subsequent calls, returns the previously saved tags without calling bragi.
+    Requires the user to have signed up with GitHub (throws NOT_FOUND otherwise).
+    """
+    githubProfileTags: OnboardingTagsResult!
+      @auth
+      @rateLimit(limit: 3, duration: 3600)
+
+    """
+    Generate profile tags from a free-text onboarding prompt describing user interests.
+    On first call, sends the prompt to bragi for AI-powered tag inference,
+    cross-matches results against allowed keywords, saves matched tags as
+    ContentPreferenceKeyword entries, and returns them.
+    On subsequent calls, returns the previously saved tags without calling bragi.
+    Prompt must be 1-2000 characters.
+    """
+    onboardingProfileTags(prompt: String!): OnboardingTagsResult!
+      @auth
+      @rateLimit(limit: 3, duration: 3600)
+
+    """
+    Discover candidate posts for the Tinder-style swipe onboarding deck.
+    Stateless proxy to the recswipe service that returns lightweight post
+    summaries; clients should hydrate via feedByIds.
+    """
+    onboardingDiscoverPosts(
+      prompt: String
+      selectedTags: [String!]
+      confirmedTags: [String!]
+      likedTitles: [String!]
+      excludeIds: [String!]
+      saturatedTags: [String!]
+      n: Int
+    ): OnboardingDiscoverPostsResult! @auth
+
+    """
+    Extract candidate tags from a free-text prompt for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingExtractTags(prompt: String!): OnboardingExtractTagsResult! @auth
+
+    """
+    Recommend related tags from a set of selected tags for the swipe onboarding deck.
+    Stateless proxy to the recswipe service.
+    """
+    onboardingRecommendTags(
+      selectedTags: [String!]!
+      n: Int
+    ): OnboardingRecommendTagsResult! @auth
+
+    """
+    Akinator-style persona quiz: ask bragi for the next guess based on prior
+    Q&A. daily-api fetches NMF candidate_topics from recswipe and passes them
+    to bragi as steering signals. Stateless — caller resends history each turn.
+    """
+    personaQuizNextQuestion(
+      priorAnswers: [PersonaQuizQAInput!]!
+      seedTags: [String!]!
+      askedCount: Int!
+      maxQuestions: Int
+    ): PersonaQuizNextQuestionResult! @auth
+
+    """
+    Final-screen reveal: bragi turns the Q&A history into canonical tag
+    suggestions + a reveal headline / description; daily-api merges with
+    recswipe NMF recommendations and filters everything through the canonical
+    Keyword table so only existing keywords reach \`feedSettings.includeTags\`.
+    """
+    personaQuizReveal(
+      answers: [PersonaQuizQAInput!]!
+      seedTags: [String!]!
+      targetCount: Int
+    ): PersonaQuizRevealResult! @auth
+  }
+
+  type OnboardingTagsResult {
+    includeTags: [String!]!
+  }
+
+  """
+  Lightweight post info returned by the onboarding swipe recommender.
+  Use feedByIds to hydrate into full Post objects.
+  """
+  type OnboardingSwipePost {
+    postId: String!
+    title: String!
+    summary: String!
+    tags: [String!]!
+    url: String!
+    sourceId: String!
+  }
+
+  type OnboardingDiscoverPostsResult {
+    posts: [OnboardingSwipePost!]!
+    subPrompts: [String!]!
+  }
+
+  type OnboardingExtractTagsResult {
+    tags: [String!]!
+  }
+
+  type OnboardingRecommendTagsResult {
+    tags: [String!]!
+  }
+
+  input PersonaQuizQAInput {
+    questionId: String!
+    question: String!
+    optionId: String!
+    answer: String!
+  }
+
+  type PersonaQuizOption {
+    id: String!
+    label: String!
+    emoji: String
+    tagHints: [String!]!
+  }
+
+  type PersonaQuizQuestion {
+    id: String!
+    prompt: String!
+    axis: String!
+    cols: Int
+    options: [PersonaQuizOption!]!
+  }
+
+  type PersonaQuizNextQuestionResult {
+    isFinal: Boolean!
+    question: PersonaQuizQuestion
+  }
+
+  type PersonaQuizRevealText {
+    headline: String!
+    description: String!
+  }
+
+  type PersonaQuizRevealResult {
+    includeTags: [String!]!
+    reveal: PersonaQuizRevealText
   }
 `;
 
@@ -1777,7 +2019,10 @@ const readHistoryResolver = async (
       )
       .addSelect('timestamp', 'timestampDb')
       .andWhere('p.visible = true')
-      .andWhere('p.deleted = false');
+      .andWhere('p.deleted = false')
+      .andWhere('p.sourceId != :unknownSource', {
+        unknownSource: UNKNOWN_SOURCE,
+      });
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
@@ -1838,6 +2083,27 @@ export const getMarketingCta = async (
     marketingCta.flags.image = mapCloudinaryUrl(marketingCta.flags.image);
   }
   return marketingCta || cachePrefillMarketingCta(con, userId);
+};
+
+export const getMarketingCtaVariants = async (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<string[]> => {
+  if (!userId || systemUserIds.includes(userId)) {
+    return [];
+  }
+
+  const rows = await con.manager
+    .getRepository(UserMarketingCta)
+    .createQueryBuilder('umc')
+    .innerJoin('umc.marketingCta', 'mc')
+    .select('DISTINCT mc.variant', 'variant')
+    .where('umc."userId" = :userId', { userId })
+    .andWhere('umc."readAt" IS NULL')
+    .andWhere('mc.status = :status', { status: MarketingCtaStatus.Active })
+    .getRawMany<{ variant: string }>();
+
+  return rows.map((row) => row.variant);
 };
 
 const getUserStreakQuery = async (
@@ -2174,7 +2440,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       );
       if (!res[0]) {
-        throw new ForbiddenError('user not found');
+        throw new ForbiddenError('User not found');
       }
       return res[0];
     },
@@ -2194,6 +2460,92 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       );
 
       return isSameUser ? rank : { currentRank: rank.currentRank };
+    },
+    topCreatorsByTag: async (
+      _,
+      args: { tag: string; limit?: number },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser[]> => {
+      const parsedArgs = topCreatorsByTagSchema.safeParse(args);
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
+      const { tag, limit } = parsedArgs.data;
+      const topCreators = await ctx.con.getRepository(UserTagView).find({
+        where: { tag },
+        select: ['userId'],
+        order: {
+          count: 'DESC',
+          userId: 'ASC',
+        },
+        take: limit,
+      });
+      const userIds = topCreators.map(({ userId }) => userId);
+      if (!userIds.length) {
+        return [];
+      }
+
+      const idsStr = userIds.map((id) => `'${id}'`).join(',');
+      return graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...ids)', { ids: userIds })
+            .andWhere(whereVordrFilter(builder.alias))
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(limit);
+
+          return builder;
+        },
+        true,
+      );
+    },
+    similarCreators: async (
+      _,
+      args: { userId: string; limit?: number },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser[]> => {
+      const parsedArgs = similarCreatorsSchema.safeParse(args);
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
+      const { userId, limit } = parsedArgs.data;
+      const similarCreators = await ctx.con
+        .getRepository(UserSimilarityView)
+        .find({
+          where: { userId },
+          select: ['similarUserId'],
+          order: {
+            count: 'DESC',
+            similarUserId: 'ASC',
+          },
+          take: limit,
+        });
+      const userIds = similarCreators.map(({ similarUserId }) => similarUserId);
+      if (!userIds.length) {
+        return [];
+      }
+
+      const idsStr = userIds.map((id) => `'${id}'`).join(',');
+      return graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...ids)', { ids: userIds })
+            .andWhere(whereVordrFilter(builder.alias))
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(limit);
+
+          return builder;
+        },
+        true,
+      );
     },
     userMostReadTags: async (
       _,
@@ -2875,8 +3227,53 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             }),
       });
     },
+    marketingCtasByVariant: async (
+      _,
+      { variant }: { variant: string },
+      ctx: AuthContext,
+    ): Promise<MarketingCta[]> => {
+      const userMarketingCtas = await ctx.con
+        .getRepository(UserMarketingCta)
+        .createQueryBuilder('umc')
+        .innerJoinAndSelect('umc.marketingCta', 'mc')
+        .where('umc."userId" = :userId', { userId: ctx.userId })
+        .andWhere('umc."readAt" IS NULL')
+        .andWhere('mc.status = :status', {
+          status: MarketingCtaStatus.Active,
+        })
+        .andWhere('mc.variant = :variant', { variant })
+        .getMany();
+
+      return userMarketingCtas
+        .map((umc) => umc.marketingCta)
+        .filter((mc): mc is MarketingCta => !!mc)
+        .map((mc) => {
+          if (mc.flags?.image) {
+            mc.flags.image = mapCloudinaryUrl(mc.flags.image);
+          }
+          return mc;
+        });
+    },
   },
   Mutation: {
+    joinHackathon: async (
+      _,
+      __,
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (isProd) {
+        throw new ValidationError('Signups are closed');
+      }
+
+      await con.getRepository(User).update(
+        { id: userId },
+        {
+          flags: updateFlagsStatement<User>({ hackathonParticipant: true }),
+        },
+      );
+
+      return { _: true };
+    },
     clearImage: async (
       _,
       { presets }: { presets: UploadPreset[] },
@@ -3857,6 +4254,477 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       return { _: true };
+    },
+    setPassword: async (
+      _,
+      { newPassword }: { newPassword: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const headers = fromNodeHeaders(
+        (ctx.req.raw?.headers as Record<
+          string,
+          string | string[] | undefined
+        >) ?? {},
+      );
+      try {
+        await getBetterAuth().api.setPassword({
+          body: { newPassword },
+          headers,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to set password';
+        throw new ValidationError(message);
+      }
+      return { _: true };
+    },
+    githubProfileTags: async (_, __, ctx: AuthContext) => {
+      const feedId = ctx.userId;
+      const existing = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
+          where: {
+            feedId,
+            userId: ctx.userId,
+            status: ContentPreferenceStatus.Follow,
+          },
+          select: ['keywordId'],
+          take: 500, // arbitrary limit for protection
+        }),
+      );
+
+      if (existing.length) {
+        return { includeTags: existing.map((pref) => pref.keywordId) };
+      }
+
+      const result = await ctx.con.query(
+        `SELECT "accessToken" FROM ba_account WHERE "userId" = $1 AND "providerId" = 'github' LIMIT 1`,
+        [ctx.userId],
+      );
+
+      if (!result?.length || !result[0].accessToken) {
+        throw new NotFoundError('No GitHub account linked');
+      }
+
+      const keywords = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(Keyword)
+          .createQueryBuilder()
+          .select('value')
+          .where('status = :status', { status: KeywordStatus.Allow })
+          .getRawMany(),
+      );
+
+      const tagVocabulary = keywords.map((k: { value: string }) => k.value);
+      const client = getBragiClient();
+      let response;
+      try {
+        response = await client.garmr.execute(async () =>
+          client.instance.gitHubProfileTags({
+            githubPersonalToken: result[0].accessToken,
+            tagVocabulary,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          throw new NotFoundError('GitHub profile tags not found');
+        }
+        throw err;
+      }
+
+      const tags = response.extractedTags;
+
+      if (tags.length) {
+        await ctx.con.transaction(async (manager) => {
+          await manager
+            .getRepository(Feed)
+            .save({ id: feedId, userId: ctx.userId });
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceKeyword)
+            .values(
+              tags.map((tag) => ({
+                userId: ctx.userId,
+                referenceId: tag.name,
+                keywordId: tag.name,
+                feedId,
+                status: ContentPreferenceStatus.Follow,
+              })) as ContentPreferenceKeyword[],
+            )
+            .orIgnore()
+            .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(tags.map((tag) => ({ feedId, tag: tag.name })))
+            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .execute();
+        });
+      }
+
+      return { includeTags: tags.map((tag) => tag.name) };
+    },
+    onboardingProfileTags: async (
+      _,
+      args: { prompt: string },
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingProfileTagsInputSchema.parse(args);
+
+      const feedId = ctx.userId;
+      const existing = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
+          where: {
+            feedId,
+            userId: ctx.userId,
+            status: ContentPreferenceStatus.Follow,
+          },
+          select: ['keywordId'],
+          take: 500,
+        }),
+      );
+
+      if (existing.length) {
+        return { includeTags: existing.map((pref) => pref.keywordId) };
+      }
+
+      const keywords = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(Keyword)
+          .createQueryBuilder()
+          .select('value')
+          .where('status = :status', { status: KeywordStatus.Allow })
+          .getRawMany(),
+      );
+      const tagVocabulary = keywords.map((k: { value: string }) => k.value);
+
+      const client = getBragiClient();
+      let response;
+      try {
+        response = await client.garmr.execute(async () =>
+          client.instance.onboardingProfileTags({
+            onboardingPrompt: parsed.prompt,
+            tagVocabulary,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          throw new NotFoundError('Onboarding profile tags not found');
+        }
+        throw err;
+      }
+
+      const tags = response.extractedTags;
+
+      if (tags.length) {
+        await ctx.con.transaction(async (manager) => {
+          await manager
+            .getRepository(Feed)
+            .save({ id: feedId, userId: ctx.userId });
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceKeyword)
+            .values(
+              tags.map((tag) => ({
+                userId: ctx.userId,
+                referenceId: tag.name,
+                keywordId: tag.name,
+                feedId,
+                status: ContentPreferenceStatus.Follow,
+              })) as ContentPreferenceKeyword[],
+            )
+            .orIgnore()
+            .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(tags.map((tag) => ({ feedId, tag: tag.name })))
+            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .execute();
+        });
+      }
+
+      return { includeTags: tags.map((tag) => tag.name) };
+    },
+    onboardingDiscoverPosts: async (
+      _,
+      args: Partial<z.input<typeof onboardingDiscoverPostsInputSchema>>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingDiscoverPostsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.discoverPosts(ctx.userId, parsed);
+
+        return {
+          posts: (data.posts ?? []).map((p) => ({
+            postId: p.post_id,
+            title: p.title,
+            summary: p.summary,
+            tags: p.tags ?? [],
+            url: p.url,
+            sourceId: p.source_id,
+          })),
+          subPrompts: data.sub_prompts ?? [],
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe discoverPosts request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingExtractTags: async (
+      _,
+      args: z.input<typeof onboardingExtractTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingExtractTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.extractTags(ctx.userId, parsed);
+
+        return { tags: data.tags ?? [] };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe extractTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    onboardingRecommendTags: async (
+      _,
+      args: z.input<typeof onboardingRecommendTagsInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = onboardingRecommendTagsInputSchema.parse(args);
+
+      try {
+        const data = await recswipeClient.recommendTags(ctx.userId, parsed);
+
+        return {
+          tags: (data.recommended_tags ?? []).map((t) => t.tag),
+        };
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'Recswipe recommendTags request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+
+        throw err;
+      }
+    },
+    personaQuizNextQuestion: async (
+      _,
+      args: z.input<typeof personaQuizNextQuestionInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = personaQuizNextQuestionInputSchema.parse(args);
+
+      // Fetch NMF candidate_topics from recswipe to steer bragi's next guess.
+      // Best-effort — if recswipe is down we still call bragi without steering.
+      let candidateTopics: string[] = [];
+      if (parsed.seedTags.length > 0) {
+        try {
+          const recs = await recswipeClient.recommendTags(ctx.userId, {
+            selectedTags: parsed.seedTags,
+            n: 12,
+          });
+          const seen = new Set(parsed.seedTags.map((t) => t.toLowerCase()));
+          candidateTopics = (recs.recommended_tags ?? [])
+            .map((t) => t.tag)
+            .filter((t) => !seen.has(t.toLowerCase()))
+            .slice(0, 12);
+        } catch {
+          candidateTopics = [];
+        }
+      }
+
+      try {
+        const client = getBragiClient();
+        const bragiResp = await client.garmr.execute(() =>
+          client.instance.nextPersonaQuizQuestion({
+            priorAnswers: parsed.priorAnswers,
+            seedTags: parsed.seedTags,
+            askedCount: parsed.askedCount,
+            maxQuestions: parsed.maxQuestions,
+            candidateTopics,
+            application: 'webapp',
+          }),
+        );
+
+        if (bragiResp.isFinal || !bragiResp.question) {
+          return { isFinal: true, question: null };
+        }
+        const q = bragiResp.question;
+        return {
+          isFinal: false,
+          question: {
+            id: q.id,
+            prompt: q.prompt,
+            axis: q.axis,
+            cols: q.cols || null,
+            options: q.options.map((o) => ({
+              id: o.id,
+              label: o.label,
+              emoji: o.emoji || null,
+              tagHints: [...o.tagHints],
+            })),
+          },
+        };
+      } catch (err) {
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            askedCount: parsed.askedCount,
+            seedTagCount: parsed.seedTags.length,
+            priorAnswerCount: parsed.priorAnswers.length,
+          },
+          'personaQuizNextQuestion: request failed',
+        );
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'personaQuizNextQuestion request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+        throw err;
+      }
+    },
+    personaQuizReveal: async (
+      _,
+      args: z.input<typeof personaQuizRevealInputSchema>,
+      ctx: AuthContext,
+    ) => {
+      const parsed = personaQuizRevealInputSchema.parse(args);
+
+      try {
+        const client = getBragiClient();
+        const bragiResp = await client.garmr.execute(() =>
+          client.instance.personaQuizReveal({
+            answers: parsed.answers,
+            seedTags: parsed.seedTags,
+            targetCount: parsed.targetCount,
+            application: 'webapp',
+          }),
+        );
+
+        // Surface unexpected bragi responses (success status but empty
+        // reveal copy) — without this log the frontend silently falls back
+        // to the seed-tag headline and the root cause stays invisible.
+        const bragiHasReveal = !!(
+          bragiResp.reveal &&
+          (bragiResp.reveal.headline || bragiResp.reveal.description)
+        );
+        if (!bragiHasReveal) {
+          logger.warn(
+            {
+              userId: ctx.userId,
+              bragiId: bragiResp.id,
+              includeTagCount: bragiResp.includeTags?.length ?? 0,
+              answerCount: parsed.answers.length,
+              seedTagCount: parsed.seedTags.length,
+            },
+            'personaQuizReveal: bragi returned empty reveal',
+          );
+        }
+
+        // Fetch recsys-grounded fillers in parallel-friendly fashion. Used to
+        // pad the LLM tag list up to targetCount once we've filtered through
+        // the canonical Keyword table.
+        let recsysFillers: string[] = [];
+        if (parsed.seedTags.length > 0) {
+          try {
+            const recs = await recswipeClient.recommendTags(ctx.userId, {
+              selectedTags: parsed.seedTags,
+              n: parsed.targetCount * 2,
+            });
+            recsysFillers = (recs.recommended_tags ?? []).map((t) => t.tag);
+          } catch {
+            recsysFillers = [];
+          }
+        }
+
+        const seen = new Set<string>();
+        const merged: string[] = [];
+        const push = (tag: string) => {
+          const key = tag.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(tag);
+          }
+        };
+        bragiResp.includeTags.forEach(push);
+        recsysFillers.forEach(push);
+
+        // Canonical filter: only keep tags that exist in the Keyword table.
+        // ContentPreferenceKeyword.keywordId is a FK to Keyword — unknown
+        // tags would raise a FK violation when followTags persists them.
+        let canonical: string[] = [];
+        if (merged.length > 0) {
+          const known = await ctx.con
+            .getRepository(Keyword)
+            .createQueryBuilder()
+            .select(['value'])
+            .where('value IN (:...values)', { values: merged })
+            .getRawMany<{ value: string }>();
+          const valid = new Set(known.map((k) => k.value));
+          canonical = merged.filter((t) => valid.has(t));
+        }
+
+        return {
+          includeTags: canonical.slice(0, parsed.targetCount),
+          reveal: bragiHasReveal
+            ? {
+                headline: bragiResp.reveal!.headline,
+                description: bragiResp.reveal!.description,
+              }
+            : null,
+        };
+      } catch (err) {
+        // Log the failure explicitly — the GraphQL middleware will also
+        // log a generic "unexpected graphql error" further up, but having
+        // a resolver-tagged entry makes it greppable by feature name.
+        logger.warn(
+          {
+            err,
+            userId: ctx.userId,
+            answerCount: parsed.answers.length,
+            seedTagCount: parsed.seedTags.length,
+          },
+          'personaQuizReveal: request failed',
+        );
+        if (err instanceof HttpError) {
+          throw new ServiceError({
+            message: 'personaQuizReveal request failed',
+            data: err.response,
+            statusCode: err.statusCode,
+          });
+        }
+        throw err;
+      }
     },
   },
   User: {

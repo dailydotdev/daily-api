@@ -151,6 +151,10 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.new-highlight-real-time',
+  },
+  {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
   },
@@ -304,12 +308,12 @@ export const workers: Worker[] = [
     subscription: 'api.user-company-approved-cio',
   },
   {
-    topic: 'api.v1.post-visible',
-    subscription: 'api.post-added-user-notification',
+    topic: 'api.v1.user-company-enrichment',
+    subscription: 'api.user-company-enrichment',
   },
   {
     topic: 'api.v1.post-visible',
-    subscription: 'api.agentic-digest-tweet',
+    subscription: 'api.post-added-user-notification',
   },
   {
     topic: 'api.v1.source-post-moderation-submitted',
@@ -354,6 +358,14 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.organization-user-removed',
     subscription: 'api.organization-user-removed',
+  },
+  {
+    topic: 'flyting.v1.room-started',
+    subscription: 'api.live-room-started',
+  },
+  {
+    topic: 'flyting.v1.room-ended',
+    subscription: 'api.live-room-ended',
   },
   {
     topic: 'skadi.v2.campaign-updated',
@@ -422,6 +434,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.poll-result-notification',
+  },
+  {
+    topic: 'api.v1.delayed-notification-reminder',
+    subscription: 'api.live-room-starting-soon-notification',
   },
   {
     topic: 'gondul.v1.candidate-application-scored',
@@ -507,8 +523,11 @@ export const workers: Worker[] = [
     subscription: 'api.generate-channel-digest',
   },
   {
-    topic: 'api.v1.generate-channel-highlight',
-    subscription: 'api.generate-channel-highlight',
+    topic: 'api.v1.user-deletion-requested',
+    subscription: 'api.user-deletion-cleanup',
+    args: {
+      ackDeadlineSeconds: 600,
+    },
   },
 ];
 
