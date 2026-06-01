@@ -4227,14 +4227,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     updateNotificationSettings: async (
       _,
-      { notificationFlags }: { notificationFlags: UserNotificationFlags },
+      {
+        notificationFlags: notificationFlagsArg,
+      }: { notificationFlags: UserNotificationFlags },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const validate = notificationFlagsSchema.safeParse(notificationFlags);
+      const validate = notificationFlagsSchema.safeParse(notificationFlagsArg);
 
       if (validate.error) {
         throw new ValidationError(validate.error.issues[0].message);
       }
+
+      const notificationFlags = validate.data as UserNotificationFlags;
 
       const acceptedMarketing =
         notificationFlags[NotificationType.Marketing]?.email ===
