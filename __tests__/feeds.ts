@@ -21,6 +21,7 @@ import {
   PostKeyword,
   PostTag,
   PostType,
+  postTypes,
   SharePost,
   Source,
   SourceMember,
@@ -1107,6 +1108,7 @@ describe('query feed', () => {
         expect(body.feed_config_name).toBe('for_you_by_date');
         expect(body.order_by).toBe(FeedOrderBy.Date);
         expect(body.disable_engagement_filter).toBe(true);
+        expect(body.allowed_post_types).toEqual(postTypes);
         return true;
       })
       .reply(200, {
