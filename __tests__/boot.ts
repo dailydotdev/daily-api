@@ -1675,7 +1675,7 @@ describe('boot misc', () => {
     ]);
   });
 
-  it('should return the user feeds', async () => {
+  it('should return the user feeds ordered by createdAt ascending', async () => {
     const feeds = [
       {
         id: '1',
@@ -1690,6 +1690,7 @@ describe('boot misc', () => {
           name: 'Cool feed',
         },
         slug: 'cool-feed-cf1',
+        createdAt: new Date('2024-01-02T00:00:00Z'),
       },
       {
         id: 'cf2',
@@ -1698,6 +1699,7 @@ describe('boot misc', () => {
           name: 'PHP feed',
         },
         slug: 'php-feed-cf2',
+        createdAt: new Date('2024-01-01T00:00:00Z'),
       },
       {
         id: 'cf3',
@@ -1716,20 +1718,20 @@ describe('boot misc', () => {
       .expect(200);
     expect(res.body.feeds).toMatchObject([
       {
-        id: 'cf1',
-        userId: '1',
-        flags: {
-          name: 'Cool feed',
-        },
-        slug: 'cool-feed-cf1',
-      },
-      {
         id: 'cf2',
         userId: '1',
         flags: {
           name: 'PHP feed',
         },
         slug: 'php-feed-cf2',
+      },
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+        slug: 'cool-feed-cf1',
       },
     ]);
   });

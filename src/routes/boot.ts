@@ -461,6 +461,9 @@ const getFeeds = async ({
       id: Not(userId),
       userId,
     },
+    order: {
+      createdAt: 'ASC',
+    },
     take: maxFeedsPerUser,
   });
 };
