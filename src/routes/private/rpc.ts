@@ -48,7 +48,9 @@ const getDuplicatePost = async ({
 };
 
 const validateCreatePostRequest = (req: CreatePostRequest): never | void => {
-  if (req.sourceId === 'collections') {
+  // collection-style sources (collections + trends) are yggdrasil-generated
+  // and have no URL; they require a yggdrasil id instead.
+  if (req.sourceId === 'collections' || req.sourceId === 'trends') {
     if (!req.yggdrasilId) {
       throw new ConnectError(
         'yggdrasil id required for collections',
