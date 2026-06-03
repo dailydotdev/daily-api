@@ -546,7 +546,7 @@ export const workerSubscribe = (
     childLogger.error({ err }, 'subscription stream error');
   });
   sub.on('debug', (message) => {
-    childLogger.warn({ message }, 'subscription stream debug');
+    childLogger.debug({ message }, 'subscription stream debug');
   });
   sub.on('close', () => {
     childLogger.warn('subscription stream closed');

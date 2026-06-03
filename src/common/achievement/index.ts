@@ -160,7 +160,7 @@ async function evaluateInstantAchievement(
     );
 
     if (wasUnlocked) {
-      logger.info(
+      logger.debug(
         { achievementId: achievement.id, userId, name: achievement.name },
         'Achievement unlocked',
       );
@@ -191,7 +191,7 @@ async function evaluateMilestoneAchievement(
     );
 
     if (wasUnlocked) {
-      logger.info(
+      logger.debug(
         { achievementId: achievement.id, userId, name: achievement.name },
         'Achievement unlocked',
       );
@@ -222,7 +222,7 @@ async function evaluateAbsoluteValueAchievement(
     );
 
     if (wasUnlocked) {
-      logger.info(
+      logger.debug(
         { achievementId: achievement.id, userId, name: achievement.name },
         'Achievement unlocked',
       );
