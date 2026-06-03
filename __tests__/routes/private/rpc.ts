@@ -50,6 +50,13 @@ beforeEach(async () => {
       handle: 'collections',
       type: SourceType.Machine,
     },
+    {
+      id: 'trends',
+      name: 'Trends',
+      image: 'http://image.com/trends',
+      handle: 'trends',
+      type: SourceType.Machine,
+    },
   ]);
 });
 
@@ -291,6 +298,44 @@ describe('PostService', () => {
     const result = await mockClient.create(
       {
         sourceId: 'collections',
+        yggdrasilId: '95ba892c-d641-4b94-ba47-be03c4c6cc8b',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId: expect.any(String),
+      url: '',
+    });
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ id: result.postId });
+    expect(post).toBeTruthy();
+    expect(post!.yggdrasilId).toEqual('95ba892c-d641-4b94-ba47-be03c4c6cc8b');
+    expect(post!.url).toBeNull();
+  });
+
+  it('should require yggdrasilId for source trends', async () => {
+    await expect(
+      mockClient.create(
+        {
+          url: 'http://example.com/service/1',
+          sourceId: 'trends',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(
+      new ConnectError(
+        'yggdrasil id required for collections',
+        Code.InvalidArgument,
+      ),
+    );
+  });
+
+  it('should allow source trends without url', async () => {
+    const result = await mockClient.create(
+      {
+        sourceId: 'trends',
         yggdrasilId: '95ba892c-d641-4b94-ba47-be03c4c6cc8b',
       },
       defaultClientAuthOptions,
