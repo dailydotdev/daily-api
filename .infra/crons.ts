@@ -127,6 +127,10 @@ export const crons: Cron[] = [
     schedule: '3-59/5 * * * *',
   },
   {
+    name: 'post-lifecycle-state-clickhouse',
+    schedule: '*/15 * * * *',
+  },
+  {
     name: 'user-profile-analytics-clickhouse',
     schedule: '7 */1 * * *',
   },

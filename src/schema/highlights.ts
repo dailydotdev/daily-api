@@ -63,6 +63,17 @@ export const typeDefs = /* GraphQL */ `
     updatedAt: DateTime!
   }
 
+  """
+  Lean per-post hero card payload. Backed by post_hero MV that unions
+  editorial highlights with algorithmic lifecycle states (breakout, evergreen).
+  """
+  type PostHero {
+    id: ID!
+    headline: String!
+    significance: String!
+    highlightedAt: DateTime!
+  }
+
   type PostHighlightEdge {
     node: PostHighlight!
     cursor: String!

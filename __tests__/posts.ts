@@ -44,6 +44,10 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { PostHighlightSignificance } from '../src/entity/PostHighlight';
+import {
+  PostLifecycleState,
+  PostLifecycleStateValue,
+} from '../src/entity/PostLifecycleState';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -979,6 +983,109 @@ describe('postHighlight field', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.post.postHighlight).toBeNull();
+  });
+});
+
+describe('hero field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      hero {
+        id
+        headline
+        significance
+        highlightedAt
+      }
+    }
+  }`;
+
+  const refreshHero = () => con.query('REFRESH MATERIALIZED VIEW post_hero');
+
+  beforeEach(async () => {
+    await con.getRepository(HighlightsCanonical).clear();
+    await con.getRepository(PostLifecycleState).clear();
+    await refreshHero();
+  });
+
+  it('returns null when nothing is in the MV', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.hero).toBeNull();
+  });
+
+  it('returns canonical hero when canonical row exists', async () => {
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'p1',
+      channels: ['vibes'],
+      highlightedAt: new Date(),
+      headline: 'Breaking headline',
+      significance: PostHighlightSignificance.Breaking,
+    });
+    await refreshHero();
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.hero).toEqual({
+      id: expect.any(String),
+      headline: 'Breaking headline',
+      significance: 'breaking',
+      highlightedAt: expect.any(String),
+    });
+  });
+
+  it('returns lifecycle breakout when only lifecycle row exists', async () => {
+    await con.getRepository(PostLifecycleState).save({
+      postId: 'p1',
+      state: PostLifecycleStateValue.Breakout,
+    });
+    await refreshHero();
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.hero).toEqual({
+      id: expect.any(String),
+      headline: 'Breaking out',
+      significance: 'breakout',
+      highlightedAt: expect.any(String),
+    });
+  });
+
+  it('returns lifecycle evergreen when only lifecycle row exists', async () => {
+    await con.getRepository(PostLifecycleState).save({
+      postId: 'p1',
+      state: PostLifecycleStateValue.Evergreen,
+    });
+    await refreshHero();
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.hero).toEqual({
+      id: expect.any(String),
+      headline: 'Evergreen',
+      significance: 'evergreen',
+      highlightedAt: expect.any(String),
+    });
+  });
+
+  it('returns canonical when both canonical and lifecycle rows exist', async () => {
+    await con.getRepository(HighlightsCanonical).save({
+      postId: 'p1',
+      channels: ['vibes'],
+      highlightedAt: new Date(),
+      headline: 'Canonical headline',
+      significance: PostHighlightSignificance.Major,
+    });
+    await con.getRepository(PostLifecycleState).save({
+      postId: 'p1',
+      state: PostLifecycleStateValue.Breakout,
+    });
+    await refreshHero();
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.hero).toMatchObject({
+      headline: 'Canonical headline',
+      significance: 'major',
+    });
   });
 });
 

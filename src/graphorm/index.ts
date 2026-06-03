@@ -753,8 +753,21 @@ const obj = new GraphORM({
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
                 { ttlSeconds: getPostHighlightTtlSeconds() },
               )
-              .orderBy(`${childAlias}."significance"`, 'ASC')
-              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      hero: {
+        relation: {
+          isMany: false,
+          childColumn: 'postId',
+          parentColumn: 'id',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."postId" = ${parentAlias}."id"`)
+              .andWhere(
+                `"${childAlias}"."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                { ttlSeconds: getPostHighlightTtlSeconds() },
+              )
               .limit(1),
         },
       },
@@ -2788,6 +2801,12 @@ const obj = new GraphORM({
       highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },
       updatedAt: { transform: transformDate },
+    },
+  },
+  PostHero: {
+    requiredColumns: ['postId'],
+    fields: {
+      highlightedAt: { transform: transformDate },
     },
   },
 });
