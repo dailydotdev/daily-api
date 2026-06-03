@@ -59,6 +59,8 @@ import {
   PostHighlightSignificance,
   toPostHighlightSignificanceLabel,
 } from '../entity/PostHighlight';
+import type { PostHeroSignificance } from '../entity/PostHero';
+import { POST_HERO_LIFECYCLE_HEADLINES } from '../common/postHero';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -759,8 +761,6 @@ const obj = new GraphORM({
       hero: {
         relation: {
           isMany: false,
-          childColumn: 'postId',
-          parentColumn: 'id',
           customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .where(`"${childAlias}"."postId" = ${parentAlias}."id"`)
@@ -2804,8 +2804,19 @@ const obj = new GraphORM({
     },
   },
   PostHero: {
-    requiredColumns: ['postId'],
+    requiredColumns: ['postId', 'significance'],
     fields: {
+      headline: {
+        transform: (value: string | null, _ctx, parent) => {
+          if (value) {
+            return value;
+          }
+          const { significance } = parent as {
+            significance: PostHeroSignificance;
+          };
+          return POST_HERO_LIFECYCLE_HEADLINES[significance] ?? null;
+        },
+      },
       highlightedAt: { transform: transformDate },
     },
   },

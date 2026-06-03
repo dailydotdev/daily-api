@@ -8,14 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { Post } from './posts/Post';
-
-export enum PostLifecycleStateValue {
-  Breakout = 'breakout',
-  Evergreen = 'evergreen',
-}
-
-export const TRACKED_LIFECYCLE_STATES: ReadonlyArray<PostLifecycleStateValue> =
-  [PostLifecycleStateValue.Breakout, PostLifecycleStateValue.Evergreen];
+import type { PostLifecycleStateValue } from '../common/postLifecycleState';
 
 @Entity()
 @Index('UQ_post_lifecycle_state_post', ['postId'], { unique: true })

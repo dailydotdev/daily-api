@@ -44,10 +44,8 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { PostHighlightSignificance } from '../src/entity/PostHighlight';
-import {
-  PostLifecycleState,
-  PostLifecycleStateValue,
-} from '../src/entity/PostLifecycleState';
+import { PostLifecycleState } from '../src/entity/PostLifecycleState';
+import { PostLifecycleStateValue } from '../src/common/postLifecycleState';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {

@@ -21,7 +21,7 @@ export class PostHero {
   postId: string;
 
   @ViewColumn()
-  headline: string;
+  headline: string | null;
 
   @ViewColumn()
   significance: PostHeroSignificance;

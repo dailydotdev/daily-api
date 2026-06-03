@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   PostLifecycleStateValue,
   TRACKED_LIFECYCLE_STATES,
-} from '../../entity/PostLifecycleState';
+} from '../postLifecycleState';
 
 const trackedStateValues = TRACKED_LIFECYCLE_STATES as ReadonlyArray<string>;
 

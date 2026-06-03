@@ -8,10 +8,8 @@ import {
 } from '../helpers';
 import createOrGetConnection from '../../src/db';
 import type { DataSource } from 'typeorm';
-import {
-  PostLifecycleState,
-  PostLifecycleStateValue,
-} from '../../src/entity/PostLifecycleState';
+import { PostLifecycleState } from '../../src/entity/PostLifecycleState';
+import { PostLifecycleStateValue } from '../../src/common/postLifecycleState';
 import { Post, Source } from '../../src/entity';
 import { PostHero } from '../../src/entity/PostHero';
 import { postsFixture } from '../fixture/post';
@@ -84,7 +82,7 @@ describe('postLifecycleStateClickhouse cron', () => {
     expect(rows[0].state).toBe(PostLifecycleStateValue.Evergreen);
   });
 
-  it('should update state and bump updatedAt on subsequent sync', async () => {
+  it('should persist clickhouse last_updated_at as updatedAt on upsert', async () => {
     const earlier = new Date(Date.now() - 60 * 60 * 1000);
     await con.getRepository(PostLifecycleState).insert({
       postId: 'p1',
@@ -92,12 +90,13 @@ describe('postLifecycleStateClickhouse cron', () => {
       updatedAt: earlier,
     });
 
+    const lastUpdatedAt = new Date(Date.now() - 5 * 60 * 1000);
     const clickhouseClientMock = mockClickhouseClientOnce();
     mockClickhouseQueryJSONOnce(clickhouseClientMock, [
       {
         post_id: 'p1',
         state: PostLifecycleStateValue.Evergreen,
-        last_updated_at: new Date().toISOString(),
+        last_updated_at: lastUpdatedAt.toISOString(),
       },
     ]);
 
@@ -107,7 +106,7 @@ describe('postLifecycleStateClickhouse cron', () => {
       .getRepository(PostLifecycleState)
       .findOneByOrFail({ postId: 'p1' });
     expect(row.state).toBe(PostLifecycleStateValue.Evergreen);
-    expect(row.updatedAt.getTime()).toBeGreaterThan(earlier.getTime());
+    expect(row.updatedAt.getTime()).toBe(lastUpdatedAt.getTime());
   });
 
   it('should delete row when state moves to untracked', async () => {
@@ -186,7 +185,7 @@ describe('postLifecycleStateClickhouse cron', () => {
     const hero = await con.getRepository(PostHero).findOneBy({ postId: 'p1' });
     expect(hero).toMatchObject({
       postId: 'p1',
-      headline: 'Breaking out',
+      significance: 'breakout',
     });
   });
 });

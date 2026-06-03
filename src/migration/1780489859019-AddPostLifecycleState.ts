@@ -40,17 +40,14 @@ export class AddPostLifecycleState1780489859019 implements MigrationInterface {
           END AS significance,
           "highlightedAt", 0 AS src
         FROM highlights_canonical
-        WHERE significance != 0
+        WHERE significance IN (1, 2, 3, 4)
           AND "highlightedAt" > now() - interval '12 hours'
 
         UNION ALL
 
         SELECT
           id, "postId",
-          CASE state
-            WHEN 'breakout'  THEN 'Breaking out'
-            WHEN 'evergreen' THEN 'Evergreen'
-          END AS headline,
+          NULL::text AS headline,
           state AS significance,
           "updatedAt" AS "highlightedAt",
           1 AS src
