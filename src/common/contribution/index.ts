@@ -1,5 +1,5 @@
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import type { EntityManager } from 'typeorm';
+import { In, type EntityManager } from 'typeorm';
 import type z from 'zod';
 import {
   contributionActionEvidenceSchema,
@@ -14,6 +14,7 @@ import {
   ContributionPayment,
   ContributionPaymentStatus,
 } from '../../entity/contribution/ContributionPayment';
+import { ContributionPaymentAllocation } from '../../entity/contribution/ContributionPaymentAllocation';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
 import { remoteConfig } from '../../remoteConfig';
@@ -43,6 +44,47 @@ type ContributionActionUsage = {
   latestCreatedAt: Date | null;
 };
 
+type ContributionActionEvidenceInput = z.infer<
+  typeof contributionActionEvidenceSchema
+>;
+
+type ContributionPointAllocation = {
+  userId: string;
+  points: number;
+  amountCents: number;
+};
+
+type ContributionPaymentAllocationInput = Pick<
+  ContributionPaymentAllocation,
+  'paymentId' | 'userId' | 'causeId' | 'points' | 'amountCents'
+>;
+
+type ContributionPaymentUserAllocation = {
+  userId: string;
+  points: number;
+  causeIds: string[];
+};
+
+type ContributionPaymentFinalizationError =
+  | 'noSubmissions'
+  | 'noActiveCauses'
+  | 'noPoints';
+
+type ContributionPaymentFinalizationResult =
+  | {
+      payment: ContributionPayment;
+    }
+  | {
+      error: ContributionPaymentFinalizationError;
+    };
+
+type ContributionPaymentSnapshotRow = {
+  submissionIds: string[] | null;
+  totalPoints: string | number | null;
+  activeCauseIds: string[] | null;
+  userAllocations: ContributionPaymentUserAllocation[] | string | null;
+};
+
 export const parseContributionArgs = <TSchema extends z.ZodType>(
   schema: TSchema,
   args: unknown,
@@ -59,6 +101,288 @@ export const parseContributionArgs = <TSchema extends z.ZodType>(
 
 const toContributionInt = (value: string | number | null | undefined): number =>
   Number(value ?? 0);
+
+const splitContributionInteger = ({
+  total,
+  parts,
+}: {
+  total: number;
+  parts: number;
+}): number[] => {
+  const base = Math.floor(total / parts);
+  const remainder = total % parts;
+
+  return Array.from(
+    { length: parts },
+    (_, index) => base + (index < remainder ? 1 : 0),
+  );
+};
+
+const allocateContributionAmountByPoints = ({
+  userPoints,
+  amountCents,
+  totalPoints,
+}: {
+  userPoints: Map<string, number>;
+  amountCents: number;
+  totalPoints: number;
+}): ContributionPointAllocation[] => {
+  const allocations = [...userPoints.entries()]
+    .sort(([firstUserId], [secondUserId]) =>
+      firstUserId.localeCompare(secondUserId),
+    )
+    .map(([userId, points]) => ({
+      userId,
+      points,
+      amountCents: Math.floor((amountCents * points) / totalPoints),
+      remainder: (amountCents * points) % totalPoints,
+    }));
+
+  const allocatedAmountCents = allocations.reduce(
+    (total, allocation) => total + allocation.amountCents,
+    0,
+  );
+  const remainderCents = amountCents - allocatedAmountCents;
+  const remainderOrder = [...allocations].sort((first, second) => {
+    if (second.remainder !== first.remainder) {
+      return second.remainder - first.remainder;
+    }
+
+    return first.userId.localeCompare(second.userId);
+  });
+
+  for (let index = 0; index < remainderCents; index += 1) {
+    remainderOrder[index].amountCents += 1;
+  }
+
+  return allocations.map(({ userId, points, amountCents }) => ({
+    userId,
+    points,
+    amountCents,
+  }));
+};
+
+const getContributionPaymentAllocations = ({
+  paymentId,
+  userAllocations,
+  amountCents,
+  totalPoints,
+}: {
+  paymentId: string;
+  userAllocations: ContributionPaymentUserAllocation[];
+  amountCents: number;
+  totalPoints: number;
+}): ContributionPaymentAllocationInput[] => {
+  const userAllocationById = new Map(
+    userAllocations.map((allocation) => [allocation.userId, allocation]),
+  );
+
+  return allocateContributionAmountByPoints({
+    userPoints: new Map(
+      userAllocations.map((allocation) => [
+        allocation.userId,
+        allocation.points,
+      ]),
+    ),
+    amountCents,
+    totalPoints,
+  })
+    .flatMap((weightedAllocation) => {
+      const allocation = userAllocationById.get(weightedAllocation.userId);
+      const causeIds = allocation?.causeIds ?? [];
+      const pointParts = splitContributionInteger({
+        total: weightedAllocation.points,
+        parts: causeIds.length,
+      });
+      const amountParts = splitContributionInteger({
+        total: weightedAllocation.amountCents,
+        parts: causeIds.length,
+      });
+
+      return causeIds.map((causeId, index) => ({
+        paymentId,
+        userId: weightedAllocation.userId,
+        causeId,
+        points: pointParts[index],
+        amountCents: amountParts[index],
+      }));
+    })
+    .filter(
+      (allocation) => allocation.points > 0 || allocation.amountCents > 0,
+    );
+};
+
+const parseContributionUserAllocations = (
+  value: ContributionPaymentSnapshotRow['userAllocations'],
+): ContributionPaymentUserAllocation[] => {
+  if (!value) {
+    return [];
+  }
+
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+
+  return parsed.map(
+    ({
+      userId,
+      points,
+      causeIds,
+    }: {
+      userId: string;
+      points: string | number;
+      causeIds: string[] | null;
+    }) => ({
+      userId,
+      points: toContributionInt(points),
+      causeIds: causeIds ?? [],
+    }),
+  );
+};
+
+export const finalizeContributionPayment = async ({
+  con,
+  amountCents,
+  createdBy,
+}: {
+  con: EntityManager;
+  amountCents: number;
+  createdBy?: string | null;
+}): Promise<ContributionPaymentFinalizationResult> => {
+  const snapshot = await con
+    .createQueryBuilder()
+    .addCommonTableExpression(
+      `
+        SELECT
+          submission.id,
+          submission."userId",
+          submission."awardedPoints"
+        FROM "contribution_submission" submission
+        WHERE submission.status = :status
+          AND submission."paymentId" IS NULL
+        ORDER BY submission."createdAt" ASC, submission.id ASC
+        FOR UPDATE
+      `,
+      'locked_submission',
+    )
+    .addCommonTableExpression(
+      `
+        SELECT
+          cause.id
+        FROM "contribution_cause" cause
+        WHERE cause.active = true
+      `,
+      'active_cause',
+    )
+    .addCommonTableExpression(
+      `
+        SELECT
+          locked_submission."userId",
+          SUM(locked_submission."awardedPoints")::int AS points
+        FROM locked_submission
+        GROUP BY locked_submission."userId"
+      `,
+      'user_points',
+    )
+    .addCommonTableExpression(
+      `
+        SELECT
+          preference."userId",
+          array_agg(preference."causeId" ORDER BY preference."causeId") AS "causeIds"
+        FROM "user_contribution_cause_preference" preference
+        INNER JOIN active_cause
+          ON active_cause.id = preference."causeId"
+        GROUP BY preference."userId"
+      `,
+      'preferred_cause',
+    )
+    .select(
+      'COALESCE((SELECT array_agg(id) FROM locked_submission), ARRAY[]::uuid[])',
+      'submissionIds',
+    )
+    .addSelect(
+      'COALESCE((SELECT SUM("awardedPoints") FROM locked_submission), 0)::int',
+      'totalPoints',
+    )
+    .addSelect(
+      'COALESCE((SELECT array_agg(id ORDER BY id) FROM active_cause), ARRAY[]::uuid[])',
+      'activeCauseIds',
+    )
+    .addSelect(
+      `
+        COALESCE((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'userId', user_points."userId",
+              'points', user_points.points,
+              'causeIds', COALESCE(
+                preferred_cause."causeIds",
+                (SELECT array_agg(id ORDER BY id) FROM active_cause)
+              )
+            )
+            ORDER BY user_points."userId"
+          )
+          FROM user_points
+          LEFT JOIN preferred_cause
+            ON preferred_cause."userId" = user_points."userId"
+        ), '[]'::jsonb)
+      `,
+      'userAllocations',
+    )
+    .from('(SELECT 1)', 'snapshot')
+    .setParameter('status', ContributionSubmissionStatus.Approved)
+    .getRawOne<ContributionPaymentSnapshotRow>();
+  const submissionIds = snapshot?.submissionIds ?? [];
+
+  if (!submissionIds.length) {
+    return { error: 'noSubmissions' };
+  }
+
+  const totalPoints = toContributionInt(snapshot?.totalPoints);
+
+  if (totalPoints <= 0) {
+    return { error: 'noPoints' };
+  }
+
+  if (!snapshot?.activeCauseIds?.length) {
+    return { error: 'noActiveCauses' };
+  }
+
+  const userAllocations = parseContributionUserAllocations(
+    snapshot.userAllocations,
+  );
+  const payment = await con.getRepository(ContributionPayment).save({
+    status: ContributionPaymentStatus.Finalized,
+    totalPoints,
+    amountCents,
+    createdBy,
+    finalizedAt: new Date(),
+  });
+  const paymentAllocations = getContributionPaymentAllocations({
+    paymentId: payment.id,
+    userAllocations,
+    amountCents,
+    totalPoints,
+  });
+
+  await con.getRepository(ContributionPaymentAllocation).insert(
+    paymentAllocations.map((allocation) => ({
+      paymentId: allocation.paymentId,
+      userId: allocation.userId,
+      causeId: allocation.causeId,
+      points: allocation.points,
+      amountCents: allocation.amountCents,
+    })),
+  );
+  await con.getRepository(ContributionSubmission).update(
+    {
+      id: In(submissionIds),
+    },
+    {
+      paymentId: payment.id,
+    },
+  );
+
+  return { payment };
+};
 
 const getContributionConfig = (): ContributionConfig => {
   const config = remoteConfig.vars.contributionProgram;
@@ -199,10 +523,51 @@ const getContributionActionUsage = async ({
   };
 };
 
-const normalizeEvidenceSchema = (
-  evidence: ContributionEvidenceSchema,
-): z.infer<typeof contributionActionEvidenceSchema> =>
-  contributionActionEvidenceSchema.parse(evidence ?? {});
+export const normalizeContributionActionEvidence = (
+  evidence:
+    | ContributionActionEvidenceInput
+    | ContributionEvidenceSchema
+    | null
+    | undefined,
+): ContributionEvidenceSchema => {
+  const parsed = contributionActionEvidenceSchema.parse(evidence ?? {});
+
+  return {
+    ...(parsed.url
+      ? {
+          url: {
+            ...(parsed.url.required !== undefined &&
+            parsed.url.required !== null
+              ? { required: parsed.url.required }
+              : {}),
+            ...(parsed.url.allowedDomains
+              ? { allowedDomains: parsed.url.allowedDomains }
+              : {}),
+          },
+        }
+      : {}),
+    ...(parsed.screenshot
+      ? {
+          screenshot: {
+            ...(parsed.screenshot.required !== undefined &&
+            parsed.screenshot.required !== null
+              ? { required: parsed.screenshot.required }
+              : {}),
+          },
+        }
+      : {}),
+    ...(parsed.note
+      ? {
+          note: {
+            ...(parsed.note.required !== undefined &&
+            parsed.note.required !== null
+              ? { required: parsed.note.required }
+              : {}),
+          },
+        }
+      : {}),
+  };
+};
 
 export const validateContributionEvidence = ({
   input,
@@ -211,7 +576,7 @@ export const validateContributionEvidence = ({
   input: z.infer<typeof contributionSubmissionEvidenceSchema>;
   action: ContributionAction;
 }): void => {
-  const requiredEvidence = normalizeEvidenceSchema(action.evidence);
+  const requiredEvidence = normalizeContributionActionEvidence(action.evidence);
 
   if (requiredEvidence.url?.required && !input.url) {
     throw new ValidationError('URL evidence is required');
