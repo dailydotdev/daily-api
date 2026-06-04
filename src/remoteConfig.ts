@@ -15,6 +15,12 @@ export type SuperAgentTrialConfig = Partial<{
   };
 }>;
 
+export type ContributionProgramConfig = Partial<{
+  enabled: boolean;
+  allowedCountries: string[];
+  currentCycleTargetPoints: number;
+}>;
+
 export type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
@@ -54,6 +60,7 @@ export type RemoteConfigValue = {
   verboseGqlLogging: boolean;
   engagementAdsEnabled: boolean;
   postHighlightTtlSeconds: number;
+  contributionProgram: ContributionProgramConfig;
 };
 
 class RemoteConfig {
