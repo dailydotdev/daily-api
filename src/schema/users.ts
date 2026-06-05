@@ -1305,6 +1305,7 @@ export const typeDefs = /* GraphQL */ `
     webapp: Boolean!
     extension: Boolean!
     ios: Boolean!
+    android: Boolean!
   }
 
   """
