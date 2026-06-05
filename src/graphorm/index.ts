@@ -59,6 +59,8 @@ import {
   PostHighlightSignificance,
   toPostHighlightSignificanceLabel,
 } from '../entity/PostHighlight';
+import type { PostHeroSignificance } from '../entity/PostHero';
+import { POST_HERO_LIFECYCLE_HEADLINES } from '../common/postHero';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -900,8 +902,19 @@ const obj = new GraphORM({
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
                 { ttlSeconds: getPostHighlightTtlSeconds() },
               )
-              .orderBy(`${childAlias}."significance"`, 'ASC')
-              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      hero: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."postId" = ${parentAlias}."id"`)
+              .andWhere(
+                `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                { ttlSeconds: getPostHighlightTtlSeconds() },
+              )
               .limit(1),
         },
       },
@@ -2935,6 +2948,23 @@ const obj = new GraphORM({
       highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },
       updatedAt: { transform: transformDate },
+    },
+  },
+  PostHero: {
+    requiredColumns: ['postId', 'significance'],
+    fields: {
+      headline: {
+        transform: (value: string | null, _ctx, parent) => {
+          if (value) {
+            return value;
+          }
+          const { significance } = parent as {
+            significance: PostHeroSignificance;
+          };
+          return POST_HERO_LIFECYCLE_HEADLINES[significance] ?? null;
+        },
+      },
+      highlightedAt: { transform: transformDate },
     },
   },
 });
