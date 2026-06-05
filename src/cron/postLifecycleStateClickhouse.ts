@@ -95,5 +95,10 @@ export const postLifecycleStateClickhouseCron: Cron = {
         lastRunAt: currentRunAt.toISOString(),
       },
     );
+
+    logger.info(
+      { rows: upserts.length, queryParams },
+      'synced post lifecycle state data',
+    );
   },
 };
