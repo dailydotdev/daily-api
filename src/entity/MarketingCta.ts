@@ -16,6 +16,7 @@ export const defaultMarketingCtaTargets = {
   webapp: true,
   extension: true,
   ios: true,
+  android: true,
 };
 
 export type MarketingCtaTargets = typeof defaultMarketingCtaTargets;
