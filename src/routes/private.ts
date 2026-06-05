@@ -16,6 +16,7 @@ import {
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
+import contributions from './private/contributions';
 import rpc from './private/rpc';
 import { createWorkerJobRpc } from './private/workerJobRpc';
 import { connectRpcPlugin, baseRpcContext } from '../common/connectRpc';
@@ -57,6 +58,8 @@ const vordrUsersSchema = z.object({
 });
 
 export default async function (fastify: FastifyInstance): Promise<void> {
+  fastify.register(contributions, { prefix: '/contributions' });
+
   fastify.post<{ Body: AddUserDataPost }>('/newUser', async (req, res) => {
     if (!req.service) {
       return res.status(404).send();
