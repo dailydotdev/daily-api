@@ -910,9 +910,9 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
-              .where(`"${childAlias}"."postId" = ${parentAlias}."id"`)
+              .where(`${childAlias}."postId" = ${parentAlias}."id"`)
               .andWhere(
-                `"${childAlias}"."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
                 { ttlSeconds: getPostHighlightTtlSeconds() },
               )
               .limit(1),

@@ -109,7 +109,7 @@ describe('postLifecycleStateClickhouse cron', () => {
     expect(row.updatedAt.getTime()).toBe(lastUpdatedAt.getTime());
   });
 
-  it('should delete row when state moves to untracked', async () => {
+  it('should write untracked state to PG so MV filter retires the hero', async () => {
     await con.getRepository(PostLifecycleState).insert({
       postId: 'p1',
       state: PostLifecycleStateValue.Breakout,
@@ -126,24 +126,10 @@ describe('postLifecycleStateClickhouse cron', () => {
 
     await expectSuccessfulCron(cron);
 
-    const rows = await con.getRepository(PostLifecycleState).find();
-    expect(rows).toHaveLength(0);
-  });
-
-  it('should not error when deleting a non-existent row', async () => {
-    const clickhouseClientMock = mockClickhouseClientOnce();
-    mockClickhouseQueryJSONOnce(clickhouseClientMock, [
-      {
-        post_id: 'p1',
-        state: 'killed',
-        last_updated_at: new Date().toISOString(),
-      },
-    ]);
-
-    await expectSuccessfulCron(cron);
-
-    const rows = await con.getRepository(PostLifecycleState).find();
-    expect(rows).toHaveLength(0);
+    const row = await con
+      .getRepository(PostLifecycleState)
+      .findOneByOrFail({ postId: 'p1' });
+    expect(row.state).toBe('steady');
   });
 
   it('should persist lastRunAt on success', async () => {

@@ -1,14 +1,10 @@
 import { format, startOfToday } from 'date-fns';
-import { In } from 'typeorm';
 import { z } from 'zod';
 import { Cron } from './cron';
 import { getClickHouseClient } from '../common/clickhouse';
-import {
-  postLifecycleStateClickhouseSchema,
-  isTrackedLifecycleState,
-} from '../common/schema/postLifecycleState';
+import { postLifecycleStateClickhouseSchema } from '../common/schema/postLifecycleState';
 import { PostLifecycleState } from '../entity/PostLifecycleState';
-import { PostLifecycleStateValue } from '../common/postLifecycleState';
+import type { PostLifecycleStateValue } from '../common/postLifecycleState';
 import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
 
@@ -73,44 +69,23 @@ export const postLifecycleStateClickhouseCron: Cron = {
       throw new Error('Invalid post lifecycle state data');
     }
 
-    const { data } = result;
-    const upserts: Array<{
-      postId: string;
-      state: PostLifecycleStateValue;
-      updatedAt: Date;
-    }> = [];
-    const deleteIds: string[] = [];
-
-    data.forEach((item) => {
-      if (isTrackedLifecycleState(item.state)) {
-        upserts.push({
-          postId: item.post_id,
-          state: item.state,
-          updatedAt: item.last_updated_at,
-        });
-      } else {
-        deleteIds.push(item.post_id);
-      }
-    });
+    const upserts = result.data.map((item) => ({
+      postId: item.post_id,
+      state: item.state as PostLifecycleStateValue,
+      updatedAt: item.last_updated_at,
+    }));
 
     const currentRunAt = new Date();
 
-    await con.transaction(async (entityManager) => {
-      const repo = entityManager.getRepository(PostLifecycleState);
-
-      if (upserts.length) {
-        await repo
-          .createQueryBuilder()
-          .insert()
-          .values(upserts)
-          .orUpdate(['state', 'updatedAt'], ['postId'])
-          .execute();
-      }
-
-      if (deleteIds.length) {
-        await repo.delete({ postId: In(deleteIds) });
-      }
-    });
+    if (upserts.length) {
+      await con
+        .getRepository(PostLifecycleState)
+        .createQueryBuilder()
+        .insert()
+        .values(upserts)
+        .orUpdate(['state', 'updatedAt'], ['postId'])
+        .execute();
+    }
 
     await con.query('REFRESH MATERIALIZED VIEW CONCURRENTLY post_hero');
 

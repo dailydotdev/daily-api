@@ -53,16 +53,13 @@ export class AddPostLifecycleState1780489859019 implements MigrationInterface {
           1 AS src
         FROM post_lifecycle_state
         WHERE "updatedAt" > now() - interval '12 hours'
+          AND state IN ('breakout', 'evergreen')
       ) u
       ORDER BY "postId", src
     `);
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_post_hero_post"
         ON "post_hero" ("postId")
-    `);
-    await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS "IDX_post_hero_highlightedAt"
-        ON "post_hero" ("highlightedAt")
     `);
   }
 

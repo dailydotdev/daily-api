@@ -1,7 +1,8 @@
 export enum PostLifecycleStateValue {
   Breakout = 'breakout',
+  Promising = 'promising',
   Evergreen = 'evergreen',
+  New = 'new',
+  Steady = 'steady',
+  Killed = 'killed',
 }
-
-export const TRACKED_LIFECYCLE_STATES: ReadonlyArray<PostLifecycleStateValue> =
-  [PostLifecycleStateValue.Breakout, PostLifecycleStateValue.Evergreen];
