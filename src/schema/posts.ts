@@ -783,6 +783,13 @@ export const typeDefs = /* GraphQL */ `
     postHighlight: PostHighlight
 
     """
+    Lean hero card payload for the post. Sourced from the unified hero MV
+    (editorial highlights + lifecycle states). Null when the post does not
+    currently warrant a hero card.
+    """
+    hero: PostHero
+
+    """
     Additional information required for analytics purposes
     """
     feedMeta: String

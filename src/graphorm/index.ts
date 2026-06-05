@@ -59,6 +59,8 @@ import {
   PostHighlightSignificance,
   toPostHighlightSignificanceLabel,
 } from '../entity/PostHighlight';
+import type { PostHeroSignificance } from '../entity/PostHero';
+import { POST_HERO_LIFECYCLE_HEADLINES } from '../common/postHero';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -78,6 +80,15 @@ import {
   ContentEmbedParentType,
   ContentEmbedReferenceType,
 } from '../entity/ContentEmbed';
+import {
+  ContributionPayment,
+  ContributionPaymentStatus,
+} from '../entity/contribution/ContributionPayment';
+import { ContributionPaymentAllocation } from '../entity/contribution/ContributionPaymentAllocation';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../entity/contribution/ContributionSubmission';
 import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
@@ -196,6 +207,80 @@ const nullIfNotSameUserById = <T>(
   return ctx.userId === entity.userId ? value : null;
 };
 
+const activeContributionSubmissionStatuses = [
+  ContributionSubmissionStatus.Approved,
+  ContributionSubmissionStatus.Flagged,
+];
+
+const toContributionNumber = (
+  value: string | number | null | undefined,
+): number => Number(value ?? 0);
+
+const contributionActionSubmissions = ({
+  ctx,
+  alias,
+  qb,
+}: {
+  ctx: Context;
+  alias: string;
+  qb: QueryBuilder;
+}): QueryBuilder =>
+  qb
+    .from(ContributionSubmission, 'submission')
+    .where('submission."userId" = :contributionUserId', {
+      contributionUserId: ctx.userId,
+    })
+    .andWhere(`submission."actionId" = "${alias}"."id"`)
+    .andWhere('submission.status IN (:...contributionSubmissionStatuses)', {
+      contributionSubmissionStatuses: activeContributionSubmissionStatuses,
+    });
+
+const selectContributionCauseTotal = ({
+  alias,
+  qb,
+  field,
+}: {
+  alias: string;
+  qb: QueryBuilder;
+  field: 'points' | 'amountCents';
+}): string => {
+  const query = qb
+    .select(`COALESCE(SUM(allocation."${field}"), 0)`)
+    .from(ContributionPaymentAllocation, 'allocation')
+    .innerJoin(
+      ContributionPayment,
+      'payment',
+      'payment.id = allocation."paymentId" AND payment.status = :contributionPaymentStatus',
+      { contributionPaymentStatus: ContributionPaymentStatus.Finalized },
+    )
+    .where(`allocation."causeId" = "${alias}"."id"`);
+
+  return `COALESCE(${query.getQuery()}, 0)`;
+};
+
+const selectContributionActionCooldownEndsAt = (
+  ctx: Context,
+  alias: string,
+  qb: QueryBuilder,
+): string => {
+  const cooldownEndsAt = `MAX(submission."createdAt") + "${alias}"."cooldownSeconds" * INTERVAL '1 second'`;
+  const query = contributionActionSubmissions({
+    ctx,
+    alias,
+    qb,
+  }).select(
+    `CASE WHEN ${cooldownEndsAt} > NOW() THEN ${cooldownEndsAt} ELSE NULL END`,
+  );
+
+  return `
+    CASE
+      WHEN "${alias}"."cooldownSeconds" IS NULL
+      THEN NULL
+      ELSE (${query.getQuery()})
+    END
+  `;
+};
+
 const checkIfTitleIsClickbait = (value?: string): boolean => {
   if (!value) {
     return false;
@@ -289,6 +374,70 @@ const organizationLink = (type: OrganizationLinkType) => ({
 });
 
 const obj = new GraphORM({
+  ContributionAction: {
+    fields: {
+      evidence: {
+        jsonType: true,
+      },
+      userCompletions: {
+        select: (ctx, alias, qb) =>
+          `COALESCE(${contributionActionSubmissions({
+            ctx,
+            alias,
+            qb,
+          })
+            .select('COUNT(*)')
+            .getQuery()}, 0)`,
+        transform: toContributionNumber,
+      },
+      userCooldownEndsAt: {
+        select: selectContributionActionCooldownEndsAt,
+        transform: (value: Date | string | null): Date | null =>
+          value ? new Date(value) : null,
+      },
+    },
+  },
+  ContributionCause: {
+    fields: {
+      totalPoints: {
+        select: (_, alias, qb) =>
+          selectContributionCauseTotal({ alias, qb, field: 'points' }),
+        transform: toContributionNumber,
+      },
+      totalAmountCents: {
+        select: (_, alias, qb) =>
+          selectContributionCauseTotal({ alias, qb, field: 'amountCents' }),
+        transform: toContributionNumber,
+      },
+    },
+  },
+  ContributionRewardTier: {
+    fields: {
+      metadata: {
+        jsonType: true,
+      },
+    },
+  },
+  UserContributionCauseStats: {
+    from: 'ContributionPaymentAllocation',
+    fields: {
+      cause: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb.where(`"${childAlias}"."id" = "${parentAlias}"."causeId"`),
+        },
+      },
+      points: {
+        select: (_, alias) => `COALESCE(SUM("${alias}"."points"), 0)`,
+        transform: toContributionNumber,
+      },
+      amountCents: {
+        select: (_, alias) => `COALESCE(SUM("${alias}"."amountCents"), 0)`,
+        transform: toContributionNumber,
+      },
+    },
+  },
   User: {
     requiredColumns: ['id', 'username', 'createdAt'],
     fields: {
@@ -753,8 +902,19 @@ const obj = new GraphORM({
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
                 { ttlSeconds: getPostHighlightTtlSeconds() },
               )
-              .orderBy(`${childAlias}."significance"`, 'ASC')
-              .addOrderBy(`${childAlias}."highlightedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      hero: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."postId" = ${parentAlias}."id"`)
+              .andWhere(
+                `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
+                { ttlSeconds: getPostHighlightTtlSeconds() },
+              )
               .limit(1),
         },
       },
@@ -2788,6 +2948,23 @@ const obj = new GraphORM({
       highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },
       updatedAt: { transform: transformDate },
+    },
+  },
+  PostHero: {
+    requiredColumns: ['postId', 'significance'],
+    fields: {
+      headline: {
+        transform: (value: string | null, _ctx, parent) => {
+          if (value) {
+            return value;
+          }
+          const { significance } = parent as {
+            significance: PostHeroSignificance;
+          };
+          return POST_HERO_LIFECYCLE_HEADLINES[significance] ?? null;
+        },
+      },
+      highlightedAt: { transform: transformDate },
     },
   },
 });

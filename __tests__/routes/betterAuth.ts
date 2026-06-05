@@ -116,6 +116,44 @@ describe('betterAuth routes', () => {
       });
     });
 
+    it('should register the one-tap plugin when GOOGLE_CLIENT_ID is set', async () => {
+      const original = process.env.GOOGLE_CLIENT_ID;
+      process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
+      try {
+        const { getBetterAuthOptions } = await import('../../src/betterAuth');
+        const options = getBetterAuthOptions(
+          (con.driver as unknown as { master: Pool }).master,
+        );
+        expect(options.plugins?.some((plugin) => plugin.id === 'one-tap')).toBe(
+          true,
+        );
+      } finally {
+        if (original === undefined) {
+          delete process.env.GOOGLE_CLIENT_ID;
+        } else {
+          process.env.GOOGLE_CLIENT_ID = original;
+        }
+      }
+    });
+
+    it('should not register the one-tap plugin without GOOGLE_CLIENT_ID', async () => {
+      const original = process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_ID;
+      try {
+        const { getBetterAuthOptions } = await import('../../src/betterAuth');
+        const options = getBetterAuthOptions(
+          (con.driver as unknown as { master: Pool }).master,
+        );
+        expect(options.plugins?.some((plugin) => plugin.id === 'one-tap')).toBe(
+          false,
+        );
+      } finally {
+        if (original !== undefined) {
+          process.env.GOOGLE_CLIENT_ID = original;
+        }
+      }
+    });
+
     describe('user.create.before hook', () => {
       const getBeforeHook = async () => {
         const { getBetterAuthOptions } = await import('../../src/betterAuth');
@@ -238,6 +276,7 @@ describe('betterAuth routes', () => {
           body?: Record<string, unknown>;
           cookie?: string;
           ip?: string;
+          timezone?: string;
         } = {},
       ) => {
         const headers: Record<string, string> = {};
@@ -246,6 +285,9 @@ describe('betterAuth routes', () => {
         }
         if (overrides.ip) {
           headers['x-forwarded-for'] = overrides.ip;
+        }
+        if (overrides.timezone) {
+          headers['x-timezone'] = overrides.timezone;
         }
         return {
           request: new Request('http://localhost/auth/sign-up/email', {
@@ -338,6 +380,36 @@ describe('betterAuth routes', () => {
         expect(persisted!.notificationFlags).toEqual(
           DEFAULT_NOTIFICATION_SETTINGS,
         );
+      });
+
+      it('should set timezone from the x-timezone header', async () => {
+        const after = await getAfterHook();
+        const user = await createBaseUser();
+
+        await after(user, makeContext({ timezone: 'Europe/Zagreb' }));
+
+        const persisted = await con
+          .getRepository(User)
+          .findOneBy({ id: user.id });
+        expect(persisted!.timezone).toBe('Europe/Zagreb');
+      });
+
+      it('should prefer body timezone over the x-timezone header', async () => {
+        const after = await getAfterHook();
+        const user = await createBaseUser();
+
+        await after(
+          user,
+          makeContext({
+            body: { timezone: 'America/New_York' },
+            timezone: 'Europe/Zagreb',
+          }),
+        );
+
+        const persisted = await con
+          .getRepository(User)
+          .findOneBy({ id: user.id });
+        expect(persisted!.timezone).toBe('America/New_York');
       });
 
       it('should claim opportunities that user created as anonymous', async () => {
