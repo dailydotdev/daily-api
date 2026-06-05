@@ -1778,6 +1778,38 @@ describe('post', () => {
     ]);
   });
 
+  it('should notify when post becomes trending', async () => {
+    const trendingAt = new Date('2026-05-15T12:30:00.000Z');
+    const before: ChangeObject<ObjectType> = {
+      ...base,
+      trending: null,
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...before,
+      trending: 42,
+      lastTrending: trendingAt.getTime() * 1000,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'api.v1.post-trending',
+      {
+        postId: 'p1',
+        trending: 42,
+        trendingAt: trendingAt.toISOString(),
+      },
+    ]);
+  });
+
   describe('collection', () => {
     it('should notify when collection content is updated', async () => {
       const before = {
