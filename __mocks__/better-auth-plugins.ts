@@ -10,3 +10,9 @@ export const emailOTP = () => ({
   rateLimit: [],
   options: {},
 });
+
+export const oneTap = (options = {}) => ({
+  id: 'one-tap',
+  endpoints: {},
+  options,
+});

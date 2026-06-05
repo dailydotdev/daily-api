@@ -1,6 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api';
-import { captcha, emailOTP } from 'better-auth/plugins';
+import { captcha, emailOTP, oneTap } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import * as argon2 from 'argon2';
 import * as bcryptjs from 'bcryptjs';
@@ -597,7 +597,13 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 'referralOrigin',
                 body?.referralOrigin ?? cookieReferral?.referralOrigin,
               );
-              addField('timezone', body?.timezone ?? oauthState?.timezone);
+              addField(
+                'timezone',
+                body?.timezone ??
+                  oauthState?.timezone ??
+                  // used primarily in one-tap flow
+                  hookCtx?.request?.headers?.get('x-timezone'),
+              );
 
               if (typeof body?.acceptedMarketing === 'boolean') {
                 setClauses.push(`"acceptedMarketing" = $${paramIndex}`);
@@ -772,6 +778,9 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           });
         },
       }),
+      ...(process.env.GOOGLE_CLIENT_ID
+        ? [oneTap({ clientId: process.env.GOOGLE_CLIENT_ID })]
+        : []),
     ],
     socialProviders: {
       ...(process.env.GOOGLE_CLIENT_ID && {
