@@ -39,7 +39,12 @@ import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/que
 import { z } from 'zod';
 import { counters } from '../telemetry';
 import { applyVordrToUsers } from '../common/vordr';
-import { updatePostContentSchema } from '../common/schema/posts';
+import {
+  updatePostContentSchema,
+  updatePostsBriefWorthySchema,
+} from '../common/schema/posts';
+import { updateFlagsStatement } from '../common/utils';
+import { In } from 'typeorm';
 
 interface SearchUsername {
   search: string;
@@ -419,6 +424,38 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     await con.getRepository(FreeformPost).update({ id: postId }, updatePayload);
 
     return res.status(200).send({ id: postId });
+  });
+
+  fastify.post<{
+    Body: z.infer<typeof updatePostsBriefWorthySchema>;
+  }>('/updatePostsBriefWorthy', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const body = updatePostsBriefWorthySchema.safeParse(req.body);
+
+    if (body.error) {
+      return res.status(400).send({
+        error: {
+          name: body.error.name,
+          issues: body.error.issues,
+        },
+      });
+    }
+
+    const { briefWorthy, postIds } = body.data;
+    const con = await createOrGetConnection();
+
+    const { affected } = await con.getRepository(Post).update(
+      { id: In(postIds) },
+      {
+        flags: updateFlagsStatement<Post>({ briefWorthy }),
+        metadataChangedAt: new Date(),
+      },
+    );
+
+    return res.status(200).send({ updated: affected ?? 0 });
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });

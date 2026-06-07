@@ -13,7 +13,8 @@ import {
   UserPersonalizedDigest,
 } from '../src/entity';
 import { FreeformPost } from '../src/entity/posts/FreeformPost';
-import { PostType } from '../src/entity/posts/Post';
+import { Post, PostType } from '../src/entity/posts/Post';
+import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { usersFixture } from './fixture/user';
@@ -1708,5 +1709,86 @@ describe('POST /p/updatePostContent', () => {
       .findOneByOrFail({ id: post.id });
     expect(updated.title).toBe('Updated title');
     expect(updated.content).toBe('New content');
+  });
+});
+
+describe('POST /p/updatePostsBriefWorthy', () => {
+  const path = '/p/updatePostsBriefWorthy';
+
+  beforeEach(async () => {
+    await saveFixtures(con, ArticlePost, postsFixture);
+  });
+
+  it('should return 404 when not authorized', async () => {
+    return request(app.server)
+      .post(path)
+      .send({ postIds: ['p1'], briefWorthy: true })
+      .expect(404);
+  });
+
+  it('should return 400 when postIds is empty', async () => {
+    return request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postIds: [], briefWorthy: true })
+      .expect(400);
+  });
+
+  it('should return 400 when briefWorthy is missing', async () => {
+    return request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postIds: ['p1'] })
+      .expect(400);
+  });
+
+  it('should set briefWorthy flag and bump metadataChangedAt', async () => {
+    const repo = con.getRepository(ArticlePost);
+    const before = await repo.findOneByOrFail({ id: 'p1' });
+
+    const res = await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postIds: ['p1', 'p2'], briefWorthy: true })
+      .expect(200);
+
+    expect(res.body).toEqual({ updated: 2 });
+
+    const [p1, p2] = await Promise.all([
+      repo.findOneByOrFail({ id: 'p1' }),
+      repo.findOneByOrFail({ id: 'p2' }),
+    ]);
+    expect(p1.flags.briefWorthy).toBe(true);
+    expect(p2.flags.briefWorthy).toBe(true);
+    expect(p1.metadataChangedAt.getTime()).toBeGreaterThan(
+      before.metadataChangedAt.getTime(),
+    );
+  });
+
+  it('should unset briefWorthy flag when value is false', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.update(
+      { id: 'p1' },
+      { flags: updateFlagsStatement<Post>({ briefWorthy: true }) },
+    );
+
+    await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postIds: ['p1'], briefWorthy: false })
+      .expect(200);
+
+    const updated = await repo.findOneByOrFail({ id: 'p1' });
+    expect(updated.flags.briefWorthy).toBe(false);
+  });
+
+  it('should only count existing posts as updated', async () => {
+    const res = await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ postIds: ['p1', 'nonexistent'], briefWorthy: true })
+      .expect(200);
+
+    expect(res.body).toEqual({ updated: 1 });
   });
 });
