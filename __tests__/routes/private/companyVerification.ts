@@ -144,6 +144,26 @@ describe('private company verification routes', () => {
       expect(body.id).toEqual('mycompany');
     });
 
+    it('returns 409 when a provided id already exists', async () => {
+      await seedUserCompanies();
+
+      await request(app.server)
+        .post('/p/company-verification/companies')
+        .set(serviceHeaders)
+        .send({
+          id: existingCompanyId,
+          name: 'Acme',
+          domains: ['acme.com'],
+          image: 'https://cdn.example.com/logo.png',
+        })
+        .expect(409);
+
+      const company = await con
+        .getRepository(Company)
+        .findOneByOrFail({ id: existingCompanyId });
+      expect(company.name).toEqual('Existing Co');
+    });
+
     it('rejects missing required fields', async () => {
       await request(app.server)
         .post('/p/company-verification/companies')

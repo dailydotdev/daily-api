@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type z from 'zod';
 import createOrGetConnection from '../../db';
 import {
@@ -11,29 +11,7 @@ import { UserCompany } from '../../entity/UserCompany';
 import { generateShortId } from '../../ids';
 import { uploadLogoFromUrl } from '../../common/cloudinary';
 import { updateFlagsStatement } from '../../common/utils';
-
-const parseSchema = <TSchema extends z.ZodType>({
-  schema,
-  value,
-  res,
-}: {
-  schema: TSchema;
-  value: unknown;
-  res: FastifyReply;
-}): z.infer<TSchema> | undefined => {
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) {
-    res.status(400).send({
-      error: {
-        name: parsed.error.name,
-        issues: parsed.error.issues,
-      },
-    });
-    return undefined;
-  }
-
-  return parsed.data;
-};
+import { parseSchema } from './utils';
 
 const domainWhere = `split_part(lower(email), '@', 2) = :domain`;
 
@@ -57,10 +35,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const repo = con.getRepository(Company);
     const id = body.id ?? (await generateShortId());
-    const image = await uploadLogoFromUrl(id, body.image);
 
-    const company = await con.getRepository(Company).save({
+    if (body.id && (await repo.findOneBy({ id: body.id }))) {
+      return res.status(409).send({ error: 'Company already exists' });
+    }
+
+    const image = await uploadLogoFromUrl(id, body.image);
+    const company = await repo.save({
       id,
       name: body.name,
       altName: body.altName ?? null,
