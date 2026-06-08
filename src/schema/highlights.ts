@@ -71,6 +71,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     headline: String!
     significance: String!
+    size: Int!
     highlightedAt: DateTime!
   }
 

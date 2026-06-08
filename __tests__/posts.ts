@@ -991,6 +991,7 @@ describe('hero field', () => {
         id
         headline
         significance
+        size
         highlightedAt
       }
     }
@@ -1026,6 +1027,7 @@ describe('hero field', () => {
       id: expect.any(String),
       headline: 'Breaking headline',
       significance: 'breaking',
+      size: 4,
       highlightedAt: expect.any(String),
     });
   });
@@ -1043,6 +1045,7 @@ describe('hero field', () => {
       id: expect.any(String),
       headline: 'Breaking out',
       significance: 'breakout',
+      size: 4,
       highlightedAt: expect.any(String),
     });
   });
@@ -1060,6 +1063,7 @@ describe('hero field', () => {
       id: expect.any(String),
       headline: 'Evergreen',
       significance: 'evergreen',
+      size: 3,
       highlightedAt: expect.any(String),
     });
   });

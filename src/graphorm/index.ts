@@ -60,7 +60,10 @@ import {
   toPostHighlightSignificanceLabel,
 } from '../entity/PostHighlight';
 import type { PostHeroSignificance } from '../entity/PostHero';
-import { POST_HERO_LIFECYCLE_HEADLINES } from '../common/postHero';
+import {
+  POST_HERO_LIFECYCLE_HEADLINES,
+  POST_HERO_SIZES,
+} from '../common/postHero';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -2963,6 +2966,10 @@ const obj = new GraphORM({
           };
           return POST_HERO_LIFECYCLE_HEADLINES[significance] ?? null;
         },
+      },
+      size: {
+        select: (_, alias) => `"${alias}"."significance"`,
+        transform: (value: PostHeroSignificance) => POST_HERO_SIZES[value] ?? 1,
       },
       highlightedAt: { transform: transformDate },
     },

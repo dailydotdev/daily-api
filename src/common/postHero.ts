@@ -6,3 +6,12 @@ export const POST_HERO_LIFECYCLE_HEADLINES: Partial<
   breakout: 'Breaking out',
   evergreen: 'Evergreen',
 };
+
+export const POST_HERO_SIZES: Record<PostHeroSignificance, number> = {
+  breaking: 4,
+  major: 3,
+  notable: 2,
+  routine: 1,
+  breakout: 3,
+  evergreen: 2,
+};
