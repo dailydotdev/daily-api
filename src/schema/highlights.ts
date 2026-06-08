@@ -23,6 +23,14 @@ type GQLChannelDigestConfiguration = {
   source?: GQLSource | null;
 };
 
+type GQLChannelDigest = {
+  key: string;
+  channel: string;
+  frequency: string;
+  enabled: boolean;
+  source?: GQLSource | null;
+};
+
 type GQLChannelConfiguration = {
   channel: string;
   displayName: string;
@@ -43,6 +51,14 @@ type GQLSubscribedPostHighlight = Pick<
 export const typeDefs = /* GraphQL */ `
   type ChannelDigestConfiguration {
     frequency: String!
+    source: Source
+  }
+
+  type ChannelDigest {
+    key: String!
+    channel: String!
+    frequency: String!
+    enabled: Boolean!
     source: Source
   }
 
@@ -89,6 +105,11 @@ export const typeDefs = /* GraphQL */ `
     Get highlight-backed channel configuration with digest metadata
     """
     channelConfigurations: [ChannelConfiguration!]!
+
+    """
+    Get all enabled channel digests, ordered by channel and key
+    """
+    channelDigests: [ChannelDigest!]!
 
     """
     Get highlights for a channel, ordered by recency
@@ -213,6 +234,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             })
             .orderBy(`"${builder.alias}"."order"`, 'ASC')
             .addOrderBy(`"${builder.alias}"."channel"`, 'ASC');
+          return builder;
+        },
+        true,
+      ),
+    channelDigests: async (_, __, ctx: Context, info) =>
+      graphorm.query<GQLChannelDigest>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."enabled" = true`)
+            .orderBy(`"${builder.alias}"."channel"`, 'ASC')
+            .addOrderBy(`"${builder.alias}"."key"`, 'ASC');
           return builder;
         },
         true,

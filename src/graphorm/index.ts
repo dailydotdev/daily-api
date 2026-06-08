@@ -1692,6 +1692,20 @@ const obj = new GraphORM({
       },
     },
   },
+  ChannelDigest: {
+    fields: {
+      source: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
+              .andWhere(`"${childAlias}"."active" = true`)
+              .limit(1),
+        },
+      },
+    },
+  },
   UserComment: {
     requiredColumns: ['votedAt', 'awardTransactionId'],
     fields: {

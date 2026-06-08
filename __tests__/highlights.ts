@@ -93,7 +93,15 @@ beforeEach(async () => {
   await con.getRepository(ArticlePost).delete(['h1', 'h2', 'h3', 'h4']);
   await con
     .getRepository(Source)
-    .delete(['a', 'b', 'c', 'backend_digest', 'career_digest']);
+    .delete([
+      'a',
+      'b',
+      'c',
+      'backend_digest',
+      'backend_digest_a',
+      'backend_digest_b',
+      'career_digest',
+    ]);
 });
 
 const saveCanonicalHighlights = (
@@ -263,6 +271,155 @@ describe('query channelConfigurations', () => {
             name: 'Backend Digest',
             handle: 'backend_digest',
           },
+        },
+      },
+    ]);
+  });
+});
+
+const CHANNEL_DIGESTS_QUERY = `
+  query ChannelDigests {
+    channelDigests {
+      key
+      channel
+      frequency
+      enabled
+      source {
+        id
+        name
+        handle
+      }
+    }
+  }
+`;
+
+describe('query channelDigests', () => {
+  const saveDigestSource = (id: string, name: string) =>
+    con.getRepository(Source).save({
+      id,
+      name,
+      image: `https://example.com/${id}.png`,
+      handle: id,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+    });
+
+  it('should return empty array when no digests exist', async () => {
+    const res = await client.query(CHANNEL_DIGESTS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelDigests).toEqual([]);
+  });
+
+  it('should return enabled digests ordered by channel and key with source resolved', async () => {
+    await saveDigestSource('backend_digest_a', 'Backend Digest A');
+    await saveDigestSource('backend_digest_b', 'Backend Digest B');
+    await saveDigestSource('career_digest', 'Career Digest');
+
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'career-digest',
+        channel: 'career',
+        sourceId: 'career_digest',
+        targetAudience: 'career changers',
+        frequency: 'weekly',
+        enabled: true,
+      },
+      {
+        key: 'backend-b',
+        channel: 'backend',
+        sourceId: 'backend_digest_b',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: true,
+      },
+      {
+        key: 'backend-a',
+        channel: 'backend',
+        sourceId: 'backend_digest_a',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: true,
+      },
+    ]);
+
+    const res = await client.query(CHANNEL_DIGESTS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelDigests).toEqual([
+      {
+        key: 'backend-a',
+        channel: 'backend',
+        frequency: 'daily',
+        enabled: true,
+        source: {
+          id: 'backend_digest_a',
+          name: 'Backend Digest A',
+          handle: 'backend_digest_a',
+        },
+      },
+      {
+        key: 'backend-b',
+        channel: 'backend',
+        frequency: 'daily',
+        enabled: true,
+        source: {
+          id: 'backend_digest_b',
+          name: 'Backend Digest B',
+          handle: 'backend_digest_b',
+        },
+      },
+      {
+        key: 'career-digest',
+        channel: 'career',
+        frequency: 'weekly',
+        enabled: true,
+        source: {
+          id: 'career_digest',
+          name: 'Career Digest',
+          handle: 'career_digest',
+        },
+      },
+    ]);
+  });
+
+  it('should exclude disabled digests', async () => {
+    await saveDigestSource('backend_digest', 'Backend Digest');
+    await saveDigestSource('career_digest', 'Career Digest');
+
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'backend-digest',
+        channel: 'backend',
+        sourceId: 'backend_digest',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: true,
+      },
+      {
+        key: 'career-digest',
+        channel: 'career',
+        sourceId: 'career_digest',
+        targetAudience: 'career changers',
+        frequency: 'weekly',
+        enabled: false,
+      },
+    ]);
+
+    const res = await client.query(CHANNEL_DIGESTS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelDigests).toEqual([
+      {
+        key: 'backend-digest',
+        channel: 'backend',
+        frequency: 'daily',
+        enabled: true,
+        source: {
+          id: 'backend_digest',
+          name: 'Backend Digest',
+          handle: 'backend_digest',
         },
       },
     ]);
