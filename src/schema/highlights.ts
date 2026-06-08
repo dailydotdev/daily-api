@@ -91,6 +91,11 @@ export const typeDefs = /* GraphQL */ `
     channelConfigurations: [ChannelConfiguration!]!
 
     """
+    Get all enabled channel digest configurations, ordered by channel and key
+    """
+    channelDigestConfigurations: [ChannelDigestConfiguration!]!
+
+    """
     Get highlights for a channel, ordered by recency
     """
     postHighlights(channel: String!): [PostHighlight!]!
@@ -213,6 +218,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             })
             .orderBy(`"${builder.alias}"."order"`, 'ASC')
             .addOrderBy(`"${builder.alias}"."channel"`, 'ASC');
+          return builder;
+        },
+        true,
+      ),
+    channelDigestConfigurations: async (_, __, ctx: Context, info) =>
+      graphorm.query<GQLChannelDigestConfiguration>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."enabled" = true`)
+            .orderBy(`"${builder.alias}"."channel"`, 'ASC')
+            .addOrderBy(`"${builder.alias}"."key"`, 'ASC');
           return builder;
         },
         true,

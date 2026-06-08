@@ -93,7 +93,15 @@ beforeEach(async () => {
   await con.getRepository(ArticlePost).delete(['h1', 'h2', 'h3', 'h4']);
   await con
     .getRepository(Source)
-    .delete(['a', 'b', 'c', 'backend_digest', 'career_digest']);
+    .delete([
+      'a',
+      'b',
+      'c',
+      'backend_digest',
+      'backend_digest_a',
+      'backend_digest_b',
+      'career_digest',
+    ]);
 });
 
 const saveCanonicalHighlights = (
@@ -263,6 +271,110 @@ describe('query channelConfigurations', () => {
             name: 'Backend Digest',
             handle: 'backend_digest',
           },
+        },
+      },
+    ]);
+  });
+});
+
+const CHANNEL_DIGEST_CONFIGURATIONS_QUERY = `
+  query ChannelDigestConfigurations {
+    channelDigestConfigurations {
+      frequency
+      source {
+        id
+        name
+        handle
+      }
+    }
+  }
+`;
+
+describe('query channelDigestConfigurations', () => {
+  const saveDigestSource = (id: string, name: string) =>
+    con.getRepository(Source).save({
+      id,
+      name,
+      image: `https://example.com/${id}.png`,
+      handle: id,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+    });
+
+  it('should return empty array when no digests exist', async () => {
+    const res = await client.query(CHANNEL_DIGEST_CONFIGURATIONS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelDigestConfigurations).toEqual([]);
+  });
+
+  it('should return enabled digests ordered by channel and key with source resolved, excluding disabled', async () => {
+    await saveDigestSource('backend_digest_a', 'Backend Digest A');
+    await saveDigestSource('backend_digest_b', 'Backend Digest B');
+    await saveDigestSource('career_digest', 'Career Digest');
+
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'career-digest',
+        channel: 'career',
+        sourceId: 'career_digest',
+        targetAudience: 'career changers',
+        frequency: 'weekly',
+        enabled: true,
+      },
+      {
+        key: 'backend-b',
+        channel: 'backend',
+        sourceId: 'backend_digest_b',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: true,
+      },
+      {
+        key: 'backend-a',
+        channel: 'backend',
+        sourceId: 'backend_digest_a',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: true,
+      },
+      {
+        key: 'backend-disabled',
+        channel: 'backend',
+        sourceId: 'backend_digest_disabled',
+        targetAudience: 'backend developers',
+        frequency: 'daily',
+        enabled: false,
+      },
+    ]);
+
+    const res = await client.query(CHANNEL_DIGEST_CONFIGURATIONS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelDigestConfigurations).toEqual([
+      {
+        frequency: 'daily',
+        source: {
+          id: 'backend_digest_a',
+          name: 'Backend Digest A',
+          handle: 'backend_digest_a',
+        },
+      },
+      {
+        frequency: 'daily',
+        source: {
+          id: 'backend_digest_b',
+          name: 'Backend Digest B',
+          handle: 'backend_digest_b',
+        },
+      },
+      {
+        frequency: 'weekly',
+        source: {
+          id: 'career_digest',
+          name: 'Career Digest',
+          handle: 'career_digest',
         },
       },
     ]);
