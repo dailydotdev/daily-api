@@ -1677,7 +1677,8 @@ const obj = new GraphORM({
       },
     },
   },
-  ChannelDigest: {
+  ChannelDigestConfiguration: {
+    from: 'ChannelDigest',
     fields: {
       source: {
         relation: {

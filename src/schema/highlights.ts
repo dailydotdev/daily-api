@@ -18,18 +18,15 @@ import {
 } from '../entity/PostHighlight';
 import type { GQLSource } from './sources';
 
-type GQLChannelDigest = {
-  key: string;
-  channel: string;
+type GQLChannelDigestConfiguration = {
   frequency: string;
-  enabled: boolean;
   source?: GQLSource | null;
 };
 
 type GQLChannelConfiguration = {
   channel: string;
   displayName: string;
-  digest?: GQLChannelDigest | null;
+  digest?: GQLChannelDigestConfiguration | null;
 };
 
 type GQLSubscribedPostHighlight = Pick<
@@ -44,18 +41,15 @@ type GQLSubscribedPostHighlight = Pick<
 > & { channel: string };
 
 export const typeDefs = /* GraphQL */ `
-  type ChannelDigest {
-    key: String!
-    channel: String!
+  type ChannelDigestConfiguration {
     frequency: String!
-    enabled: Boolean!
     source: Source
   }
 
   type ChannelConfiguration {
     channel: String!
     displayName: String!
-    digest: ChannelDigest
+    digest: ChannelDigestConfiguration
   }
 
   type PostHighlight {
@@ -97,9 +91,9 @@ export const typeDefs = /* GraphQL */ `
     channelConfigurations: [ChannelConfiguration!]!
 
     """
-    Get all enabled channel digests, ordered by channel and key
+    Get all enabled channel digest configurations, ordered by channel and key
     """
-    channelDigests: [ChannelDigest!]!
+    channelDigestConfigurations: [ChannelDigestConfiguration!]!
 
     """
     Get highlights for a channel, ordered by recency
@@ -228,8 +222,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
         true,
       ),
-    channelDigests: async (_, __, ctx: Context, info) =>
-      graphorm.query<GQLChannelDigest>(
+    channelDigestConfigurations: async (_, __, ctx: Context, info) =>
+      graphorm.query<GQLChannelDigestConfiguration>(
         ctx,
         info,
         (builder) => {

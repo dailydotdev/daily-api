@@ -277,13 +277,10 @@ describe('query channelConfigurations', () => {
   });
 });
 
-const CHANNEL_DIGESTS_QUERY = `
-  query ChannelDigests {
-    channelDigests {
-      key
-      channel
+const CHANNEL_DIGEST_CONFIGURATIONS_QUERY = `
+  query ChannelDigestConfigurations {
+    channelDigestConfigurations {
       frequency
-      enabled
       source {
         id
         name
@@ -293,7 +290,7 @@ const CHANNEL_DIGESTS_QUERY = `
   }
 `;
 
-describe('query channelDigests', () => {
+describe('query channelDigestConfigurations', () => {
   const saveDigestSource = (id: string, name: string) =>
     con.getRepository(Source).save({
       id,
@@ -306,10 +303,10 @@ describe('query channelDigests', () => {
     });
 
   it('should return empty array when no digests exist', async () => {
-    const res = await client.query(CHANNEL_DIGESTS_QUERY);
+    const res = await client.query(CHANNEL_DIGEST_CONFIGURATIONS_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.channelDigests).toEqual([]);
+    expect(res.data.channelDigestConfigurations).toEqual([]);
   });
 
   it('should return enabled digests ordered by channel and key with source resolved, excluding disabled', async () => {
@@ -352,15 +349,12 @@ describe('query channelDigests', () => {
       },
     ]);
 
-    const res = await client.query(CHANNEL_DIGESTS_QUERY);
+    const res = await client.query(CHANNEL_DIGEST_CONFIGURATIONS_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.channelDigests).toEqual([
+    expect(res.data.channelDigestConfigurations).toEqual([
       {
-        key: 'backend-a',
-        channel: 'backend',
         frequency: 'daily',
-        enabled: true,
         source: {
           id: 'backend_digest_a',
           name: 'Backend Digest A',
@@ -368,10 +362,7 @@ describe('query channelDigests', () => {
         },
       },
       {
-        key: 'backend-b',
-        channel: 'backend',
         frequency: 'daily',
-        enabled: true,
         source: {
           id: 'backend_digest_b',
           name: 'Backend Digest B',
@@ -379,10 +370,7 @@ describe('query channelDigests', () => {
         },
       },
       {
-        key: 'career-digest',
-        channel: 'career',
         frequency: 'weekly',
-        enabled: true,
         source: {
           id: 'career_digest',
           name: 'Career Digest',
