@@ -373,6 +373,17 @@ const organizationLink = (type: OrganizationLinkType) => ({
     links?.filter((link) => link.type === type),
 });
 
+const channelDigestSourceField: GraphORMField = {
+  relation: {
+    isMany: false,
+    customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+      qb
+        .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
+        .andWhere(`"${childAlias}"."active" = true`)
+        .limit(1),
+  },
+};
+
 const obj = new GraphORM({
   ContributionAction: {
     fields: {
@@ -1680,30 +1691,12 @@ const obj = new GraphORM({
   ChannelDigestConfiguration: {
     from: 'ChannelDigest',
     fields: {
-      source: {
-        relation: {
-          isMany: false,
-          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb
-              .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
-              .andWhere(`"${childAlias}"."active" = true`)
-              .limit(1),
-        },
-      },
+      source: channelDigestSourceField,
     },
   },
   ChannelDigest: {
     fields: {
-      source: {
-        relation: {
-          isMany: false,
-          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb
-              .where(`"${childAlias}"."id" = "${parentAlias}"."sourceId"`)
-              .andWhere(`"${childAlias}"."active" = true`)
-              .limit(1),
-        },
-      },
+      source: channelDigestSourceField,
     },
   },
   UserComment: {
