@@ -18,11 +18,6 @@ import {
 } from '../entity/PostHighlight';
 import type { GQLSource } from './sources';
 
-type GQLChannelDigestConfiguration = {
-  frequency: string;
-  source?: GQLSource | null;
-};
-
 type GQLChannelDigest = {
   key: string;
   channel: string;
@@ -34,7 +29,7 @@ type GQLChannelDigest = {
 type GQLChannelConfiguration = {
   channel: string;
   displayName: string;
-  digest?: GQLChannelDigestConfiguration | null;
+  digest?: GQLChannelDigest | null;
 };
 
 type GQLSubscribedPostHighlight = Pick<
@@ -49,11 +44,6 @@ type GQLSubscribedPostHighlight = Pick<
 > & { channel: string };
 
 export const typeDefs = /* GraphQL */ `
-  type ChannelDigestConfiguration {
-    frequency: String!
-    source: Source
-  }
-
   type ChannelDigest {
     key: String!
     channel: String!
@@ -65,7 +55,7 @@ export const typeDefs = /* GraphQL */ `
   type ChannelConfiguration {
     channel: String!
     displayName: String!
-    digest: ChannelDigestConfiguration
+    digest: ChannelDigest
   }
 
   type PostHighlight {
