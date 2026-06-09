@@ -30,6 +30,15 @@ export class ContributionCause {
   @Column({ type: 'text', nullable: true, default: null })
   url: string | null;
 
+  @Column({ type: 'text', nullable: true, default: null })
+  description: string | null;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  category: string | null;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  logoUrl: string | null;
+
   @Column({ type: 'boolean', default: true })
   active: boolean;
 

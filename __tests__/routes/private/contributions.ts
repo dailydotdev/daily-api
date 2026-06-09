@@ -18,6 +18,7 @@ import {
   ContributionRewardTier,
   ContributionRewardType,
 } from '../../../src/entity/contribution/ContributionRewardTier';
+import { ContributionSponsor } from '../../../src/entity/contribution/ContributionSponsor';
 import {
   ContributionSubmission,
   ContributionSubmissionStatus,
@@ -169,6 +170,11 @@ describe('private contribution routes', () => {
         title: 'Post on Reddit',
         points: 20,
         evidence: { url: { required: true } },
+        metadata: {
+          platform: 'reddit',
+          instructions: 'Submit the public post URL.',
+          externalUrl: 'https://reddit.com/r/programming',
+        },
         cooldownSeconds: 3600,
         maxPerUser: 3,
       })
@@ -183,13 +189,37 @@ describe('private contribution routes', () => {
     const { body: cause } = await request(app.server)
       .post('/p/contributions/causes')
       .set(serviceHeaders)
-      .send({ title: 'Open source', url: 'https://daily.dev' })
+      .send({
+        title: 'Open source',
+        url: 'https://daily.dev',
+        description: 'Funds open source projects.',
+        category: 'Open source',
+        logoUrl: 'https://daily.dev/logo.png',
+      })
       .expect(201);
 
     await request(app.server)
       .patch(`/p/contributions/causes/${cause.id}`)
       .set(serviceHeaders)
-      .send({ title: 'Education', active: false })
+      .send({ title: 'Education', category: 'Education', active: false })
+      .expect(200);
+
+    const { body: sponsor } = await request(app.server)
+      .post('/p/contributions/sponsors')
+      .set(serviceHeaders)
+      .send({
+        name: 'Daily Corp',
+        amountCents: 250000,
+        url: 'https://daily.dev',
+        logoUrl: 'https://daily.dev/logo.png',
+        sortOrder: 1,
+      })
+      .expect(201);
+
+    await request(app.server)
+      .patch(`/p/contributions/sponsors/${sponsor.id}`)
+      .set(serviceHeaders)
+      .send({ amountCents: 100000, active: false })
       .expect(200);
 
     const { body: tier } = await request(app.server)
@@ -211,15 +241,43 @@ describe('private contribution routes', () => {
 
     await expect(
       con.getRepository(ContributionAction).findOneByOrFail({ id: action.id }),
-    ).resolves.toMatchObject({ points: 25, active: false });
+    ).resolves.toMatchObject({
+      points: 25,
+      active: false,
+      metadata: {
+        platform: 'reddit',
+        instructions: 'Submit the public post URL.',
+        externalUrl: 'https://reddit.com/r/programming',
+      },
+    });
     await expect(
       con.getRepository(ContributionCause).findOneByOrFail({ id: cause.id }),
-    ).resolves.toMatchObject({ title: 'Education', active: false });
+    ).resolves.toMatchObject({
+      title: 'Education',
+      description: 'Funds open source projects.',
+      category: 'Education',
+      logoUrl: 'https://daily.dev/logo.png',
+      active: false,
+    });
+    await expect(
+      con
+        .getRepository(ContributionSponsor)
+        .findOneByOrFail({ id: sponsor.id }),
+    ).resolves.toMatchObject({ amountCents: 100000, active: false });
     await expect(
       con
         .getRepository(ContributionRewardTier)
         .findOneByOrFail({ id: tier.id }),
     ).resolves.toMatchObject({ thresholdPoints: 150, active: false });
+
+    await request(app.server)
+      .delete(`/p/contributions/sponsors/${sponsor.id}`)
+      .set(serviceAuthHeaders)
+      .expect(200);
+
+    await expect(
+      con.getRepository(ContributionSponsor).findOneBy({ id: sponsor.id }),
+    ).resolves.toBeNull();
   });
 
   it('reviews submissions, fulfills rewards, and blocks users', async () => {

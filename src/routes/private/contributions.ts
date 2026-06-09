@@ -10,6 +10,7 @@ import {
   contributionPrivateCreateActionSchema,
   contributionPrivateCreateCauseSchema,
   contributionPrivateCreateRewardTierSchema,
+  contributionPrivateCreateSponsorSchema,
   contributionPrivateFinalizePaymentSchema,
   contributionPrivateFulfillRewardSchema,
   contributionPrivateIdParamsSchema,
@@ -19,9 +20,11 @@ import {
   contributionPrivateUpdateActionSchema,
   contributionPrivateUpdateCauseSchema,
   contributionPrivateUpdateRewardTierSchema,
+  contributionPrivateUpdateSponsorSchema,
 } from '../../common/schema/contributions';
 import {
   finalizeContributionPayment,
+  normalizeContributionActionMetadata,
   normalizeContributionActionEvidence,
 } from '../../common/contribution';
 import { ContributionAction } from '../../entity/contribution/ContributionAction';
@@ -29,6 +32,7 @@ import { ContributionActionCategory } from '../../entity/contribution/Contributi
 import { ContributionBlockedUser } from '../../entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../../entity/contribution/ContributionCause';
 import { ContributionRewardTier } from '../../entity/contribution/ContributionRewardTier';
+import { ContributionSponsor } from '../../entity/contribution/ContributionSponsor';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
 import {
   UserContributionReward,
@@ -133,6 +137,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const action = await con.getRepository(ContributionAction).save({
       ...body,
       evidence: normalizeContributionActionEvidence(body.evidence),
+      metadata: normalizeContributionActionMetadata(body.metadata),
     });
 
     return res.status(201).send(action);
@@ -158,13 +163,19 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
-    const { evidence, ...actionUpdate } = body;
+    const { evidence, metadata, ...actionUpdate } = body;
     const updatePayload: QueryDeepPartialEntity<ContributionAction> = {
       ...actionUpdate,
     };
 
     if (evidence !== undefined) {
       updatePayload.evidence = normalizeContributionActionEvidence(evidence);
+    }
+
+    if (metadata !== undefined) {
+      updatePayload.metadata = normalizeContributionActionMetadata(
+        metadata,
+      ) as QueryDeepPartialEntity<ContributionAction['metadata']>;
     }
 
     const result = await con
@@ -222,6 +233,79 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
     if (!result.affected) {
       return res.status(404).send({ error: 'Contribution cause not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.post<{
+    Body: z.infer<typeof contributionPrivateCreateSponsorSchema>;
+  }>('/sponsors', async (req, res) => {
+    const body = parseSchema({
+      schema: contributionPrivateCreateSponsorSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const sponsor = await con.getRepository(ContributionSponsor).save(body);
+
+    return res.status(201).send(sponsor);
+  });
+
+  fastify.patch<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+    Body: z.infer<typeof contributionPrivateUpdateSponsorSchema>;
+  }>('/sponsors/:id', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    const body = parseSchema({
+      schema: contributionPrivateUpdateSponsorSchema,
+      value: req.body,
+      res,
+      requireNonEmpty: true,
+    });
+    if (!params || !body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(ContributionSponsor)
+      .update(params.id, body);
+
+    if (!result.affected) {
+      return res.status(404).send({ error: 'Contribution sponsor not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.delete<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+  }>('/sponsors/:id', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    if (!params) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(ContributionSponsor)
+      .delete(params.id);
+
+    if (!result.affected) {
+      return res.status(404).send({ error: 'Contribution sponsor not found' });
     }
 
     return res.status(200).send({ success: true });
