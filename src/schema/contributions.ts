@@ -4,9 +4,11 @@ import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { In } from 'typeorm';
 import type z from 'zod';
-import { AuthContext, BaseContext } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  getApprovedContributorsCount,
   getApprovedPointsSum,
+  getContributionConfig,
   getContributionEligibility,
   getLifetimeAmountCents,
   parseContributionArgs,
@@ -64,7 +66,7 @@ const queryContributionConnection = <
   beforeQuery,
 }: {
   args: TArgs;
-  ctx: AuthContext;
+  ctx: Context;
   info: GraphQLResolveInfo;
   beforeQuery: (builder: GraphORMBuilder, page: OffsetPage) => GraphORMBuilder;
 }): Promise<Connection<TNode>> => {
@@ -88,12 +90,16 @@ const queryContributionConnection = <
 
 type GQLContributionStatus = {
   enabled: boolean;
-  eligible: boolean;
+  // User-specific fields are null for anonymous visitors; the campaign-wide
+  // numbers stay populated so the public hero can render live progress.
+  eligible: boolean | null;
   currentCyclePoints: number;
   currentCycleTargetPoints: number;
   lifetimePoints: number;
   lifetimeAmountCents: number;
-  userPoints: number;
+  // Distinct developers who have contributed at least one approved action.
+  contributorsCount: number;
+  userPoints: number | null;
 };
 
 type GQLUserContributionReward = Pick<
@@ -143,20 +149,29 @@ export const typeDefs = /* GraphQL */ `
   }
 
   enum ContributionSponsorTier {
-    platinum
     gold
     silver
-    backer
+    bronze
   }
 
   type ContributionStatus {
     enabled: Boolean!
-    eligible: Boolean!
+    """
+    User-specific eligibility. Null for anonymous visitors.
+    """
+    eligible: Boolean
     currentCyclePoints: Int!
     currentCycleTargetPoints: Int!
     lifetimePoints: Int!
     lifetimeAmountCents: Int!
-    userPoints: Int!
+    """
+    Distinct developers who have contributed at least one approved action.
+    """
+    contributorsCount: Int!
+    """
+    The visitor's own approved points. Null for anonymous visitors.
+    """
+    userPoints: Int
   }
 
   type ContributionActionMetadata {
@@ -325,7 +340,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    contributionStatus: ContributionStatus! @auth
+    contributionStatus: ContributionStatus!
     contributionActionCategories(
       first: Int
       after: String
@@ -359,10 +374,14 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): UserContributionCauseStatsConnection! @auth @contributionEligibility
+    """
+    Public campaign social proof: the sponsor wall renders for everyone,
+    including logged-out visitors. No user-specific fields, so no auth gate.
+    """
     contributionSponsors(
       first: Int
       after: String
-    ): ContributionSponsorConnection! @auth @contributionEligibility
+    ): ContributionSponsorConnection!
   }
 
   extend type Mutation {
@@ -383,20 +402,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     contributionStatus: async (
       _,
       __,
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLContributionStatus> => {
+      // Public query: the campaign-wide numbers render for everyone (the hero
+      // shows live progress to logged-out visitors), while eligibility and the
+      // visitor's own points stay null until they sign in.
+      const { userId } = ctx;
       const [
-        { settings, eligible },
+        eligibility,
         currentCyclePoints,
         lifetimePoints,
         userPoints,
         lifetimeAmountCents,
+        contributorsCount,
       ] = await Promise.all([
-        getContributionEligibility({
-          con: ctx.con.manager,
-          userId: ctx.userId,
-          region: ctx.region,
-        }),
+        userId
+          ? getContributionEligibility({
+              con: ctx.con.manager,
+              userId,
+              region: ctx.region,
+            })
+          : null,
         getApprovedPointsSum({
           con: ctx.con.manager,
           unpaidOnly: true,
@@ -404,22 +430,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         getApprovedPointsSum({
           con: ctx.con.manager,
         }),
-        getApprovedPointsSum({
-          con: ctx.con.manager,
-          userId: ctx.userId,
-        }),
+        userId
+          ? getApprovedPointsSum({
+              con: ctx.con.manager,
+              userId,
+            })
+          : null,
         getLifetimeAmountCents({
+          con: ctx.con.manager,
+        }),
+        getApprovedContributorsCount({
           con: ctx.con.manager,
         }),
       ]);
 
+      const settings = eligibility?.settings ?? getContributionConfig();
+
       return {
         enabled: settings.enabled,
-        eligible,
+        eligible: eligibility?.eligible ?? null,
         currentCyclePoints,
         currentCycleTargetPoints: settings.currentCycleTargetPoints,
         lifetimePoints,
         lifetimeAmountCents,
+        contributorsCount,
         userPoints,
       };
     },
@@ -675,7 +709,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     contributionSponsors: async (
       _,
       args: ConnectionArguments,
-      ctx: AuthContext,
+      ctx: Context,
       info: GraphQLResolveInfo,
     ): Promise<Connection<ContributionSponsor>> => {
       const parsedArgs = parseContributionArgs(

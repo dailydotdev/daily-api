@@ -31,4 +31,10 @@ export const seedEntityNames = [
   'UserExperience',
   'UserExperienceSkill',
   'SpotlightAction',
+  'ContributionActionCategory',
+  'ContributionAction',
+  'ContributionCause',
+  'ContributionSponsor',
+  'ContributionPayment',
+  'ContributionSubmission',
 ] as const;

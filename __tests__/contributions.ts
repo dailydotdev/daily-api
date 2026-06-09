@@ -59,6 +59,7 @@ query ContributionStatus {
     currentCycleTargetPoints
     lifetimePoints
     lifetimeAmountCents
+    contributorsCount
     userPoints
   }
 }
@@ -373,6 +374,7 @@ it('returns opaque eligibility status and rejects program lists when ineligible'
     currentCycleTargetPoints: 10000,
     lifetimePoints: 0,
     lifetimeAmountCents: 0,
+    contributorsCount: 0,
     userPoints: 0,
   });
   expect(actions.errors?.[0].message).toEqual(
@@ -394,6 +396,24 @@ it('marks blocked users ineligible without exposing a reason', async () => {
   expect(res.data.contributionStatus).toMatchObject({
     enabled: true,
     eligible: false,
+  });
+});
+
+it('exposes campaign-wide status to anonymous visitors with null user fields', async () => {
+  loggedUser = null;
+
+  const status = await client.query(CONTRIBUTION_STATUS_QUERY);
+
+  expect(status.errors).toBeUndefined();
+  expect(status.data.contributionStatus).toEqual({
+    enabled: true,
+    eligible: null,
+    currentCyclePoints: 0,
+    currentCycleTargetPoints: 10000,
+    lifetimePoints: 0,
+    lifetimeAmountCents: 0,
+    contributorsCount: 0,
+    userPoints: null,
   });
 });
 
@@ -468,6 +488,7 @@ it('returns actions by category and records approved submissions with limits', a
   expect(status.data.contributionStatus).toMatchObject({
     currentCyclePoints: 25,
     lifetimePoints: 25,
+    contributorsCount: 1,
     userPoints: 25,
   });
 
@@ -669,7 +690,36 @@ it('returns finalized cause totals, user cause stats, and sponsors', async () =>
         amountCents: 250000,
         url: 'https://daily.dev',
         logoUrl: 'https://daily.dev/logo.png',
-        tier: 'platinum',
+        tier: 'gold',
+      },
+    },
+  ]);
+});
+
+it('exposes the sponsor wall to anonymous visitors', async () => {
+  loggedUser = null;
+  await saveFixtures(con, ContributionSponsor, [
+    {
+      id: sponsorId,
+      name: 'Daily Corp',
+      amountCents: 250000,
+      url: 'https://daily.dev',
+      logoUrl: 'https://daily.dev/logo.png',
+    },
+  ]);
+
+  const sponsors = await client.query(CONTRIBUTION_SPONSORS_QUERY);
+
+  expect(sponsors.errors).toBeUndefined();
+  expect(sponsors.data.contributionSponsors.edges).toEqual([
+    {
+      node: {
+        id: sponsorId,
+        name: 'Daily Corp',
+        amountCents: 250000,
+        url: 'https://daily.dev',
+        logoUrl: 'https://daily.dev/logo.png',
+        tier: 'gold',
       },
     },
   ]);

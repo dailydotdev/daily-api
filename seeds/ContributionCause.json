@@ -1,0 +1,38 @@
+[
+  {
+    "id": "d0000000-0000-4000-8000-000000000001",
+    "title": "freeCodeCamp",
+    "url": "https://www.freecodecamp.org",
+    "description": "Free coding education for everyone.",
+    "category": "Education",
+    "active": true,
+    "sortOrder": 1
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000002",
+    "title": "Electronic Frontier Foundation",
+    "url": "https://www.eff.org",
+    "description": "Defending digital privacy and free expression.",
+    "category": "Digital rights",
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000003",
+    "title": "Python Software Foundation",
+    "url": "https://www.python.org/psf",
+    "description": "Stewarding the Python language and community.",
+    "category": "Open source",
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000004",
+    "title": "Open Source Collective",
+    "url": "https://opencollective.com",
+    "description": "Funding the maintainers behind the tools we use.",
+    "category": "Open source",
+    "active": true,
+    "sortOrder": 4
+  }
+]

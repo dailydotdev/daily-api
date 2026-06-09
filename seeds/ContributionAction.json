@@ -1,0 +1,62 @@
+[
+  {
+    "id": "a0000000-0000-4000-8000-000000000001",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Post about daily.dev on X",
+    "description": "Share what you love about daily.dev and drop the link.",
+    "points": 25,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "x", "isLoveAction": false },
+    "maxPerUser": 3,
+    "active": true,
+    "sortOrder": 1
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000002",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Star our GitHub repo",
+    "description": "Give the open-source repo a star.",
+    "points": 15,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "github", "isLoveAction": false },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000003",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Write a blog post",
+    "description": "Publish an article mentioning daily.dev.",
+    "points": 100,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "blog", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000004",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Leave a store review",
+    "description": "Review the extension on your browser store.",
+    "points": 50,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "chrome_web_store", "isLoveAction": false },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 4
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000005",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Refer a friend",
+    "description": "Invite a fellow developer to daily.dev.",
+    "points": 40,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "daily_dev", "isLoveAction": false },
+    "maxPerUser": 5,
+    "active": true,
+    "sortOrder": 5
+  }
+]

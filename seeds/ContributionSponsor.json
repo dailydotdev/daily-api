@@ -1,0 +1,74 @@
+[
+  {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "name": "Vercel",
+    "amountCents": 500000,
+    "url": "https://vercel.com",
+    "logoUrl": "https://svgl.app/library/vercel_wordmark.svg",
+    "active": true,
+    "sortOrder": 1
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "name": "Stripe",
+    "amountCents": 300000,
+    "url": "https://stripe.com",
+    "logoUrl": "https://svgl.app/library/stripe_wordmark.svg",
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000003",
+    "name": "GitHub",
+    "amountCents": 150000,
+    "url": "https://github.com",
+    "logoUrl": "https://svgl.app/library/github_wordmark_light.svg",
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000004",
+    "name": "Supabase",
+    "amountCents": 120000,
+    "url": "https://supabase.com",
+    "logoUrl": "https://svgl.app/library/supabase_wordmark_light.svg",
+    "active": true,
+    "sortOrder": 4
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000005",
+    "name": "Sentry",
+    "amountCents": 100000,
+    "url": "https://sentry.io",
+    "logoUrl": "https://svgl.app/library/sentry.svg",
+    "active": true,
+    "sortOrder": 5
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000006",
+    "name": "Datadog",
+    "amountCents": 40000,
+    "url": "https://datadoghq.com",
+    "logoUrl": "https://svgl.app/library/datadog.svg",
+    "active": true,
+    "sortOrder": 6
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000007",
+    "name": "Algolia",
+    "amountCents": 30000,
+    "url": "https://algolia.com",
+    "logoUrl": "https://svgl.app/library/algolia.svg",
+    "active": true,
+    "sortOrder": 7
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000008",
+    "name": "Prisma",
+    "amountCents": 20000,
+    "url": "https://prisma.io",
+    "logoUrl": "https://svgl.app/library/prisma.svg",
+    "active": true,
+    "sortOrder": 8
+  }
+]

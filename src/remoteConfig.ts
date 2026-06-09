@@ -95,6 +95,13 @@ class RemoteConfig {
             web_funnel_id: 'paid-v1',
             onboarding_funnel_id: 'organic-v1',
           },
+          // Local dev default so the contribution (Giveback) program is enabled
+          // with a real goal target without a GrowthBook connection.
+          contributionProgram: {
+            enabled: true,
+            allowedCountries: ['US', 'GB', 'CA', 'IL', 'DE', 'FR', 'IN', 'AU'],
+            currentCycleTargetPoints: 10000,
+          },
         }),
       };
     }
