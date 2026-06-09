@@ -93,7 +93,6 @@ import {
   ContributionSubmission,
   ContributionSubmissionStatus,
 } from '../entity/contribution/ContributionSubmission';
-import { normalizeContributionActionMetadata } from '../common/contribution';
 import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
@@ -388,7 +387,7 @@ const obj = new GraphORM({
         jsonType: true,
         transform: (value) => ({
           isLoveAction: false,
-          ...normalizeContributionActionMetadata(value),
+          ...((value ?? {}) as Record<string, unknown>),
         }),
       },
       userCompletions: {

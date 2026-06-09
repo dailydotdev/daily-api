@@ -24,7 +24,6 @@ import {
 } from '../../common/schema/contributions';
 import {
   finalizeContributionPayment,
-  normalizeContributionActionMetadata,
   normalizeContributionActionEvidence,
 } from '../../common/contribution';
 import { ContributionAction } from '../../entity/contribution/ContributionAction';
@@ -137,7 +136,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const action = await con.getRepository(ContributionAction).save({
       ...body,
       evidence: normalizeContributionActionEvidence(body.evidence),
-      metadata: normalizeContributionActionMetadata(body.metadata),
+      metadata: body.metadata ?? {},
     });
 
     return res.status(201).send(action);
@@ -173,9 +172,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     if (metadata !== undefined) {
-      updatePayload.metadata = normalizeContributionActionMetadata(
-        metadata,
-      ) as QueryDeepPartialEntity<ContributionAction['metadata']>;
+      updatePayload.metadata = metadata as QueryDeepPartialEntity<
+        ContributionAction['metadata']
+      >;
     }
 
     const result = await con

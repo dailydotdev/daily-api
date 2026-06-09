@@ -2,14 +2,12 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { In, type EntityManager } from 'typeorm';
 import type z from 'zod';
 import {
-  contributionActionMetadataSchema,
   contributionActionEvidenceSchema,
   contributionSubmissionEvidenceSchema,
 } from '../schema/contributions';
 import { ContributionBlockedUser } from '../../entity/contribution/ContributionBlockedUser';
 import type {
   ContributionAction,
-  ContributionActionMetadata,
   ContributionEvidenceSchema,
 } from '../../entity/contribution/ContributionAction';
 import {
@@ -48,10 +46,6 @@ type ContributionActionUsage = {
 
 type ContributionActionEvidenceInput = z.infer<
   typeof contributionActionEvidenceSchema
->;
-
-type ContributionActionMetadataInput = z.infer<
-  typeof contributionActionMetadataSchema
 >;
 
 type ContributionPointAllocation = {
@@ -571,25 +565,6 @@ export const normalizeContributionActionEvidence = (
               : {}),
           },
         }
-      : {}),
-  };
-};
-
-export const normalizeContributionActionMetadata = (
-  metadata:
-    | ContributionActionMetadataInput
-    | ContributionActionMetadata
-    | null
-    | undefined,
-): ContributionActionMetadata => {
-  const parsed = contributionActionMetadataSchema.parse(metadata ?? {});
-
-  return {
-    ...(parsed.platform ? { platform: parsed.platform } : {}),
-    ...(parsed.instructions ? { instructions: parsed.instructions } : {}),
-    ...(parsed.externalUrl ? { externalUrl: parsed.externalUrl } : {}),
-    ...(parsed.isLoveAction !== undefined && parsed.isLoveAction !== null
-      ? { isLoveAction: parsed.isLoveAction }
       : {}),
   };
 };

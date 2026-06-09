@@ -26,10 +26,10 @@ export const contributionActionEvidenceSchema = z
 
 export const contributionActionMetadataSchema = z
   .object({
-    platform: z.string().trim().min(1).nullish(),
-    instructions: z.string().trim().min(1).nullish(),
-    externalUrl: z.url().nullish(),
-    isLoveAction: z.boolean().nullish(),
+    platform: z.string().trim().min(1).optional(),
+    instructions: z.string().trim().min(1).optional(),
+    externalUrl: z.url().optional(),
+    isLoveAction: z.boolean().optional(),
   })
   .strict();
 
