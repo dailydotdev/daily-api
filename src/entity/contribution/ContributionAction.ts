@@ -22,6 +22,13 @@ export type ContributionEvidenceSchema = {
   };
 };
 
+export type ContributionActionMetadata = {
+  platform?: string;
+  instructions?: string;
+  externalUrl?: string;
+  isLoveAction?: boolean;
+};
+
 @Entity()
 @Index('IDX_contribution_action_active_sort', [
   'active',
@@ -55,6 +62,9 @@ export class ContributionAction {
 
   @Column({ type: 'jsonb', default: {} })
   evidence: ContributionEvidenceSchema;
+
+  @Column({ type: 'jsonb', default: {} })
+  metadata: ContributionActionMetadata;
 
   @Column({ type: 'integer', nullable: true, default: null })
   cooldownSeconds: number | null;

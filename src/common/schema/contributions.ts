@@ -24,6 +24,15 @@ export const contributionActionEvidenceSchema = z
   })
   .strict();
 
+export const contributionActionMetadataSchema = z
+  .object({
+    platform: z.string().trim().min(1).nullish(),
+    instructions: z.string().trim().min(1).nullish(),
+    externalUrl: z.url().nullish(),
+    isLoveAction: z.boolean().nullish(),
+  })
+  .strict();
+
 export const contributionSubmissionEvidenceSchema = z
   .object({
     url: z.url().nullish(),
@@ -40,6 +49,11 @@ export const contributionConnectionArgsSchema = z.object({
 export const contributionActionsArgsSchema =
   contributionConnectionArgsSchema.extend({
     categoryId: z.uuid().nullish(),
+  });
+
+export const contributionSubmissionsArgsSchema =
+  contributionConnectionArgsSchema.extend({
+    actionId: z.uuid().nullish(),
   });
 
 export const submitContributionActionInputSchema = z.object({
@@ -97,8 +111,9 @@ export const contributionPrivateCreateActionSchema = z.object({
   categoryId: z.uuid().nullish(),
   title: z.string().trim().min(1),
   description: z.string().trim().min(1).nullish(),
-  points: z.number().int().positive(),
+  points: z.number().int().min(0),
   evidence: contributionActionEvidenceSchema.optional(),
+  metadata: contributionActionMetadataSchema.optional(),
   cooldownSeconds: z.number().int().positive().nullish(),
   maxPerUser: z.number().int().positive().nullish(),
   active: contributionActiveSchema,
@@ -109,8 +124,9 @@ export const contributionPrivateUpdateActionSchema = z.object({
   categoryId: z.uuid().nullish(),
   title: z.string().trim().min(1).optional(),
   description: z.string().trim().min(1).nullish(),
-  points: z.number().int().positive().optional(),
+  points: z.number().int().min(0).optional(),
   evidence: contributionActionEvidenceSchema.optional(),
+  metadata: contributionActionMetadataSchema.optional(),
   cooldownSeconds: z.number().int().positive().nullish(),
   maxPerUser: z.number().int().positive().nullish(),
   active: contributionActiveSchema,
@@ -120,6 +136,9 @@ export const contributionPrivateUpdateActionSchema = z.object({
 export const contributionPrivateCreateCauseSchema = z.object({
   title: z.string().trim().min(1),
   url: z.url().nullish(),
+  description: z.string().trim().min(1).nullish(),
+  category: z.string().trim().min(1).nullish(),
+  logoUrl: z.url().nullish(),
   active: contributionActiveSchema,
   sortOrder: contributionSortOrderSchema,
 });
@@ -127,6 +146,27 @@ export const contributionPrivateCreateCauseSchema = z.object({
 export const contributionPrivateUpdateCauseSchema = z.object({
   title: z.string().trim().min(1).optional(),
   url: z.url().nullish(),
+  description: z.string().trim().min(1).nullish(),
+  category: z.string().trim().min(1).nullish(),
+  logoUrl: z.url().nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
+});
+
+export const contributionPrivateCreateSponsorSchema = z.object({
+  name: z.string().trim().min(1),
+  amountCents: z.number().int().positive(),
+  url: z.url().nullish(),
+  logoUrl: z.url().nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
+});
+
+export const contributionPrivateUpdateSponsorSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  amountCents: z.number().int().positive().optional(),
+  url: z.url().nullish(),
+  logoUrl: z.url().nullish(),
   active: contributionActiveSchema,
   sortOrder: contributionSortOrderSchema,
 });

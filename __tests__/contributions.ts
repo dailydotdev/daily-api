@@ -26,6 +26,7 @@ import {
   ContributionSubmissionStatus,
 } from '../src/entity/contribution/ContributionSubmission';
 import { ContributionRewardType } from '../src/entity/contribution/ContributionRewardTier';
+import { ContributionSponsor } from '../src/entity/contribution/ContributionSponsor';
 import { UserContributionCausePreference } from '../src/entity/contribution/UserContributionCausePreference';
 import { UserContributionReward } from '../src/entity/contribution/UserContributionReward';
 import { remoteConfig } from '../src/remoteConfig';
@@ -42,8 +43,10 @@ const categoryId = '11111111-1111-4111-8111-111111111111';
 const secondCategoryId = '11111111-1111-4111-8111-111111111112';
 const actionId = '22222222-2222-4222-8222-222222222222';
 const secondActionId = '22222222-2222-4222-8222-222222222223';
+const loveActionId = '22222222-2222-4222-8222-222222222224';
 const causeId = '33333333-3333-4333-8333-333333333333';
 const secondCauseId = '33333333-3333-4333-8333-333333333334';
+const sponsorId = '33333333-3333-4333-8333-333333333335';
 const tierId = '44444444-4444-4444-8444-444444444444';
 const paymentId = '55555555-5555-4555-8555-555555555555';
 
@@ -71,8 +74,39 @@ query ContributionActions($categoryId: ID) {
         title
         points
         evidence
+        metadata {
+          platform
+          instructions
+          externalUrl
+          isLoveAction
+        }
         maxPerUser
         userCompletions
+        latestUserSubmission {
+          status
+          awardedPoints
+          evidence
+        }
+      }
+    }
+  }
+}
+`;
+
+const USER_CONTRIBUTION_SUBMISSIONS_QUERY = `
+query UserContributionSubmissions($actionId: ID) {
+  userContributionSubmissions(actionId: $actionId, first: 10) {
+    edges {
+      node {
+        actionId
+        status
+        awardedPoints
+        evidence
+        reviewedAt
+        action {
+          id
+          title
+        }
       }
     }
   }
@@ -86,8 +120,28 @@ query ContributionCauses {
       node {
         id
         title
+        description
+        category
+        logoUrl
         totalPoints
         totalAmountCents
+      }
+    }
+  }
+}
+`;
+
+const CONTRIBUTION_SPONSORS_QUERY = `
+query ContributionSponsors {
+  contributionSponsors(first: 10) {
+    edges {
+      node {
+        id
+        name
+        amountCents
+        url
+        logoUrl
+        tier
       }
     }
   }
@@ -117,6 +171,9 @@ query UserContributionCauseStats {
         cause {
           id
           title
+          description
+          category
+          logoUrl
           totalPoints
           totalAmountCents
         }
@@ -270,6 +327,11 @@ const seedActions = async () => {
       title: 'Post on Reddit',
       points: 25,
       evidence: { url: { required: true, allowedDomains: ['Reddit.com'] } },
+      metadata: {
+        platform: 'reddit',
+        instructions: 'Submit the public Reddit URL.',
+        externalUrl: 'https://reddit.com/r/programming',
+      },
       maxPerUser: 1,
       sortOrder: 1,
     },
@@ -281,11 +343,17 @@ const seedCauses = async () => {
     {
       id: secondCauseId,
       title: 'Open Source Grants',
+      description: 'Funding maintainers and tools.',
+      category: 'Open source',
+      logoUrl: 'https://daily.dev/oss.png',
       sortOrder: 2,
     },
     {
       id: causeId,
       title: 'Developer Education',
+      description: 'Helping developers learn.',
+      category: 'Education',
+      logoUrl: 'https://daily.dev/education.png',
       sortOrder: 1,
     },
   ]);
@@ -344,8 +412,15 @@ it('returns actions by category and records approved submissions with limits', a
         title: 'Post on Reddit',
         points: 25,
         evidence: { url: { required: true, allowedDomains: ['Reddit.com'] } },
+        metadata: {
+          platform: 'reddit',
+          instructions: 'Submit the public Reddit URL.',
+          externalUrl: 'https://reddit.com/r/programming',
+          isLoveAction: false,
+        },
         maxPerUser: 1,
         userCompletions: 0,
+        latestUserSubmission: null,
       },
     },
   ]);
@@ -396,6 +471,42 @@ it('returns actions by category and records approved submissions with limits', a
     userPoints: 25,
   });
 
+  const [submissions, updatedActions] = await Promise.all([
+    client.query(USER_CONTRIBUTION_SUBMISSIONS_QUERY, {
+      variables: { actionId },
+    }),
+    client.query(CONTRIBUTION_ACTIONS_QUERY, {
+      variables: { categoryId },
+    }),
+  ]);
+
+  expect(submissions.data.userContributionSubmissions.edges).toEqual([
+    {
+      node: {
+        actionId,
+        status: ContributionSubmissionStatus.Approved,
+        awardedPoints: 25,
+        evidence: {
+          url: 'https://www.reddit.com/r/programming/comments/123',
+        },
+        reviewedAt: null,
+        action: {
+          id: actionId,
+          title: 'Post on Reddit',
+        },
+      },
+    },
+  ]);
+  expect(
+    updatedActions.data.contributionActions.edges[0].node.latestUserSubmission,
+  ).toMatchObject({
+    status: ContributionSubmissionStatus.Approved,
+    awardedPoints: 25,
+    evidence: {
+      url: 'https://www.reddit.com/r/programming/comments/123',
+    },
+  });
+
   const duplicate = await client.mutate(SUBMIT_CONTRIBUTION_ACTION_MUTATION, {
     variables: {
       input: {
@@ -408,6 +519,29 @@ it('returns actions by category and records approved submissions with limits', a
   });
 
   expect(duplicate.errors?.[0].message).toEqual('Action limit reached');
+
+  await saveFixtures(con, ContributionAction, [
+    {
+      id: loveActionId,
+      title: 'Leave an honest review',
+      points: 0,
+      evidence: {},
+      metadata: { isLoveAction: true },
+    },
+  ]);
+
+  const loveAction = await client.mutate(SUBMIT_CONTRIBUTION_ACTION_MUTATION, {
+    variables: {
+      input: {
+        actionId: loveActionId,
+        evidence: {},
+      },
+    },
+  });
+
+  expect(loveAction.errors?.[0].message).toEqual(
+    'Contribution action is not rewardable',
+  );
 });
 
 it('updates cause preferences and claims unlocked reward tiers', async () => {
@@ -465,7 +599,7 @@ it('updates cause preferences and claims unlocked reward tiers', async () => {
   expect(claimed.data.claimContributionReward.claimedAt).toBeTruthy();
 });
 
-it('returns finalized cause totals and user cause stats', async () => {
+it('returns finalized cause totals, user cause stats, and sponsors', async () => {
   await seedCauses();
   await saveFixtures(con, ContributionPayment, [
     {
@@ -485,14 +619,27 @@ it('returns finalized cause totals and user cause stats', async () => {
       amountCents: 10000,
     },
   ]);
+  await saveFixtures(con, ContributionSponsor, [
+    {
+      id: sponsorId,
+      name: 'Daily Corp',
+      amountCents: 250000,
+      url: 'https://daily.dev',
+      logoUrl: 'https://daily.dev/logo.png',
+    },
+  ]);
 
   const causes = await client.query(CONTRIBUTION_CAUSES_QUERY);
   const stats = await client.query(USER_CAUSE_STATS_QUERY);
+  const sponsors = await client.query(CONTRIBUTION_SPONSORS_QUERY);
 
   expect(causes.data.contributionCauses.edges[0]).toEqual({
     node: {
       id: causeId,
       title: 'Developer Education',
+      description: 'Helping developers learn.',
+      category: 'Education',
+      logoUrl: 'https://daily.dev/education.png',
       totalPoints: 100,
       totalAmountCents: 10000,
     },
@@ -505,9 +652,24 @@ it('returns finalized cause totals and user cause stats', async () => {
         cause: {
           id: causeId,
           title: 'Developer Education',
+          description: 'Helping developers learn.',
+          category: 'Education',
+          logoUrl: 'https://daily.dev/education.png',
           totalPoints: 100,
           totalAmountCents: 10000,
         },
+      },
+    },
+  ]);
+  expect(sponsors.data.contributionSponsors.edges).toEqual([
+    {
+      node: {
+        id: sponsorId,
+        name: 'Daily Corp',
+        amountCents: 250000,
+        url: 'https://daily.dev',
+        logoUrl: 'https://daily.dev/logo.png',
+        tier: 'platinum',
       },
     },
   ]);

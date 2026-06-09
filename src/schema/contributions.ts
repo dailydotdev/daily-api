@@ -9,6 +9,7 @@ import {
   getApprovedPointsSum,
   getContributionEligibility,
   getLifetimeAmountCents,
+  normalizeContributionActionMetadata,
   parseContributionArgs,
   validateContributionActionLimits,
   validateContributionEvidence,
@@ -17,6 +18,7 @@ import {
   claimContributionRewardArgsSchema,
   contributionActionsArgsSchema,
   contributionConnectionArgsSchema,
+  contributionSubmissionsArgsSchema,
   submitContributionActionInputSchema,
   updateContributionCausePreferencesArgsSchema,
 } from '../common/schema/contributions';
@@ -35,6 +37,7 @@ import {
   ContributionSubmission,
   ContributionSubmissionStatus,
 } from '../entity/contribution/ContributionSubmission';
+import { ContributionSponsor } from '../entity/contribution/ContributionSponsor';
 import { UserContributionCausePreference } from '../entity/contribution/UserContributionCausePreference';
 import {
   UserContributionReward,
@@ -140,6 +143,13 @@ export const typeDefs = /* GraphQL */ `
     fulfilled
   }
 
+  enum ContributionSponsorTier {
+    platinum
+    gold
+    silver
+    backer
+  }
+
   type ContributionStatus {
     enabled: Boolean!
     eligible: Boolean!
@@ -148,6 +158,13 @@ export const typeDefs = /* GraphQL */ `
     lifetimePoints: Int!
     lifetimeAmountCents: Int!
     userPoints: Int!
+  }
+
+  type ContributionActionMetadata {
+    platform: String
+    instructions: String
+    externalUrl: String
+    isLoveAction: Boolean!
   }
 
   type ContributionActionCategory {
@@ -172,10 +189,12 @@ export const typeDefs = /* GraphQL */ `
     description: String
     points: Int!
     evidence: JSON!
+    metadata: ContributionActionMetadata!
     cooldownSeconds: Int
     maxPerUser: Int
     userCooldownEndsAt: DateTime
     userCompletions: Int!
+    latestUserSubmission: ContributionSubmission
   }
 
   type ContributionActionEdge {
@@ -192,6 +211,9 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     title: String!
     url: String
+    description: String
+    category: String
+    logoUrl: String
     totalPoints: Int!
     totalAmountCents: Int!
   }
@@ -265,6 +287,37 @@ export const typeDefs = /* GraphQL */ `
     status: ContributionSubmissionStatus!
     awardedPoints: Int!
     createdAt: DateTime!
+    reviewedAt: DateTime
+    action: ContributionAction!
+  }
+
+  type ContributionSubmissionEdge {
+    node: ContributionSubmission!
+    cursor: String!
+  }
+
+  type ContributionSubmissionConnection {
+    pageInfo: PageInfo!
+    edges: [ContributionSubmissionEdge!]!
+  }
+
+  type ContributionSponsor {
+    id: ID!
+    name: String!
+    amountCents: Int!
+    url: String
+    logoUrl: String
+    tier: ContributionSponsorTier!
+  }
+
+  type ContributionSponsorEdge {
+    node: ContributionSponsor!
+    cursor: String!
+  }
+
+  type ContributionSponsorConnection {
+    pageInfo: PageInfo!
+    edges: [ContributionSponsorEdge!]!
   }
 
   input SubmitContributionActionInput {
@@ -283,6 +336,11 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionActionConnection! @auth @contributionEligibility
+    userContributionSubmissions(
+      actionId: ID
+      first: Int
+      after: String
+    ): ContributionSubmissionConnection! @auth @contributionEligibility
     contributionCauses(first: Int, after: String): ContributionCauseConnection!
       @auth
       @contributionEligibility
@@ -302,6 +360,10 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): UserContributionCauseStatsConnection! @auth @contributionEligibility
+    contributionSponsors(
+      first: Int
+      after: String
+    ): ContributionSponsorConnection! @auth @contributionEligibility
   }
 
   extend type Mutation {
@@ -416,6 +478,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             builder.queryBuilder.andWhere(
               `${builder.alias}."categoryId" = :categoryId`,
               { categoryId: parsedArgs.categoryId },
+            );
+          }
+
+          return builder;
+        },
+      });
+    },
+    userContributionSubmissions: async (
+      _,
+      args: ConnectionArguments & { actionId?: string | null },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<ContributionSubmission>> => {
+      const parsedArgs = parseContributionArgs(
+        contributionSubmissionsArgsSchema,
+        args,
+      );
+
+      return queryContributionConnection<ContributionSubmission>({
+        args: parsedArgs,
+        ctx,
+        info,
+        beforeQuery: (builder, page) => {
+          builder.queryBuilder
+            .where(`${builder.alias}."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .addOrderBy(`${builder.alias}."id"`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          if (parsedArgs.actionId) {
+            builder.queryBuilder.andWhere(
+              `${builder.alias}."actionId" = :actionId`,
+              { actionId: parsedArgs.actionId },
             );
           }
 
@@ -575,6 +673,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
     },
+    contributionSponsors: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<ContributionSponsor>> => {
+      const parsedArgs = parseContributionArgs(
+        contributionConnectionArgsSchema,
+        args,
+      );
+
+      return queryContributionConnection<ContributionSponsor>({
+        args: parsedArgs,
+        ctx,
+        info,
+        beforeQuery: (builder, page) => {
+          builder.queryBuilder
+            .where(`${builder.alias}.active = true`)
+            .orderBy(`${builder.alias}."sortOrder"`, 'ASC')
+            .addOrderBy(`${builder.alias}."createdAt"`, 'ASC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          return builder;
+        },
+      });
+    },
   },
   Mutation: {
     submitContributionAction: async (
@@ -598,6 +723,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         if (!action) {
           throw new NotFoundError('Contribution action not found');
+        }
+
+        const actionMetadata = normalizeContributionActionMetadata(
+          action.metadata,
+        );
+        if (action.points <= 0 || actionMetadata.isLoveAction) {
+          throw new ValidationError('Contribution action is not rewardable');
         }
 
         validateContributionEvidence({

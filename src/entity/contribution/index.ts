@@ -6,5 +6,6 @@ export * from './ContributionPayment';
 export * from './ContributionPaymentAllocation';
 export * from './ContributionRewardTier';
 export * from './ContributionSubmission';
+export * from './ContributionSponsor';
 export * from './UserContributionCausePreference';
 export * from './UserContributionReward';

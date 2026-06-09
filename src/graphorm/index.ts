@@ -88,10 +88,12 @@ import {
   ContributionPaymentStatus,
 } from '../entity/contribution/ContributionPayment';
 import { ContributionPaymentAllocation } from '../entity/contribution/ContributionPaymentAllocation';
+import { getContributionSponsorTier } from '../entity/contribution/ContributionSponsor';
 import {
   ContributionSubmission,
   ContributionSubmissionStatus,
 } from '../entity/contribution/ContributionSubmission';
+import { normalizeContributionActionMetadata } from '../common/contribution';
 import { LiveRoomSubscription } from '../entity/LiveRoomSubscription';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
@@ -382,6 +384,13 @@ const obj = new GraphORM({
       evidence: {
         jsonType: true,
       },
+      metadata: {
+        jsonType: true,
+        transform: (value) => ({
+          isLoveAction: false,
+          ...normalizeContributionActionMetadata(value),
+        }),
+      },
       userCompletions: {
         select: (ctx, alias, qb) =>
           `COALESCE(${contributionActionSubmissions({
@@ -397,6 +406,19 @@ const obj = new GraphORM({
         select: selectContributionActionCooldownEndsAt,
         transform: (value: Date | string | null): Date | null =>
           value ? new Date(value) : null,
+      },
+      latestUserSubmission: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`"${childAlias}"."actionId" = "${parentAlias}"."id"`)
+              .andWhere(`"${childAlias}"."userId" = :latestSubmissionUserId`, {
+                latestSubmissionUserId: ctx.userId,
+              })
+              .orderBy(`"${childAlias}"."createdAt"`, 'DESC')
+              .addOrderBy(`"${childAlias}"."id"`, 'DESC'),
+        },
       },
     },
   },
@@ -418,6 +440,15 @@ const obj = new GraphORM({
     fields: {
       metadata: {
         jsonType: true,
+      },
+    },
+  },
+  ContributionSponsor: {
+    fields: {
+      tier: {
+        select: 'amountCents',
+        transform: (value: string | number) =>
+          getContributionSponsorTier(toContributionNumber(value)),
       },
     },
   },
