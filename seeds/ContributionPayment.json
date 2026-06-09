@@ -1,0 +1,10 @@
+[
+  {
+    "id": "b0000000-0000-4000-8000-000000000001",
+    "status": "finalized",
+    "totalPoints": 2500,
+    "amountCents": 250000,
+    "createdBy": "system",
+    "finalizedAt": "2026-05-20T00:00:00.000Z"
+  }
+]

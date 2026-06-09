@@ -7,28 +7,23 @@ import {
 } from 'typeorm';
 
 export enum ContributionSponsorTier {
-  Platinum = 'platinum',
   Gold = 'gold',
   Silver = 'silver',
-  Backer = 'backer',
+  Bronze = 'bronze',
 }
 
 export const getContributionSponsorTier = (
   amountCents: number,
 ): ContributionSponsorTier => {
   if (amountCents >= 250000) {
-    return ContributionSponsorTier.Platinum;
-  }
-
-  if (amountCents >= 100000) {
     return ContributionSponsorTier.Gold;
   }
 
-  if (amountCents >= 25000) {
+  if (amountCents >= 75000) {
     return ContributionSponsorTier.Silver;
   }
 
-  return ContributionSponsorTier.Backer;
+  return ContributionSponsorTier.Bronze;
 };
 
 @Entity()

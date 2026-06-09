@@ -384,7 +384,7 @@ export const finalizeContributionPayment = async ({
   return { payment };
 };
 
-const getContributionConfig = (): ContributionConfig => {
+export const getContributionConfig = (): ContributionConfig => {
   const config = remoteConfig.vars.contributionProgram;
 
   return {
@@ -467,6 +467,25 @@ export const getApprovedPointsSum = async ({
   const row = await builder.getRawOne<SumRow>();
 
   return toContributionInt(row?.sum);
+};
+
+// Distinct developers who have contributed at least one approved action — the
+// campaign's "backers" social-proof count.
+export const getApprovedContributorsCount = async ({
+  con,
+}: {
+  con: EntityManager;
+}): Promise<number> => {
+  const row = await con
+    .getRepository(ContributionSubmission)
+    .createQueryBuilder('submission')
+    .select('COUNT(DISTINCT submission."userId")', 'count')
+    .where('submission.status = :status', {
+      status: ContributionSubmissionStatus.Approved,
+    })
+    .getRawOne<{ count: string | number | null }>();
+
+  return toContributionInt(row?.count);
 };
 
 export const getLifetimeAmountCents = async ({
