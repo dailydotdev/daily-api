@@ -9,7 +9,6 @@ import {
   getApprovedPointsSum,
   getContributionEligibility,
   getLifetimeAmountCents,
-  normalizeContributionActionMetadata,
   parseContributionArgs,
   validateContributionActionLimits,
   validateContributionEvidence,
@@ -725,10 +724,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           throw new NotFoundError('Contribution action not found');
         }
 
-        const actionMetadata = normalizeContributionActionMetadata(
-          action.metadata,
-        );
-        if (action.points <= 0 || actionMetadata.isLoveAction) {
+        if (action.points <= 0 || action.metadata?.isLoveAction) {
           throw new ValidationError('Contribution action is not rewardable');
         }
 
