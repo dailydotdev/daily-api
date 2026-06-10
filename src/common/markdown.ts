@@ -1,4 +1,5 @@
 import MarkdownIt, { Renderer, Token } from 'markdown-it';
+import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import hljs from 'highlight.js';
 import { getUserProfileUrl } from './users';
 import { CommentMention, PostMention, User } from '../entity';
@@ -8,6 +9,10 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
 import { isValidHttpUrl } from './links';
 import { getProxiedImageUrl } from './imageProxy';
+
+const underscoreMarker = 0x5f;
+const alphaNumericRegex = /[\p{L}\p{N}]/u;
+const adjustedDelimiterStates = new WeakSet<StateInline>();
 
 /**
  * Sanitizes HTML content, allowing only safe tags for rich text content.
@@ -48,6 +53,85 @@ export const markdown: MarkdownIt = MarkdownIt({
     }
   },
 });
+
+const isPunctuationChar = (charCode: number | undefined): boolean =>
+  typeof charCode === 'number' &&
+  (markdown.utils.isMdAsciiPunct(charCode) ||
+    markdown.utils.isPunctChar(String.fromCharCode(charCode)));
+
+const isAlphaNumericChar = (charCode: number | undefined): boolean =>
+  typeof charCode === 'number' &&
+  alphaNumericRegex.test(String.fromCharCode(charCode));
+
+const getCharCode = ({
+  state,
+  pos,
+}: {
+  state: StateInline;
+  pos: number;
+}): number | undefined =>
+  pos >= 0 && pos < state.posMax ? state.src.charCodeAt(pos) : undefined;
+
+const getPunctuationBoundary = ({
+  state,
+  start,
+  length,
+}: {
+  state: StateInline;
+  start: number;
+  length: number;
+}): { canOpen: boolean; canClose: boolean } => {
+  const previousChar = getCharCode({ state, pos: start - 1 });
+  const nextChar = getCharCode({ state, pos: start + length });
+
+  return {
+    canOpen: isAlphaNumericChar(previousChar) && isPunctuationChar(nextChar),
+    canClose: isPunctuationChar(previousChar) && isAlphaNumericChar(nextChar),
+  };
+};
+
+const adjustUnderscoreDelimiterScan = (state: StateInline): void => {
+  const defaultScanDelims = state.scanDelims.bind(state);
+
+  state.scanDelims = (start, canSplitWord) => {
+    const scanned = defaultScanDelims(start, canSplitWord);
+
+    if (
+      canSplitWord ||
+      state.src.charCodeAt(start) !== underscoreMarker ||
+      scanned.length !== 1
+    ) {
+      return scanned;
+    }
+
+    const boundary = getPunctuationBoundary({
+      state,
+      start,
+      length: scanned.length,
+    });
+
+    return {
+      ...scanned,
+      can_open: scanned.can_open || boundary.canOpen,
+      can_close: scanned.can_close || boundary.canClose,
+    };
+  };
+};
+
+markdown.inline.ruler.before(
+  'emphasis',
+  'underscore_punctuation_emphasis',
+  (state: StateInline, silent: boolean) => {
+    if (silent || adjustedDelimiterStates.has(state)) {
+      return false;
+    }
+
+    adjustUnderscoreDelimiterScan(state);
+    adjustedDelimiterStates.add(state);
+
+    return false;
+  },
+);
 
 export const renderMarkdown = (
   content: string,
