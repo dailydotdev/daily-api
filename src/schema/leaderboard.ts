@@ -13,12 +13,24 @@ import {
 import { UserQuest, UserQuestProfile, UserQuestStatus } from '../entity/user';
 import { UserAchievement } from '../entity/user/UserAchievement';
 import { Achievement } from '../entity/Achievement';
-import { DataSource, In, Not } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  EntityTarget,
+  In,
+  Not,
+  ObjectLiteral,
+} from 'typeorm';
 import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
 import graphorm from '../graphorm';
 import type { GQLHotTake } from './userHotTake';
 import { getQuestLevelState, getQuestWindow } from '../common/quest';
+import { queryReadReplica } from '../common/queryReadReplica';
+import {
+  LeaderboardPositionType,
+  leaderboardPositionSchema,
+} from '../common/schema/leaderboard';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -50,6 +62,12 @@ export type GQLQuestCompletionStats = {
   weeklyLeader: GQLQuestCompletionLeader | null;
 };
 
+export type GQLLeaderboardPosition = {
+  rank: number | null;
+  score: number;
+  cappedAt: number;
+};
+
 export const typeDefs = /* GraphQL */ `
   type Leaderboard {
     score: Int
@@ -79,6 +97,32 @@ export const typeDefs = /* GraphQL */ `
     totalCount: Int!
     allTimeLeader: QuestCompletionLeader
     weeklyLeader: QuestCompletionLeader
+  }
+
+  """
+  Leaderboards that support fetching the current user's position
+  """
+  enum LeaderboardType {
+    highestReputation
+    longestStreak
+    mostReadingDays
+  }
+
+  type LeaderboardPosition {
+    """
+    The user's rank, or null when the user ranks beyond the cap (cappedAt)
+    """
+    rank: Int
+
+    """
+    The user's score on this leaderboard
+    """
+    score: Int!
+
+    """
+    The maximum rank that can be returned; ranks beyond this are returned as null
+    """
+    cappedAt: Int!
   }
 
   extend type Query {
@@ -196,6 +240,16 @@ export const typeDefs = /* GraphQL */ `
       """
       limit: Int
     ): [Leaderboard] @cacheControl(maxAge: 600)
+
+    """
+    Get the current user's position on a leaderboard
+    """
+    leaderboardPosition(
+      """
+      The leaderboard to get the position for
+      """
+      type: LeaderboardType!
+    ): LeaderboardPosition @auth
   }
 `;
 
@@ -208,6 +262,44 @@ const excludedUsers = [
   'QgTYreBqt',
   'gfRfL51BYNK3XmCLVtA91',
 ];
+
+const MAX_LEADERBOARD_RANK = 100_000;
+
+const getCappedLeaderboardRank = async ({
+  manager,
+  entity,
+  alias,
+  scoreColumn,
+  userIdColumn,
+  score,
+}: {
+  manager: EntityManager;
+  entity: EntityTarget<ObjectLiteral>;
+  alias: string;
+  scoreColumn: string;
+  userIdColumn: string;
+  score: number;
+}): Promise<number | null> => {
+  const result = await manager
+    .createQueryBuilder()
+    .select('COUNT(1)::int', 'count')
+    .from(
+      (qb) =>
+        qb
+          .select('1')
+          .from(entity, alias)
+          .where(`${scoreColumn} > :score`, { score })
+          .andWhere(`${userIdColumn} NOT IN (:...excludedUsers)`, {
+            excludedUsers,
+          })
+          .limit(MAX_LEADERBOARD_RANK),
+      'ranked',
+    )
+    .getRawOne<{ count: number }>();
+
+  const outranking = result?.count ?? 0;
+  return outranking >= MAX_LEADERBOARD_RANK ? null : outranking + 1;
+};
 
 const completedQuestStatuses = [
   UserQuestStatus.Completed,
@@ -577,6 +669,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return getUserLevelLeaderboard({
         con: ctx.con,
         limit: getLimit(args),
+      });
+    },
+    leaderboardPosition: async (
+      _,
+      args,
+      ctx: AuthContext,
+    ): Promise<GQLLeaderboardPosition> => {
+      const { type } = leaderboardPositionSchema.parse(args);
+      const { userId } = ctx;
+
+      return queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const { manager } = queryRunner;
+
+        if (type === LeaderboardPositionType.HighestReputation) {
+          const user = await manager.getRepository(User).findOne({
+            where: { id: userId },
+            select: ['reputation'],
+          });
+          const score = user?.reputation ?? 0;
+          const rank = await getCappedLeaderboardRank({
+            manager,
+            entity: User,
+            alias: 'u',
+            scoreColumn: 'u.reputation',
+            userIdColumn: 'u.id',
+            score,
+          });
+
+          return { rank, score, cappedAt: MAX_LEADERBOARD_RANK };
+        }
+
+        const useCurrentStreak = type === LeaderboardPositionType.LongestStreak;
+        const streak = await manager.getRepository(UserStreak).findOne({
+          where: { userId },
+          select: ['currentStreak', 'totalStreak'],
+        });
+        const score =
+          (useCurrentStreak ? streak?.currentStreak : streak?.totalStreak) ?? 0;
+        const rank = await getCappedLeaderboardRank({
+          manager,
+          entity: UserStreak,
+          alias: 'us',
+          scoreColumn: useCurrentStreak
+            ? 'us."currentStreak"'
+            : 'us."totalStreak"',
+          userIdColumn: 'us."userId"',
+          score,
+        });
+
+        return { rank, score, cappedAt: MAX_LEADERBOARD_RANK };
       });
     },
   },
