@@ -4,5 +4,23 @@
     "title": "Spread the word",
     "active": true,
     "sortOrder": 1
+  },
+  {
+    "id": "c0000000-0000-4000-8000-000000000002",
+    "title": "Create content",
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "c0000000-0000-4000-8000-000000000003",
+    "title": "Reviews & ratings",
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "c0000000-0000-4000-8000-000000000004",
+    "title": "Community",
+    "active": true,
+    "sortOrder": 4
   }
 ]

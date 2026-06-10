@@ -1,38 +1,132 @@
 [
   {
     "id": "d0000000-0000-4000-8000-000000000001",
-    "title": "freeCodeCamp",
-    "url": "https://www.freecodecamp.org",
-    "description": "Free coding education for everyone.",
-    "category": "Education",
+    "title": "Software Freedom Conservancy",
+    "url": "https://sfconservancy.org",
+    "description": "The nonprofit backbone of free and open source software: legal support, fiscal sponsorship, and governance for the projects developers depend on.",
+    "category": "Open source",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=sfconservancy.org&sz=128",
     "active": true,
     "sortOrder": 1
   },
   {
     "id": "d0000000-0000-4000-8000-000000000002",
-    "title": "Electronic Frontier Foundation",
-    "url": "https://www.eff.org",
-    "description": "Defending digital privacy and free expression.",
-    "category": "Digital rights",
+    "title": "Python Software Foundation",
+    "url": "https://www.python.org/psf/",
+    "description": "The nonprofit behind Python, maintaining the language, PyPI, python.org, and a global grants program that keeps Python alive.",
+    "category": "Open source",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=python.org&sz=128",
     "active": true,
     "sortOrder": 2
   },
   {
     "id": "d0000000-0000-4000-8000-000000000003",
-    "title": "Python Software Foundation",
-    "url": "https://www.python.org/psf",
-    "description": "Stewarding the Python language and community.",
+    "title": "NumFOCUS",
+    "url": "https://numfocus.org",
+    "description": "Keeps the open source scientific computing stack (NumPy, pandas, Jupyter, Matplotlib, and more) funded, governed, and growing.",
     "category": "Open source",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=numfocus.org&sz=128",
     "active": true,
     "sortOrder": 3
   },
   {
     "id": "d0000000-0000-4000-8000-000000000004",
-    "title": "Open Source Collective",
-    "url": "https://opencollective.com",
-    "description": "Funding the maintainers behind the tools we use.",
-    "category": "Open source",
+    "title": "OWASP Foundation",
+    "url": "https://owasp.org",
+    "description": "Makes software security visible and actionable through open source projects, the OWASP Top 10, and free security education for every developer.",
+    "category": "Open source security",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=owasp.org&sz=128",
     "active": true,
     "sortOrder": 4
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000005",
+    "title": "freeCodeCamp",
+    "url": "https://www.freecodecamp.org",
+    "description": "Free, self-paced coding education at global scale, from HTML basics to data science and machine learning, for anyone with internet access.",
+    "category": "Developer education",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=freecodecamp.org&sz=128",
+    "active": true,
+    "sortOrder": 5
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000006",
+    "title": "CodePath",
+    "url": "https://www.codepath.org",
+    "description": "Embeds industry-grade software engineering education directly into universities, free for students from underrepresented backgrounds.",
+    "category": "Developer education",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=codepath.org&sz=128",
+    "active": true,
+    "sortOrder": 6
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000007",
+    "title": "Raspberry Pi Foundation",
+    "url": "https://www.raspberrypi.org",
+    "description": "Global charity putting computing education in the hands of young people everywhere, through free curricula, Code Club, CoderDojo, and Raspberry Pi hardware.",
+    "category": "Developer education",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=raspberrypi.org&sz=128",
+    "active": true,
+    "sortOrder": 7
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000008",
+    "title": "CodeYourFuture",
+    "url": "https://codeyourfuture.io",
+    "description": "Free coding school for refugees and people from disadvantaged backgrounds, with full support from learning through to employment in tech.",
+    "category": "Inclusion & access",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=codeyourfuture.io&sz=128",
+    "active": true,
+    "sortOrder": 8
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000009",
+    "title": "Open Sourcing Mental Health",
+    "url": "https://osmihelp.org",
+    "description": "Raises awareness and provides practical resources to support mental wellness in the tech and open source communities.",
+    "category": "Mental health",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=osmihelp.org&sz=128",
+    "active": true,
+    "sortOrder": 9
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000010",
+    "title": "NV Access",
+    "url": "https://www.nvaccess.org",
+    "description": "Builds and maintains NVDA, the free open source screen reader that gives blind and vision-impaired people full access to the digital world.",
+    "category": "Accessibility",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=nvaccess.org&sz=128",
+    "active": true,
+    "sortOrder": 10
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000011",
+    "title": "Human-I-T",
+    "url": "https://www.human-i-t.org",
+    "description": "Turns donated tech into refurbished devices, low-cost internet, digital training, and e-waste diversion, making computing accessible and less wasteful.",
+    "category": "Device access",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=human-i-t.org&sz=128",
+    "active": true,
+    "sortOrder": 11
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000012",
+    "title": "GiveWell Top Charities Fund",
+    "url": "https://www.givewell.org",
+    "description": "Rigorously researches and directs donations to the most cost-effective charities in the world, where each dollar saves the most lives.",
+    "category": "Global good",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=givewell.org&sz=128",
+    "active": true,
+    "sortOrder": 12
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000013",
+    "title": "HackYourFuture",
+    "url": "https://www.hackyourfuture.net",
+    "description": "Free 9-month coding school in Amsterdam for refugees and people from disadvantaged backgrounds, with full career coaching and job placement support.",
+    "category": "Developer education",
+    "logoUrl": "https://www.google.com/s2/favicons?domain=hackyourfuture.net&sz=128",
+    "active": true,
+    "sortOrder": 13
   }
 ]

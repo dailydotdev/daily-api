@@ -1,5 +1,40 @@
 [
   {
+    "id": "a0000000-0000-4000-8000-000000000022",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Share a screenshot of your daily.dev feed",
+    "description": "Show off your setup — just upload a screenshot, no link needed.",
+    "points": 20,
+    "evidence": { "screenshot": { "required": true } },
+    "metadata": {
+      "platform": "daily_dev",
+      "isLoveAction": false,
+      "instructions": "Upload a screenshot of your daily.dev feed or new tab."
+    },
+    "maxPerUser": 3,
+    "active": true,
+    "sortOrder": 0
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000023",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Share daily.dev on X with a screenshot",
+    "description": "Post about daily.dev, then drop the link and a screenshot of it.",
+    "points": 35,
+    "evidence": {
+      "url": { "required": true },
+      "screenshot": { "required": true }
+    },
+    "metadata": {
+      "platform": "x",
+      "isLoveAction": false,
+      "instructions": "Add the link to your post and a screenshot showing it's live."
+    },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 0
+  },
+  {
     "id": "a0000000-0000-4000-8000-000000000001",
     "categoryId": "c0000000-0000-4000-8000-000000000001",
     "title": "Post about daily.dev on X",
@@ -8,24 +43,29 @@
     "evidence": { "url": { "required": true } },
     "metadata": { "platform": "x", "isLoveAction": false },
     "maxPerUser": 3,
+    "cooldownSeconds": 86400,
     "active": true,
     "sortOrder": 1
   },
   {
     "id": "a0000000-0000-4000-8000-000000000002",
-    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
     "title": "Star our GitHub repo",
     "description": "Give the open-source repo a star.",
     "points": 15,
-    "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "github", "isLoveAction": false },
+    "evidence": { "url": { "required": true, "allowedDomains": ["github.com"] } },
+    "metadata": {
+      "platform": "github",
+      "isLoveAction": false,
+      "externalUrl": "https://github.com/dailydotdev/daily"
+    },
     "maxPerUser": 1,
     "active": true,
     "sortOrder": 2
   },
   {
     "id": "a0000000-0000-4000-8000-000000000003",
-    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
     "title": "Write a blog post",
     "description": "Publish an article mentioning daily.dev.",
     "points": 100,
@@ -37,11 +77,16 @@
   },
   {
     "id": "a0000000-0000-4000-8000-000000000004",
-    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "categoryId": "c0000000-0000-4000-8000-000000000003",
     "title": "Leave a store review",
     "description": "Review the extension on your browser store.",
     "points": 50,
-    "evidence": { "url": { "required": true } },
+    "evidence": {
+      "url": {
+        "required": true,
+        "allowedDomains": ["chromewebstore.google.com", "chrome.google.com"]
+      }
+    },
     "metadata": { "platform": "chrome_web_store", "isLoveAction": false },
     "maxPerUser": 1,
     "active": true,
@@ -56,7 +101,244 @@
     "evidence": { "url": { "required": true } },
     "metadata": { "platform": "daily_dev", "isLoveAction": false },
     "maxPerUser": 5,
+    "cooldownSeconds": 43200,
     "active": true,
     "sortOrder": 5
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000006",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Share daily.dev on LinkedIn",
+    "description": "Tell your network why daily.dev is part of your routine.",
+    "points": 30,
+    "evidence": { "url": { "required": true } },
+    "metadata": {
+      "platform": "linkedin",
+      "isLoveAction": false,
+      "instructions": "Make sure the post is public so we can verify it."
+    },
+    "maxPerUser": 3,
+    "cooldownSeconds": 86400,
+    "active": true,
+    "sortOrder": 6
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000007",
+    "categoryId": "c0000000-0000-4000-8000-000000000001",
+    "title": "Post in a Reddit community",
+    "description": "Recommend daily.dev where developers hang out.",
+    "points": 35,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "reddit", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 7
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000008",
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
+    "title": "Publish a YouTube video",
+    "description": "Record a walkthrough or review of daily.dev.",
+    "points": 150,
+    "evidence": { "url": { "required": true }, "note": {} },
+    "metadata": { "platform": "youtube", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 8
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000009",
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
+    "title": "Write a tutorial on DEV",
+    "description": "Show how you use daily.dev in your workflow.",
+    "points": 90,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "dev", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 9
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000010",
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
+    "title": "Publish an article on Hashnode",
+    "description": "Share a guide or story that mentions daily.dev.",
+    "points": 90,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "hashnode", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 10
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000011",
+    "categoryId": "c0000000-0000-4000-8000-000000000002",
+    "title": "Feature us in your newsletter",
+    "description": "Give daily.dev a shout-out to your subscribers.",
+    "points": 80,
+    "evidence": { "url": {}, "note": { "required": true } },
+    "metadata": {
+      "platform": "newsletter",
+      "isLoveAction": false,
+      "instructions": "Add a note with the issue title and audience size. A public link is optional."
+    },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 11
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000012",
+    "categoryId": "c0000000-0000-4000-8000-000000000003",
+    "title": "Review us on Product Hunt",
+    "description": "Leave an honest review on our Product Hunt page.",
+    "points": 60,
+    "evidence": {
+      "url": { "required": true, "allowedDomains": ["producthunt.com"] }
+    },
+    "metadata": {
+      "platform": "product_hunt",
+      "isLoveAction": false,
+      "externalUrl": "https://www.producthunt.com/products/daily-dev"
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 12
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000013",
+    "categoryId": "c0000000-0000-4000-8000-000000000003",
+    "title": "Leave a G2 review",
+    "description": "Tell other teams what daily.dev does for you.",
+    "points": 70,
+    "evidence": { "screenshot": { "required": true } },
+    "metadata": {
+      "platform": "g2",
+      "isLoveAction": false,
+      "instructions": "Upload a screenshot of your published review."
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 13
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000014",
+    "categoryId": "c0000000-0000-4000-8000-000000000003",
+    "title": "Review the Edge add-on",
+    "description": "Rate the extension on the Edge Add-ons store.",
+    "points": 50,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "edge_addons", "isLoveAction": false },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 14
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000015",
+    "categoryId": "c0000000-0000-4000-8000-000000000003",
+    "title": "Rate the mobile app",
+    "description": "Leave a rating on the App Store or Google Play.",
+    "points": 40,
+    "evidence": { "screenshot": { "required": true } },
+    "metadata": {
+      "platform": "app_store",
+      "isLoveAction": false,
+      "instructions": "A screenshot of your rating is enough."
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 15
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000016",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Answer a question on Stack Overflow",
+    "description": "Help a developer and link daily.dev where it fits.",
+    "points": 35,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "stack_overflow", "isLoveAction": false },
+    "maxPerUser": 5,
+    "cooldownSeconds": 43200,
+    "active": true,
+    "sortOrder": 16
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000017",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Help someone in our Discord",
+    "description": "Answer a question or welcome a new member.",
+    "points": 20,
+    "evidence": {
+      "screenshot": { "required": true },
+      "note": { "required": true }
+    },
+    "metadata": {
+      "platform": "discord",
+      "isLoveAction": false,
+      "instructions": "Share a screenshot of the conversation and a short note on how you helped."
+    },
+    "maxPerUser": 10,
+    "cooldownSeconds": 3600,
+    "active": true,
+    "sortOrder": 17
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000018",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Share daily.dev on Hacker News",
+    "description": "Post a thoughtful submission or comment.",
+    "points": 40,
+    "evidence": { "url": { "required": true } },
+    "metadata": { "platform": "hacker_news", "isLoveAction": false },
+    "maxPerUser": 2,
+    "active": true,
+    "sortOrder": 18
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000019",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Follow daily.dev on X",
+    "description": "No proof needed, we just appreciate it.",
+    "points": 0,
+    "evidence": {},
+    "metadata": {
+      "platform": "x",
+      "isLoveAction": true,
+      "externalUrl": "https://x.com/dailydotdev"
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 19
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000020",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Join our Discord community",
+    "description": "Come say hi and hang out with other developers.",
+    "points": 0,
+    "evidence": {},
+    "metadata": {
+      "platform": "discord",
+      "isLoveAction": true,
+      "externalUrl": "https://discord.gg/dailydotdev"
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 20
+  },
+  {
+    "id": "a0000000-0000-4000-8000-000000000021",
+    "categoryId": "c0000000-0000-4000-8000-000000000004",
+    "title": "Subscribe on YouTube",
+    "description": "Follow along with our latest videos.",
+    "points": 0,
+    "evidence": {},
+    "metadata": {
+      "platform": "youtube",
+      "isLoveAction": true,
+      "externalUrl": "https://www.youtube.com/@dailydotdev"
+    },
+    "maxPerUser": 1,
+    "active": true,
+    "sortOrder": 21
   }
 ]
