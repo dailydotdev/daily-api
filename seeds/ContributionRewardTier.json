@@ -1,0 +1,52 @@
+[
+  {
+    "id": "d0000000-0000-4000-8000-000000000001",
+    "title": "100 Cores",
+    "description": "A pile of Cores to spend across daily.dev.",
+    "thresholdPoints": 25,
+    "rewardType": "cores",
+    "metadata": { "cores": 100 },
+    "active": true,
+    "sortOrder": 1
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000002",
+    "title": "1 week of daily.dev Plus",
+    "description": "Seven days of Plus, on us.",
+    "thresholdPoints": 100,
+    "rewardType": "plus_days",
+    "metadata": { "days": 7 },
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000003",
+    "title": "Contributor badge",
+    "description": "A profile badge that shows you back the cause.",
+    "thresholdPoints": 250,
+    "rewardType": "privilege",
+    "metadata": { "badge": "contributor" },
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000004",
+    "title": "1:1 with the team",
+    "description": "A 30-minute call with the daily.dev team.",
+    "thresholdPoints": 500,
+    "rewardType": "call",
+    "metadata": { "minutes": 30 },
+    "active": true,
+    "sortOrder": 4
+  },
+  {
+    "id": "d0000000-0000-4000-8000-000000000005",
+    "title": "Limited-edition swag",
+    "description": "A swag pack reserved for our top contributors.",
+    "thresholdPoints": 1000,
+    "rewardType": "custom",
+    "metadata": { "swag": "founders_pack" },
+    "active": true,
+    "sortOrder": 5
+  }
+]

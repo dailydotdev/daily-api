@@ -2009,26 +2009,6 @@ describe('query tagFeed', () => {
     expect(lowerRes.errors || upperRes.errors || mixedRes.errors).toBeFalsy();
     expect([upperIds, mixedIds]).toEqual([lowerIds, lowerIds]);
   });
-
-  it('should include share posts whose shared post matches the tag', async () => {
-    await con.getRepository(SharePost).save({
-      id: 'tagShare1',
-      shortId: 'tShr1',
-      sourceId: 'a',
-      title: 'Shared js post',
-      type: PostType.Share,
-      sharedPostId: 'p1',
-      visible: true,
-    });
-
-    const res = await client.query(`{
-      tagFeed(tag: "javascript", ranking: ${Ranking.POPULARITY}, first: 10, supportedTypes: ["article", "share"]) {
-        ${feedFields()}
-      }
-    }`);
-    const ids = res.data.tagFeed.edges.map(({ node }) => node.id);
-    expect(ids).toContain('tagShare1');
-  });
 });
 
 describe('query keywordFeed', () => {
@@ -2630,29 +2610,6 @@ describe('query mostUpvotedFeed', () => {
       expect(node.tags).toContain('javascript');
     });
   });
-
-  it('should include share posts whose shared post matches the tag', async () => {
-    await con.getRepository(SharePost).save({
-      id: 'mostUpShare1',
-      shortId: 'muShr1',
-      sourceId: 'a',
-      title: 'Shared js post',
-      type: PostType.Share,
-      sharedPostId: 'p1',
-      visible: true,
-      upvotes: 50,
-    });
-
-    const QUERY_WITH_TYPES = `{
-      mostUpvotedFeed(first: 10, period: 30, tag: "javascript", supportedTypes: ["article", "share"]) {
-        ${feedFields()}
-      }
-    }`;
-    const res = await client.query(QUERY_WITH_TYPES);
-    expect(res.errors).toBeFalsy();
-    const ids = res.data.mostUpvotedFeed.edges.map(({ node }) => node.id);
-    expect(ids).toContain('mostUpShare1');
-  });
 });
 
 describe('query mostDiscussedFeed', () => {
@@ -2726,29 +2683,6 @@ describe('query mostDiscussedFeed', () => {
     res.data.mostDiscussedFeed.edges.forEach(({ node }) => {
       expect(node.tags).toContain('javascript');
     });
-  });
-
-  it('should include share posts whose shared post matches the tag', async () => {
-    await con.getRepository(SharePost).save({
-      id: 'mostDiscShare1',
-      shortId: 'mdShr1',
-      sourceId: 'a',
-      title: 'Shared js post',
-      type: PostType.Share,
-      sharedPostId: 'p1',
-      visible: true,
-      comments: 10,
-    });
-
-    const QUERY_WITH_TYPES = `{
-      mostDiscussedFeed(first: 10, tag: "javascript", supportedTypes: ["article", "share"]) {
-        ${feedFields()}
-      }
-    }`;
-    const res = await client.query(QUERY_WITH_TYPES);
-    expect(res.errors).toBeFalsy();
-    const ids = res.data.mostDiscussedFeed.edges.map(({ node }) => node.id);
-    expect(ids).toContain('mostDiscShare1');
   });
 });
 

@@ -5,6 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testQueryErrorCode,
 } from './helpers';
 import {
   HotTake,
@@ -1133,6 +1134,137 @@ describe('leaderboard', () => {
     it('should limit return popular hot takes', async () => {
       const res = await client.query(QUERY, { variables: { limit: 5 } });
       expect(res.data.popularHotTakes).toHaveLength(5);
+    });
+  });
+
+  describe('leaderboardPosition', () => {
+    const POSITION_QUERY = `
+      query LeaderboardPosition($type: LeaderboardType!) {
+        leaderboardPosition(type: $type) {
+          rank
+          score
+          cappedAt
+        }
+      }
+    `;
+
+    it('should require authentication', () =>
+      testQueryErrorCode(
+        client,
+        { query: POSITION_QUERY, variables: { type: 'highestReputation' } },
+        'UNAUTHENTICATED',
+      ));
+
+    it('should return the rank and score for highest reputation', async () => {
+      await saveFixtures(
+        con,
+        User,
+        usersFixture.map((item, index) => ({
+          ...item,
+          reputation: [100, 200, 300, 0][index] ?? 0,
+        })),
+      );
+      loggedUser = '1';
+
+      const res = await client.query(POSITION_QUERY, {
+        variables: { type: 'highestReputation' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.leaderboardPosition).toEqual({
+        rank: 3,
+        score: 100,
+        cappedAt: 100000,
+      });
+    });
+
+    it('should return rank 1 for the top user', async () => {
+      await saveFixtures(
+        con,
+        User,
+        usersFixture.map((item, index) => ({
+          ...item,
+          reputation: [100, 200, 300, 0][index] ?? 0,
+        })),
+      );
+      loggedUser = '3';
+
+      const res = await client.query(POSITION_QUERY, {
+        variables: { type: 'highestReputation' },
+      });
+      expect(res.data.leaderboardPosition).toEqual({
+        rank: 1,
+        score: 300,
+        cappedAt: 100000,
+      });
+    });
+
+    it('should return the rank for longest streak', async () => {
+      await saveFixtures(
+        con,
+        UserStreak,
+        [10, 50, 100, 0].map((item, index) => ({
+          userId: usersFixture[index].id,
+          currentStreak: item,
+          maxStreak: item,
+          totalStreak: item,
+        })),
+      );
+      loggedUser = '1';
+
+      const res = await client.query(POSITION_QUERY, {
+        variables: { type: 'longestStreak' },
+      });
+      expect(res.data.leaderboardPosition).toEqual({
+        rank: 3,
+        score: 10,
+        cappedAt: 100000,
+      });
+    });
+
+    it('should return the rank for most reading days using total streak', async () => {
+      await saveFixtures(
+        con,
+        UserStreak,
+        [10, 50, 100, 0].map((item, index) => ({
+          userId: usersFixture[index].id,
+          currentStreak: 0,
+          maxStreak: item,
+          totalStreak: item,
+        })),
+      );
+      loggedUser = '2';
+
+      const res = await client.query(POSITION_QUERY, {
+        variables: { type: 'mostReadingDays' },
+      });
+      expect(res.data.leaderboardPosition).toEqual({
+        rank: 2,
+        score: 50,
+        cappedAt: 100000,
+      });
+    });
+
+    it('should default to score 0 and rank below ranked users when the user has no streak', async () => {
+      await saveFixtures(
+        con,
+        UserStreak,
+        [10, 50, 100].map((item, index) => ({
+          userId: usersFixture[index].id,
+          currentStreak: item,
+          maxStreak: item,
+          totalStreak: item,
+        })),
+      );
+      loggedUser = '4';
+
+      const res = await client.query(POSITION_QUERY, {
+        variables: { type: 'longestStreak' },
+      });
+      expect(res.data.leaderboardPosition).toEqual({
+        rank: 4,
+        score: 0,
+        cappedAt: 100000,
+      });
     });
   });
 });

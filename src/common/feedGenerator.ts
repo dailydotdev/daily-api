@@ -50,11 +50,7 @@ export const whereTags = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
   variableAlias = 'tags',
-  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
-  const postIdMatch = includeSharedPost
-    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
-    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
@@ -62,7 +58,7 @@ export const whereTags = (
     .where(`pk.keyword IN (:...${variableAlias})`, {
       [variableAlias]: tags.map((tag) => tag.toLowerCase()),
     })
-    .andWhere(postIdMatch)
+    .andWhere(`pk."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -79,17 +75,13 @@ export const whereKeyword = (
   keyword: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-  { includeSharedPost = false }: { includeSharedPost?: boolean } = {},
 ): string => {
-  const postIdMatch = includeSharedPost
-    ? `pk."postId" = COALESCE(${alias}."sharedPostId", ${alias}.id)`
-    : `pk."postId" = ${alias}.id`;
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
     .where(`pk.keyword = :keyword`, { keyword: keyword.toLowerCase() })
-    .andWhere(postIdMatch)
+    .andWhere(`pk."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -845,9 +837,7 @@ export const tagFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere((subBuilder) =>
-    whereTags([tag], subBuilder, alias, 'tags', { includeSharedPost: true }),
-  );
+  builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
 export const repostFeedBuilder = (
   ctx: Context,
