@@ -80,8 +80,8 @@ connector.class: "io.debezium.connector.postgresql.PostgresConnector"
 # offset.storage: The Java class that implements the offset storage strategy. This must be set to io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore.
 offset.storage: "io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore"
 
-# offset.storage.jdbc.offset.table.name: The name of the database table where connector offsets are to be stored.
-offset.storage.jdbc.offset.table.name: "api.replica_source_info"
+# offset.storage.jdbc.table.name: The name of the database table where connector offsets are to be stored.
+offset.storage.jdbc.table.name: "api.replica_source_info"
 
 # offset.storage.jdbc.url: The JDBC URL for the database where connector offsets are to be stored.
 offset.storage.jdbc.url: "jdbc:clickhouse:%clickhouse_host%:%clickhouse_port%/api"
@@ -92,9 +92,9 @@ offset.storage.jdbc.user: "%clickhouse_user%"
 # offset.storage.jdbc.password: The password of the database user to be used when connecting to the database where connector offsets are to be stored.
 offset.storage.jdbc.password: "%clickhouse_password%"
 
-# offset.storage.jdbc.offset.table.ddl: The DDL statement used to create the database table where connector offsets are to be stored.
-offset.storage.jdbc.offset.table.ddl: |
-  CREATE TABLE if not exists %s
+# offset.storage.jdbc.table.ddl: The DDL statement used to create the database table where connector offsets are to be stored.
+offset.storage.jdbc.table.ddl: |
+  CREATE TABLE if not exists api.replica_source_info
   (
       `id` String,
       `offset_key` String,
@@ -106,14 +106,14 @@ offset.storage.jdbc.offset.table.ddl: |
   ENGINE = ReplacingMergeTree(_version)
   ORDER BY offset_key
   SETTINGS index_granularity = 8198
-#offset.storage.jdbc.offset.table.delete: "delete from %s where 1=1"
-offset.storage.jdbc.offset.table.delete: "select * from %s"
+#offset.storage.jdbc.table.delete: "delete from %s where 1=1"
+offset.storage.jdbc.table.delete: "select * from %s"
 schema.history.internal: "io.debezium.storage.jdbc.history.JdbcSchemaHistory"
 schema.history.internal.jdbc.url: "jdbc:clickhouse:%clickhouse_host%:%clickhouse_port%/api"
 schema.history.internal.jdbc.user: "%clickhouse_user%"
 schema.history.internal.jdbc.password: "%clickhouse_password%"
-schema.history.internal.jdbc.schema.history.table.ddl: |
-  CREATE TABLE if not exists %s
+schema.history.internal.jdbc.table.ddl: |
+  CREATE TABLE if not exists api.replicate_schema_history
   (
     `id` VARCHAR(36) NOT NULL,
     `history_data` VARCHAR(65000),
@@ -124,8 +124,35 @@ schema.history.internal.jdbc.schema.history.table.ddl: |
   ENGINE = ReplacingMergeTree(record_insert_seq)
   order by id
 
-# schema.history.internal.schema.history.table.name: The name of the database table where connector schema history is to be stored.
-schema.history.internal.jdbc.schema.history.table.name: "api.replicate_schema_history"
+# schema.history.internal.jdbc.table.name: The name of the database table where connector schema history is to be stored.
+schema.history.internal.jdbc.table.name: "api.replicate_schema_history"
+
+replica.status.view: |
+  CREATE VIEW IF NOT EXISTS %s.show_replica_status
+  (
+      `seconds_behind_source` Int32,
+      `duration_behind_source` String,
+      `utc_time` DateTime('UTC'),
+      `local_time` DateTime,
+      `id` String,
+      `offset_key` String,
+      `offset_val` String,
+      `record_insert_ts` DateTime,
+      `record_insert_seq` UInt64
+  ) AS
+  SELECT *
+  FROM
+  (
+      SELECT
+          now() - fromUnixTimestamp(JSONExtractUInt(offset_val, 'ts_sec')) AS seconds_behind_source,
+          formatReadableTimeDelta(seconds_behind_source) AS duration_behind_source,
+          toDateTime(fromUnixTimestamp(JSONExtractUInt(offset_val, 'ts_sec')), 'UTC') AS utc_time,
+          fromUnixTimestamp(JSONExtractUInt(offset_val, 'ts_sec')) AS local_time,
+          *
+      FROM %s
+      FINAL
+  ) AS U
+  ORDER BY offset_key ASC
 
 replacingmergetree.delete.column: "is_deleted"
 
