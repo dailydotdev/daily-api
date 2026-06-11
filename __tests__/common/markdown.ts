@@ -129,3 +129,49 @@ Some text here
     });
   });
 });
+
+describe('markdown emphasis rendering', () => {
+  it.each([
+    ['WORD_(text)_', 'WORD<em>(text)</em>'],
+    ['word_(text)_', 'word<em>(text)</em>'],
+    ['”_(text)_word', '”<em>(text)</em>word'],
+    ['“WORD”_(text)_', '“WORD”<em>(text)</em>'],
+    [
+      '“SCARRING” _(Oh my goshhh)_ effect',
+      '“SCARRING” <em>(Oh my goshhh)</em> effect',
+    ],
+  ])(
+    'should render underscores around punctuation as emphasis: %s',
+    (content, expected) => {
+      expect(markdown.renderInline(content)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ['some_file_name', 'some_file_name'],
+    ['user_id', 'user_id'],
+    ['a_b_c', 'a_b_c'],
+    ['__init__', '<strong>init</strong>'],
+    ['`some_var`', '<code>some_var</code>'],
+    [
+      'http://x/a_b_c',
+      '<a href="http://x/a_b_c" target="_blank" rel="noopener nofollow">http://x/a_b_c</a>',
+    ],
+  ])(
+    'should preserve existing underscore behavior: %s',
+    (content, expected) => {
+      expect(markdown.renderInline(content)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ['before *(text)* after', 'before <em>(text)</em> after'],
+    ['before **(text)** after', 'before <strong>(text)</strong> after'],
+    ['before __(text)__ after', 'before <strong>(text)</strong> after'],
+  ])(
+    'should preserve non-single-underscore emphasis: %s',
+    (content, expected) => {
+      expect(markdown.renderInline(content)).toBe(expected);
+    },
+  );
+});
