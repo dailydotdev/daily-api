@@ -4,6 +4,7 @@ import {
   TopicalDigestPost,
   TopicalDigestRequest,
 } from '@dailydotdev/schema';
+import { Brackets } from 'typeorm';
 import type { DataSource } from 'typeorm';
 import type { ChannelDigest } from '../../entity/ChannelDigest';
 import { generateShortId } from '../../ids';
@@ -113,6 +114,20 @@ const findDigestPosts = async ({
     .addSelect('post.content', 'content')
     .where('post.createdAt >= :from', { from })
     .andWhere('post.deleted = false')
+    .andWhere('post.visible = true')
+    .andWhere('post.banned = false')
+    .andWhere('post."showOnFeed" = true')
+    .andWhere(
+      new Brackets((builder) => {
+        builder
+          .where('post.private = false')
+          // Keep private unknown-source posts as candidates so they can be
+          // remapped to an accessible public share post below.
+          .orWhere('post."sourceId" = :unknownSource', {
+            unknownSource: UNKNOWN_SOURCE,
+          });
+      }),
+    )
     .andWhere(`(post."contentMeta"->'channels') ? :channel`, {
       channel,
     })
@@ -154,8 +169,15 @@ const remapUnknownSourcePostIds = async ({
   const remapped: DigestPostRow[] = [];
 
   for (const post of posts) {
-    const fallbackId =
-      post.sourceId === UNKNOWN_SOURCE ? fallbacks.get(post.id) : undefined;
+    const isUnknownSource = post.sourceId === UNKNOWN_SOURCE;
+    const fallbackId = isUnknownSource ? fallbacks.get(post.id) : undefined;
+
+    if (isUnknownSource && !fallbackId) {
+      // Unknown-source posts are private, without a public share fallback
+      // the digest would link to a post readers can not access.
+      continue;
+    }
+
     const id = fallbackId ?? post.id;
 
     if (seen.has(id)) {

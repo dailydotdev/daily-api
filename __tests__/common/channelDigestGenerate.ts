@@ -10,6 +10,7 @@ import { ChannelDigest } from '../../src/entity/ChannelDigest';
 import {
   AGENTS_DIGEST_SOURCE,
   Source,
+  SourceType,
   UNKNOWN_SOURCE,
 } from '../../src/entity/Source';
 import { FreeformPost } from '../../src/entity/posts/FreeformPost';
@@ -50,6 +51,7 @@ const savePost = async ({
   content,
   createdAt,
   channel,
+  ...overrides
 }: {
   id: string;
   sourceId?: string;
@@ -57,7 +59,9 @@ const savePost = async ({
   content: string;
   createdAt: Date;
   channel: string;
-}) =>
+} & Partial<
+  Pick<FreeformPost, 'private' | 'visible' | 'banned' | 'showOnFeed'>
+>) =>
   con.getRepository(FreeformPost).save({
     id,
     shortId: id,
@@ -69,6 +73,7 @@ const savePost = async ({
     contentMeta: {
       channels: [channel],
     },
+    ...overrides,
   });
 
 describe('generateChannelDigest', () => {
@@ -385,7 +390,7 @@ describe('generateChannelDigest', () => {
     );
   });
 
-  it('should keep the unknown-source post id when no public SharePost exists', async () => {
+  it('should drop unknown-source posts when no public SharePost exists', async () => {
     const now = new Date('2026-03-03T10:00:00.000Z');
     let request: TopicalDigestRequest | undefined;
 
@@ -435,13 +440,182 @@ describe('generateChannelDigest', () => {
       content: 'Orphan content',
       createdAt: new Date('2026-03-03T09:00:00.000Z'),
       channel: 'keep',
+      private: true,
     });
 
     const result = await generateChannelDigest({ con, definition, now });
 
-    expect(request?.posts.map((post) => post.postId)).toEqual(['orph-art']);
-    expect(result?.content).toContain(
-      '[Read more](http://localhost:5002/posts/orph-art)',
+    expect(request).toBeUndefined();
+    expect(result).toBeNull();
+  });
+
+  it('should drop unknown-source posts when the only share is private', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    let request: TopicalDigestRequest | undefined;
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          generateTopicalDigest: async (data: TopicalDigestRequest) => {
+            request = data;
+
+            return new TopicalDigest({
+              title: 'Private share digest',
+              tldr: 'Private share summary',
+              mainItems: [],
+            });
+          },
+        } as ServiceClient<typeof Pipelines>['instance'],
+        garmr: createGarmrMock(),
+      }),
     );
+
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+        ),
+        createSource(
+          'squad-private',
+          'Private Squad',
+          'https://daily.dev/sq.png',
+          SourceType.Squad,
+          true,
+        ),
+        createSource(
+          'private-share-digest-source',
+          'Digest',
+          'https://daily.dev/d.png',
+        ),
+      ]);
+    const definition = await saveDefinition({
+      key: 'private-share-test',
+      sourceId: 'private-share-digest-source',
+      channel: 'private-share',
+      frequency: 'daily',
+    });
+    await savePost({
+      id: 'unk-priv',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Unknown article',
+      content: 'Article content',
+      createdAt: new Date('2026-03-03T09:00:00.000Z'),
+      channel: 'private-share',
+      private: true,
+    });
+    await con.getRepository(SharePost).save({
+      id: 'sh-priv',
+      shortId: 'sh-priv',
+      sourceId: 'squad-private',
+      type: PostType.Share,
+      sharedPostId: 'unk-priv',
+      visible: true,
+      private: true,
+      showOnFeed: true,
+      deleted: false,
+      banned: false,
+      createdAt: new Date('2026-03-03T09:30:00.000Z'),
+    });
+
+    const result = await generateChannelDigest({ con, definition, now });
+
+    expect(request).toBeUndefined();
+    expect(result).toBeNull();
+  });
+
+  it('should exclude private, banned, invisible and hidden posts from candidates', async () => {
+    const now = new Date('2026-03-03T10:00:00.000Z');
+    let request: TopicalDigestRequest | undefined;
+
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: {
+          generateTopicalDigest: async (data: TopicalDigestRequest) => {
+            request = data;
+
+            return new TopicalDigest({
+              title: 'Filtered digest',
+              tldr: 'Filtered summary',
+              mainItems: [
+                new TopicalDigestItem({
+                  title: 'Filtered item',
+                  body: 'Filtered body',
+                  postIds: ['acc-post'],
+                }),
+              ],
+            });
+          },
+        } as ServiceClient<typeof Pipelines>['instance'],
+        garmr: createGarmrMock(),
+      }),
+    );
+
+    await con
+      .getRepository(Source)
+      .save([
+        createSource(
+          'content-source',
+          'Content',
+          'https://daily.dev/content.png',
+        ),
+        createSource(
+          'filtered-digest-source',
+          'Digest',
+          'https://daily.dev/d.png',
+        ),
+      ]);
+    const definition = await saveDefinition({
+      key: 'filtered-test',
+      sourceId: 'filtered-digest-source',
+      channel: 'filtered',
+      frequency: 'daily',
+    });
+    const createdAt = new Date('2026-03-03T09:00:00.000Z');
+    await savePost({
+      id: 'acc-post',
+      title: 'Accessible post',
+      content: 'Accessible content',
+      createdAt,
+      channel: 'filtered',
+    });
+    await savePost({
+      id: 'priv-post',
+      title: 'Private post',
+      content: 'Private content',
+      createdAt,
+      channel: 'filtered',
+      private: true,
+    });
+    await savePost({
+      id: 'ban-post',
+      title: 'Banned post',
+      content: 'Banned content',
+      createdAt,
+      channel: 'filtered',
+      banned: true,
+    });
+    await savePost({
+      id: 'inv-post',
+      title: 'Invisible post',
+      content: 'Invisible content',
+      createdAt,
+      channel: 'filtered',
+      visible: false,
+    });
+    await savePost({
+      id: 'hid-post',
+      title: 'Hidden post',
+      content: 'Hidden content',
+      createdAt,
+      channel: 'filtered',
+      showOnFeed: false,
+    });
+
+    await generateChannelDigest({ con, definition, now });
+
+    expect(request?.posts.map((post) => post.postId)).toEqual(['acc-post']);
   });
 });
