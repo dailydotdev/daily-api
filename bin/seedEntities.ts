@@ -33,6 +33,7 @@ export const seedEntityNames = [
   'SpotlightAction',
   'ContributionActionCategory',
   'ContributionAction',
+  'ContributionRewardTier',
   'ContributionCause',
   'ContributionSponsor',
   'ContributionPayment',
