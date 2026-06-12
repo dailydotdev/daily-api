@@ -1,13 +1,8 @@
 import type { DataSource, EntityManager } from 'typeorm';
-import { DigestPost } from '../entity/posts/DigestPost';
+import { DigestPost, type DigestPostFlags } from '../entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../entity/Source';
 import { logger } from '../logger';
 import type { SkadiAd } from '../integrations/skadi';
-
-type DigestAdSnapshot = {
-  type: string;
-  index: number;
-} & SkadiAd;
 
 /**
  * Update digest post with latest data.
@@ -46,15 +41,11 @@ export const upsertDigestPost = async ({
   ad: ({ type: string } & SkadiAd) | null;
   adIndex: number;
 }): Promise<string | null> => {
-  let adSnapshot: DigestAdSnapshot | null = null;
-  if (ad) {
-    adSnapshot = { ...ad, index: adIndex };
-  }
-
-  const flags = {
+  const digestFlags: DigestPostFlags = {
     digestPostIds: postIds,
     collectionSources: sourceIds,
-    ad: adSnapshot,
+    ad: ad ? { ...ad, index: adIndex } : null,
+    date: new Date(),
   };
 
   const result = await con
@@ -62,9 +53,8 @@ export const upsertDigestPost = async ({
     .createQueryBuilder()
     .update(DigestPost)
     .set({
-      flags: () => `flags || :flags`,
+      digestFlags,
       visible: true,
-      metadataChangedAt: () => 'NOW()',
     })
     .where(
       '"authorId" = :userId AND "sourceId" = :sourceId AND "type" = \'digest\'',
@@ -73,7 +63,6 @@ export const upsertDigestPost = async ({
         sourceId: DIGEST_SOURCE,
       },
     )
-    .setParameter('flags', JSON.stringify(flags))
     .returning('"id"')
     .execute();
 

@@ -966,6 +966,8 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
+        rawSelect: true,
+        select: (_, alias) => `${alias}."flags" || ${alias}."digestFlags"`,
         transform: (value: PostFlagsPublic) => {
           const ad = value?.ad;
           return {
@@ -1011,7 +1013,9 @@ const obj = new GraphORM({
         },
       },
       updatedAt: {
-        select: 'metadataChangedAt',
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE((${alias}."digestFlags"->>'date')::timestamp, ${alias}."metadataChangedAt")`,
       },
       collectionSources: {
         relation: {

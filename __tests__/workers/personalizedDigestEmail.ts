@@ -660,8 +660,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(digestPost.authorId).toBe('1');
     expect(digestPost.private).toBeTruthy();
     expect(digestPost.visible).toBeTruthy();
-    expect(digestPost.flags.digestPostIds).toHaveLength(5);
-    expect(digestPost.flags.collectionSources).toBeDefined();
+    expect(digestPost.digestFlags?.digestPostIds).toHaveLength(5);
+    expect(digestPost.digestFlags?.collectionSources).toBeDefined();
   });
 
   it('should create in-app notification after creating DigestPost', async () => {
@@ -868,7 +868,7 @@ describe('personalizedDigestEmail worker', () => {
     if (!digestPost) {
       throw new Error('DigestPost not found');
     }
-    expect(digestPost.flags.ad).toEqual({
+    expect(digestPost.digestFlags?.ad).toEqual({
       type: 'dynamic_ad',
       index: 2,
       title: 'Test Ad',
@@ -907,7 +907,7 @@ describe('personalizedDigestEmail worker', () => {
     if (!digestPost) {
       throw new Error('DigestPost not found');
     }
-    expect(digestPost.flags.ad).toBeNull();
+    expect(digestPost.digestFlags?.ad).toBeNull();
   });
 
   it('should not update DigestPost stub when no posts returned from feed', async () => {
@@ -1028,8 +1028,8 @@ describe('personalizedDigestEmail worker', () => {
     const updatedPost = allDigestPosts[0];
     expect(updatedPost.id).toBe(firstDigestPost.id);
     expect(updatedPost.shortId).toBe(firstDigestPost.shortId);
-    expect(updatedPost.flags.digestPostIds).toHaveLength(3);
-    expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
+    expect(updatedPost.digestFlags?.digestPostIds).toHaveLength(3);
+    expect(updatedPost.metadataChangedAt.getTime()).toBe(
       firstDigestPost.metadataChangedAt.getTime(),
     );
   });

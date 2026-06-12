@@ -1670,6 +1670,7 @@ describe('query post', () => {
         post(id: $id) {
           id
           type
+          updatedAt
           flags {
             digestPostIds
             ad {
@@ -1698,7 +1699,7 @@ describe('query post', () => {
           private: false,
           visible: true,
           sourceId: 'a',
-          flags: {
+          digestFlags: {
             digestPostIds: ['p1', 'p2', 'p3'],
             collectionSources: ['a'],
             ad: null,
@@ -1715,6 +1716,38 @@ describe('query post', () => {
       expect(res.data.post.flags.ad).toBeNull();
     });
 
+    it('should return digest date as updatedAt for Digest posts', async () => {
+      const postId = await generateShortId();
+      const date = new Date('2024-05-01T10:00:00.000Z');
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          metadataChangedAt: new Date('2020-01-01T00:00:00.000Z'),
+          digestFlags: {
+            digestPostIds: ['p1'],
+            collectionSources: ['a'],
+            ad: null,
+            date,
+          },
+        }),
+      );
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(new Date(res.data.post.updatedAt).toISOString()).toEqual(
+        date.toISOString(),
+      );
+    });
+
     it('should return ad for Digest posts with ad', async () => {
       const postId = await generateShortId();
 
@@ -1726,9 +1759,10 @@ describe('query post', () => {
           private: false,
           visible: true,
           sourceId: 'a',
-          flags: {
+          digestFlags: {
             digestPostIds: ['p1'],
             collectionSources: ['a'],
+            date: new Date('2024-05-01T10:00:00.000Z'),
             ad: {
               type: 'dynamic_ad',
               index: 2,
@@ -1758,6 +1792,43 @@ describe('query post', () => {
         companyLogo: 'https://example.com/logo.png',
         callToAction: 'Try now',
       });
+    });
+
+    it('should fall back to legacy flags and metadataChangedAt for digests without digestFlags', async () => {
+      const postId = await generateShortId();
+      const metadataChangedAt = new Date('2023-03-03T08:00:00.000Z');
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          metadataChangedAt,
+          flags: {
+            digestPostIds: ['old-1', 'old-2'],
+            collectionSources: ['a'],
+            ad: null,
+          },
+        }),
+      );
+
+      const digestPost = await con
+        .getRepository(DigestPost)
+        .findOneByOrFail({ id: postId });
+      expect(digestPost.digestFlags).toEqual({});
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.flags.digestPostIds).toEqual(['old-1', 'old-2']);
+      expect(new Date(res.data.post.updatedAt).toISOString()).toEqual(
+        metadataChangedAt.toISOString(),
+      );
     });
 
     it('should return null digestPostIds for non-Digest posts', async () => {
