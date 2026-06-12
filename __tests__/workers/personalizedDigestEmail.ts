@@ -783,13 +783,12 @@ describe('personalizedDigestEmail worker', () => {
     expect(notification).not.toBeNull();
   });
 
-  it('should create DigestPost but skip notification when BriefingReady inApp is muted', async () => {
+  it('should create DigestPost but skip notification when DigestReady inApp is muted', async () => {
     await con.getRepository(User).update(
       { id: '1' },
       {
         notificationFlags: {
-          briefing_ready: {
-            email: NotificationPreferenceStatus.Subscribed,
+          digest_ready: {
             inApp: NotificationPreferenceStatus.Muted,
           },
         },

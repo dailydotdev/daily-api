@@ -164,7 +164,7 @@ const digestTypeToFunctionMap: Record<
     await dedupedSend(
       async () => {
         const inAppPref =
-          user.notificationFlags?.[NotificationType.BriefingReady]?.inApp ??
+          user.notificationFlags?.[NotificationType.DigestReady]?.inApp ??
           NotificationPreferenceStatus.Subscribed;
 
         if (remoteConfig.vars.digestPostEnabled) {
