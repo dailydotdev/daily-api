@@ -20,6 +20,7 @@ import { calculateTopReaders } from './calculateTopReaders';
 import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
 import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
+import { postAnalyticsAchievementsCron } from './postAnalyticsAchievements';
 import { postAnalyticsHistoryDayClickhouseCron } from './postAnalyticsHistoryDayClickhouse';
 import { postLifecycleStateClickhouseCron } from './postLifecycleStateClickhouse';
 import { userPostsAnalyticsRefreshCron } from './userPostsAnalyticsRefresh';
@@ -64,6 +65,7 @@ export const crons: Cron[] = [
   cleanGiftedPlus,
   cleanStaleUserTransactions,
   postAnalyticsClickhouseCron,
+  postAnalyticsAchievementsCron,
   postAnalyticsHistoryDayClickhouseCron,
   postLifecycleStateClickhouseCron,
   userPostsAnalyticsRefreshCron,

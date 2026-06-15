@@ -13,6 +13,7 @@ interface SyncUsersRetroactiveAchievementsParams {
   con: DataSource | EntityManager;
   logger: FastifyBaseLogger;
   userIds: string[];
+  eventTypes?: AchievementEventType[];
 }
 
 interface SyncUserRetroactiveAchievementsParams {
@@ -580,6 +581,7 @@ export const syncUsersRetroactiveAchievements = async ({
   con,
   logger,
   userIds,
+  eventTypes,
 }: SyncUsersRetroactiveAchievementsParams): Promise<RetroactiveAchievementSyncResult> => {
   if (userIds.length === 0) {
     return {
@@ -604,6 +606,10 @@ export const syncUsersRetroactiveAchievements = async ({
   const unlockedAchievementIdsByUser = new Map<string, string[]>();
 
   for (const [eventType, achievements] of achievementsByEventType) {
+    if (eventTypes && !eventTypes.includes(eventType)) {
+      continue;
+    }
+
     const handler = handlers[eventType];
 
     if (!handler) {
