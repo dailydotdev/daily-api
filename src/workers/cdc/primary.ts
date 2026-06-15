@@ -54,8 +54,6 @@ import { BookmarkList } from '../../entity/BookmarkList';
 import { HotTake } from '../../entity/user/HotTake';
 import type { UserFlags } from '../../entity/user/User';
 import { UserStack } from '../../entity/user/UserStack';
-import { SharePost } from '../../entity/posts/SharePost';
-import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import { QuestEventType } from '../../entity/Quest';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
@@ -293,26 +291,6 @@ const getSpentCores = async (
     .getRawOne<{ spent: string }>();
 
   return Number(result?.spent ?? 0);
-};
-
-const getPostImpressions = async (
-  con: DataSource,
-  userId: string,
-): Promise<number> => {
-  const result = await con
-    .getRepository(Post)
-    .createQueryBuilder('p')
-    .innerJoin(PostAnalytics, 'pa', 'pa.id = p.id')
-    .select('COALESCE(SUM(pa.impressions + pa."impressionsAds"), 0)', 'count')
-    .where('p."authorId" = :userId', { userId })
-    .andWhere('p.deleted = false')
-    .andWhere('p.visible = true')
-    .andWhere('p.type NOT IN (:...excludedTypes)', {
-      excludedTypes: [PostType.Brief, PostType.Digest],
-    })
-    .getRawOne<{ count: string }>();
-
-  return Number(result?.count ?? 0);
 };
 
 const isCollectionUpdated = (
@@ -2736,100 +2714,6 @@ const onBookmarkListChange = async (
   }
 };
 
-const onPostAnalyticsChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<PostAnalytics>,
-) => {
-  if (data.payload.op !== 'u') {
-    return;
-  }
-
-  const postId = data.payload.after!.id;
-  const clicks = data.payload.after!.clicks;
-  const prevClicks = data.payload.before?.clicks ?? 0;
-  const impressions =
-    (data.payload.after!.impressions ?? 0) +
-    (data.payload.after!.impressionsAds ?? 0);
-  const prevImpressions =
-    (data.payload.before?.impressions ?? 0) +
-    (data.payload.before?.impressionsAds ?? 0);
-
-  if (clicks > prevClicks) {
-    const sharePost = await con.getRepository(SharePost).findOne({
-      where: { id: postId },
-      select: ['id', 'authorId'],
-    });
-
-    if (sharePost?.authorId) {
-      if (prevClicks === 0 && clicks > 0) {
-        await checkAchievementProgress(
-          con,
-          logger,
-          sharePost.authorId,
-          AchievementEventType.ShareClick,
-        );
-      }
-
-      const stats = await con
-        .getRepository(SharePost)
-        .createQueryBuilder('sp')
-        .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
-        .where('sp.authorId = :userId', { userId: sharePost.authorId })
-        .select('COALESCE(MAX(pa.clicks), 0)::int', 'maxClicks')
-        .addSelect(
-          'COUNT(*) FILTER (WHERE pa.clicks > 0)::int',
-          'postsWithClicks',
-        )
-        .getRawOne<{ maxClicks: number; postsWithClicks: number }>();
-
-      const maxClicks = stats?.maxClicks ?? 0;
-      const postsWithClicks = stats?.postsWithClicks ?? 0;
-
-      await checkAchievementProgress(
-        con,
-        logger,
-        sharePost.authorId,
-        AchievementEventType.ShareClickMilestone,
-        maxClicks,
-      );
-
-      await checkAchievementProgress(
-        con,
-        logger,
-        sharePost.authorId,
-        AchievementEventType.SharePostsClicked,
-        postsWithClicks,
-      );
-    }
-  }
-
-  if (impressions > prevImpressions) {
-    const post = await con.getRepository(Post).findOne({
-      where: { id: postId },
-      select: ['id', 'authorId', 'deleted', 'visible', 'type'],
-    });
-
-    if (
-      post?.authorId &&
-      post.visible &&
-      !post.deleted &&
-      post.type !== PostType.Brief &&
-      post.type !== PostType.Digest
-    ) {
-      const totalImpressions = await getPostImpressions(con, post.authorId);
-
-      await checkAchievementProgress(
-        con,
-        logger,
-        post.authorId,
-        AchievementEventType.PostImpressions,
-        totalImpressions,
-      );
-    }
-  }
-};
-
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -2981,9 +2865,6 @@ const worker: Worker = {
           break;
         case getTableName(con, BookmarkList):
           await onBookmarkListChange(con, logger, data);
-          break;
-        case getTableName(con, PostAnalytics):
-          await onPostAnalyticsChange(con, logger, data);
           break;
       }
     } catch (err) {

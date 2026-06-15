@@ -123,6 +123,10 @@ export const crons: Cron[] = [
     schedule: '*/5 * * * *',
   },
   {
+    name: 'post-analytics-achievements',
+    schedule: '2-59/15 * * * *',
+  },
+  {
     name: 'post-analytics-history-day-clickhouse',
     schedule: '3-59/5 * * * *',
   },

@@ -116,7 +116,7 @@ it('should publish an event to redis', async () => {
     uniqueKey: '0',
   };
 
-  const stream = new Readable();
+  const stream = new Readable({ read() {} });
   let processed = 0;
   const subscribe = async (userId: string) => {
     const subId = await redisPubSub.subscribe(

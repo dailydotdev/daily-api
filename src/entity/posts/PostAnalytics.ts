@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryColumn,
@@ -10,6 +11,7 @@ import {
 import type { Post } from './Post';
 
 @Entity()
+@Index('IDX_post_analytics_updatedAt', ['updatedAt'])
 export class PostAnalytics {
   @PrimaryColumn({ type: 'text' })
   id: string;
