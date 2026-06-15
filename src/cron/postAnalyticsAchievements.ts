@@ -4,7 +4,7 @@ import { Post } from '../entity/posts/Post';
 import { PostAnalytics } from '../entity/posts/PostAnalytics';
 import { AchievementEventType } from '../entity/Achievement';
 import { syncUsersRetroactiveAchievements } from '../common/achievement/retroactive';
-import { queryReadReplica } from '../common/queryReadReplica';
+import { processStreamInBatches } from '../common/streaming';
 import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
 
@@ -19,7 +19,8 @@ const analyticsEventTypes: AchievementEventType[] = [
   AchievementEventType.SharePostsClicked,
 ];
 
-const userChunkSize = 1000;
+const batchSize = 100;
+const concurrency = 5;
 
 export const postAnalyticsAchievementsCron: Cron = {
   name: 'post-analytics-achievements',
@@ -43,30 +44,31 @@ export const postAnalyticsAchievementsCron: Cron = {
 
     const currentRunAt = new Date();
 
-    const rows = await queryReadReplica(con, ({ queryRunner }) =>
-      queryRunner.manager
-        .getRepository(Post)
-        .createQueryBuilder('p')
-        .innerJoin(PostAnalytics, 'pa', 'pa.id = p.id')
-        .select('p."authorId"', 'authorId')
-        .distinct(true)
-        .where('pa."updatedAt" > :lastRunAt', { lastRunAt })
-        .andWhere('p."authorId" IS NOT NULL')
-        .getRawMany<{ authorId: string }>(),
+    const stream = await con
+      .getRepository(Post)
+      .createQueryBuilder('p')
+      .innerJoin(PostAnalytics, 'pa', 'pa.id = p.id')
+      .select('p."authorId"', 'authorId')
+      .distinct(true)
+      .where('pa."updatedAt" > :lastRunAt', { lastRunAt })
+      .andWhere('p."authorId" IS NOT NULL')
+      .stream();
+
+    await processStreamInBatches<{ authorId: string }>(
+      stream,
+      async (batch) => {
+        await con.transaction((manager) =>
+          syncUsersRetroactiveAchievements({
+            con: manager,
+            logger,
+            userIds: batch.map((row) => row.authorId),
+            eventTypes: analyticsEventTypes,
+          }),
+        );
+      },
+      concurrency,
+      batchSize,
     );
-
-    const userIds = rows.map((row) => row.authorId);
-
-    for (let i = 0; i < userIds.length; i += userChunkSize) {
-      const chunk = userIds.slice(i, i + userChunkSize);
-
-      await syncUsersRetroactiveAchievements({
-        con,
-        logger,
-        userIds: chunk,
-        eventTypes: analyticsEventTypes,
-      });
-    }
 
     await setRedisHash<PostAnalyticsAchievementsCronConfig>(redisStorageKey, {
       lastRunAt: currentRunAt.toISOString(),
