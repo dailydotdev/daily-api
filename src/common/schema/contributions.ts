@@ -69,6 +69,18 @@ export const claimContributionRewardArgsSchema = z.object({
   tierId: z.uuid(),
 });
 
+export const contributionCoresRewardMetadataSchema = z
+  .object({
+    amount: z.number().int().positive(),
+  })
+  .strict();
+
+export const contributionPlusDaysRewardMetadataSchema = z
+  .object({
+    days: z.number().int().positive(),
+  })
+  .strict();
+
 const contributionMetadataSchema = z
   .object({})
   .catchall(z.unknown())

@@ -15,6 +15,7 @@ import {
   validateContributionActionLimits,
   validateContributionEvidence,
 } from '../common/contribution';
+import { fulfillContributionReward } from '../common/contribution/rewards';
 import {
   claimContributionRewardArgsSchema,
   contributionActionsArgsSchema,
@@ -865,15 +866,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           });
 
         if (existing) {
-          return toGQLReward({ reward: existing, tier });
+          const reward = await fulfillContributionReward({
+            con,
+            ctx,
+            tier,
+            reward: existing,
+          });
+
+          return toGQLReward({ reward, tier });
         }
 
-        const reward = await con.getRepository(UserContributionReward).save({
-          userId: ctx.userId,
-          tierId: tier.id,
-          status: UserContributionRewardStatus.Claimed,
-          claimedAt: new Date(),
-          fulfilledAt: null,
+        const reward = await fulfillContributionReward({
+          con,
+          ctx,
+          tier,
+          reward: await con.getRepository(UserContributionReward).save({
+            userId: ctx.userId,
+            tierId: tier.id,
+            status: UserContributionRewardStatus.Claimed,
+            claimedAt: new Date(),
+            fulfilledAt: null,
+          }),
         });
 
         return toGQLReward({ reward, tier });

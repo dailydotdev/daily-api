@@ -53,6 +53,7 @@ export enum UserTransactionType {
   Comment = 'comment',
   User = 'user',
   BriefGeneration = 'brief_generation',
+  ContributionReward = 'contribution_reward',
 }
 
 @Entity()

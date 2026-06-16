@@ -1,3 +1,5 @@
+import { createClient } from '@connectrpc/connect';
+import { Credits } from '@dailydotdev/schema';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import appFunc from '../src';
@@ -6,11 +8,14 @@ import {
   disposeGraphQLTesting,
   initializeGraphQLTesting,
   MockContext,
+  createMockNjordTransport,
   saveFixtures,
   type GraphQLTestClient,
   type GraphQLTestingState,
 } from './helpers';
 import { User } from '../src/entity/user/User';
+import * as njordCommon from '../src/common/njord';
+import { SubscriptionCycles } from '../src/paddle';
 import { ContributionAction } from '../src/entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../src/entity/contribution/ContributionActionCategory';
 import { ContributionBlockedUser } from '../src/entity/contribution/ContributionBlockedUser';
@@ -29,6 +34,12 @@ import { ContributionRewardType } from '../src/entity/contribution/ContributionR
 import { ContributionSponsor } from '../src/entity/contribution/ContributionSponsor';
 import { UserContributionCausePreference } from '../src/entity/contribution/UserContributionCausePreference';
 import { UserContributionReward } from '../src/entity/contribution/UserContributionReward';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+  UserTransactionType,
+} from '../src/entity/user/UserTransaction';
 import { remoteConfig } from '../src/remoteConfig';
 
 let con: DataSource;
@@ -48,6 +59,7 @@ const causeId = '33333333-3333-4333-8333-333333333333';
 const secondCauseId = '33333333-3333-4333-8333-333333333334';
 const sponsorId = '33333333-3333-4333-8333-333333333335';
 const tierId = '44444444-4444-4444-8444-444444444444';
+const coresTierId = '44444444-4444-4444-8444-444444444445';
 const paymentId = '55555555-5555-4555-8555-555555555555';
 
 const CONTRIBUTION_STATUS_QUERY = `
@@ -209,6 +221,7 @@ mutation ClaimContributionReward($tierId: ID!) {
   claimContributionReward(tierId: $tierId) {
     status
     claimedAt
+    fulfilledAt
     tier {
       id
       title
@@ -240,9 +253,13 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.restoreAllMocks();
   loggedUser = userId;
   region = 'US';
 
+  await con.getRepository(UserTransaction).delete({
+    referenceType: UserTransactionType.ContributionReward,
+  });
   await con
     .createQueryBuilder()
     .delete()
@@ -608,7 +625,7 @@ it('updates cause preferences and claims unlocked reward tiers', async () => {
   ]);
   expect(claimed.errors).toBeUndefined();
   expect(claimed.data.claimContributionReward).toMatchObject({
-    status: 'claimed',
+    status: 'fulfilled',
     tier: {
       id: tierId,
       title: 'Plus boost',
@@ -618,6 +635,77 @@ it('updates cause preferences and claims unlocked reward tiers', async () => {
     },
   });
   expect(claimed.data.claimContributionReward.claimedAt).toBeTruthy();
+  expect(claimed.data.claimContributionReward.fulfilledAt).toBeTruthy();
+
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  expect(user.subscriptionFlags?.cycle).toEqual(SubscriptionCycles.Monthly);
+  expect(
+    new Date(user.subscriptionFlags?.giftExpirationDate ?? 0).getTime(),
+  ).toBeGreaterThan(Date.now());
+});
+
+it('fulfills claimed Cores reward tiers through Njord', async () => {
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() =>
+      createClient(Credits, createMockNjordTransport()),
+    );
+
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: coresTierId,
+      title: 'Cores boost',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.Cores,
+      metadata: { amount: 25 },
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    {
+      id: actionId,
+      title: 'Referral',
+      points: 50,
+      evidence: {},
+    },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: coresTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward).toMatchObject({
+    status: 'fulfilled',
+    tier: {
+      id: coresTierId,
+      title: 'Cores boost',
+      thresholdPoints: 50,
+      rewardType: 'cores',
+      metadata: { amount: 25 },
+    },
+  });
+
+  await expect(
+    con.getRepository(UserTransaction).findOneByOrFail({
+      receiverId: userId,
+      referenceId: coresTierId,
+      referenceType: UserTransactionType.ContributionReward,
+    }),
+  ).resolves.toMatchObject({
+    processor: UserTransactionProcessor.Njord,
+    status: UserTransactionStatus.Success,
+    value: 25,
+    valueIncFees: 25,
+    fee: 0,
+  });
 });
 
 it('returns finalized cause totals, user cause stats, and sponsors', async () => {
