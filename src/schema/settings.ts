@@ -88,6 +88,7 @@ export const typeDefs = /* GraphQL */ `
     legacyPostLayoutOptOut: Boolean
     highlightCardsOptOut: Boolean
     readerInstallPromptAcknowledged: Boolean
+    readerInstallPromptSeen: Boolean
     shortcutsMode: ShortcutsMode
     shortcutsAppearance: ShortcutsAppearance
     showShortcutsOnWebapp: Boolean
@@ -110,6 +111,7 @@ export const typeDefs = /* GraphQL */ `
     legacyPostLayoutOptOut: Boolean
     highlightCardsOptOut: Boolean
     readerInstallPromptAcknowledged: Boolean
+    readerInstallPromptSeen: Boolean
     shortcutsMode: String
     shortcutsAppearance: String
     showShortcutsOnWebapp: Boolean

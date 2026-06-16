@@ -1452,6 +1452,7 @@ describe('boot misc', () => {
         highlightsPlacement: 'default',
         legacyPostLayoutOptOut: false,
         readerInstallPromptAcknowledged: false,
+        readerInstallPromptSeen: false,
       },
     });
     expect(res.body.settings.flags.removedFlag).toBeUndefined();

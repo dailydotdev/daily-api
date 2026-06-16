@@ -65,6 +65,7 @@ export type SettingsFlags = Partial<{
   legacyPostLayoutOptOut: boolean;
   highlightCardsOptOut: boolean;
   readerInstallPromptAcknowledged: boolean;
+  readerInstallPromptSeen: boolean;
   shortcutsMode: ShortcutsMode;
   shortcutsAppearance: ShortcutsAppearance;
   showShortcutsOnWebapp: boolean;
@@ -88,6 +89,7 @@ export type SettingsFlagsPublic = Pick<
   | 'legacyPostLayoutOptOut'
   | 'highlightCardsOptOut'
   | 'readerInstallPromptAcknowledged'
+  | 'readerInstallPromptSeen'
   | 'shortcutsMode'
   | 'shortcutsAppearance'
   | 'showShortcutsOnWebapp'
