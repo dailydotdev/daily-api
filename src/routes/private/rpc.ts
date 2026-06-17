@@ -9,7 +9,11 @@ import {
 } from '@dailydotdev/schema';
 import { ArticlePost, SourceRequest } from '../../entity';
 import { baseRpcContext } from '../../common/connectRpc';
-import { isValidHttpUrl, standardizeURL } from '../../common/links';
+import {
+  getUrlWwwVariants,
+  isValidHttpUrl,
+  standardizeURL,
+} from '../../common/links';
 import createOrGetConnection from '../../db';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { generateShortId } from '../../ids';
@@ -68,13 +72,10 @@ const getWwwVariantPost = async ({
   req: CreatePostRequest;
   con: DataSource;
 }): Promise<CreatePostResponse | undefined> => {
-  const match = req.url?.match(/^(https?:\/\/)(www\.)?(.*)$/i);
-  if (req.yggdrasilId || !match) {
+  const variantUrl = getUrlWwwVariants(req.url).find((url) => url !== req.url);
+  if (req.yggdrasilId || !variantUrl) {
     return undefined;
   }
-
-  const [, scheme, www, rest] = match;
-  const variantUrl = www ? `${scheme}${rest}` : `${scheme}www.${rest}`;
 
   const existingPost = await con
     .getRepository(ArticlePost)

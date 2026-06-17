@@ -84,6 +84,19 @@ const subtractDomain = (url: string): string | null => {
   return matches && matches[1];
 };
 
+// The same article is often reachable under both www. and non-www. hosts.
+// Return the url alongside its www.-toggled form so dedup lookups can match
+// either without rewriting the url we persist.
+export const getUrlWwwVariants = (url: string): string[] => {
+  const match = url?.match(/^(https?:\/\/)(www\.)?(.*)$/i);
+  if (!match) {
+    return [url];
+  }
+
+  const [, scheme, www, rest] = match;
+  return [url, www ? `${scheme}${rest}` : `${scheme}www.${rest}`];
+};
+
 export const standardizeURL = (
   inputUrl: string,
 ): { url: string; canonicalUrl: string } => {
