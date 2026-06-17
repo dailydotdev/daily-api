@@ -106,7 +106,7 @@ const main = async () => {
 
     const userSchema = z.object({
       userId: z.string().nonempty(),
-      cores: z.coerce.number().int().positive(),
+      cores: z.coerce.number().int(),
     });
 
     const users: z.infer<typeof userSchema>[] = [];

@@ -36,7 +36,7 @@ const main = async () => {
 
     const paramsSchema = z.object({
       // amount of Cores to top up
-      cores: z.coerce.number().int().positive(),
+      cores: z.coerce.number().int(),
 
       // should be unique or specify why the Cores were sent, it is also used for dedupe
       // in case of repeated script runs
