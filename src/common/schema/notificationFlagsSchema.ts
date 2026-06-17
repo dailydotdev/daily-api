@@ -54,7 +54,9 @@ export const notificationFlagsSchema = z.object({
   [NotificationType.RecruiterOpportunityLive]: notificationPreferenceSchema,
   [NotificationType.RecruiterExternalPayment]: notificationPreferenceSchema,
   [NotificationType.AchievementUnlocked]: notificationPreferenceSchema,
-  [NotificationType.DigestReady]: notificationPreferenceSchema,
+  [NotificationType.DigestReady]: notificationPreferenceSchema.extend({
+    email: z.enum(['muted', 'subscribed']).optional().default('subscribed'),
+  }),
   [NotificationType.LiveRoomStarted]: notificationPreferenceSchema,
   [NotificationType.LiveRoomStartingSoon]: notificationPreferenceSchema,
 });
