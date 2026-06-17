@@ -7,7 +7,7 @@ import {
   SourceType,
 } from '../../../src/entity';
 import { sourcesFixture } from '../../fixture/source';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
   PageIngestion,
@@ -172,6 +172,98 @@ describe('PostService', () => {
       postId,
       url: 'http://example.com/service/1',
     });
+  });
+
+  it('should deduplicate www against non www urls', async () => {
+    const { postId } = await mockClient.create(
+      {
+        url: 'http://www.example.com/service/1',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    const result = await mockClient.create(
+      {
+        url: 'http://example.com/service/1',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId,
+      url: 'http://www.example.com/service/1',
+    });
+
+    const posts = await con.getRepository(ArticlePost).findBy({
+      url: In([
+        'http://example.com/service/1',
+        'http://www.example.com/service/1',
+      ]),
+    });
+    expect(posts).toHaveLength(1);
+    expect(posts[0].url).toEqual('http://www.example.com/service/1');
+  });
+
+  it('should deduplicate non www against www urls', async () => {
+    const { postId } = await mockClient.create(
+      {
+        url: 'http://example.com/service/2',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    const result = await mockClient.create(
+      {
+        url: 'http://www.example.com/service/2',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId,
+      url: 'http://example.com/service/2',
+    });
+
+    const posts = await con.getRepository(ArticlePost).findBy({
+      url: In([
+        'http://example.com/service/2',
+        'http://www.example.com/service/2',
+      ]),
+    });
+    expect(posts).toHaveLength(1);
+    expect(posts[0].url).toEqual('http://example.com/service/2');
+  });
+
+  it('should not deduplicate other subdomain urls', async () => {
+    const first = await mockClient.create(
+      {
+        url: 'http://example.com/service/3',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    const second = await mockClient.create(
+      {
+        url: 'http://blog.example.com/service/3',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(second.postId).not.toEqual(first.postId);
+
+    const posts = await con.getRepository(ArticlePost).findBy({
+      url: In([
+        'http://example.com/service/3',
+        'http://blog.example.com/service/3',
+      ]),
+    });
+    expect(posts).toHaveLength(2);
   });
 
   it('should throw on invalid source', async () => {
