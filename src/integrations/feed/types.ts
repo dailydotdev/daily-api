@@ -48,6 +48,8 @@ export enum FeedConfigName {
   CustomFeedNaV1 = 'custom_feed_na_v1',
   ForYouByDate = 'for_you_by_date',
   ForYouByTag = 'for_you_by_tag',
+  Daily = 'daily_v1',
+  DailyColdStart = 'daily_cs_v1',
 }
 
 export type FeedProvider = {

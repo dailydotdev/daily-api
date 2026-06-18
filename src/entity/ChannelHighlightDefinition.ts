@@ -15,6 +15,9 @@ export class ChannelHighlightDefinition {
   @Column({ type: 'text', default: '' })
   displayName: string;
 
+  @Column({ type: 'text', default: 'text-text-tertiary' })
+  color: string;
+
   @Column({ type: 'smallint', default: 0 })
   order: number;
 

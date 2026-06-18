@@ -6,6 +6,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testQueryErrorCode,
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
@@ -16,14 +17,24 @@ import { Source, SourceType } from '../src/entity/Source';
 import { HighlightSignificance } from '../src/common/channelHighlight/significance';
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
+import { User } from '../src/entity/user/User';
+import { usersFixture } from './fixture/user';
+import { NotificationPreferenceSource } from '../src/entity/notifications/NotificationPreferenceSource';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../src/notifications/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
+let loggedUser: string | null = null;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
-  state = await initializeGraphQLTesting(() => new MockContext(con));
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
   client = state.client;
 });
 
@@ -87,6 +98,8 @@ const createTestPosts = async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  loggedUser = null;
+  await con.getRepository(NotificationPreferenceSource).clear();
   await con.getRepository(ChannelDigest).clear();
   await con.getRepository(ChannelHighlightDefinition).clear();
   await con.getRepository(HighlightsCanonical).clear();
@@ -289,6 +302,177 @@ const CHANNEL_DIGEST_CONFIGURATIONS_QUERY = `
     }
   }
 `;
+
+const DAILY_HIGHLIGHTS_QUERY = `
+  query DailyHighlights($first: Int, $after: String) {
+    dailyHighlights(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          channel
+          highlightedAt
+          headline
+          significance
+          post {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+`;
+
+describe('query dailyHighlights', () => {
+  const saveDigestSource = (id: string) =>
+    con.getRepository(Source).save({
+      id,
+      name: id,
+      image: `https://example.com/${id}.png`,
+      handle: id,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+    });
+
+  const subscribeToDigest = (sourceId: string) =>
+    con.getRepository(NotificationPreferenceSource).save({
+      userId: '1',
+      referenceId: sourceId,
+      sourceId,
+      notificationType: NotificationType.SourcePostAdded,
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await createTestPosts();
+  });
+
+  it('should require authentication', () =>
+    testQueryErrorCode(
+      client,
+      { query: DAILY_HIGHLIGHTS_QUERY },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return the top highlight of the day per subscribed channel', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('backend_digest');
+    await saveDigestSource('career_digest');
+    await con.getRepository(ChannelDigest).save([
+      {
+        key: 'backend',
+        sourceId: 'backend_digest',
+        channel: 'backend',
+        targetAudience: 'backend devs',
+        frequency: 'daily',
+        enabled: true,
+      },
+      {
+        key: 'career',
+        sourceId: 'career_digest',
+        channel: 'career',
+        targetAudience: 'everyone',
+        frequency: 'daily',
+        enabled: true,
+      },
+    ]);
+    await subscribeToDigest('backend_digest');
+    await subscribeToDigest('career_digest');
+
+    const today = new Date();
+    today.setUTCHours(12, 0, 0, 0);
+    const earlierToday = new Date(today.getTime() - 60 * 60 * 1000);
+    const yesterday = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
+
+    await saveCanonicalHighlights([
+      {
+        id: '11111111-1111-1111-1111-111111111111',
+        postId: 'h1',
+        channel: 'backend',
+        highlightedAt: today,
+        headline: 'Backend major',
+        significance: HighlightSignificance.Major,
+      },
+      {
+        id: '22222222-2222-2222-2222-222222222222',
+        postId: 'h2',
+        channel: 'backend',
+        highlightedAt: earlierToday,
+        headline: 'Backend breaking',
+        significance: HighlightSignificance.Breaking,
+      },
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        postId: 'h3',
+        channel: 'career',
+        highlightedAt: today,
+        headline: 'Career notable',
+        significance: HighlightSignificance.Notable,
+      },
+      {
+        id: '44444444-4444-4444-4444-444444444444',
+        postId: 'h4',
+        channel: 'backend',
+        highlightedAt: yesterday,
+        headline: 'Backend stale breaking',
+        significance: HighlightSignificance.Breaking,
+      },
+    ]);
+
+    const res = await client.query(DAILY_HIGHLIGHTS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // backend → breaking (beats today's major); career → notable; stale excluded.
+    // ordered by highlightedAt desc: career @12:00 then backend @11:00.
+    expect(
+      res.data.dailyHighlights.edges.map(({ node }) => ({
+        channel: node.channel,
+        headline: node.headline,
+        postId: node.post.id,
+      })),
+    ).toEqual([
+      { channel: 'career', headline: 'Career notable', postId: 'h3' },
+      { channel: 'backend', headline: 'Backend breaking', postId: 'h2' },
+    ]);
+  });
+
+  it('should return empty when the user has no subscriptions', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('backend_digest');
+    await con.getRepository(ChannelDigest).save({
+      key: 'backend',
+      sourceId: 'backend_digest',
+      channel: 'backend',
+      targetAudience: 'backend devs',
+      frequency: 'daily',
+      enabled: true,
+    });
+    await saveCanonicalHighlights([
+      {
+        id: '55555555-5555-5555-5555-555555555555',
+        postId: 'h1',
+        channel: 'backend',
+        highlightedAt: new Date(),
+        headline: 'Backend today',
+        significance: HighlightSignificance.Major,
+      },
+    ]);
+
+    const res = await client.query(DAILY_HIGHLIGHTS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHighlights.edges).toEqual([]);
+  });
+});
 
 describe('query channelDigestConfigurations', () => {
   const saveDigestSource = (id: string, name: string) =>

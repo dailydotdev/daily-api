@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import createOrGetConnection from '../src/db';
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import z from 'zod';
 import { zodToParseArgs } from './common';
 import { seedEntityNames } from './seedEntities';
@@ -47,7 +47,7 @@ const getConflictPaths = (entityName: string): string[] | undefined => {
 };
 
 const importEntity = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   name: string,
   options: {
     conflictPaths?: string[];
@@ -115,9 +115,13 @@ const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
 
   if (params.entity) {
-    console.log('importing specific entity for: ', params.entity);
-    return await importEntity(con, params.entity, {
-      conflictPaths: getConflictPaths(params.entity),
+    const entityToImport = params.entity;
+
+    console.log('importing specific entity for: ', entityToImport);
+    return con.transaction(async (manager) => {
+      await importEntity(manager, entityToImport, {
+        conflictPaths: getConflictPaths(entityToImport),
+      });
     });
   }
 

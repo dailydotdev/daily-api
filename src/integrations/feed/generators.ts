@@ -11,12 +11,14 @@ import {
 import { Context } from '../../Context';
 import { FeedClient } from './clients';
 import {
+  FeedDailyConfigGenerator,
   FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
   Options,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { LofnClient } from '../lofn';
+import { snotraClient } from '../snotra/clients';
 import { GarmrService } from '../garmr';
 import { FeedOrderBy } from '../../entity/Feed';
 import { postTypes } from '../../entity/posts/Post';
@@ -126,6 +128,12 @@ export const getForYouByTagFeedGenerator = (tags: string[]): FeedGenerator =>
       },
     ),
   );
+
+export const dailyFeedConfigGenerator = new FeedDailyConfigGenerator(
+  baseFeedConfig,
+  snotraClient,
+  opts,
+);
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({

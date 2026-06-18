@@ -12,6 +12,8 @@ import { User } from '../../entity/user/User';
 import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
+import type { ISnotraClient } from '../snotra/types';
+import { PersonaliseState } from '../snotra/types';
 
 export type Options = {
   includeAllowedTags?: boolean;
@@ -335,6 +337,76 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
         throw error;
       }
+    });
+  }
+}
+
+/**
+ * Generates config for the "Daily" feed. Resolves the user's Snotra
+ * personalise state per request and picks the personalised (`daily_v1`) or
+ * cold-start (`daily_cs_v1`) feed config accordingly, then applies standard
+ * feed preferences. Falls back to the personalised config when the state
+ * cannot be resolved.
+ */
+export class FeedDailyConfigGenerator implements FeedConfigGenerator {
+  private readonly snotraClient: ISnotraClient;
+  private readonly personalisedGenerator: FeedPreferencesConfigGenerator;
+  private readonly coldStartGenerator: FeedPreferencesConfigGenerator;
+
+  constructor(
+    baseConfig: BaseConfig,
+    snotraClient: ISnotraClient,
+    opts: Options = {},
+  ) {
+    this.snotraClient = snotraClient;
+    this.personalisedGenerator = new FeedPreferencesConfigGenerator(
+      { ...baseConfig, feed_config_name: FeedConfigName.Daily },
+      opts,
+    );
+    this.coldStartGenerator = new FeedPreferencesConfigGenerator(
+      { ...baseConfig, feed_config_name: FeedConfigName.DailyColdStart },
+      opts,
+    );
+  }
+
+  private async resolvePersonaliseState(
+    ctx: Context,
+    userId?: string | null,
+  ): Promise<PersonaliseState | undefined> {
+    if (!userId) {
+      return undefined;
+    }
+
+    try {
+      const profile = await this.snotraClient.getUserProfile({
+        user_id: userId,
+        providers: { personalise: {} },
+      });
+      return profile.personalise.state;
+    } catch (err) {
+      ctx.log.error(
+        { err, userId },
+        'failed to resolve snotra personalise state for daily feed',
+      );
+      return undefined;
+    }
+  }
+
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
+    return runInSpan('FeedDailyConfigGenerator', async () => {
+      const personaliseState = await this.resolvePersonaliseState(
+        ctx,
+        opts.user_id,
+      );
+      const generator =
+        personaliseState === PersonaliseState.NonPersonalised
+          ? this.coldStartGenerator
+          : this.personalisedGenerator;
+
+      return generator.generate(ctx, opts);
     });
   }
 }
