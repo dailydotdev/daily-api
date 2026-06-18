@@ -6,7 +6,7 @@ import {
   offsetToCursor,
 } from 'graphql-relay';
 import type { SelectQueryBuilder } from 'typeorm';
-import { BaseContext, Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
 import { redisPubSub } from '../redis';
@@ -17,6 +17,14 @@ import {
   toPostHighlightSignificance,
 } from '../entity/PostHighlight';
 import type { GQLSource } from './sources';
+import { ChannelDigest } from '../entity/ChannelDigest';
+import { NotificationPreferenceSource } from '../entity/notifications/NotificationPreferenceSource';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { isMockEnabled } from '../mocks/common';
 
 type GQLChannelDigestConfiguration = {
   frequency: string;
@@ -49,6 +57,7 @@ export const typeDefs = /* GraphQL */ `
   type ChannelConfiguration {
     channel: String!
     displayName: String!
+    color: String!
     digest: ChannelDigestConfiguration
   }
 
@@ -117,6 +126,13 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): PostHighlightConnection!
+
+    """
+    Get the top highlight of the current day for each channel digest the
+    current user is subscribed to (via source post-added notifications),
+    one highlight per channel, ordered by recency.
+    """
+    dailyHighlights(first: Int, after: String): PostHighlightConnection! @auth
   }
 
   extend type Subscription {
@@ -265,6 +281,77 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         channel: args.channel,
         significances: parseSignificanceFilters(args.significance),
       }),
+    dailyHighlights: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ) => {
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      // Locally (mock mode) ignore the current-day window so seeded highlights
+      // with past dates still surface and the query always returns something.
+      const since = isMockEnabled() ? new Date(0) : startOfDay;
+
+      // Top highlight of the day per subscribed channel: dedupe to one row per
+      // channel ordered by significance (Unspecified last), then recency.
+      const topPerChannel = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(NotificationPreferenceSource)
+          .createQueryBuilder('np')
+          .select('h.id', 'id')
+          .innerJoin(
+            ChannelDigest,
+            'cd',
+            'cd."sourceId" = np."sourceId" AND cd.enabled = true',
+          )
+          .innerJoin(
+            HighlightsCanonical,
+            'h',
+            'cd.channel = ANY(h.channels) AND h."highlightedAt" >= :since',
+            { since },
+          )
+          .where('np."userId" = :userId', { userId: ctx.userId })
+          .andWhere('np."notificationType" = :notificationType', {
+            notificationType: NotificationType.SourcePostAdded,
+          })
+          .andWhere('np.status = :status', {
+            status: NotificationPreferenceStatus.Subscribed,
+          })
+          .distinctOn(['cd.channel'])
+          .orderBy('cd.channel', 'ASC')
+          .addOrderBy('(h.significance = 0)', 'ASC')
+          .addOrderBy('h.significance', 'ASC')
+          .addOrderBy('h."highlightedAt"', 'DESC')
+          .getRawMany<{ id: string }>(),
+      );
+
+      const highlightIds = topPerChannel.map((row) => row.id);
+      const page = getHighlightsPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        () => page.offset > 0,
+        (nodeSize) => nodeSize >= page.limit,
+        (_, index) => offsetToCursor(page.offset + index),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."id" IN (:...highlightIds)`, {
+              highlightIds: highlightIds.length
+                ? highlightIds
+                : ['00000000-0000-0000-0000-000000000000'],
+            })
+            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
+            .addOrderBy(`"${builder.alias}"."id"`, 'DESC')
+            .offset(page.offset)
+            .limit(page.limit);
+          return builder;
+        },
+        (nodes) => nodes.slice(0, page.limit - 1),
+        true,
+      );
+    },
   },
   Subscription: {
     newHighlight: {

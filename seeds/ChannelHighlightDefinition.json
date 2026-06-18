@@ -1,0 +1,110 @@
+[
+  {
+    "channel": "security",
+    "displayName": "Security",
+    "mode": "publish",
+    "order": 1,
+    "targetAudience": "developers, security engineers, and engineering leaders who follow CVEs, vulnerabilities, supply-chain attacks, security tooling, and incident response in production systems",
+    "candidateHorizonHours": 72,
+    "maxItems": 20
+  },
+  {
+    "channel": "career",
+    "displayName": "Career",
+    "mode": "publish",
+    "order": 2,
+    "targetAudience": "developers and engineering managers interested in career development, hiring, remote work, leadership, and team culture.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "webdev",
+    "displayName": "Web",
+    "mode": "publish",
+    "order": 3,
+    "targetAudience": "frontend and full-stack developers working with frameworks like React, Vue, Angular, or Svelte who follow CSS, accessibility, and web standards.",
+    "candidateHorizonHours": 72,
+    "maxItems": 10
+  },
+  {
+    "channel": "backend",
+    "displayName": "Backend",
+    "mode": "publish",
+    "order": 4,
+    "targetAudience": "backend developers and software architects working on server-side systems, microservices, API design, and distributed infrastructure.",
+    "candidateHorizonHours": 72,
+    "maxItems": 10
+  },
+  {
+    "channel": "databases",
+    "displayName": "Databases",
+    "mode": "publish",
+    "order": 5,
+    "targetAudience": "backend developers and data engineers who work directly with databases, query performance, indexing, and data modeling.",
+    "candidateHorizonHours": 72,
+    "maxItems": 10
+  },
+  {
+    "channel": "golang",
+    "displayName": "Go",
+    "mode": "publish",
+    "order": 6,
+    "targetAudience": "Go developers building services, CLIs, and infrastructure tooling at any experience level.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "java",
+    "displayName": "Java",
+    "mode": "publish",
+    "order": 6,
+    "targetAudience": "Java developers working with Spring Boot and the JVM ecosystem, from enterprise services to modern Java features.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "rust",
+    "displayName": "Rust",
+    "mode": "publish",
+    "order": 8,
+    "targetAudience": "Rust developers and systems programmers working on performance-critical software, networking, or WebAssembly.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "testing",
+    "displayName": "Testing",
+    "mode": "publish",
+    "order": 9,
+    "targetAudience": "developers and QA engineers working on test automation, CI/CD, and software quality with tools like Playwright and Cypress.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "php",
+    "displayName": "PHP",
+    "mode": "publish",
+    "order": 10,
+    "targetAudience": "PHP developers building with Laravel, WordPress, or Symfony who follow framework and package releases.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "opensource",
+    "displayName": "Open Source",
+    "mode": "publish",
+    "order": 11,
+    "targetAudience": "open source contributors, Linux users, and anyone following FOSS project releases and community developments.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  },
+  {
+    "channel": "python",
+    "displayName": "Python",
+    "mode": "publish",
+    "order": 12,
+    "targetAudience": "Python developers building APIs, automation, and data/AI workflows with Django, FastAPI, or Flask who follow language updates, ecosystem releases, and tooling best practices.",
+    "candidateHorizonHours": 168,
+    "maxItems": 10
+  }
+]

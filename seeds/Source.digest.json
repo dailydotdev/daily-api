@@ -1,0 +1,106 @@
+[
+  {
+    "id": "agents_digest",
+    "active": true,
+    "name": "Agentic Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "agents_digest"
+  },
+  {
+    "id": "security_digest",
+    "active": true,
+    "name": "Security Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "security_digest"
+  },
+  {
+    "id": "career_digest",
+    "active": true,
+    "name": "Career Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "career_digest"
+  },
+  {
+    "id": "webdev_digest",
+    "active": true,
+    "name": "Web Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "webdev_digest"
+  },
+  {
+    "id": "backend_digest",
+    "active": true,
+    "name": "Backend Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "backend_digest"
+  },
+  {
+    "id": "databases_digest",
+    "active": true,
+    "name": "Databases Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "databases_digest"
+  },
+  {
+    "id": "golang_digest",
+    "active": true,
+    "name": "Go Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "golang_digest"
+  },
+  {
+    "id": "java_digest",
+    "active": true,
+    "name": "Java Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "java_digest"
+  },
+  {
+    "id": "rust_digest",
+    "active": true,
+    "name": "Rust Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "rust_digest"
+  },
+  {
+    "id": "testing_digest",
+    "active": true,
+    "name": "Testing Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "testing_digest"
+  },
+  {
+    "id": "php_digest",
+    "active": true,
+    "name": "PHP Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "php_digest"
+  },
+  {
+    "id": "opensource_digest",
+    "active": true,
+    "name": "Open Source Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "opensource_digest"
+  },
+  {
+    "id": "python_digest",
+    "active": true,
+    "name": "Python Digest",
+    "image": "https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/default",
+    "private": false,
+    "handle": "python_digest"
+  }
+]

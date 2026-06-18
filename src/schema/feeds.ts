@@ -67,7 +67,12 @@ import {
   getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
 } from '../integrations/feed';
-import { getForYouByTagFeedGenerator } from '../integrations/feed/generators';
+import {
+  dailyFeedConfigGenerator,
+  getForYouByTagFeedGenerator,
+} from '../integrations/feed/generators';
+import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
+import { ONE_DAY_IN_SECONDS } from '../common/constants';
 import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -439,6 +444,42 @@ export const typeDefs = /* GraphQL */ `
       Deprecated, no longer in use. Kept for backwards compatibility.
       """
       noAi: Boolean = false
+    ): PostConnection! @auth
+
+    """
+    Get the "Daily" homepage Picks feed. Mirrors the For You feed ranking and
+    pagination, returning a standard post connection.
+    """
+    dailyFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Return only unread posts
+      """
+      unreadOnly: Boolean = false
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 20
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
@@ -1635,6 +1676,63 @@ const feedResolverCursor = feedResolver<
   },
 );
 
+// "Daily" feed: hits the dedicated /api/daily-posts endpoint and caches the
+// feed-service response per user/page for a day. Post hydration stays fresh.
+const dailyFeedResolver = feedResolver<
+  unknown,
+  FeedArgs,
+  CursorPage,
+  FeedResponse
+>(
+  (ctx, args, builder, alias, queryParams) =>
+    fixedIdsFeedBuilder(
+      ctx,
+      getFeedResponsePostIds(queryParams!),
+      builder,
+      alias,
+    ),
+  feedCursorPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder,
+  {
+    fetchQueryParams: async (ctx, args: FeedArgs, page) => {
+      const cacheKey = `feeds:daily:${ctx.userId ?? ctx.trackingId}:${page.limit}:${page.cursor ?? ''}:${(args.supportedTypes ?? []).join(',')}`;
+      const cached = await getRedisObject(cacheKey);
+      if (cached) {
+        return JSON.parse(cached) as FeedResponse;
+      }
+
+      const { config, extraMetadata } = await dailyFeedConfigGenerator.generate(
+        ctx,
+        {
+          user_id: ctx.userId || ctx.trackingId,
+          page_size: page.limit,
+          offset: 0,
+          cursor: page.cursor,
+          allowed_post_types: args.supportedTypes,
+        },
+      );
+      const response = await feedClient.fetchFeed(
+        ctx,
+        '/api/daily-posts',
+        config,
+        extraMetadata,
+      );
+      // Don't cache empty responses so a not-yet-generated feed isn't pinned for a day.
+      if (response.data.length) {
+        await setRedisObjectWithExpiry(
+          cacheKey,
+          JSON.stringify(response),
+          ONE_DAY_IN_SECONDS,
+        );
+      }
+      return response;
+    },
+    warnOnPartialFirstPage: true,
+    // Feed service should take care of this
+    removeNonPublicThresholdSquads: false,
+  },
+);
+
 type ChannelFeedArgs = ConnectionArguments & {
   channel: string;
   contentCuration?: string[];
@@ -1776,6 +1874,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    dailyFeed: async (
+      source,
+      args: ConfiguredFeedArgs,
+      ctx: AuthContext,
+      info,
+    ) => {
+      if (isMockEnabled()) {
+        return anonymousFeedResolverV1(source, args, ctx, info);
+      }
+      return dailyFeedResolver(source, args, ctx, info);
     },
     feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
       const { tags } = feedByTagsInputSchema.parse(args);

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "postId": "orsUT8NVe",
+    "channels": [
+      "vibes"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Agentic story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "postId": "1TWOx-rX7",
+    "channels": [
+      "webdev"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Web story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "postId": "d3_PcfY-n",
+    "channels": [
+      "backend"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Backend story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "postId": "mVeyDDM2_",
+    "channels": [
+      "databases"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Databases story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "postId": "btZi3xPwD",
+    "channels": [
+      "career"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Career story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000006",
+    "postId": "KyYNh0Uxe",
+    "channels": [
+      "golang"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Go story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000007",
+    "postId": "V-g0xdYJl",
+    "channels": [
+      "java"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Java story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000008",
+    "postId": "F8whOEgbQ",
+    "channels": [
+      "rust"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Rust story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "postId": "-JoTXP26T",
+    "channels": [
+      "testing"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Testing story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000010",
+    "postId": "7T4qfsDq_",
+    "channels": [
+      "php"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top PHP story of the day",
+    "significance": 2
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000011",
+    "postId": "irhRlNM3m",
+    "channels": [
+      "opensource"
+    ],
+    "highlightedAt": "2026-06-18T08:00:00.000Z",
+    "headline": "Top Open Source story of the day",
+    "significance": 2
+  }
+]

@@ -21,6 +21,8 @@ export const seedEntityNames = [
   'PostKeyword',
   'UserTopReader',
   'MarketingCta',
+  'ChannelHighlightDefinition',
+  'HighlightsCanonical',
   'SourceMember',
   'Product',
   'Organization',

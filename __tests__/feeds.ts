@@ -35,6 +35,8 @@ import {
 } from '../src/entity';
 import { PollOption } from '../src/entity/polls/PollOption';
 import { SourceMemberRoles } from '../src/roles';
+import { snotraClient } from '../src/integrations/snotra/clients';
+import { PersonaliseState } from '../src/integrations/snotra/types';
 import { Category } from '../src/entity/Category';
 import { Persona } from '../src/entity/Persona';
 import { FastifyInstance } from 'fastify';
@@ -1456,6 +1458,101 @@ describe('query feedV2', () => {
   });
 });
 
+describe('query dailyFeed', () => {
+  const variables = { first: 10 };
+
+  const QUERY = `
+  query DailyFeed($first: Int, $after: String, $ranking: Ranking, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    dailyFeed(first: $first, after: $after, ranking: $ranking, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
+
+  it('should fetch the daily feed with the personalised config for personalised users', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+      personalise: { state: PersonaliseState.Personalised },
+    });
+    nock('http://localhost:6000')
+      .post('/api/daily-posts', (body) => {
+        expect(body.feed_config_name).toEqual('daily_v1');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'next-cursor',
+      });
+
+    const res = await client.query(QUERY, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyFeed.pageInfo.endCursor).toEqual('next-cursor');
+    expect(res.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
+      'p1',
+      'p4',
+    ]);
+  });
+
+  it('should fetch the daily feed with the cold start config for non-personalised users', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+      personalise: { state: PersonaliseState.NonPersonalised },
+    });
+    nock('http://localhost:6000')
+      .post('/api/daily-posts', (body) => {
+        expect(body.feed_config_name).toEqual('daily_cs_v1');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
+      'p1',
+    ]);
+  });
+
+  it('should serve repeat requests from the redis cache without re-hitting the feed service', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+
+    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+      personalise: { state: PersonaliseState.Personalised },
+    });
+    // Only one feed-service mock: a second call would have no nock match and fail.
+    nock('http://localhost:6000')
+      .post('/api/daily-posts')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'next-cursor',
+      });
+
+    const first = await client.query(QUERY, { variables });
+    const second = await client.query(QUERY, { variables });
+
+    expect(first.errors).toBeFalsy();
+    expect(second.errors).toBeFalsy();
+    expect(second.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
+      'p1',
+      'p4',
+    ]);
+  });
+});
+
 describe('query feedByTags', () => {
   const QUERY = `
     query FeedByTags($tags: [String!]!, $ranking: Ranking, $first: Int, $version: Int) {
@@ -1756,6 +1853,19 @@ describe('query sourceFeed', () => {
 
     expect(res.data.sourceFeed.edges[0].node.id).toEqual('p5');
     expect(res.data.sourceFeed.edges).toMatchSnapshot();
+  });
+
+  it('should resolve updatedAt with a time cursor without a SQL parameter collision', async () => {
+    additionalProps = 'updatedAt';
+    const after = base64(`time:${new Date().getTime()}`);
+    const res = await client.query(
+      QUERY('b', Ranking.TIME, new Date(), 5, after),
+    );
+
+    expect(res.errors).toBeFalsy();
+    res.data.sourceFeed.edges.forEach(({ node }) =>
+      expect(node.updatedAt).toEqual(expect.any(String)),
+    );
   });
 
   it('should display return the right posts after the first page being a mix of pinned and unpinned posts', async () => {
