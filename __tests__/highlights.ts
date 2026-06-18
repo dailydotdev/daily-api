@@ -399,7 +399,7 @@ describe('query dailyHighlights', () => {
         channel: 'backend',
         highlightedAt: today,
         headline: 'Backend major',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
       {
         id: '22222222-2222-2222-2222-222222222222',
@@ -407,7 +407,7 @@ describe('query dailyHighlights', () => {
         channel: 'backend',
         highlightedAt: earlierToday,
         headline: 'Backend breaking',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         id: '33333333-3333-3333-3333-333333333333',
@@ -415,7 +415,7 @@ describe('query dailyHighlights', () => {
         channel: 'career',
         highlightedAt: today,
         headline: 'Career notable',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
       {
         id: '44444444-4444-4444-4444-444444444444',
@@ -423,7 +423,7 @@ describe('query dailyHighlights', () => {
         channel: 'backend',
         highlightedAt: yesterday,
         headline: 'Backend stale breaking',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
     ]);
 
@@ -463,7 +463,7 @@ describe('query dailyHighlights', () => {
         channel: 'backend',
         highlightedAt: new Date(),
         headline: 'Backend today',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
     ]);
 
