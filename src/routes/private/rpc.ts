@@ -9,7 +9,11 @@ import {
 } from '@dailydotdev/schema';
 import { ArticlePost, SourceRequest } from '../../entity';
 import { baseRpcContext } from '../../common/connectRpc';
-import { isValidHttpUrl, standardizeURL } from '../../common/links';
+import {
+  getUrlWwwVariants,
+  isValidHttpUrl,
+  standardizeURL,
+} from '../../common/links';
 import createOrGetConnection from '../../db';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { generateShortId } from '../../ids';
@@ -47,6 +51,46 @@ const getDuplicatePost = async ({
   }
 };
 
+/**
+ * Check www or non www variant of url to prevent duplicates
+ *
+ * Unique index only covers exact match
+ *
+ * @param {{
+ *   req: CreatePostRequest;
+ *   con: DataSource;
+ * }} {
+ *   req,
+ *   con,
+ * }
+ * @return {*}  {(Promise<CreatePostResponse | undefined>)}
+ */
+const getWwwVariantPost = async ({
+  req,
+  con,
+}: {
+  req: CreatePostRequest;
+  con: DataSource;
+}): Promise<CreatePostResponse | undefined> => {
+  const variantUrl = getUrlWwwVariants(req.url).find((url) => url !== req.url);
+  if (req.yggdrasilId || !variantUrl) {
+    return undefined;
+  }
+
+  const existingPost = await con
+    .getRepository(ArticlePost)
+    .findOneBy({ url: variantUrl });
+
+  if (!existingPost) {
+    return undefined;
+  }
+
+  return new CreatePostResponse({
+    postId: existingPost.id,
+    url: existingPost.url || undefined,
+  });
+};
+
 const validateCreatePostRequest = (req: CreatePostRequest): never | void => {
   // collection-style sources (collections + trends) are yggdrasil-generated
   // and have no URL; they require a yggdrasil id instead.
@@ -79,6 +123,11 @@ export default function (router: ConnectRouter) {
       req.url = standardizeURL(req.url).url;
 
       validateCreatePostRequest(req);
+
+      const wwwVariantPost = await getWwwVariantPost({ req, con });
+      if (wwwVariantPost) {
+        return wwwVariantPost;
+      }
 
       const postId = await generateShortId();
       const postEntity = con.getRepository(ArticlePost).create({

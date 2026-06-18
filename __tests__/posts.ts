@@ -53,7 +53,7 @@ import {
   postTagsFixture,
   videoPostsFixture,
 } from './fixture/post';
-import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
+import { DataSource, DeepPartial, In, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   createSquadWelcomePost,
@@ -3958,6 +3958,52 @@ describe('mutation createPostInMultipleSources', () => {
       expect(moderationItem.sharedPostId).toBe(existingArticle.id);
       expect(userSourcePost.sharedPostId).toBe(existingArticle.id);
     });
+
+    it('should share existing post when url differs only by www', async () => {
+      loggedUser = '1';
+      await con.getRepository(ArticlePost).save({
+        id: 'pmswww',
+        shortId: 'pmswww',
+        url: 'http://www.multisource-www.com/a',
+        canonicalUrl: 'http://www.multisource-www.com/a',
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date(),
+        type: PostType.Article,
+        origin: PostOrigin.Squad,
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          ...freeformParams,
+          externalLink: 'http://multisource-www.com/a',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const [first, second, third] = res.data.createPostInMultipleSources;
+
+      const [post, moderationItem, userSourcePost] = await Promise.all([
+        con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sharedPostId'],
+          where: { id: second.id },
+        }),
+        con.getRepository(SharePost).findOneByOrFail({ id: third.id }),
+      ]);
+
+      expect(post.sharedPostId).toBe('pmswww');
+      expect(moderationItem.sharedPostId).toBe('pmswww');
+      expect(userSourcePost.sharedPostId).toBe('pmswww');
+
+      const articlePosts = await con.getRepository(ArticlePost).findBy({
+        url: In([
+          'http://multisource-www.com/a',
+          'http://www.multisource-www.com/a',
+        ]),
+      });
+      expect(articlePosts).toHaveLength(1);
+    });
   });
 
   describe('poll post creation', () => {
@@ -4585,6 +4631,25 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post to squad when url differs only by www', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://www.p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const articlePosts = await con
+      .getRepository(ArticlePost)
+      .findBy({ url: In(['http://p6.com', 'http://www.p6.com']) });
+    expect(articlePosts).toHaveLength(1);
+    expect(articlePosts[0].id).toEqual('p6');
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p6' });
+    expect(sharedPost.authorId).toEqual('1');
   });
 
   it('should trigger content request when sharing existing post without title and summary', async () => {

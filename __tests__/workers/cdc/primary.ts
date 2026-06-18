@@ -6333,6 +6333,38 @@ describe('source_post_moderation', () => {
       expect(list.length).toEqual(3); // to ensure nothing new was created other than the share post
     });
 
+    it('should create share post from external link that differs only by www', async () => {
+      const repo = con.getRepository(Post);
+      const existing = await repo.save({
+        ...postsFixture[0],
+        sourceId: 'c',
+        url: 'https://www.daily.dev/blog-post/sauron',
+        canonicalUrl: 'https://www.daily.dev/blog-post/sauron',
+      });
+      const before = await repo.find();
+      expect(before.length).toEqual(2);
+      const after = {
+        ...base,
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        content: '# Sample',
+        contentHtml: '# Sample',
+        externalLink: 'https://daily.dev/blog-post/sauron',
+      };
+      await mockUpdate(after);
+      const share = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.sharedPostId).toEqual(existing.id);
+
+      const list = await repo.find();
+      expect(list.length).toEqual(3); // deduped to the www variant, only the share was added
+    });
+
     it('should update the content if post id is present', async () => {
       const repo = con.getRepository(Post);
       await saveFixtures(con, Post, [postsFixture[0]]);

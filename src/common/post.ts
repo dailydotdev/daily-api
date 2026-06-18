@@ -25,7 +25,7 @@ import {
   WelcomePost,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { isValidHttpUrl, standardizeURL } from './links';
+import { getUrlWwwVariants, isValidHttpUrl, standardizeURL } from './links';
 import {
   findMarkdownTag,
   markdown,
@@ -915,7 +915,10 @@ export const getExistingPost = async (
   manager
     .createQueryBuilder(Post, 'post')
     .select(['post.id', 'post.deleted', 'post.visible'])
-    .where([{ canonicalUrl: canonicalUrl }, { url: url }])
+    .where([
+      { canonicalUrl: In(getUrlWwwVariants(canonicalUrl)) },
+      { url: In(getUrlWwwVariants(url)) },
+    ])
     .getOne();
 
 const extractPostIdOrSlugFromUrl = (url: string): string | undefined => {
@@ -963,8 +966,8 @@ export const findPostByUrl = async <T extends keyof ArticlePost>(
     ]);
   } else {
     queryBuilder = queryBuilder.andWhere([
-      { canonicalUrl: canonicalUrl },
-      { url: cleanUrl },
+      { canonicalUrl: In(getUrlWwwVariants(canonicalUrl)) },
+      { url: In(getUrlWwwVariants(cleanUrl)) },
     ]);
   }
 
