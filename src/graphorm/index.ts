@@ -56,9 +56,9 @@ import { whereVordrFilter } from '../common/vordr';
 import { MIN_INDEXABLE_REPUTATION } from '../common/users';
 import { UserCompany, Post } from '../entity';
 import {
-  PostHighlightSignificance,
-  toPostHighlightSignificanceLabel,
-} from '../entity/PostHighlight';
+  HighlightSignificance,
+  toHighlightSignificanceLabel,
+} from '../common/channelHighlight/significance';
 import type { PostHeroSignificance } from '../entity/PostHero';
 import {
   POST_HERO_LIFECYCLE_HEADLINES,
@@ -113,7 +113,7 @@ export enum LocationVerificationStatus {
   Verified = 'verified',
 }
 
-const getPostHighlightTtlSeconds = (): number => {
+const getHighlightTtlSeconds = (): number => {
   const DEFAULT_POST_HIGHLIGHT_TTL_SECONDS = 12 * ONE_HOUR_IN_SECONDS;
 
   return (
@@ -929,11 +929,11 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}."postId" = ${parentAlias}."id"`)
               .andWhere(`${childAlias}."significance" != :unspecified`, {
-                unspecified: PostHighlightSignificance.Unspecified,
+                unspecified: HighlightSignificance.Unspecified,
               })
               .andWhere(
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
-                { ttlSeconds: getPostHighlightTtlSeconds() },
+                { ttlSeconds: getHighlightTtlSeconds() },
               )
               .limit(1),
         },
@@ -946,7 +946,7 @@ const obj = new GraphORM({
               .where(`${childAlias}."postId" = ${parentAlias}."id"`)
               .andWhere(
                 `${childAlias}."highlightedAt" > now() - (:ttlSeconds || ' seconds')::interval`,
-                { ttlSeconds: getPostHighlightTtlSeconds() },
+                { ttlSeconds: getHighlightTtlSeconds() },
               )
               .limit(1),
         },
@@ -2979,8 +2979,8 @@ const obj = new GraphORM({
           `coalesce(:highlightChannel, "${alias}"."channels"[1], '')`,
       },
       significance: {
-        transform: (value: PostHighlightSignificance) =>
-          toPostHighlightSignificanceLabel(value),
+        transform: (value: HighlightSignificance) =>
+          toHighlightSignificanceLabel(value),
       },
       highlightedAt: { transform: transformDate },
       createdAt: { transform: transformDate },

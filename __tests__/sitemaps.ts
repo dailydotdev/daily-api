@@ -31,7 +31,7 @@ import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 import { ONE_DAY_IN_SECONDS } from '../src/common/constants';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
-import { PostHighlight } from '../src/entity/PostHighlight';
+import { HighlightsCanonical } from '../src/entity/HighlightsCanonical';
 let app: FastifyInstance;
 let con: DataSource;
 const previousSitemapLimit = process.env.SITEMAP_LIMIT;
@@ -530,31 +530,30 @@ describe('GET /sitemaps/highlights.xml', () => {
         order: 0,
       },
     ]);
-    await con.getRepository(PostHighlight).save([
+    await con.getRepository(HighlightsCanonical).save([
       {
         postId: 'p1',
-        channel: 'career',
+        channels: ['career'],
         highlightedAt: new Date('2026-04-10T10:00:00.000Z'),
         headline: 'Career early',
       },
       {
         postId: 'p4',
-        channel: 'career',
+        channels: ['career'],
         highlightedAt: new Date('2026-04-12T09:00:00.000Z'),
         headline: 'Career latest',
       },
       {
-        postId: 'p1',
-        channel: 'backend',
+        postId: 'p2',
+        channels: ['backend'],
         highlightedAt: new Date('2026-04-09T08:00:00.000Z'),
         headline: 'Backend live',
       },
       {
-        postId: 'p4',
-        channel: 'backend',
+        postId: 'p5',
+        channels: ['disabled'],
         highlightedAt: new Date('2026-04-13T08:00:00.000Z'),
-        headline: 'Backend retired',
-        retiredAt: new Date('2026-04-13T08:30:00.000Z'),
+        headline: 'Disabled highlight',
       },
     ]);
 

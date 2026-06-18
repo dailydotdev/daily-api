@@ -1,10 +1,6 @@
 import { In, type EntityManager } from 'typeorm';
 import { HighlightsCanonical } from '../../entity/HighlightsCanonical';
-import {
-  PostHighlight,
-  toPostHighlightSignificance,
-  toPostHighlightSignificanceLabel,
-} from '../../entity/PostHighlight';
+import { toHighlightSignificance } from './significance';
 import type { PostRelation } from '../../entity/posts/PostRelation';
 import type { HighlightItem } from './types';
 import { buildStoryFamilies } from './storyFamilies';
@@ -13,15 +9,13 @@ type HighlightRelation = Pick<PostRelation, 'postId' | 'relatedPostId'>;
 
 const normalizeHighlightItems = ({
   items,
-  retiredPostIds,
 }: {
   items: HighlightItem[];
-  retiredPostIds: Set<string>;
 }): HighlightItem[] => {
   const dedupedItems = new Map<string, HighlightItem>();
 
   for (const item of items) {
-    if (retiredPostIds.has(item.postId) || dedupedItems.has(item.postId)) {
+    if (dedupedItems.has(item.postId)) {
       continue;
     }
 
@@ -29,69 +23,6 @@ const normalizeHighlightItems = ({
   }
 
   return [...dedupedItems.values()];
-};
-
-export const replaceLegacyHighlightsForChannel = async ({
-  manager,
-  channel,
-  items,
-}: {
-  manager: EntityManager;
-  channel: string;
-  items: HighlightItem[];
-}): Promise<void> => {
-  const repo = manager.getRepository(PostHighlight);
-  const highlights = await repo.find({
-    where: {
-      channel,
-    },
-  });
-  const currentHighlights = highlights.filter((item) => !item.retiredAt);
-  const nextItems = normalizeHighlightItems({
-    items,
-    retiredPostIds: new Set(
-      highlights.filter((item) => item.retiredAt).map((item) => item.postId),
-    ),
-  });
-  const currentByPostId = new Map(
-    currentHighlights.map((item) => [item.postId, item]),
-  );
-  const nextPostIds = new Set(nextItems.map((item) => item.postId));
-  const retiredPostIds = currentHighlights
-    .filter((item) => !nextPostIds.has(item.postId))
-    .map((item) => item.postId);
-
-  if (retiredPostIds.length) {
-    await repo
-      .createQueryBuilder()
-      .update()
-      .set({ retiredAt: new Date() })
-      .where('"channel" = :channel', { channel })
-      .andWhere('"retiredAt" IS NULL')
-      .andWhere('"postId" IN (:...postIds)', { postIds: retiredPostIds })
-      .execute();
-  }
-
-  if (!nextItems.length) {
-    return;
-  }
-
-  await repo.save(
-    nextItems.map((item) => {
-      const currentHighlight = currentByPostId.get(item.postId);
-
-      return repo.create({
-        id: currentHighlight?.id,
-        channel,
-        postId: item.postId,
-        highlightedAt: item.highlightedAt,
-        headline: item.headline,
-        significance: toPostHighlightSignificance(item.significanceLabel),
-        reason: item.reason,
-        retiredAt: null,
-      });
-    }),
-  );
 };
 
 export const upsertCanonicalHighlights = async ({
@@ -108,7 +39,6 @@ export const upsertCanonicalHighlights = async ({
   const repo = manager.getRepository(HighlightsCanonical);
   const nextItems = normalizeHighlightItems({
     items,
-    retiredPostIds: new Set(),
   });
 
   if (!nextItems.length) {
@@ -150,20 +80,9 @@ export const upsertCanonicalHighlights = async ({
         ].sort(),
         highlightedAt: item.highlightedAt,
         headline: item.headline,
-        significance: toPostHighlightSignificance(item.significanceLabel),
+        significance: toHighlightSignificance(item.significanceLabel),
         reason: item.reason,
       });
     }),
   );
 };
-
-export const toHighlightItemFromCanonical = (
-  highlight: HighlightsCanonical,
-): HighlightItem => ({
-  postId: highlight.postId,
-  highlightedAt: highlight.highlightedAt,
-  headline: highlight.headline,
-  summary: null,
-  significanceLabel: toPostHighlightSignificanceLabel(highlight.significance),
-  reason: highlight.reason,
-});

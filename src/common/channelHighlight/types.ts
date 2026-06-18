@@ -1,6 +1,6 @@
 import type { Post } from '../../entity/posts/Post';
 import type { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
-import type { PostHighlightSignificance } from '../../entity/PostHighlight';
+import type { HighlightSignificance } from './significance';
 
 export type HighlightPost = Pick<
   Post,
@@ -56,7 +56,7 @@ export type CurrentHighlight = {
   postId: string;
   highlightedAt: Date;
   headline: string;
-  significance: PostHighlightSignificance;
+  significance: HighlightSignificance;
   reason: string | null;
 };
 
