@@ -55,7 +55,6 @@ export * from './Quest';
 export * from './QuestReward';
 export * from './QuestRotation';
 export * from './contribution';
-export * from './PostHighlight';
 export * from './HighlightsCanonical';
 export * from './ChannelHighlightDefinition';
 export * from './ChannelHighlightRun';

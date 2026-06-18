@@ -13,9 +13,9 @@ import { redisPubSub } from '../redis';
 import type { OffsetPage } from './common';
 import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import {
-  PostHighlightSignificance,
-  toPostHighlightSignificance,
-} from '../entity/PostHighlight';
+  HighlightSignificance,
+  toHighlightSignificance,
+} from '../common/channelHighlight/significance';
 import type { GQLSource } from './sources';
 
 type GQLChannelDigestConfiguration = {
@@ -125,8 +125,8 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const majorHeadlineSignificances = [
-  PostHighlightSignificance.Breaking,
-  PostHighlightSignificance.Major,
+  HighlightSignificance.Breaking,
+  HighlightSignificance.Major,
 ];
 
 const defaultHighlightsLimit = 10;
@@ -139,7 +139,7 @@ const getHighlightsPage = (args: ConnectionArguments): OffsetPage => ({
 
 type HighlightsFilters = {
   channel?: string | null;
-  significances?: PostHighlightSignificance[];
+  significances?: HighlightSignificance[];
 };
 
 const applyHighlightsFilters = <T extends HighlightsCanonical>(
@@ -201,10 +201,10 @@ type PostHighlightsFeedArgs = ConnectionArguments & {
 
 const parseSignificanceFilters = (
   values: string[] | null | undefined,
-): PostHighlightSignificance[] =>
+): HighlightSignificance[] =>
   (values ?? [])
-    .map(toPostHighlightSignificance)
-    .filter((value) => value !== PostHighlightSignificance.Unspecified);
+    .map(toHighlightSignificance)
+    .filter((value) => value !== HighlightSignificance.Unspecified);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {

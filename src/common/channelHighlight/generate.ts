@@ -1,15 +1,12 @@
 import type { DataSource } from 'typeorm';
 import { logger as baseLogger } from '../../logger';
-import type { ChannelHighlightDefinition } from '../../entity/ChannelHighlightDefinition';
 import { ChannelHighlightRun } from '../../entity/ChannelHighlightRun';
 import {
   getGenerationConfig,
   generateCanonicalHighlights,
   loadCanonicalInput,
   saveCanonicalHighlights,
-  toCanonicalHighlightsForFanout,
 } from './canonical';
-import { syncLegacyHighlightsFromCanonical } from './legacyFanout';
 import {
   completeGlobalRun,
   createGlobalRun,
@@ -20,11 +17,9 @@ import type { GenerateHighlightsResult } from './types';
 
 export const generateHighlights = async ({
   con,
-  definitions = [],
   now = new Date(),
 }: {
   con: DataSource;
-  definitions?: ChannelHighlightDefinition[];
   now?: Date;
 }): Promise<GenerateHighlightsResult> => {
   const runRepo = con.getRepository(ChannelHighlightRun);
@@ -55,22 +50,10 @@ export const generateHighlights = async ({
     });
 
     await con.transaction(async (manager) => {
-      const savedCanonicalHighlights = await saveCanonicalHighlights({
+      await saveCanonicalHighlights({
         manager,
         canonical,
         relations: input.relations,
-      });
-      const legacyFanout = await syncLegacyHighlightsFromCanonical({
-        manager,
-        definitions,
-        canonicalHighlights: toCanonicalHighlightsForFanout({
-          canonical,
-          savedCanonicalHighlights,
-        }),
-        posts: input.availablePosts,
-        relations: input.relations,
-        fallbackPostIds: input.fallbackPostIds,
-        now,
       });
       await completeGlobalRun({
         manager,
@@ -78,7 +61,6 @@ export const generateHighlights = async ({
         config,
         input,
         canonical,
-        legacyFanout,
         now,
       });
     });

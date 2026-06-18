@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { Post } from './posts/Post';
-import { PostHighlightSignificance } from './PostHighlight';
+import { HighlightSignificance } from '../common/channelHighlight/significance';
 
 @Entity()
 @Index('UQ_highlights_canonical_post', ['postId'], {
@@ -36,9 +36,9 @@ export class HighlightsCanonical {
 
   @Column({
     type: 'smallint',
-    default: PostHighlightSignificance.Unspecified,
+    default: HighlightSignificance.Unspecified,
   })
-  significance: PostHighlightSignificance;
+  significance: HighlightSignificance;
 
   @Column({ type: 'text', nullable: true })
   reason: string | null;

@@ -17,7 +17,6 @@ import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
 import newNotificationRealTime from './newNotificationV2RealTime';
-import newHighlightRealTime from './newHighlightRealTime';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -174,7 +173,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackUpdatedSlack,
   gearClassify,
   generateChannelDigest,
-  newHighlightRealTime,
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,
