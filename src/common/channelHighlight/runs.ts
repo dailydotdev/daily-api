@@ -12,7 +12,6 @@ import type {
   CanonicalInput,
   GenerationConfig,
 } from './canonical';
-import type { LegacyFanout } from './legacyFanout';
 import { getEvaluationHistoryStart } from './queries';
 import { toStoredSnapshotItem } from './stories';
 
@@ -61,7 +60,6 @@ export const completeGlobalRun = async ({
   config,
   input,
   canonical,
-  legacyFanout,
   now,
 }: {
   manager: EntityManager;
@@ -69,7 +67,6 @@ export const completeGlobalRun = async ({
   config: GenerationConfig;
   input: CanonicalInput;
   canonical: CanonicalHighlights;
-  legacyFanout: LegacyFanout;
   now: Date;
 }): Promise<void> => {
   await manager.getRepository(ChannelHighlightRun).update(
@@ -89,7 +86,6 @@ export const completeGlobalRun = async ({
           (candidate) => candidate.postId,
         ),
         admittedPostIds: canonical.admitted.map((item) => item.postId),
-        projectedChannels: [...legacyFanout.publishChannels],
       },
       internalSnapshot: canonical.snapshot.map(toStoredSnapshotItem),
       comparison: {
@@ -103,11 +99,6 @@ export const completeGlobalRun = async ({
         evaluationHighlights: canonical.history.length,
         newCandidates: canonical.newCandidates.length,
         admittedHighlights: canonical.admitted.length,
-        projectedChannels: legacyFanout.publishChannels.size,
-        projectedHighlights: legacyFanout.states.reduce(
-          (total, state) => total + state.highlights.length,
-          0,
-        ),
       },
     },
   );

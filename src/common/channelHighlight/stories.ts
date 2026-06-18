@@ -1,5 +1,5 @@
 import type { PostContentQuality } from '../../entity/posts/Post';
-import { toPostHighlightSignificanceLabel } from '../../entity/PostHighlight';
+import { toHighlightSignificanceLabel } from './significance';
 import type { PostRelation } from '../../entity/posts/PostRelation';
 import { buildStoryFamilies } from './storyFamilies';
 import type {
@@ -190,7 +190,7 @@ export const toHighlightItem = (
   headline: item.headline,
   summary: null,
   highlightedAt: item.highlightedAt,
-  significanceLabel: toPostHighlightSignificanceLabel(item.significance),
+  significanceLabel: toHighlightSignificanceLabel(item.significance),
   reason: item.reason,
 });
 

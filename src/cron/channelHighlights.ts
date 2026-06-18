@@ -1,4 +1,3 @@
-import { getChannelHighlightDefinitions } from '../common/channelHighlight/definitions';
 import { generateHighlights } from '../common/channelHighlight/generate';
 import { Cron } from './cron';
 import type { DataSource } from 'typeorm';
@@ -10,13 +9,8 @@ export const runChannelHighlights = async ({
   con: DataSource;
   now?: Date;
 }): Promise<void> => {
-  const definitions = await getChannelHighlightDefinitions({
-    con,
-  });
-
   await generateHighlights({
     con,
-    definitions,
     now,
   });
 };

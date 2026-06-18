@@ -13,7 +13,7 @@ import { ChannelDigest } from '../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
 import { HighlightsCanonical } from '../src/entity/HighlightsCanonical';
 import { Source, SourceType } from '../src/entity/Source';
-import { PostHighlightSignificance } from '../src/entity/PostHighlight';
+import { HighlightSignificance } from '../src/common/channelHighlight/significance';
 import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 
@@ -475,28 +475,28 @@ describe('query majorHeadlines', () => {
         channels: ['vibes', 'agentic'],
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Newer breaking headline',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Breaking headline',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h3',
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
         headline: 'Routine headline',
-        significance: PostHighlightSignificance.Routine,
+        significance: HighlightSignificance.Routine,
       },
       {
         postId: 'h4',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:10:00.000Z'),
         headline: 'Major headline',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
     ]);
 
@@ -537,21 +537,21 @@ describe('query majorHeadlines', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Headline 1',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Headline 2',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
       {
         postId: 'h3',
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:25:00.000Z'),
         headline: 'Headline 3',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
     ]);
 
@@ -589,21 +589,21 @@ describe('query postHighlightsFeed', () => {
         channels: ['vibes', 'agentic'],
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Newer vibes',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Notable headline',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
       {
         postId: 'h3',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:20:00.000Z'),
         headline: 'Routine headline',
-        significance: PostHighlightSignificance.Routine,
+        significance: HighlightSignificance.Routine,
       },
     ]);
 
@@ -643,21 +643,21 @@ describe('query postHighlightsFeed', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Vibes headline',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Agentic headline',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
       {
         postId: 'h3',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
         headline: 'Another agentic headline',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
     ]);
 
@@ -680,28 +680,28 @@ describe('query postHighlightsFeed', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Breaking headline',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Major headline',
-        significance: PostHighlightSignificance.Major,
+        significance: HighlightSignificance.Major,
       },
       {
         postId: 'h3',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
         headline: 'Notable headline',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
       {
         postId: 'h4',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:25:00.000Z'),
         headline: 'Routine headline',
-        significance: PostHighlightSignificance.Routine,
+        significance: HighlightSignificance.Routine,
       },
     ]);
 
@@ -724,21 +724,21 @@ describe('query postHighlightsFeed', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Vibes breaking',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Agentic breaking',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h3',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
         headline: 'Agentic notable',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
     ]);
 
@@ -767,14 +767,14 @@ describe('query postHighlightsFeed', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Breaking headline',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Routine headline',
-        significance: PostHighlightSignificance.Routine,
+        significance: HighlightSignificance.Routine,
       },
     ]);
 
@@ -794,21 +794,21 @@ describe('query postHighlightsFeed', () => {
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
         headline: 'Headline 1',
-        significance: PostHighlightSignificance.Breaking,
+        significance: HighlightSignificance.Breaking,
       },
       {
         postId: 'h2',
         channel: 'agentic',
         highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
         headline: 'Headline 2',
-        significance: PostHighlightSignificance.Notable,
+        significance: HighlightSignificance.Notable,
       },
       {
         postId: 'h3',
         channel: 'vibes',
         highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
         headline: 'Headline 3',
-        significance: PostHighlightSignificance.Routine,
+        significance: HighlightSignificance.Routine,
       },
     ]);
 

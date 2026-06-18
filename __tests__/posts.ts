@@ -43,7 +43,7 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../src/entity';
-import { PostHighlightSignificance } from '../src/entity/PostHighlight';
+import { HighlightSignificance } from '../src/common/channelHighlight/significance';
 import { PostLifecycleState } from '../src/entity/PostLifecycleState';
 import { PostLifecycleStateValue } from '../src/common/postLifecycleState';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
@@ -941,7 +941,7 @@ describe('postHighlight field', () => {
       channels: ['vibes'],
       highlightedAt: new Date(),
       headline: 'Breaking headline',
-      significance: PostHighlightSignificance.Breaking,
+      significance: HighlightSignificance.Breaking,
     });
 
     const res = await client.query(QUERY);
@@ -961,7 +961,7 @@ describe('postHighlight field', () => {
       channels: ['vibes'],
       highlightedAt: new Date(),
       headline: 'Unspecified headline',
-      significance: PostHighlightSignificance.Unspecified,
+      significance: HighlightSignificance.Unspecified,
     });
 
     const res = await client.query(QUERY);
@@ -975,7 +975,7 @@ describe('postHighlight field', () => {
       channels: ['vibes'],
       highlightedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
       headline: 'Stale headline',
-      significance: PostHighlightSignificance.Breaking,
+      significance: HighlightSignificance.Breaking,
     });
 
     const res = await client.query(QUERY);
@@ -1017,7 +1017,7 @@ describe('hero field', () => {
       channels: ['vibes'],
       highlightedAt: new Date(),
       headline: 'Breaking headline',
-      significance: PostHighlightSignificance.Breaking,
+      significance: HighlightSignificance.Breaking,
     });
     await refreshHero();
 
@@ -1074,7 +1074,7 @@ describe('hero field', () => {
       channels: ['vibes'],
       highlightedAt: new Date(),
       headline: 'Canonical headline',
-      significance: PostHighlightSignificance.Major,
+      significance: HighlightSignificance.Major,
     });
     await con.getRepository(PostLifecycleState).save({
       postId: 'p1',

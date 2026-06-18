@@ -12,10 +12,7 @@ import {
   createHighlightChannelResolver,
   type HighlightChannelResolver,
 } from './channels';
-import {
-  toHighlightItemFromCanonical,
-  upsertCanonicalHighlights,
-} from './publish';
+import { upsertCanonicalHighlights } from './publish';
 import {
   fetchCollectionMembership,
   fetchEvaluationHistoryCanonicalHighlights,
@@ -354,18 +351,6 @@ export const saveCanonicalHighlights = ({
     relations,
   });
 };
-
-export const toCanonicalHighlightsForFanout = ({
-  canonical,
-  savedCanonicalHighlights,
-}: {
-  canonical: CanonicalHighlights;
-  savedCanonicalHighlights: HighlightsCanonical[];
-}): HighlightItem[] =>
-  dedupeHighlightsByPostId([
-    ...savedCanonicalHighlights.map(toHighlightItemFromCanonical),
-    ...canonical.history,
-  ]);
 
 const dropAdmissionsRacingCollections = async ({
   con,
