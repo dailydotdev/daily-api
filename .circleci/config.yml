@@ -6,7 +6,7 @@ jobs:
   build-app:
     executor:
       name: common/node
-      tag: "24.17"
+      tag: "24.16"
     steps:
       - checkout
       - run:
@@ -31,7 +31,8 @@ jobs:
   test:
     resource_class: large
     docker:
-      - image: cimg/node:24.17
+      # cimg/node lags official Node releases; 24.17 not published yet, using closest available
+      - image: cimg/node:24.16
       - image: postgres:18-alpine
         environment:
           POSTGRES_DB: api_test
