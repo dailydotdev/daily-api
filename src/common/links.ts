@@ -102,7 +102,9 @@ export const standardizeURL = (
 ): { url: string; canonicalUrl: string } => {
   const domain = subtractDomain(inputUrl);
 
-  const [canonicalUrl, params] = inputUrl.split('?');
+  const [path, params] = inputUrl.split('?');
+  // Trim trailing slashes from non-root paths, matching yggdrasil's normalization
+  const canonicalUrl = path.replace(/^(https?:\/\/[^/]+\/.+?)\/+$/i, '$1');
   const searchParams = new URLSearchParams(params);
 
   const isAllowedDomain = domain && domain in domainAllowedSearchParams;

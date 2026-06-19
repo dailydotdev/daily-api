@@ -13,6 +13,36 @@ describe('standardizeURL', () => {
     expect(canonicalUrl).toBe('https://test.com/posts/1');
   });
 
+  it('should strip a trailing slash', () => {
+    const { url, canonicalUrl } = standardizeURL(
+      'https://github.com/versity/versitygw/',
+    );
+    expect(url).toBe('https://github.com/versity/versitygw');
+    expect(canonicalUrl).toBe('https://github.com/versity/versitygw');
+  });
+
+  it('should strip multiple trailing slashes', () => {
+    const { url, canonicalUrl } = standardizeURL(
+      'https://github.com/versity/versitygw//',
+    );
+    expect(url).toBe('https://github.com/versity/versitygw');
+    expect(canonicalUrl).toBe('https://github.com/versity/versitygw');
+  });
+
+  it('should preserve a root trailing slash', () => {
+    const { url, canonicalUrl } = standardizeURL('https://github.com/');
+    expect(url).toBe('https://github.com/');
+    expect(canonicalUrl).toBe('https://github.com/');
+  });
+
+  it('should strip trailing slash before query params', () => {
+    const { url, canonicalUrl } = standardizeURL(
+      'https://test.com/posts/1/?sk=google',
+    );
+    expect(url).toBe('https://test.com/posts/1?sk=google');
+    expect(canonicalUrl).toBe('https://test.com/posts/1');
+  });
+
   it('should clean query params', () => {
     const { url, canonicalUrl } = standardizeURL(
       'https://test.com/posts/1?utm_source=google',
