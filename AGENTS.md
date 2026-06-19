@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Prerequisites
 
-- **Node.js**: 24.17.0 (managed via Volta)
+- **Node.js**: 24.14.0 (managed via Volta)
 - **Package Manager**: pnpm 10.33.4 (activate via `corepack enable && corepack prepare pnpm@10.33.4 --activate`)
 
 ## Essential Commands
@@ -31,7 +31,7 @@ This file provides guidance to coding agents when working with code in this repo
 When adding or modifying entity columns, **always generate a migration** using:
 
 ```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.17)
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.14)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
