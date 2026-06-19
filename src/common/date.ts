@@ -1,3 +1,5 @@
+import { zonedTimeToUtc } from 'date-fns-tz';
+
 export enum DayOfWeek {
   Sunday = 0,
   Monday = 1,
@@ -25,6 +27,25 @@ export const isWeekend = (
     default:
       return day === DayOfWeek.Saturday || day === DayOfWeek.Sunday;
   }
+};
+
+export const secondsUntilNextHourInTimezone = ({
+  hour,
+  timezone,
+  now = new Date(),
+}: {
+  hour: number;
+  timezone: string;
+  now?: Date;
+}): number => {
+  const target = new Date(now);
+  target.setHours(hour, 0, 0, 0);
+  let targetUtc = zonedTimeToUtc(target, timezone);
+  if (targetUtc.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 1);
+    targetUtc = zonedTimeToUtc(target, timezone);
+  }
+  return Math.max(60, Math.ceil((targetUtc.getTime() - now.getTime()) / 1000));
 };
 
 export const getSecondsTimestamp = (ms: number | Date): number => {

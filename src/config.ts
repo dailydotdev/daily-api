@@ -43,6 +43,7 @@ export enum StorageTopic {
   RedisCounter = 'redis_counter',
   Cron = 'cron',
   LiveRoom = 'live_room',
+  Feed = 'feeds',
 }
 
 export enum StorageKey {
@@ -57,6 +58,7 @@ export enum StorageKey {
   UserLastOnline = 'ulo',
   ParticipantCount = 'participant_count',
   HasLiveRooms = 'has_live_rooms',
+  DailyFeed = 'daily',
 }
 
 export const generateStorageKey = (

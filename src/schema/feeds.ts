@@ -72,7 +72,12 @@ import {
   getForYouByTagFeedGenerator,
 } from '../integrations/feed/generators';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
-import { ONE_DAY_IN_SECONDS } from '../common/constants';
+import { remoteConfig } from '../remoteConfig';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import {
+  DEFAULT_TIMEZONE,
+  secondsUntilNextHourInTimezone,
+} from '../common/date';
 import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -1695,7 +1700,19 @@ const dailyFeedResolver = feedResolver<
   (ctx, args, page, builder) => builder,
   {
     fetchQueryParams: async (ctx, args: FeedArgs, page) => {
-      const cacheKey = `feeds:daily:${ctx.userId ?? ctx.trackingId}:${page.limit}:${page.cursor ?? ''}:${(args.supportedTypes ?? []).join(',')}`;
+      const cacheKey = generateStorageKey(
+        StorageTopic.Feed,
+        StorageKey.DailyFeed,
+        [
+          remoteConfig.vars.dailyFeedCacheKey,
+          ctx.userId ?? ctx.trackingId,
+          page.limit,
+          page.cursor,
+          args.supportedTypes?.join(','),
+        ]
+          .filter(Boolean)
+          .join(':'),
+      );
       const cached = await getRedisObject(cacheKey);
       if (cached) {
         return JSON.parse(cached) as FeedResponse;
@@ -1717,12 +1734,20 @@ const dailyFeedResolver = feedResolver<
         config,
         extraMetadata,
       );
-      // Don't cache empty responses so a not-yet-generated feed isn't pinned for a day.
       if (response.data.length) {
+        const user = ctx.userId
+          ? await ctx.dataLoader.user.load({
+              userId: ctx.userId,
+              select: ['timezone'],
+            })
+          : null;
         await setRedisObjectWithExpiry(
           cacheKey,
           JSON.stringify(response),
-          ONE_DAY_IN_SECONDS,
+          secondsUntilNextHourInTimezone({
+            hour: 9,
+            timezone: user?.timezone || DEFAULT_TIMEZONE,
+          }),
         );
       }
       return response;
