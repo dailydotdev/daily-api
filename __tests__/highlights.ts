@@ -10,6 +10,7 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
+import { FreeformPost } from '../src/entity/posts/FreeformPost';
 import { ChannelDigest } from '../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
 import { HighlightsCanonical } from '../src/entity/HighlightsCanonical';
@@ -303,9 +304,9 @@ const CHANNEL_DIGEST_CONFIGURATIONS_QUERY = `
   }
 `;
 
-const DAILY_HIGHLIGHTS_QUERY = `
-  query DailyHighlights($first: Int, $after: String) {
-    dailyHighlights(first: $first, after: $after) {
+const DAILY_HEADLINES_QUERY = `
+  query DailyHeadlines($first: Int, $after: String) {
+    dailyHeadlines(first: $first, after: $after) {
       pageInfo {
         hasNextPage
         endCursor
@@ -314,21 +315,14 @@ const DAILY_HIGHLIGHTS_QUERY = `
         cursor
         node {
           id
-          channel
-          highlightedAt
-          headline
-          significance
-          post {
-            id
-            title
-          }
+          title
         }
       }
     }
   }
 `;
 
-describe('query dailyHighlights', () => {
+describe('query dailyHeadlines', () => {
   const saveDigestSource = (id: string) =>
     con.getRepository(Source).save({
       id,
@@ -337,6 +331,38 @@ describe('query dailyHighlights', () => {
       handle: id,
       type: SourceType.Machine,
       active: true,
+      private: false,
+    });
+
+  const saveChannelDigest = (key: string, sourceId: string, channel: string) =>
+    con.getRepository(ChannelDigest).save({
+      key,
+      sourceId,
+      channel,
+      targetAudience: 'devs',
+      frequency: 'daily',
+      enabled: true,
+    });
+
+  const saveDigestPost = (
+    id: string,
+    sourceId: string,
+    title: string,
+    createdAt: Date,
+  ) =>
+    con.getRepository(FreeformPost).save({
+      id,
+      shortId: id,
+      sourceId,
+      type: PostType.Freeform,
+      title,
+      content: title,
+      contentHtml: `<p>${title}</p>`,
+      visible: true,
+      visibleAt: createdAt,
+      createdAt,
+      metadataChangedAt: createdAt,
+      showOnFeed: true,
       private: false,
     });
 
@@ -351,96 +377,58 @@ describe('query dailyHighlights', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
-    await createTestPosts();
   });
 
   it('should require authentication', () =>
     testQueryErrorCode(
       client,
-      { query: DAILY_HIGHLIGHTS_QUERY },
+      { query: DAILY_HEADLINES_QUERY },
       'UNAUTHENTICATED',
     ));
 
-  it('should return the top highlight of the day per subscribed channel', async () => {
+  it('should return the latest digest post per subscribed channel', async () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');
     await saveDigestSource('career_digest');
-    await con.getRepository(ChannelDigest).save([
-      {
-        key: 'backend',
-        sourceId: 'backend_digest',
-        channel: 'backend',
-        targetAudience: 'backend devs',
-        frequency: 'daily',
-        enabled: true,
-      },
-      {
-        key: 'career',
-        sourceId: 'career_digest',
-        channel: 'career',
-        targetAudience: 'everyone',
-        frequency: 'daily',
-        enabled: true,
-      },
-    ]);
+    await saveDigestSource('backend_digest_b');
+    await saveChannelDigest('backend', 'backend_digest', 'backend');
+    await saveChannelDigest('career', 'career_digest', 'career');
+    await saveChannelDigest('backendb', 'backend_digest_b', 'backendb');
     await subscribeToDigest('backend_digest');
     await subscribeToDigest('career_digest');
 
-    const today = new Date();
-    today.setUTCHours(12, 0, 0, 0);
-    const earlierToday = new Date(today.getTime() - 60 * 60 * 1000);
-    const yesterday = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
+    await saveDigestPost(
+      'bd-old',
+      'backend_digest',
+      'Backend old',
+      new Date('2026-06-19T08:00:00.000Z'),
+    );
+    await saveDigestPost(
+      'bd-new',
+      'backend_digest',
+      'Backend latest',
+      new Date('2026-06-19T12:00:00.000Z'),
+    );
+    await saveDigestPost(
+      'career-d',
+      'career_digest',
+      'Career latest',
+      new Date('2026-06-19T10:00:00.000Z'),
+    );
+    await saveDigestPost(
+      'bdb-d',
+      'backend_digest_b',
+      'Unsubscribed',
+      new Date('2026-06-19T13:00:00.000Z'),
+    );
 
-    await saveCanonicalHighlights([
-      {
-        id: '11111111-1111-1111-1111-111111111111',
-        postId: 'h1',
-        channel: 'backend',
-        highlightedAt: today,
-        headline: 'Backend major',
-        significance: HighlightSignificance.Major,
-      },
-      {
-        id: '22222222-2222-2222-2222-222222222222',
-        postId: 'h2',
-        channel: 'backend',
-        highlightedAt: earlierToday,
-        headline: 'Backend breaking',
-        significance: HighlightSignificance.Breaking,
-      },
-      {
-        id: '33333333-3333-3333-3333-333333333333',
-        postId: 'h3',
-        channel: 'career',
-        highlightedAt: today,
-        headline: 'Career notable',
-        significance: HighlightSignificance.Notable,
-      },
-      {
-        id: '44444444-4444-4444-4444-444444444444',
-        postId: 'h4',
-        channel: 'backend',
-        highlightedAt: yesterday,
-        headline: 'Backend stale breaking',
-        significance: HighlightSignificance.Breaking,
-      },
-    ]);
-
-    const res = await client.query(DAILY_HIGHLIGHTS_QUERY);
+    const res = await client.query(DAILY_HEADLINES_QUERY);
 
     expect(res.errors).toBeFalsy();
-    // backend → breaking (beats today's major); career → notable; stale excluded.
-    // ordered by highlightedAt desc: career @12:00 then backend @11:00.
-    expect(
-      res.data.dailyHighlights.edges.map(({ node }) => ({
-        channel: node.channel,
-        headline: node.headline,
-        postId: node.post.id,
-      })),
-    ).toEqual([
-      { channel: 'career', headline: 'Career notable', postId: 'h3' },
-      { channel: 'backend', headline: 'Backend breaking', postId: 'h2' },
+    expect(res.data.dailyHeadlines.edges.map(({ node }) => node.id)).toEqual([
+      'bd-new',
+      'career-d',
     ]);
   });
 
@@ -448,29 +436,13 @@ describe('query dailyHighlights', () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');
-    await con.getRepository(ChannelDigest).save({
-      key: 'backend',
-      sourceId: 'backend_digest',
-      channel: 'backend',
-      targetAudience: 'backend devs',
-      frequency: 'daily',
-      enabled: true,
-    });
-    await saveCanonicalHighlights([
-      {
-        id: '55555555-5555-5555-5555-555555555555',
-        postId: 'h1',
-        channel: 'backend',
-        highlightedAt: new Date(),
-        headline: 'Backend today',
-        significance: HighlightSignificance.Major,
-      },
-    ]);
+    await saveChannelDigest('backend', 'backend_digest', 'backend');
+    await saveDigestPost('bd-1', 'backend_digest', 'Backend', new Date());
 
-    const res = await client.query(DAILY_HIGHLIGHTS_QUERY);
+    const res = await client.query(DAILY_HEADLINES_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.dailyHighlights.edges).toEqual([]);
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
   });
 });
 

@@ -24,7 +24,7 @@ import {
   NotificationType,
 } from '../notifications/common';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { isMockEnabled } from '../mocks/common';
+import { Post, PostType } from '../entity/posts/Post';
 
 type GQLChannelDigestConfiguration = {
   frequency: string;
@@ -128,11 +128,11 @@ export const typeDefs = /* GraphQL */ `
     ): PostHighlightConnection!
 
     """
-    Get the top highlight of the current day for each channel digest the
-    current user is subscribed to (via source post-added notifications),
-    one highlight per channel, ordered by recency.
+    Get the latest digest post for each channel digest the current user is
+    subscribed to (via source post-added notifications), one per channel,
+    ordered by recency.
     """
-    dailyHighlights(first: Int, after: String): PostHighlightConnection! @auth
+    dailyHeadlines(first: Int, after: String): PostConnection! @auth
   }
 
   extend type Subscription {
@@ -281,52 +281,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         channel: args.channel,
         significances: parseSignificanceFilters(args.significance),
       }),
-    dailyHighlights: async (
+    dailyHeadlines: async (
       _,
       args: ConnectionArguments,
       ctx: AuthContext,
       info,
     ) => {
-      const startOfDay = new Date();
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      // Locally (mock mode) ignore the current-day window so seeded highlights
-      // with past dates still surface and the query always returns something.
-      const since = isMockEnabled() ? new Date(0) : startOfDay;
-
-      // Top highlight of the day per subscribed channel: dedupe to one row per
-      // channel ordered by significance (Unspecified last), then recency.
-      const topPerChannel = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(NotificationPreferenceSource)
-          .createQueryBuilder('np')
-          .select('h.id', 'id')
-          .innerJoin(
-            ChannelDigest,
-            'cd',
-            'cd."sourceId" = np."sourceId" AND cd.enabled = true',
-          )
-          .innerJoin(
-            HighlightsCanonical,
-            'h',
-            'cd.channel = ANY(h.channels) AND h."highlightedAt" >= :since',
-            { since },
-          )
-          .where('np."userId" = :userId', { userId: ctx.userId })
-          .andWhere('np."notificationType" = :notificationType', {
-            notificationType: NotificationType.SourcePostAdded,
-          })
-          .andWhere('np.status = :status', {
-            status: NotificationPreferenceStatus.Subscribed,
-          })
-          .distinctOn(['cd.channel'])
-          .orderBy('cd.channel', 'ASC')
-          .addOrderBy('(h.significance = 0)', 'ASC')
-          .addOrderBy('h.significance', 'ASC')
-          .addOrderBy('h."highlightedAt"', 'DESC')
-          .getRawMany<{ id: string }>(),
+      const latestDigestPerChannel = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          queryRunner.manager
+            .getRepository(NotificationPreferenceSource)
+            .createQueryBuilder('np')
+            .select('p.id', 'id')
+            .innerJoin(
+              ChannelDigest,
+              'cd',
+              'cd."sourceId" = np."sourceId" AND cd.enabled = true',
+            )
+            .innerJoin(
+              Post,
+              'p',
+              'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false',
+              { postType: PostType.Freeform },
+            )
+            .where('np."userId" = :userId', { userId: ctx.userId })
+            .andWhere('np."notificationType" = :notificationType', {
+              notificationType: NotificationType.SourcePostAdded,
+            })
+            .andWhere('np.status = :status', {
+              status: NotificationPreferenceStatus.Subscribed,
+            })
+            .distinctOn(['cd."sourceId"'])
+            .orderBy('cd."sourceId"', 'ASC')
+            .addOrderBy('p."createdAt"', 'DESC')
+            .getRawMany<{ id: string }>(),
       );
 
-      const highlightIds = topPerChannel.map((row) => row.id);
+      const postIds = latestDigestPerChannel.map((row) => row.id);
       const page = getHighlightsPage(args);
 
       return graphorm.queryPaginated(
@@ -337,12 +329,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (_, index) => offsetToCursor(page.offset + index),
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."id" IN (:...highlightIds)`, {
-              highlightIds: highlightIds.length
-                ? highlightIds
-                : ['00000000-0000-0000-0000-000000000000'],
+            .where(`"${builder.alias}"."id" IN (:...postIds)`, {
+              postIds: postIds.length ? postIds : ['nosuchid'],
             })
-            .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
+            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
             .addOrderBy(`"${builder.alias}"."id"`, 'DESC')
             .offset(page.offset)
             .limit(page.limit);
