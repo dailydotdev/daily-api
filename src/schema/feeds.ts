@@ -1715,6 +1715,10 @@ const dailyFeedResolver = feedResolver<
       );
       const cached = await getRedisObject(cacheKey);
       if (cached) {
+        ctx.log.info(
+          { userId: ctx.userId ?? ctx.trackingId, cached: true, cacheKey },
+          'daily feed served from cache',
+        );
         return JSON.parse(cached) as FeedResponse;
       }
 
