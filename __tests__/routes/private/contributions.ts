@@ -7,6 +7,7 @@ import { saveFixtures } from '../../helpers';
 import { User } from '../../../src/entity/user/User';
 import { ContributionAction } from '../../../src/entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../../../src/entity/contribution/ContributionActionCategory';
+import { ContributionActionLink } from '../../../src/entity/contribution/ContributionActionLink';
 import { ContributionBlockedUser } from '../../../src/entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../../../src/entity/contribution/ContributionCause';
 import {
@@ -278,6 +279,64 @@ describe('private contribution routes', () => {
     await expect(
       con.getRepository(ContributionSponsor).findOneBy({ id: sponsor.id }),
     ).resolves.toBeNull();
+  });
+
+  it('manages action links individually and in bulk', async () => {
+    await seedContributionConfig();
+
+    const { body: link } = await request(app.server)
+      .post(`/p/contributions/actions/${actionId}/links`)
+      .set(serviceHeaders)
+      .send({ url: 'https://stackoverflow.com/q/1', label: 'Question 1' })
+      .expect(201);
+
+    const { body: bulk } = await request(app.server)
+      .post(`/p/contributions/actions/${actionId}/links/bulk`)
+      .set(serviceHeaders)
+      .send({
+        links: [
+          { url: 'https://stackoverflow.com/q/2' },
+          { url: 'https://stackoverflow.com/q/3', sortOrder: 5 },
+        ],
+      })
+      .expect(201);
+
+    expect(bulk.count).toBe(2);
+
+    await request(app.server)
+      .patch(`/p/contributions/links/${link.id}`)
+      .set(serviceHeaders)
+      .send({ label: 'Updated', active: false })
+      .expect(200);
+
+    await request(app.server)
+      .delete(`/p/contributions/links/${bulk.links[0].id}`)
+      .set(serviceAuthHeaders)
+      .expect(200);
+
+    const links = await con
+      .getRepository(ContributionActionLink)
+      .find({ where: { actionId }, order: { url: 'ASC' } });
+
+    expect(links).toHaveLength(2);
+    expect(links).toMatchObject([
+      { url: 'https://stackoverflow.com/q/1', label: 'Updated', active: false },
+      { url: 'https://stackoverflow.com/q/3', sortOrder: 5 },
+    ]);
+  });
+
+  it('returns 404 when managing links for a missing action or link', async () => {
+    await request(app.server)
+      .post(`/p/contributions/actions/${actionId}/links`)
+      .set(serviceHeaders)
+      .send({ url: 'https://stackoverflow.com/q/1' })
+      .expect(404);
+
+    await request(app.server)
+      .patch(`/p/contributions/links/${actionId}`)
+      .set(serviceHeaders)
+      .send({ label: 'Updated' })
+      .expect(404);
   });
 
   it('reviews submissions, fulfills rewards, and blocks users', async () => {
