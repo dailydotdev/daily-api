@@ -1,6 +1,7 @@
 import nock from 'nock';
 import {
   CandidateStatus,
+  HighlightsCanonicalPublishedMessage,
   OpportunityState,
   OpportunityType,
 } from '@dailydotdev/schema';
@@ -29,6 +30,7 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
+  HighlightsCanonical,
   Keyword,
   KeywordStatus,
   MarketingCta,
@@ -138,6 +140,7 @@ import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
+import { HighlightSignificance } from '../../../src/common/channelHighlight/significance';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import { Product, ProductType } from '../../../src/entity/Product';
 import {
@@ -3212,6 +3215,104 @@ describe('marketing cta', () => {
         ),
       ).toHaveLength(4);
     });
+  });
+});
+
+describe('highlights canonical', () => {
+  type ObjectType = HighlightsCanonical;
+
+  const base: ChangeObject<ObjectType> = {
+    id: 'hc_1',
+    postId: 'p1',
+    channels: ['javascript'],
+    highlightedAt: 1_770_000_000_000_000,
+    headline: 'JavaScript in 2026',
+    significance: HighlightSignificance.Major,
+    reason: 'Fast ecosystem update',
+    createdAt: 1_770_000_000_000_000,
+    updatedAt: 1_770_000_000_000_000,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should publish canonical highlight event on create', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expectTypedEvent(
+      'api.v1.post-highlighted',
+      new HighlightsCanonicalPublishedMessage({
+        highlightId: base.id,
+        channels: base.channels,
+        publishedChannels: base.channels,
+        postId: base.postId,
+        headline: base.headline,
+        significance: base.significance,
+        reason: base.reason ?? undefined,
+        highlightedAt: base.highlightedAt,
+      }),
+    );
+  });
+
+  it('should publish only newly added channels on update', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      channels: ['javascript', 'backend'],
+      updatedAt: 1_770_000_100_000_000,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expectTypedEvent(
+      'api.v1.post-highlighted',
+      new HighlightsCanonicalPublishedMessage({
+        highlightId: after.id,
+        channels: after.channels,
+        publishedChannels: ['backend'],
+        postId: after.postId,
+        headline: after.headline,
+        significance: after.significance,
+        reason: after.reason ?? undefined,
+        highlightedAt: after.highlightedAt,
+      }),
+    );
+  });
+
+  it('should not publish on update without a new channel', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      headline: 'Updated headline',
+      updatedAt: 1_770_000_100_000_000,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 

@@ -34,6 +34,7 @@ import {
   CandidatePreferenceUpdated,
   CandidateRejectedOpportunityMessage,
   ContentUpdatedMessage,
+  type HighlightsCanonicalPublishedMessage,
   MatchedCandidate,
   type OpportunityMessage,
   type OpportunityPreviewResult,
@@ -209,6 +210,7 @@ export type PubSubSchema = {
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
+  'api.v1.post-highlighted': HighlightsCanonicalPublishedMessage;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
