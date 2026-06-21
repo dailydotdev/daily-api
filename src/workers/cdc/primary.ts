@@ -1,4 +1,8 @@
-import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
+import {
+  HighlightsCanonicalPublishedMessage,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -46,6 +50,7 @@ import {
   Feedback,
 } from '../../entity';
 import { BookmarkList } from '../../entity/BookmarkList';
+import { HighlightsCanonical } from '../../entity/HighlightsCanonical';
 import { HotTake } from '../../entity/user/HotTake';
 import type { UserFlags } from '../../entity/user/User';
 import { UserStack } from '../../entity/user/UserStack';
@@ -2637,6 +2642,56 @@ const onFeedbackChange = async (
   }
 };
 
+const getPublishedHighlightChannels = (
+  data: ChangeMessage<HighlightsCanonical>,
+): string[] => {
+  const { before, after, op } = data.payload;
+  if (!after) {
+    return [];
+  }
+
+  if (op === 'c') {
+    return after.channels;
+  }
+
+  if (op !== 'u' || !before) {
+    return [];
+  }
+
+  const previousChannels = new Set(before.channels);
+  return after.channels.filter((channel) => !previousChannels.has(channel));
+};
+
+const onHighlightsCanonicalChange = async (
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<HighlightsCanonical>,
+) => {
+  const after = data.payload.after;
+  if (!after) {
+    return;
+  }
+
+  const channels = getPublishedHighlightChannels(data);
+  if (!channels.length) {
+    return;
+  }
+
+  await triggerTypedEvent(
+    logger,
+    'api.v1.post-highlighted',
+    new HighlightsCanonicalPublishedMessage({
+      highlightId: after.id,
+      channels: after.channels,
+      publishedChannels: channels,
+      postId: after.postId,
+      headline: after.headline,
+      significance: after.significance,
+      reason: after.reason ?? undefined,
+      highlightedAt: after.highlightedAt,
+    }),
+  );
+};
+
 const onHotTakeChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2821,6 +2876,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
+          break;
+        case getTableName(con, HighlightsCanonical):
+          await onHighlightsCanonicalChange(logger, data);
           break;
         case getTableName(con, HotTake):
           await onHotTakeChange(con, logger, data);
