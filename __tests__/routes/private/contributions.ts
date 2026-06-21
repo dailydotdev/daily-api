@@ -325,17 +325,16 @@ describe('private contribution routes', () => {
     ]);
   });
 
-  it('returns 404 when managing links for a missing action or link', async () => {
-    await request(app.server)
-      .post(`/p/contributions/actions/${actionId}/links`)
-      .set(serviceHeaders)
-      .send({ url: 'https://stackoverflow.com/q/1' })
-      .expect(404);
-
+  it('returns 404 when updating or deleting a missing link', async () => {
     await request(app.server)
       .patch(`/p/contributions/links/${actionId}`)
       .set(serviceHeaders)
       .send({ label: 'Updated' })
+      .expect(404);
+
+    await request(app.server)
+      .delete(`/p/contributions/links/${actionId}`)
+      .set(serviceAuthHeaders)
       .expect(404);
   });
 

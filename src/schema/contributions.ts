@@ -542,20 +542,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args: { actionId: string; limit?: number | null },
       ctx: AuthContext,
+      info: GraphQLResolveInfo,
     ): Promise<ContributionActionLink[]> => {
       const { actionId, limit } = parseContributionArgs(
         contributionActionLinksArgsSchema,
         args,
       );
 
-      return ctx.con
-        .getRepository(ContributionActionLink)
-        .createQueryBuilder('link')
-        .where('link."actionId" = :actionId', { actionId })
-        .andWhere('link.active = true')
-        .orderBy('RANDOM()')
-        .limit(limit ?? DEFAULT_POOL_LINK_LIMIT)
-        .getMany();
+      return graphorm.query<ContributionActionLink>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where(`"${builder.alias}"."actionId" = :actionId`, { actionId })
+          .andWhere(`"${builder.alias}"."active" = true`)
+          .orderBy('RANDOM()')
+          .limit(limit ?? DEFAULT_POOL_LINK_LIMIT);
+
+        return builder;
+      });
     },
     userContributionSubmissions: async (
       _,

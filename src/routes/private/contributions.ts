@@ -211,15 +211,6 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
-    const action = await con.getRepository(ContributionAction).findOne({
-      select: ['id'],
-      where: { id: params.id },
-    });
-
-    if (!action) {
-      return res.status(404).send({ error: 'Contribution action not found' });
-    }
-
     const link = await con.getRepository(ContributionActionLink).save({
       ...body,
       actionId: params.id,
@@ -247,15 +238,6 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
-    const action = await con.getRepository(ContributionAction).findOne({
-      select: ['id'],
-      where: { id: params.id },
-    });
-
-    if (!action) {
-      return res.status(404).send({ error: 'Contribution action not found' });
-    }
-
     const links = await con.getRepository(ContributionActionLink).save(
       body.links.map((link) => ({
         ...link,
