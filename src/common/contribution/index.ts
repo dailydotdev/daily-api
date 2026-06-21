@@ -6,10 +6,11 @@ import {
   contributionSubmissionEvidenceSchema,
 } from '../schema/contributions';
 import { ContributionBlockedUser } from '../../entity/contribution/ContributionBlockedUser';
-import type {
+import {
   ContributionAction,
-  ContributionEvidenceSchema,
+  ContributionAssistType,
 } from '../../entity/contribution/ContributionAction';
+import type { ContributionEvidenceSchema } from '../../entity/contribution/ContributionAction';
 import {
   ContributionPayment,
   ContributionPaymentStatus,
@@ -17,6 +18,7 @@ import {
 import { ContributionPaymentAllocation } from '../../entity/contribution/ContributionPaymentAllocation';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
+import { UserContributionCausePreference } from '../../entity/contribution/UserContributionCausePreference';
 import { remoteConfig } from '../../remoteConfig';
 
 const ACTIVE_STATUSES_FOR_LIMITS = [
@@ -664,4 +666,90 @@ export const validateContributionActionLimits = async ({
   if (cooldownEndsAt > now) {
     throw new ValidationError('Action is still cooling down');
   }
+};
+
+export const REFERRAL_CONTRIBUTION_REFEREE_FLAG = 'refereeId';
+
+const findReferralContributionAction = (
+  con: EntityManager,
+): Promise<ContributionAction | null> =>
+  con
+    .getRepository(ContributionAction)
+    .createQueryBuilder('action')
+    .where('action.active = true')
+    .andWhere(`action.metadata->>'assistType' = :assistType`, {
+      assistType: ContributionAssistType.ReferralLink,
+    })
+    .orderBy('action."sortOrder"', 'ASC')
+    .addOrderBy('action."createdAt"', 'ASC')
+    .getOne();
+
+// Credits a referrer with contribution points when a friend they invited
+// activates. Gated to referrers who joined the giveback campaign (picked
+// causes). Idempotent per referee via the partial unique index on submission
+// flags, so a redelivered activation event never double-credits.
+export const awardReferralContribution = async ({
+  con,
+  referrerId,
+  refereeId,
+}: {
+  con: EntityManager;
+  referrerId: string;
+  refereeId: string;
+}): Promise<boolean> => {
+  if (!getContributionConfig().enabled) {
+    return false;
+  }
+
+  const [joinedCampaign, blocked] = await Promise.all([
+    con
+      .getRepository(UserContributionCausePreference)
+      .exists({ where: { userId: referrerId } }),
+    con
+      .getRepository(ContributionBlockedUser)
+      .exists({ where: { userId: referrerId } }),
+  ]);
+
+  if (!joinedCampaign || blocked) {
+    return false;
+  }
+
+  const action = await findReferralContributionAction(con);
+
+  // A referral action must be rewardable: skip "for love" (0-point) configs.
+  if (!action || action.points <= 0 || action.metadata?.isLoveAction) {
+    return false;
+  }
+
+  // Best-effort cap: the per-referee unique index guarantees one award per
+  // friend, but the cap is a soft check — concurrent activations from different
+  // referees could each pass it. Acceptable since activation is a rare one-shot.
+  if (action.maxPerUser !== null && action.maxPerUser !== undefined) {
+    const usage = await getContributionActionUsage({
+      con,
+      userId: referrerId,
+      actionId: action.id,
+    });
+
+    if (usage.count >= action.maxPerUser) {
+      return false;
+    }
+  }
+
+  const result = await con
+    .getRepository(ContributionSubmission)
+    .createQueryBuilder()
+    .insert()
+    .values({
+      userId: referrerId,
+      actionId: action.id,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: action.points,
+      evidence: {},
+      flags: { [REFERRAL_CONTRIBUTION_REFEREE_FLAG]: refereeId },
+    })
+    .orIgnore()
+    .execute();
+
+  return (result.identifiers?.length ?? 0) > 0;
 };
