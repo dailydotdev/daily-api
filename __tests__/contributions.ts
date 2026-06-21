@@ -17,6 +17,7 @@ import { User } from '../src/entity/user/User';
 import * as njordCommon from '../src/common/njord';
 import { SubscriptionCycles } from '../src/paddle';
 import { ContributionAction } from '../src/entity/contribution/ContributionAction';
+import { ContributionActionLink } from '../src/entity/contribution/ContributionActionLink';
 import { ContributionActionCategory } from '../src/entity/contribution/ContributionActionCategory';
 import { ContributionBlockedUser } from '../src/entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../src/entity/contribution/ContributionCause';
@@ -102,6 +103,16 @@ query ContributionActions($categoryId: ID) {
         }
       }
     }
+  }
+}
+`;
+
+const CONTRIBUTION_ACTION_LINKS_QUERY = `
+query ContributionActionLinks($actionId: ID!, $limit: Int) {
+  contributionActionLinks(actionId: $actionId, limit: $limit) {
+    id
+    url
+    label
   }
 }
 `;
@@ -580,6 +591,36 @@ it('returns actions by category and records approved submissions with limits', a
   expect(loveAction.errors?.[0].message).toEqual(
     'Contribution action is not rewardable',
   );
+});
+
+it('returns a randomized handful of active pool links for an action', async () => {
+  await seedActions();
+  await saveFixtures(con, ContributionActionLink, [
+    { actionId, url: 'https://stackoverflow.com/q/1' },
+    { actionId, url: 'https://stackoverflow.com/q/2' },
+    { actionId, url: 'https://stackoverflow.com/q/3' },
+    { actionId, url: 'https://stackoverflow.com/q/4', active: false },
+  ]);
+
+  const limited = await client.query(CONTRIBUTION_ACTION_LINKS_QUERY, {
+    variables: { actionId, limit: 2 },
+  });
+
+  expect(limited.errors).toBeUndefined();
+  expect(limited.data.contributionActionLinks).toHaveLength(2);
+
+  const all = await client.query(CONTRIBUTION_ACTION_LINKS_QUERY, {
+    variables: { actionId },
+  });
+
+  const urls = all.data.contributionActionLinks
+    .map((link: { url: string }) => link.url)
+    .sort();
+  expect(urls).toEqual([
+    'https://stackoverflow.com/q/1',
+    'https://stackoverflow.com/q/2',
+    'https://stackoverflow.com/q/3',
+  ]);
 });
 
 it('updates cause preferences and claims unlocked reward tiers', async () => {

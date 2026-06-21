@@ -6,7 +6,9 @@ import { parseSchema } from './utils';
 import {
   contributionPrivateBlockUserSchema,
   contributionPrivateBlockedUserParamsSchema,
+  contributionPrivateBulkCreateActionLinkSchema,
   contributionPrivateCreateActionCategorySchema,
+  contributionPrivateCreateActionLinkSchema,
   contributionPrivateCreateActionSchema,
   contributionPrivateCreateCauseSchema,
   contributionPrivateCreateRewardTierSchema,
@@ -17,6 +19,7 @@ import {
   contributionPrivateReviewSubmissionSchema,
   contributionPrivateRewardParamsSchema,
   contributionPrivateUpdateActionCategorySchema,
+  contributionPrivateUpdateActionLinkSchema,
   contributionPrivateUpdateActionSchema,
   contributionPrivateUpdateCauseSchema,
   contributionPrivateUpdateRewardTierSchema,
@@ -28,6 +31,7 @@ import {
 } from '../../common/contribution';
 import { ContributionAction } from '../../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../../entity/contribution/ContributionActionCategory';
+import { ContributionActionLink } from '../../entity/contribution/ContributionActionLink';
 import { ContributionBlockedUser } from '../../entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../../entity/contribution/ContributionCause';
 import { ContributionRewardTier } from '../../entity/contribution/ContributionRewardTier';
@@ -183,6 +187,121 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
     if (!result.affected) {
       return res.status(404).send({ error: 'Contribution action not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.post<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+    Body: z.infer<typeof contributionPrivateCreateActionLinkSchema>;
+  }>('/actions/:id/links', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    const body = parseSchema({
+      schema: contributionPrivateCreateActionLinkSchema,
+      value: req.body,
+      res,
+    });
+    if (!params || !body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const link = await con.getRepository(ContributionActionLink).save({
+      ...body,
+      actionId: params.id,
+    });
+
+    return res.status(201).send(link);
+  });
+
+  fastify.post<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+    Body: z.infer<typeof contributionPrivateBulkCreateActionLinkSchema>;
+  }>('/actions/:id/links/bulk', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    const body = parseSchema({
+      schema: contributionPrivateBulkCreateActionLinkSchema,
+      value: req.body,
+      res,
+    });
+    if (!params || !body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const links = await con.getRepository(ContributionActionLink).save(
+      body.links.map((link) => ({
+        ...link,
+        actionId: params.id,
+      })),
+    );
+
+    return res.status(201).send({ count: links.length, links });
+  });
+
+  fastify.patch<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+    Body: z.infer<typeof contributionPrivateUpdateActionLinkSchema>;
+  }>('/links/:id', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    const body = parseSchema({
+      schema: contributionPrivateUpdateActionLinkSchema,
+      value: req.body,
+      res,
+      requireNonEmpty: true,
+    });
+    if (!params || !body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(ContributionActionLink)
+      .update(params.id, body);
+
+    if (!result.affected) {
+      return res
+        .status(404)
+        .send({ error: 'Contribution action link not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.delete<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+  }>('/links/:id', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    if (!params) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(ContributionActionLink)
+      .delete(params.id);
+
+    if (!result.affected) {
+      return res
+        .status(404)
+        .send({ error: 'Contribution action link not found' });
     }
 
     return res.status(200).send({ success: true });

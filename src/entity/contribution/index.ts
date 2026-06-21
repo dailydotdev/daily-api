@@ -1,5 +1,6 @@
 export * from './ContributionAction';
 export * from './ContributionActionCategory';
+export * from './ContributionActionLink';
 export * from './ContributionBlockedUser';
 export * from './ContributionCause';
 export * from './ContributionPayment';

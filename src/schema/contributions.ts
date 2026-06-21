@@ -18,6 +18,7 @@ import {
 import { fulfillContributionReward } from '../common/contribution/rewards';
 import {
   claimContributionRewardArgsSchema,
+  contributionActionLinksArgsSchema,
   contributionActionsArgsSchema,
   contributionConnectionArgsSchema,
   contributionSubmissionsArgsSchema,
@@ -26,6 +27,7 @@ import {
 } from '../common/schema/contributions';
 import { ContributionAction } from '../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../entity/contribution/ContributionActionCategory';
+import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
 import {
   ContributionPayment,
@@ -180,6 +182,7 @@ export const typeDefs = /* GraphQL */ `
     instructions: String
     externalUrl: String
     isLoveAction: Boolean!
+    assistType: String
   }
 
   type ContributionActionCategory {
@@ -210,6 +213,12 @@ export const typeDefs = /* GraphQL */ `
     userCooldownEndsAt: DateTime
     userCompletions: Int!
     latestUserSubmission: ContributionSubmission
+  }
+
+  type ContributionActionLink {
+    id: ID!
+    url: String!
+    label: String
   }
 
   type ContributionActionEdge {
@@ -351,6 +360,14 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionActionConnection! @auth @contributionEligibility
+    """
+    A randomized handful of pool links for a link_pool action (e.g. community
+    questions to answer). The pool can hold hundreds; we surface a few at a time.
+    """
+    contributionActionLinks(
+      actionId: ID!
+      limit: Int
+    ): [ContributionActionLink!]! @auth @contributionEligibility
     userContributionSubmissions(
       actionId: ID
       first: Int
@@ -397,6 +414,8 @@ export const typeDefs = /* GraphQL */ `
       @contributionEligibility
   }
 `;
+
+const DEFAULT_POOL_LINK_LIMIT = 5;
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -517,6 +536,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
           return builder;
         },
+      });
+    },
+    contributionActionLinks: async (
+      _,
+      args: { actionId: string; limit?: number | null },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<ContributionActionLink[]> => {
+      const { actionId, limit } = parseContributionArgs(
+        contributionActionLinksArgsSchema,
+        args,
+      );
+
+      return graphorm.query<ContributionActionLink>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where(`"${builder.alias}"."actionId" = :actionId`, { actionId })
+          .andWhere(`"${builder.alias}"."active" = true`)
+          .orderBy('RANDOM()')
+          .limit(limit ?? DEFAULT_POOL_LINK_LIMIT);
+
+        return builder;
       });
     },
     userContributionSubmissions: async (

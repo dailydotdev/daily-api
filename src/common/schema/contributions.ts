@@ -1,4 +1,5 @@
 import z from 'zod';
+import { ContributionAssistType } from '../../entity/contribution/ContributionAction';
 import { ContributionRewardType } from '../../entity/contribution/ContributionRewardTier';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { enumValues } from './utils';
@@ -30,6 +31,7 @@ export const contributionActionMetadataSchema = z
     instructions: z.string().trim().min(1).optional(),
     externalUrl: z.url().optional(),
     isLoveAction: z.boolean().optional(),
+    assistType: z.enum(enumValues(ContributionAssistType)).optional(),
   })
   .strict();
 
@@ -55,6 +57,11 @@ export const contributionSubmissionsArgsSchema =
   contributionConnectionArgsSchema.extend({
     actionId: z.uuid().nullish(),
   });
+
+export const contributionActionLinksArgsSchema = z.object({
+  actionId: z.uuid(),
+  limit: z.number().int().positive().max(20).nullish(),
+});
 
 export const submitContributionActionInputSchema = z.object({
   actionId: z.uuid(),
@@ -222,4 +229,22 @@ export const contributionPrivateBlockUserSchema = z.object({
 export const contributionPrivateFinalizePaymentSchema = z.object({
   amountCents: z.number().int().positive(),
   createdBy: contributionUserIdSchema.nullish(),
+});
+
+export const contributionPrivateCreateActionLinkSchema = z.object({
+  url: z.url(),
+  label: z.string().trim().min(1).nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
+});
+
+export const contributionPrivateBulkCreateActionLinkSchema = z.object({
+  links: z.array(contributionPrivateCreateActionLinkSchema).min(1).max(500),
+});
+
+export const contributionPrivateUpdateActionLinkSchema = z.object({
+  url: z.url().optional(),
+  label: z.string().trim().min(1).nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
 });
