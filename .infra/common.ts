@@ -31,6 +31,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
+    subscription: 'api.user-activated-contribution-referral',
+  },
+  {
+    topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-squad',
   },
   {

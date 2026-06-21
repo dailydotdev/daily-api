@@ -46,6 +46,7 @@ import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDige
 import commentDownvotedRep from './commentDownvotedRep';
 import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
 import userUpdatedCio from './userUpdatedCio';
+import userActivatedContributionReferral from './userActivatedContributionReferral';
 import userDeletedCio from './userDeletedCio';
 import userStreakUpdatedCio from './userStreakUpdatedCio';
 import { vordrPostCommentPrevented } from './vordrPostCommentPrevented';
@@ -138,6 +139,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postDownvotedRep,
   postDownvoteCanceledRep,
   userUpdatedCio,
+  userActivatedContributionReferral,
   userDeletedCio,
   userStreakUpdatedCio,
   vordrPostCommentPrevented,
