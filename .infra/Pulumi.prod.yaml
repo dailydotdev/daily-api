@@ -59,7 +59,7 @@ config:
       secure: AAABAGChdDxbV+V6t2pQOYBecCRy36qLbPoyD2Ee3ssIIArwBkjx2NmMPK9SnjLWV5pqg7YWV8EkcB3ldysVDzrTTslLimQH5VtgQ1Fe32uqWUUUrZUJmZlDv9+xgYeo
     cloudinaryUrl:
       secure: AAABANjdKplLPf64fvQRXN0mUtB6I7yh0lG44SsBC6BcKsH3MulzTCJ8adEN4BQYlytY0otXJOJL+fqNjzgYG+WIXO2GPecSvPeFem5ZyFVrbfxX42wyb2iwVHDyegOb5cY=
-    commentsPrefix: https://app.daily.dev
+    commentsPrefix: https://daily.dev
     cookiesKey:
       secure: AAABAI6r/VqBFrSL3TkFzy1JF7INkGFPmakbJr72jjDGmYUqoJV4t6ha1yDoYaA97MIcFHmW4t1+cRKQcHTwy7vUYCCaf9gLSvrb1ax1cA==
     defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/s--P4t4XyoV--/f_auto/v1722860399/public/Placeholder%2001,https://res.cloudinary.com/daily-now/image/upload/s--VDukGCjf--/f_auto/v1722860399/public/Placeholder%2002,https://res.cloudinary.com/daily-now/image/upload/s--HRgLpUt6--/f_auto/v1722860399/public/Placeholder%2003,https://res.cloudinary.com/daily-now/image/upload/s--foaA6JGU--/f_auto/v1722860399/public/Placeholder%2004,https://res.cloudinary.com/daily-now/image/upload/s--CxzD6vbw--/f_auto/v1722860399/public/Placeholder%2005,https://res.cloudinary.com/daily-now/image/upload/s--ZrL_HSsR--/f_auto/v1722860399/public/Placeholder%2006,https://res.cloudinary.com/daily-now/image/upload/s--1KxV4ohY--/f_auto/v1722860400/public/Placeholder%2007,https://res.cloudinary.com/daily-now/image/upload/s--0_ODbtD2--/f_auto/v1722860399/public/Placeholder%2008,https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1722860399/public/Placeholder%2009,https://res.cloudinary.com/daily-now/image/upload/s--OHB84bZF--/f_auto/v1722860399/public/Placeholder%2010,https://res.cloudinary.com/daily-now/image/upload/s--2-1xRawN--/f_auto/v1722860399/public/Placeholder%2011,https://res.cloudinary.com/daily-now/image/upload/s--58gMhC4P--/f_auto/v1722860399/public/Placeholder%2012
@@ -244,7 +244,7 @@ config:
     betterAuthSecret:
       secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
     betterAuthBaseUrl: https://api.daily.dev
-    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.app.daily.dev,https://daily.dev,https://next.daily.dev
+    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.app.daily.dev,https://daily.dev
     betterAuthRedirectUrl: https://sso.daily.dev/api
     googleClientId:
       secure: AAABAKpAJnPFQwwZoZubPX++3FKQhi0/gw+Kh6AP0Ax7GApzkXoxOUXYrezrUyf02MIzIrsNlJAeZisv6p12U0ziCdKKhj7Jv/CZThEX9FB8uSWArHS68NdrQkcTL8gUk/PK/GU4cAM=
