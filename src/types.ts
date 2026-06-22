@@ -36,6 +36,8 @@ declare global {
       COOKIES_KEY: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
+      ONESIGNAL_WEB_APP_ID?: string;
+      ONESIGNAL_WEB_API_KEY?: string;
       REDIS_HOST: string;
       REDIS_PORT: string;
       PERSONALIZED_DIGEST_FEED: string;

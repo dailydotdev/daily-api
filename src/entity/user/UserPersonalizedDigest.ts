@@ -35,7 +35,6 @@ export class UserPersonalizedDigest {
   @Column({ type: 'smallint', default: 9 })
   preferredHour: number;
 
-  @Index()
   @Column({ type: 'smallint', default: DayOfWeek.Monday })
   preferredDay = DayOfWeek.Monday;
 
