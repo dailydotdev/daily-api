@@ -37,7 +37,6 @@ export type KeywordFlagsPublic = Pick<
 @Index('IDX_keyword_status_occ_value', { synchronize: false })
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_keyword_value')
   value: string;
 
   @Column({
@@ -58,7 +57,6 @@ export class Keyword {
   updatedAt: Date;
 
   @Column({ default: 1 })
-  @Index('IDX_keyword_occurrences')
   occurrences: number;
 
   @Column({ type: 'jsonb', default: {} })
