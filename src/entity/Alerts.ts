@@ -21,7 +21,6 @@ export type AlertsFlags = Partial<{
 })
 export class Alerts {
   @PrimaryColumn({ type: 'text' })
-  @Index()
   userId: string;
 
   @Column({ type: 'bool', default: true })

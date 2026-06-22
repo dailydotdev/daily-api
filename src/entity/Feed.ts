@@ -66,7 +66,6 @@ export class Feed {
     generatedType: 'STORED',
     asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(feed.flags->>'name',100),'')||'-'||feed.id)), '[^a-z0-9-]+', '-', 'gi'))`,
   })
-  @Index('IDX_feed_slug', { unique: true })
   slug: string;
 
   @Column({
