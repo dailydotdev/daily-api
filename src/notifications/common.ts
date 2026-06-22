@@ -337,6 +337,94 @@ export const postNewCommentNotificationTypes = [
   NotificationType.SquadNewComment,
 ];
 
+// Human-friendly buckets the notifications feed filters by. The client sends a
+// category and the API owns which notification types belong to it, so buckets
+// can be retuned (or new types slotted in) without a frontend release.
+export enum NotificationFilterCategory {
+  Upvotes = 'upvotes',
+  Mentions = 'mentions',
+  Comments = 'comments',
+  Followers = 'followers',
+  Squads = 'squads',
+  Updates = 'updates',
+}
+
+// Explicit buckets. `Updates` is intentionally absent: it's the complement of
+// everything below, so a brand-new notification type lands in `Updates` (and
+// in "All activity") automatically without touching this map.
+const notificationCategoryToTypes: Partial<
+  Record<NotificationFilterCategory, NotificationType[]>
+> = {
+  [NotificationFilterCategory.Upvotes]: [
+    NotificationType.ArticleUpvoteMilestone,
+    NotificationType.CommentUpvoteMilestone,
+  ],
+  [NotificationFilterCategory.Mentions]: [
+    NotificationType.PostMention,
+    NotificationType.CommentMention,
+  ],
+  [NotificationFilterCategory.Comments]: [
+    NotificationType.ArticleNewComment,
+    NotificationType.SquadNewComment,
+    NotificationType.CommentReply,
+    NotificationType.SquadReply,
+  ],
+  [NotificationFilterCategory.Followers]: [NotificationType.UserFollow],
+  [NotificationFilterCategory.Squads]: [
+    NotificationType.SquadPostAdded,
+    NotificationType.SquadMemberJoined,
+    NotificationType.SquadBlocked,
+    NotificationType.PromotedToAdmin,
+    NotificationType.PromotedToModerator,
+    NotificationType.DemotedToMember,
+    NotificationType.SquadPublicApproved,
+    NotificationType.SquadFeatured,
+    NotificationType.SquadSubscribeToNotification,
+    NotificationType.SourcePostSubmitted,
+    NotificationType.SourcePostApproved,
+    NotificationType.SourcePostRejected,
+    NotificationType.ArticlePicked,
+  ],
+};
+
+const categorizedNotificationTypes = Object.values(
+  notificationCategoryToTypes,
+).flat();
+
+// Resolves a category to a `un."type"` filter. Returns `include` for the
+// explicit buckets and `exclude` for `Updates` (the complement), or null when
+// the category is unknown so the caller can reject it.
+export const getNotificationCategoryFilter = (
+  category: string,
+): { include: NotificationType[] } | { exclude: NotificationType[] } | null => {
+  if (category === NotificationFilterCategory.Updates) {
+    return { exclude: categorizedNotificationTypes };
+  }
+
+  const include =
+    notificationCategoryToTypes[category as NotificationFilterCategory];
+  return include ? { include } : null;
+};
+
+const notificationTypeToCategory = Object.entries(
+  notificationCategoryToTypes,
+).reduce(
+  (acc, [category, types]) => {
+    types.forEach((type) => {
+      acc[type] = category as NotificationFilterCategory;
+    });
+    return acc;
+  },
+  {} as Partial<Record<NotificationType, NotificationFilterCategory>>,
+);
+
+// The bucket a single notification belongs to (inverse of the category map).
+// Anything uncategorized falls into `Updates`, matching the filter complement.
+export const getNotificationCategory = (
+  type: NotificationType,
+): NotificationFilterCategory =>
+  notificationTypeToCategory[type] ?? NotificationFilterCategory.Updates;
+
 type NotificationPreferenceUnion = NotificationPreferenceComment &
   NotificationPreferencePost &
   NotificationPreferenceSource;
