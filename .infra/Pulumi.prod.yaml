@@ -273,6 +273,10 @@ config:
       secure: AAABAA85JTyvqc0H0ymWJ4UZ+btCk31WpH78pgaNOIiIRKW9jr6p7W1xBMzmCbO6vBfL90LeadptoNV9KQnaPnsmIVlQhTDEERY17PoQ
     emailTrackingOrigin:
       secure: AAABAErY3w6A5DQ0qsRNWLnAJZhLaLnMdqbimt6M5rZSYgAw6yNbtrlUJLeiHW/EQCDUhw==
+    onesignalWebAppId:
+      secure: AAABACoUzLQ6eGNpdjzl7sShD4BDSeSKJPtzdp9Ble0i3Mo3fh49v5dypv2VkcuXF2UH1dgaZlcCE6DhSBTrA/luWKc=
+    onesignalWebApiKey:
+      secure: AAABAPNWKCkjj4VNxfW9pxPksz2srCJuBaOfvxnyIRpnb/e7fBFUBIhTJjiZa8Kf2fAOFEqh1Xpioilpy6UrW//CFVHl5EEDtn+1U2K8Ig398ZbLwCYiJcsqj3m0NVnhs5tH/SUfHyiJBexftNuyAjE9KPW1UmyIeUpB4gTUMJG876JFVYqUY7a2XJFjGJ7a4Q==
   api:k8s:
     host: subs.daily.dev
     namespace: daily

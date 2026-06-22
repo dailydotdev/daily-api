@@ -40,6 +40,7 @@ import * as userHotTake from './schema/userHotTake';
 import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
 import * as personalAccessTokens from './schema/personalAccessTokens';
+import * as webPush from './schema/webPush';
 import * as feedback from './schema/feedback';
 import * as sentiment from './schema/sentiment';
 import * as achievements from './schema/achievements';
@@ -107,6 +108,7 @@ export const schema = urlDirective.transformer(
                 gear.typeDefs,
                 userWorkspacePhoto.typeDefs,
                 personalAccessTokens.typeDefs,
+                webPush.typeDefs,
                 feedback.typeDefs,
                 sentiment.typeDefs,
                 achievements.typeDefs,
@@ -155,6 +157,7 @@ export const schema = urlDirective.transformer(
                   gear.resolvers,
                   userWorkspacePhoto.resolvers,
                   personalAccessTokens.resolvers,
+                  webPush.resolvers,
                   feedback.resolvers,
                   sentiment.resolvers,
                   achievements.resolvers,
