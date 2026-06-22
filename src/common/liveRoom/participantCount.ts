@@ -1,10 +1,28 @@
+import { z } from 'zod';
 import type { Context } from '../../Context';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 import { getFlytingClient } from '../../integrations/flyting/client';
 import { ioRedisPool } from '../../redis';
-import { ONE_MINUTE_IN_SECONDS } from '../constants';
+import { liveRoomActivityStatusSchema } from '../schema/liveRooms';
 
-const LIVE_ROOM_PARTICIPANT_COUNT_CACHE_TTL_SECONDS = 2 * ONE_MINUTE_IN_SECONDS;
+const LIVE_ROOM_RUNTIME_STATE_CACHE_TTL_SECONDS = 30;
+
+const liveRoomRuntimeStateSchema = z.object({
+  activityStatus: liveRoomActivityStatusSchema.nullable(),
+  participantCount: z.number().nullable().catch(null),
+});
+
+export type LiveRoomRuntimeState = z.infer<typeof liveRoomRuntimeStateSchema>;
+
+const cachedLiveRoomRuntimeStateSchema = z.union([
+  liveRoomRuntimeStateSchema,
+  z.number().transform(
+    (participantCount): LiveRoomRuntimeState => ({
+      activityStatus: null,
+      participantCount,
+    }),
+  ),
+]);
 
 const getParticipantCountCacheKey = (roomId: string): string =>
   generateStorageKey(
@@ -13,22 +31,29 @@ const getParticipantCountCacheKey = (roomId: string): string =>
     roomId,
   );
 
-const parseCachedParticipantCount = (value: string | null): number | null => {
+const parseCachedRuntimeState = (
+  value: string | null,
+): LiveRoomRuntimeState | null => {
   if (value === null) {
     return null;
   }
 
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? null : parsed;
+  try {
+    const parsed = JSON.parse(value);
+    const result = cachedLiveRoomRuntimeStateSchema.safeParse(parsed);
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
 };
 
-export const getLiveRoomParticipantCounts = async ({
+export const getLiveRoomRuntimeStates = async ({
   ctx,
   roomIds,
 }: {
   ctx: Context;
   roomIds: string[];
-}): Promise<Map<string, number | null>> => {
+}): Promise<Map<string, LiveRoomRuntimeState>> => {
   if (roomIds.length === 0) {
     return new Map();
   }
@@ -37,32 +62,35 @@ export const getLiveRoomParticipantCounts = async ({
   const cachedValues = await ioRedisPool.execute((client) =>
     client.mget(cacheKeys),
   );
-  const countsByRoomId = new Map<string, number | null>();
+  const statesByRoomId = new Map<string, LiveRoomRuntimeState>();
   const missingRoomIds: string[] = [];
 
   roomIds.forEach((roomId, index) => {
-    const cachedCount = parseCachedParticipantCount(cachedValues[index]);
+    const cachedState = parseCachedRuntimeState(cachedValues[index]);
 
-    if (cachedCount === null && cachedValues[index] === null) {
+    if (cachedState === null) {
       missingRoomIds.push(roomId);
       return;
     }
 
-    countsByRoomId.set(roomId, cachedCount);
+    statesByRoomId.set(roomId, cachedState);
   });
 
   if (missingRoomIds.length === 0) {
-    return countsByRoomId;
+    return statesByRoomId;
   }
 
   try {
     const response = await getFlytingClient().getParticipantCounts({
       roomIds: missingRoomIds,
     });
-    const fetchedCountsByRoomId = new Map(
-      response.rooms.map(({ roomId, participantCount }) => [
+    const fetchedStatesByRoomId = new Map(
+      response.rooms.map(({ activityStatus, roomId, participantCount }) => [
         roomId,
-        participantCount,
+        {
+          activityStatus: activityStatus ?? null,
+          participantCount,
+        },
       ]),
     );
 
@@ -70,15 +98,21 @@ export const getLiveRoomParticipantCounts = async ({
       const multi = client.multi();
 
       for (const roomId of missingRoomIds) {
-        const participantCount = fetchedCountsByRoomId.get(roomId) ?? null;
-        countsByRoomId.set(roomId, participantCount);
+        const state = fetchedStatesByRoomId.get(roomId) ?? {
+          activityStatus: null,
+          participantCount: null,
+        };
+        statesByRoomId.set(roomId, state);
 
-        if (typeof participantCount === 'number') {
+        if (
+          typeof state.participantCount === 'number' ||
+          state.activityStatus !== null
+        ) {
           multi.set(
             getParticipantCountCacheKey(roomId),
-            participantCount.toString(),
+            JSON.stringify(state),
             'EX',
-            LIVE_ROOM_PARTICIPANT_COUNT_CACHE_TTL_SECONDS,
+            LIVE_ROOM_RUNTIME_STATE_CACHE_TTL_SECONDS,
           );
         }
       }
@@ -92,11 +126,26 @@ export const getLiveRoomParticipantCounts = async ({
     );
 
     for (const roomId of missingRoomIds) {
-      countsByRoomId.set(roomId, null);
+      statesByRoomId.set(roomId, {
+        activityStatus: null,
+        participantCount: null,
+      });
     }
   }
 
-  return countsByRoomId;
+  return statesByRoomId;
+};
+
+export const getLiveRoomParticipantCounts = async (
+  input: Parameters<typeof getLiveRoomRuntimeStates>[0],
+): Promise<Map<string, number | null>> => {
+  const statesByRoomId = await getLiveRoomRuntimeStates(input);
+  return new Map(
+    [...statesByRoomId.entries()].map(([roomId, state]) => [
+      roomId,
+      state.participantCount,
+    ]),
+  );
 };
 
 export const liveRoomParticipantCountCacheKey = getParticipantCountCacheKey;

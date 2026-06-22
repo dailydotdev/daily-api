@@ -13,6 +13,11 @@ export enum LiveRoomStatus {
   Ended = 'ended',
 }
 
+export enum LiveRoomActivityStatus {
+  Pending = 'pending',
+  Live = 'live',
+}
+
 export enum LiveRoomParticipantRole {
   Host = 'host',
   Audience = 'audience',
@@ -39,6 +44,13 @@ export const liveRoomMinParticipantsToGoLiveSchema = z
 export const liveRoomStatusSchema = z.enum(enumValues(LiveRoomStatus), {
   error: 'Invalid live room status',
 });
+
+export const liveRoomActivityStatusSchema = z.enum(
+  enumValues(LiveRoomActivityStatus),
+  {
+    error: 'Invalid live room activity status',
+  },
+);
 
 export const liveRoomParticipantRoleSchema = z.enum(
   enumValues(LiveRoomParticipantRole),

@@ -28,10 +28,11 @@ import {
 import { usersFixture } from './fixture/user';
 import { User } from '../src/entity/user/User';
 import { LiveRoomStatus } from '../src/common/schema/liveRooms';
-import { deleteKeysByPattern } from '../src/redis';
+import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { LIVE_ROOM_POST_PROMOTION_SECONDS } from '../src/schema/liveRooms';
+import { liveRoomParticipantCountCacheKey } from '../src/common/liveRoom/participantCount';
 
 const {
   mock: temporalMock,
@@ -125,6 +126,7 @@ describe('live rooms', () => {
           topic
           mode
           status
+          activityStatus
           participantCount
           scheduledStart
           description
@@ -151,6 +153,7 @@ describe('live rooms', () => {
         topic
         mode
         status
+        activityStatus
         participantCount
         host {
           id
@@ -167,6 +170,7 @@ describe('live rooms', () => {
         topic
         mode
         status
+        activityStatus
         participantCount
         host {
           id
@@ -195,6 +199,7 @@ describe('live rooms', () => {
           topic
           mode
           status
+          activityStatus
           participantCount
           host {
             id
@@ -405,6 +410,20 @@ describe('live rooms', () => {
       })
       .matchHeader('x-flyting-internal-key', flytingInternalKey)
       .reply(200, { room: { roomId: 'ignored' } });
+    const countsScope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', (body) => {
+        return Array.isArray(body.roomIds) && body.roomIds.length === 1;
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, (_uri, body: { roomIds: string[] }) => ({
+        rooms: [
+          {
+            activityStatus: 'pending',
+            roomId: body.roomIds[0],
+            participantCount: 0,
+          },
+        ],
+      }));
 
     const res = await client.mutate(CREATE_MUTATION, {
       variables: {
@@ -422,7 +441,8 @@ describe('live rooms', () => {
       topic: 'Community floor',
       mode: 'community_moderated',
       status: 'created',
-      participantCount: null,
+      activityStatus: 'pending',
+      participantCount: 0,
     });
 
     const room = await con.getRepository(LiveRoom).findOneByOrFail({
@@ -431,6 +451,7 @@ describe('live rooms', () => {
 
     expect(room.mode).toBe('community_moderated');
     expect(scope.isDone()).toBe(true);
+    expect(countsScope.isDone()).toBe(true);
   });
 
   it('rejects community-moderated live rooms without a minimum participant count', async () => {
@@ -720,6 +741,7 @@ describe('live rooms', () => {
           topic: 'Live room',
           mode: 'moderated',
           status: 'live',
+          activityStatus: 'live',
           participantCount: 7,
           host: {
             id: '2',
@@ -728,6 +750,77 @@ describe('live rooms', () => {
         },
       ],
     });
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('returns community-moderated rooms only when their activity is live', async () => {
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: '33333333-b26e-44fb-b9f8-4c977b28a123',
+        hostId: '1',
+        topic: 'Pending community room',
+        mode: 'community_moderated',
+        status: LiveRoomStatus.Created,
+        createdAt: new Date('2026-04-23T10:00:00.000Z'),
+      },
+      {
+        id: '44444444-b26e-44fb-b9f8-4c977b28a123',
+        hostId: '2',
+        topic: 'Live community room',
+        mode: 'community_moderated',
+        status: LiveRoomStatus.Created,
+        createdAt: new Date('2026-04-23T11:00:00.000Z'),
+      },
+      {
+        id: '55555555-b26e-44fb-b9f8-4c977b28a123',
+        hostId: '1',
+        topic: 'Ended community room',
+        mode: 'community_moderated',
+        status: LiveRoomStatus.Ended,
+        createdAt: new Date('2026-04-23T12:00:00.000Z'),
+      },
+    ]);
+
+    const scope = nock(flytingOrigin)
+      .post('/internal/live-rooms/counts', {
+        roomIds: [
+          '44444444-b26e-44fb-b9f8-4c977b28a123',
+          '33333333-b26e-44fb-b9f8-4c977b28a123',
+        ],
+      })
+      .matchHeader('x-flyting-internal-key', flytingInternalKey)
+      .reply(200, {
+        rooms: [
+          {
+            activityStatus: 'live',
+            roomId: '44444444-b26e-44fb-b9f8-4c977b28a123',
+            participantCount: 3,
+          },
+          {
+            activityStatus: 'pending',
+            roomId: '33333333-b26e-44fb-b9f8-4c977b28a123',
+            participantCount: 1,
+          },
+        ],
+      });
+
+    const res = await client.query(ACTIVE_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.activeLiveRooms).toEqual([
+      {
+        id: '44444444-b26e-44fb-b9f8-4c977b28a123',
+        topic: 'Live community room',
+        mode: 'community_moderated',
+        status: 'created',
+        activityStatus: 'live',
+        participantCount: 3,
+        host: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
+    ]);
     expect(scope.isDone()).toBe(true);
   });
 
@@ -783,6 +876,7 @@ describe('live rooms', () => {
         topic: 'Live room two',
         mode: 'moderated',
         status: 'live',
+        activityStatus: 'live',
         participantCount: 11,
         host: {
           id: '2',
@@ -794,6 +888,7 @@ describe('live rooms', () => {
         topic: 'Live room one',
         mode: 'moderated',
         status: 'live',
+        activityStatus: 'live',
         participantCount: 7,
         host: {
           id: '1',
@@ -874,6 +969,7 @@ describe('live rooms', () => {
           topic: 'Live room without count',
           mode: 'moderated',
           status: 'live',
+          activityStatus: 'live',
           participantCount: null,
           host: {
             id: '2',
@@ -1430,6 +1526,7 @@ describe('live rooms', () => {
         topic: 'Readable room',
         mode: 'moderated',
         status: 'live',
+        activityStatus: 'live',
         participantCount: 5,
         host: {
           id: '2',
@@ -1486,6 +1583,31 @@ describe('live rooms', () => {
     expect(scope.isDone()).toBe(true);
   });
 
+  it('reads legacy numeric participant count cache values', async () => {
+    loggedUser = '1';
+    const roomId = '62e45613-c9f8-4823-96cb-ebd6dcbbf4fe';
+
+    await saveFixtures(con, LiveRoom, [
+      {
+        id: roomId,
+        hostId: '2',
+        topic: 'Cached room',
+        mode: 'moderated',
+        status: LiveRoomStatus.Live,
+      },
+    ]);
+    await ioRedisPool.execute((client) =>
+      client.set(liveRoomParticipantCountCacheKey(roomId), '13'),
+    );
+
+    const res = await client.query(GET_QUERY, {
+      variables: { id: roomId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.liveRoom.participantCount).toBe(13);
+  });
+
   it('returns a live room by id for an anonymous caller', async () => {
     loggedTrackingId = 'tracking-anon-1';
 
@@ -1526,6 +1648,7 @@ describe('live rooms', () => {
         topic: 'Public live room',
         mode: 'moderated',
         status: 'live',
+        activityStatus: 'live',
         participantCount: 4,
         host: {
           id: '2',
@@ -1563,6 +1686,7 @@ describe('live rooms', () => {
         topic: 'Public scheduled lobby',
         mode: 'moderated',
         status: 'created',
+        activityStatus: 'pending',
         participantCount: null,
         host: {
           id: '2',
@@ -1600,6 +1724,7 @@ describe('live rooms', () => {
         topic: 'Public ended room',
         mode: 'moderated',
         status: 'ended',
+        activityStatus: null,
         participantCount: null,
         host: {
           id: '2',
