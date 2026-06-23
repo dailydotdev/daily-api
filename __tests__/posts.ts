@@ -1045,7 +1045,7 @@ describe('hero field', () => {
       id: expect.any(String),
       headline: 'Breaking out',
       significance: 'breakout',
-      size: 3,
+      size: 2,
       highlightedAt: expect.any(String),
     });
   });
