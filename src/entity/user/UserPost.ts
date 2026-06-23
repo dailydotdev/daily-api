@@ -22,7 +22,6 @@ export type UserPostFlags = Partial<{
 export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
 
 @Entity()
-@Index(['postId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
 @Index('IDX_user_post_postid_userid_hidden', ['postId', 'userId', 'hidden'])
 @Index('idx_user_post_flags_awardId', { synchronize: false })

@@ -109,7 +109,6 @@ export interface UserSocialLink {
 @Index('IDX_user_subflags_subscriptionid', { synchronize: false })
 @Index('IDX_user_info_email_unconfirmed', { synchronize: false })
 @Index('IDX_user_app_account_token_unique', { synchronize: false })
-@Index('IDX_user_subflags_organizationid', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
@@ -230,7 +229,6 @@ export class User {
   referralId?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  @Index('IDX_user_referral_origin')
   referralOrigin?: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -316,7 +314,6 @@ export class User {
     }`;
   }
 
-  @Index()
   @Column({ type: 'smallint', default: CoresRole.None })
   coresRole: CoresRole;
 

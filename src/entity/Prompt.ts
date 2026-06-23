@@ -14,7 +14,6 @@ export interface PromptFlagsPublic {
 @Entity()
 export class Prompt {
   @PrimaryColumn({ type: 'text' })
-  @Index()
   id: string;
 
   @Column({ type: 'integer' })
