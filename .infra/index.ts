@@ -421,7 +421,7 @@ if (isAdhocEnv) {
       requests: apiRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 120, memory: 160 },
+      metric: { type: 'memory_cpu', cpu: 90, memory: 160 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
