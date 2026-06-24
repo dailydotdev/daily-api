@@ -219,6 +219,7 @@ const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
+const apiHeapMemory = Math.floor(memory * 0.8);
 
 const wsMemory = 1600;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
@@ -410,14 +411,17 @@ if (isAdhocEnv) {
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...jwtEnv],
+      env: [
+        { name: 'NODE_OPTIONS', value: `--max-old-space-size=${apiHeapMemory}` },
+        ...jwtEnv,
+      ],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
       requests: apiRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 120, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 120, memory: 160 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
