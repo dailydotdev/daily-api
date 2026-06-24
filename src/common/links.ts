@@ -97,6 +97,37 @@ export const getUrlWwwVariants = (url: string): string[] => {
   return [url, www ? `${scheme}${rest}` : `${scheme}www.${rest}`];
 };
 
+// The same article is often reachable with or without a trailing slash.
+// Return the url alongside its trailing-slash-toggled form so dedup lookups
+// can match either without rewriting the url we persist. Root-only urls
+// (`https://host/`) are left untouched.
+export const getUrlTrailingSlashVariants = (url: string): string[] => {
+  const [path, params] = url.split('?');
+  const trimmed = path.replace(/^(https?:\/\/[^/]+\/.+?)\/+$/i, '$1');
+
+  // No real (non-root) path to toggle.
+  if (!/^https?:\/\/[^/]+\/.+/i.test(trimmed)) {
+    return [url];
+  }
+
+  const suffix = params !== undefined ? `?${params}` : '';
+  return [`${trimmed}${suffix}`, `${trimmed}/${suffix}`];
+};
+
+// All url variants we treat as the same article for dedup lookups: every
+// www.-toggled form crossed with its trailing-slash-toggled form.
+export const getUrlDedupVariants = (url: string): string[] => {
+  const variants = new Set<string>();
+
+  for (const wwwVariant of getUrlWwwVariants(url)) {
+    for (const slashVariant of getUrlTrailingSlashVariants(wwwVariant)) {
+      variants.add(slashVariant);
+    }
+  }
+
+  return [...variants];
+};
+
 export const standardizeURL = (
   inputUrl: string,
 ): { url: string; canonicalUrl: string } => {
