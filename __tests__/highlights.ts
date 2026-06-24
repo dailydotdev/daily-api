@@ -20,11 +20,9 @@ import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
-import { NotificationPreferenceSource } from '../src/entity/notifications/NotificationPreferenceSource';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../src/notifications/common';
+import { Feed } from '../src/entity/Feed';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -100,7 +98,7 @@ const createTestPosts = async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   loggedUser = null;
-  await con.getRepository(NotificationPreferenceSource).clear();
+  await con.getRepository(ContentPreferenceSource).clear();
   await con.getRepository(ChannelDigest).clear();
   await con.getRepository(ChannelHighlightDefinition).clear();
   await con.getRepository(HighlightsCanonical).clear();
@@ -366,17 +364,21 @@ describe('query dailyHeadlines', () => {
       private: false,
     });
 
-  const subscribeToDigest = (sourceId: string) =>
-    con.getRepository(NotificationPreferenceSource).save({
+  const followDigest = (
+    sourceId: string,
+    status: ContentPreferenceStatus = ContentPreferenceStatus.Follow,
+  ) =>
+    con.getRepository(ContentPreferenceSource).save({
       userId: '1',
+      feedId: '1',
       referenceId: sourceId,
       sourceId,
-      notificationType: NotificationType.SourcePostAdded,
-      status: NotificationPreferenceStatus.Subscribed,
+      status,
     });
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   });
 
   it('should require authentication', () =>
@@ -386,7 +388,7 @@ describe('query dailyHeadlines', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return the latest digest post per subscribed channel', async () => {
+  it('should return the latest digest post per followed channel, including subscribed and excluding blocked', async () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');
@@ -395,8 +397,9 @@ describe('query dailyHeadlines', () => {
     await saveChannelDigest('backend', 'backend_digest', 'backend');
     await saveChannelDigest('career', 'career_digest', 'career');
     await saveChannelDigest('backendb', 'backend_digest_b', 'backendb');
-    await subscribeToDigest('backend_digest');
-    await subscribeToDigest('career_digest');
+    await followDigest('backend_digest', ContentPreferenceStatus.Follow);
+    await followDigest('career_digest', ContentPreferenceStatus.Subscribed);
+    await followDigest('backend_digest_b', ContentPreferenceStatus.Blocked);
 
     await saveDigestPost(
       'bd-old',
@@ -419,7 +422,7 @@ describe('query dailyHeadlines', () => {
     await saveDigestPost(
       'bdb-d',
       'backend_digest_b',
-      'Unsubscribed',
+      'Blocked',
       new Date('2026-06-19T13:00:00.000Z'),
     );
 
@@ -432,7 +435,7 @@ describe('query dailyHeadlines', () => {
     ]);
   });
 
-  it('should return empty when the user has no subscriptions', async () => {
+  it('should return empty when the user follows no digest channels', async () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');

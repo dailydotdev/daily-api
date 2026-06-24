@@ -18,11 +18,8 @@ import {
 } from '../common/channelHighlight/significance';
 import type { GQLSource } from './sources';
 import { ChannelDigest } from '../entity/ChannelDigest';
-import { NotificationPreferenceSource } from '../entity/notifications/NotificationPreferenceSource';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../notifications/common';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { Post, PostType } from '../entity/posts/Post';
 
@@ -128,9 +125,8 @@ export const typeDefs = /* GraphQL */ `
     ): PostHighlightConnection!
 
     """
-    Get the latest digest post for each channel digest the current user is
-    subscribed to (via source post-added notifications), one per channel,
-    ordered by recency.
+    Get the latest digest post for each channel digest whose source the current
+    user follows, one per channel, ordered by recency.
     """
     dailyHeadlines(first: Int, after: String): PostConnection! @auth
   }
@@ -291,13 +287,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ctx.con,
         ({ queryRunner }) =>
           queryRunner.manager
-            .getRepository(NotificationPreferenceSource)
-            .createQueryBuilder('np')
+            .getRepository(ContentPreferenceSource)
+            .createQueryBuilder('cp')
             .select('p.id', 'id')
             .innerJoin(
               ChannelDigest,
               'cd',
-              'cd."sourceId" = np."sourceId" AND cd.enabled = true',
+              'cd."sourceId" = cp."referenceId" AND cd.enabled = true',
             )
             .innerJoin(
               Post,
@@ -305,12 +301,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false',
               { postType: PostType.Freeform },
             )
-            .where('np."userId" = :userId', { userId: ctx.userId })
-            .andWhere('np."notificationType" = :notificationType', {
-              notificationType: NotificationType.SourcePostAdded,
+            .where('cp."userId" = :userId AND cp."feedId" = :userId', {
+              userId: ctx.userId,
             })
-            .andWhere('np.status = :status', {
-              status: NotificationPreferenceStatus.Subscribed,
+            .andWhere('cp.status != :blocked', {
+              blocked: ContentPreferenceStatus.Blocked,
             })
             .distinctOn(['cd."sourceId"'])
             .orderBy('cd."sourceId"', 'ASC')
