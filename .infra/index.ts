@@ -512,10 +512,10 @@ if (isAdhocEnv) {
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
         ...jwtEnv,
       ],
-      minReplicas: 1,
+      minReplicas: 2,
       maxReplicas: 4,
       requests: {
-        memory: '350Mi',
+        memory: '500Mi',
         cpu: '10m',
       },
       limits: {
@@ -523,7 +523,7 @@ if (isAdhocEnv) {
       },
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 200, memory: 150 },
+      metric: { type: 'memory_cpu', cpu: 200 },
       createService: true,
       service: {
         type: 'LoadBalancer',
