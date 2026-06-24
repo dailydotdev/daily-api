@@ -232,17 +232,23 @@ const wsLimits: pulumi.Input<{
   memory: `${wsMemory}Mi`,
 };
 
-const bgLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
+const bgMemory = 512;
+const bgLimits: pulumi.Input<{ memory: string }> = { memory: `${bgMemory}Mi` };
 const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '560Mi' };
+const temporalMemory = 560;
+const temporalLimits: pulumi.Input<{ memory: string }> = {
+  memory: `${temporalMemory}Mi`,
+};
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '10m',
   memory: '280Mi',
 };
+
+const privateMemory = 700;
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
@@ -463,7 +469,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [...jwtEnv],
+      env: [nodeOptions(bgMemory), ...jwtEnv],
       args: cliArgs('background'),
       minReplicas: 2,
       maxReplicas: 10,
@@ -485,7 +491,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...jwtEnv],
+      env: [nodeOptions(temporalMemory), ...jwtEnv],
       args: cliArgs('temporal'),
       minReplicas: 1,
       maxReplicas: 3,
@@ -501,7 +507,11 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
+      env: [
+        nodeOptions(privateMemory),
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...jwtEnv,
+      ],
       minReplicas: 1,
       maxReplicas: 4,
       requests: {
@@ -509,7 +519,7 @@ if (isAdhocEnv) {
         cpu: '10m',
       },
       limits: {
-        memory: '700Mi',
+        memory: `${privateMemory}Mi`,
       },
       readinessProbe,
       livenessProbe,
@@ -557,7 +567,7 @@ if (isAdhocEnv) {
 
   appsArgs.push({
     nameSuffix: 'worker-job',
-    env: [...jwtEnv],
+    env: [nodeOptions(bgMemory), ...jwtEnv],
     args: cliArgs('worker-job'),
     minReplicas: 1,
     maxReplicas: 10,
