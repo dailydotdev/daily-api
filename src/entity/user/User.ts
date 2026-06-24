@@ -255,6 +255,7 @@ export class User {
   @Column({ type: 'boolean', default: true })
   followNotifications: boolean;
 
+  @Index('IDX_user_defaultFeedId')
   @Column({ type: 'text', nullable: true })
   defaultFeedId?: string | null;
 
