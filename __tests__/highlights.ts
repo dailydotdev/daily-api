@@ -376,6 +376,9 @@ describe('query dailyHeadlines', () => {
       status,
     });
 
+  const hoursAgo = (hours: number): Date =>
+    new Date(Date.now() - hours * 60 * 60 * 1000);
+
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
@@ -405,26 +408,21 @@ describe('query dailyHeadlines', () => {
       'bd-old',
       'backend_digest',
       'Backend old',
-      new Date('2026-06-19T08:00:00.000Z'),
+      hoursAgo(20),
     );
     await saveDigestPost(
       'bd-new',
       'backend_digest',
       'Backend latest',
-      new Date('2026-06-19T12:00:00.000Z'),
+      hoursAgo(2),
     );
     await saveDigestPost(
       'career-d',
       'career_digest',
       'Career latest',
-      new Date('2026-06-19T10:00:00.000Z'),
+      hoursAgo(5),
     );
-    await saveDigestPost(
-      'bdb-d',
-      'backend_digest_b',
-      'Blocked',
-      new Date('2026-06-19T13:00:00.000Z'),
-    );
+    await saveDigestPost('bdb-d', 'backend_digest_b', 'Blocked', hoursAgo(1));
 
     const res = await client.query(DAILY_HEADLINES_QUERY);
 
@@ -441,6 +439,20 @@ describe('query dailyHeadlines', () => {
     await saveDigestSource('backend_digest');
     await saveChannelDigest('backend', 'backend_digest', 'backend');
     await saveDigestPost('bd-1', 'backend_digest', 'Backend', new Date());
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
+  it('should exclude digest posts older than 24 hours', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('backend_digest');
+    await saveChannelDigest('backend', 'backend_digest', 'backend');
+    await followDigest('backend_digest');
+    await saveDigestPost('bd-stale', 'backend_digest', 'Stale', hoursAgo(30));
 
     const res = await client.query(DAILY_HEADLINES_QUERY);
 

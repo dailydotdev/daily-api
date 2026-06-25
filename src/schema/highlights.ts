@@ -22,6 +22,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { Post, PostType } from '../entity/posts/Post';
+import { ONE_DAY_IN_SECONDS } from '../common/constants';
 
 type GQLChannelDigestConfiguration = {
   frequency: string;
@@ -125,8 +126,8 @@ export const typeDefs = /* GraphQL */ `
     ): PostHighlightConnection!
 
     """
-    Get the latest digest post for each channel digest whose source the current
-    user follows, one per channel, ordered by recency.
+    Get the latest digest post from the last 24 hours for each channel digest
+    whose source the current user follows, one per channel, ordered by recency.
     """
     dailyHeadlines(first: Int, after: String): PostConnection! @auth
   }
@@ -283,6 +284,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ) => {
+      const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
       const latestDigestPerChannel = await queryReadReplica(
         ctx.con,
         ({ queryRunner }) =>
@@ -298,8 +300,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .innerJoin(
               Post,
               'p',
-              'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false',
-              { postType: PostType.Freeform },
+              'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false AND p."createdAt" >= :since',
+              { postType: PostType.Freeform, since },
             )
             .where('cp."userId" = :userId AND cp."feedId" = :userId', {
               userId: ctx.userId,
