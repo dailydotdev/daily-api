@@ -6,7 +6,7 @@ jobs:
   build-app:
     executor:
       name: common/node
-      tag: "24.14"
+      tag: "24.18"
     steps:
       - checkout
       - run:
@@ -31,7 +31,7 @@ jobs:
   test:
     resource_class: large
     docker:
-      - image: cimg/node:24.14
+      - image: cimg/node:24.18
       - image: postgres:18-alpine
         environment:
           POSTGRES_DB: api_test
