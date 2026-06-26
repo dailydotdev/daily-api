@@ -533,6 +533,18 @@ describe('query dailyHeadlines', () => {
     expect(res.data.dailyHeadlines.edges).toEqual([]);
   });
 
+  it('should exclude a brief older than 24 hours', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('briefing');
+    await saveBriefPost('brief-stale', 'Your briefing', hoursAgo(30));
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
   const DAILY_HEADLINES_BACKFILL_QUERY = `
   query DailyHeadlinesBackfill($first: Int, $after: String) {
     dailyHeadlines(first: $first, after: $after) {

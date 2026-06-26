@@ -15,6 +15,9 @@ import { getChannelDigestSourceIds } from './definitions';
 
 const defaultHeadlineChannelMinPosts = 10;
 
+// safety cap so seeding never bulk-follows an unbounded number of sources
+const maxSeededChannels = 50;
+
 const markBackfilled = ({
   manager,
   userId,
@@ -79,6 +82,7 @@ const resolveHeadlineChannelSourcesForUser = async ({
       .groupBy('cd."sourceId"')
       .having('SUM(kc.posts) >= :minPosts', { minPosts })
       .orderBy('SUM(kc.posts)', 'DESC')
+      .limit(maxSeededChannels)
       .getRawMany<{ sourceId: string }>(),
   );
 
@@ -134,23 +138,28 @@ export const seedHeadlineChannelsForUser = async ({
   }
 
   await con.transaction(async (manager) => {
-    await manager
-      .getRepository(ContentPreferenceSource)
+    const contentPreferenceRepository = manager.getRepository(
+      ContentPreferenceSource,
+    );
+
+    await contentPreferenceRepository
       .createQueryBuilder()
       .insert()
       .into(ContentPreferenceSource)
       .values(
-        sourceIds.map((sourceId) => ({
-          userId,
-          referenceId: sourceId,
-          sourceId,
-          feedId: userId,
-          status: ContentPreferenceStatus.Follow,
-          flags: {
-            referralToken: randomUUID(),
-            role: SourceMemberRoles.Member,
-          },
-        })),
+        contentPreferenceRepository.create(
+          sourceIds.map((sourceId) => ({
+            userId,
+            referenceId: sourceId,
+            sourceId,
+            feedId: userId,
+            status: ContentPreferenceStatus.Follow,
+            flags: {
+              referralToken: randomUUID(),
+              role: SourceMemberRoles.Member,
+            },
+          })),
+        ),
       )
       .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
       .execute();

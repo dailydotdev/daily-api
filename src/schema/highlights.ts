@@ -6,6 +6,7 @@ import {
   offsetToCursor,
 } from 'graphql-relay';
 import type { EntityManager, SelectQueryBuilder } from 'typeorm';
+import { MoreThanOrEqual } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
@@ -303,6 +304,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
 
+      // mocking returns any posts, mostly to match local seeds
+      const recencyBounded = !isMockEnabled();
+      const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
+
       const queryLatestDigestPerChannel = (manager: EntityManager) => {
         const builder = manager
           .getRepository(ContentPreferenceSource)
@@ -329,9 +334,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .orderBy('cd."sourceId"', 'ASC')
           .addOrderBy('p."createdAt"', 'DESC');
 
-        // for mock we just return any posts, mostly to match local seeds
-        if (!isMockEnabled()) {
-          const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
+        if (recencyBounded) {
           builder.andWhere('p."createdAt" >= :since', { since });
         }
 
@@ -352,6 +355,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               type: PostType.Brief,
               visible: true,
               deleted: false,
+              ...(recencyBounded && { createdAt: MoreThanOrEqual(since) }),
             },
             order: { createdAt: 'DESC' },
           }),
