@@ -143,6 +143,7 @@ export type PostTranslation = {
 ])
 @Index('IDX_post_sourceid_createdat', ['sourceId', 'createdAt'])
 @Index('IDX_post_sourceid_deleted', ['sourceId', 'deleted'])
+@Index('IDX_post_content_meta_channels', { synchronize: false })
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })

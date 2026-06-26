@@ -14,6 +14,7 @@ export enum UserActionType {
   CheckedCoresRole = 'checked_cores_role',
   GeneratedBrief = 'generated_brief',
   IntroQuestsCompleted = 'intro_quests_completed',
+  DailyHeadlinesBackfilled = 'daily_headlines_backfilled',
 }
 
 @Entity()

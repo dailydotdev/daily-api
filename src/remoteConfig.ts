@@ -62,6 +62,7 @@ export type RemoteConfigValue = {
   engagementAdsEnabled: boolean;
   postHighlightTtlSeconds: number;
   contributionProgram: ContributionProgramConfig;
+  headlineChannelMinPosts: number;
 };
 
 class RemoteConfig {

@@ -5,7 +5,7 @@ import {
   getOffsetWithDefault,
   offsetToCursor,
 } from 'graphql-relay';
-import type { SelectQueryBuilder } from 'typeorm';
+import type { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
@@ -23,6 +23,8 @@ import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { Post, PostType } from '../entity/posts/Post';
 import { ONE_DAY_IN_SECONDS } from '../common/constants';
+import { seedHeadlineChannelsForUser } from '../common/channelDigest/headlineFollows';
+import { isMockEnabled } from '../mocks/common';
 
 type GQLChannelDigestConfiguration = {
   frequency: string;
@@ -128,6 +130,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the latest digest post from the last 24 hours for each channel digest
     whose source the current user follows, one per channel, ordered by recency.
+    The first time it runs for a user with no channel digest preference yet,
+    follows are seeded from their onboarding tags.
     """
     dailyHeadlines(first: Int, after: String): PostConnection! @auth
   }
@@ -284,38 +288,80 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ) => {
-      const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
-      const latestDigestPerChannel = await queryReadReplica(
-        ctx.con,
-        ({ queryRunner }) =>
-          queryRunner.manager
-            .getRepository(ContentPreferenceSource)
-            .createQueryBuilder('cp')
-            .select('p.id', 'id')
-            .innerJoin(
-              ChannelDigest,
-              'cd',
-              'cd."sourceId" = cp."referenceId" AND cd.enabled = true',
-            )
-            .innerJoin(
-              Post,
-              'p',
-              'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false AND p."createdAt" >= :since',
-              { postType: PostType.Freeform, since },
-            )
-            .where('cp."userId" = :userId AND cp."feedId" = :userId', {
-              userId: ctx.userId,
-            })
-            .andWhere('cp.status != :blocked', {
-              blocked: ContentPreferenceStatus.Blocked,
-            })
-            .distinctOn(['cd."sourceId"'])
-            .orderBy('cd."sourceId"', 'ASC')
-            .addOrderBy('p."createdAt"', 'DESC')
-            .getRawMany<{ id: string }>(),
-      );
+      let seeded = false;
+      try {
+        const result = await seedHeadlineChannelsForUser({
+          con: ctx.con,
+          userId: ctx.userId,
+        });
 
-      const postIds = latestDigestPerChannel.map((row) => row.id);
+        seeded = result.seeded;
+      } catch (err) {
+        ctx.log.error(
+          { err, userId: ctx.userId },
+          'failed to backfill headline channel follows',
+        );
+      }
+
+      const queryLatestDigestPerChannel = (manager: EntityManager) => {
+        const builder = manager
+          .getRepository(ContentPreferenceSource)
+          .createQueryBuilder('cp')
+          .select('p.id', 'id')
+          .innerJoin(
+            ChannelDigest,
+            'cd',
+            'cd."sourceId" = cp."referenceId" AND cd.enabled = true',
+          )
+          .innerJoin(
+            Post,
+            'p',
+            'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false',
+            { postType: PostType.Freeform },
+          )
+          .where('cp."userId" = :userId AND cp."feedId" = :userId', {
+            userId: ctx.userId,
+          })
+          .andWhere('cp.status != :blocked', {
+            blocked: ContentPreferenceStatus.Blocked,
+          })
+          .distinctOn(['cd."sourceId"'])
+          .orderBy('cd."sourceId"', 'ASC')
+          .addOrderBy('p."createdAt"', 'DESC');
+
+        // for mock we just return any posts, mostly to match local seeds
+        if (!isMockEnabled()) {
+          const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
+          builder.andWhere('p."createdAt" >= :since', { since });
+        }
+
+        return builder.getRawMany<{ id: string }>();
+      };
+
+      const [latestDigestPerChannel, latestBrief] = await Promise.all([
+        seeded
+          ? queryLatestDigestPerChannel(ctx.con.manager)
+          : queryReadReplica(ctx.con, ({ queryRunner }) =>
+              queryLatestDigestPerChannel(queryRunner.manager),
+            ),
+        queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(Post).findOne({
+            select: ['id'],
+            where: {
+              authorId: ctx.userId,
+              type: PostType.Brief,
+              visible: true,
+              deleted: false,
+            },
+            order: { createdAt: 'DESC' },
+          }),
+        ),
+      ]);
+
+      const channelPostIds = latestDigestPerChannel.map((row) => row.id);
+      const postIds = latestBrief
+        ? [latestBrief.id, ...channelPostIds]
+        : channelPostIds;
       const page = getHighlightsPage(args);
 
       return graphorm.queryPaginated(
@@ -325,11 +371,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (nodeSize) => nodeSize >= page.limit,
         (_, index) => offsetToCursor(page.offset + index),
         (builder) => {
-          builder.queryBuilder
-            .where(`"${builder.alias}"."id" IN (:...postIds)`, {
+          builder.queryBuilder.where(
+            `"${builder.alias}"."id" IN (:...postIds)`,
+            {
               postIds: postIds.length ? postIds : ['nosuchid'],
-            })
-            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
+            },
+          );
+
+          if (latestBrief) {
+            builder.queryBuilder
+              .orderBy(`("${builder.alias}"."id" = :briefId)`, 'DESC')
+              .setParameter('briefId', latestBrief.id)
+              .addOrderBy(`"${builder.alias}"."createdAt"`, 'DESC');
+          } else {
+            builder.queryBuilder.orderBy(
+              `"${builder.alias}"."createdAt"`,
+              'DESC',
+            );
+          }
+
+          builder.queryBuilder
             .addOrderBy(`"${builder.alias}"."id"`, 'DESC')
             .offset(page.offset)
             .limit(page.limit);
