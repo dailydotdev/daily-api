@@ -708,13 +708,12 @@ describe('query dailyHeadlines', () => {
       expect(action).not.toBeNull();
     });
 
-    it('should not seed a channel below the minimum post count', async () => {
+    it('should mark backfilled without seeding when no channel clears the minimum post count', async () => {
       loggedUser = '1';
 
       await saveDigestSource('backend_digest');
       await saveChannelDigest('backend', 'backend_digest', 'backend');
       await followKeyword('nodejs');
-      // only 2 posts, below the mocked headlineChannelMinPosts of 3
       await saveChannelPosts('mh', ['backend'], 'nodejs', 2);
       await refreshKeywordChannel();
 
@@ -725,6 +724,11 @@ describe('query dailyHeadlines', () => {
         .getRepository(ContentPreferenceSource)
         .findBy({ userId: '1' });
       expect(follows).toHaveLength(0);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
     });
 
     it('should not seed when the user was already backfilled', async () => {
@@ -777,7 +781,7 @@ describe('query dailyHeadlines', () => {
       expect(action).not.toBeNull();
     });
 
-    it('should be a no-op when the user has no onboarding tags', async () => {
+    it('should mark backfilled without seeding when the user has no onboarding tags', async () => {
       loggedUser = '1';
 
       await saveDigestSource('backend_digest');
@@ -791,6 +795,11 @@ describe('query dailyHeadlines', () => {
         .getRepository(ContentPreferenceSource)
         .findBy({ userId: '1' });
       expect(follows).toHaveLength(0);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
     });
   });
 });
