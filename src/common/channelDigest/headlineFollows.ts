@@ -18,20 +18,24 @@ const defaultHeadlineChannelMinPosts = 10;
 // safety cap so seeding never bulk-follows an unbounded number of sources
 const maxSeededChannels = 50;
 
-const markBackfilled = ({
+const markBackfilled = async ({
   manager,
   userId,
 }: {
   manager: DataSource | EntityManager;
   userId: string;
-}) =>
-  manager
+}): Promise<boolean> => {
+  const result = await manager
     .getRepository(UserAction)
     .createQueryBuilder()
     .insert()
     .values({ userId, type: UserActionType.DailyHeadlinesBackfilled })
     .orIgnore()
+    .returning(['userId'])
     .execute();
+
+  return result.raw.length > 0;
+};
 
 const getUserOnboardingTags = async ({
   con,
@@ -137,7 +141,15 @@ export const seedHeadlineChannelsForUser = async ({
     return { seeded: false, sourceIds: [] };
   }
 
-  await con.transaction(async (manager) => {
+  return await con.transaction(async (manager) => {
+    // claim first: a concurrent first-time call that lost the race bails here
+    // instead of writing a second set of follows
+    const claimed = await markBackfilled({ manager, userId });
+
+    if (!claimed) {
+      return { seeded: false, sourceIds: [] };
+    }
+
     const contentPreferenceRepository = manager.getRepository(
       ContentPreferenceSource,
     );
@@ -178,8 +190,6 @@ export const seedHeadlineChannelsForUser = async ({
       .orUpdate(['blocked'], ['sourceId', 'feedId'])
       .execute();
 
-    await markBackfilled({ manager, userId });
+    return { seeded: true, sourceIds };
   });
-
-  return { seeded: true, sourceIds };
 };
