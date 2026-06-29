@@ -36,6 +36,14 @@ const main = async () => {
           type: 'string',
           short: 'p',
         },
+        userId: {
+          type: 'string',
+          short: 'u',
+        },
+        cores: {
+          type: 'string',
+          short: 'c',
+        },
         sender: {
           type: 'string',
           short: 's',
@@ -57,24 +65,43 @@ const main = async () => {
       },
     });
 
-    const paramsSchema = z.object({
-      // path to the file with user ids, with one (user,cores) per line
-      usersPath: z.string(),
+    const paramsSchema = z
+      .object({
+        // path to the file with user ids, with one (user,cores) per line
+        usersPath: z.string().nonempty().optional(),
 
-      // which account to top up, it will appear on user wallet
-      // defaults to system
-      sender: z.string().nonempty().optional(),
+        // single user id to top up, mutually exclusive with usersPath
+        userId: z.string().nonempty().optional(),
 
-      // which njord account to top up, it will appear on njord side
-      njordSender: z.string().nonempty(),
+        // cores to assign when using userId
+        cores: z.coerce.number().int().optional(),
 
-      // should be unique or specify why the Cores were sent, it is also used for dedupe
-      // in case of repeated script runs
-      origin: z.string().min(4),
+        // which account to top up, it will appear on user wallet
+        // defaults to system
+        sender: z.string().nonempty().optional(),
 
-      // delimiter used in the file
-      delimiter: z.string().nonempty().prefault(','),
-    });
+        // which njord account to top up, it will appear on njord side
+        njordSender: z.string().nonempty(),
+
+        // should be unique or specify why the Cores were sent, it is also used for dedupe
+        // in case of repeated script runs
+        origin: z.string().min(4),
+
+        // delimiter used in the file
+        delimiter: z.string().nonempty().prefault(','),
+      })
+      .refine((data) => !(data.usersPath && data.userId), {
+        message: 'Provide either usersPath or userId, not both',
+        path: ['userId'],
+      })
+      .refine((data) => data.usersPath || data.userId, {
+        message: 'Either usersPath or userId is required',
+        path: ['usersPath'],
+      })
+      .refine((data) => !data.userId || typeof data.cores !== 'undefined', {
+        message: 'cores is required when using userId',
+        path: ['cores'],
+      });
 
     const dataResult = paramsSchema.safeParse(values);
 
@@ -86,6 +113,8 @@ const main = async () => {
 
     const {
       usersPath,
+      userId,
+      cores,
       sender,
       njordSender,
       origin: requestOrigin,
@@ -96,14 +125,6 @@ const main = async () => {
 
     loadAuthKeys();
 
-    const stream = fs
-      .createReadStream(usersPath)
-      .pipe(parse({ delimiter, from_line: 2 }));
-
-    stream.on('error', (err) => {
-      console.error('Failed to read file: ', err.message);
-    });
-
     const userSchema = z.object({
       userId: z.string().nonempty(),
       cores: z.coerce.number().int(),
@@ -111,25 +132,37 @@ const main = async () => {
 
     const users: z.infer<typeof userSchema>[] = [];
 
-    stream.on('data', ([userId, cores]) => {
-      const userResult = userSchema.safeParse({
-        userId,
-        cores,
+    if (usersPath) {
+      const stream = fs
+        .createReadStream(usersPath)
+        .pipe(parse({ delimiter, from_line: 2 }));
+
+      stream.on('error', (err) => {
+        console.error('Failed to read file: ', err.message);
       });
 
-      if (userResult.error) {
-        stream.destroy(new Error('Invalid user data in file'));
+      stream.on('data', ([userId, cores]) => {
+        const userResult = userSchema.safeParse({
+          userId,
+          cores,
+        });
 
-        return;
-      }
+        if (userResult.error) {
+          stream.destroy(new Error('Invalid user data in file'));
 
-      users.push(userResult.data);
-    });
+          return;
+        }
 
-    await new Promise((resolve, reject) => {
-      stream.on('end', resolve);
-      stream.on('error', reject);
-    });
+        users.push(userResult.data);
+      });
+
+      await new Promise((resolve, reject) => {
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      });
+    } else {
+      users.push(userSchema.parse({ userId, cores }));
+    }
 
     for (const { userId, cores } of users) {
       try {
