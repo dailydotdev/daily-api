@@ -41,7 +41,6 @@ import {
   getRedisObject,
   ioRedisPool,
   setRedisObject,
-  setRedisObjectIfNotExistsWithExpiry,
   setRedisObjectWithExpiry,
 } from '../redis';
 import {
@@ -78,20 +77,11 @@ import {
 } from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
-  DEFAULT_TIMEZONE,
-  secondsUntilNextHourInTimezone,
-} from '../common/date';
-import {
   runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
-import {
-  DAILY_DROP_HOUR,
-  maxFeedsPerUser,
-  type CoresRole,
-  type TLocation,
-} from '../types';
+import { maxFeedsPerUser, type CoresRole, type TLocation } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
@@ -747,10 +737,8 @@ const getEngagementCreatives = async (
 
 const getDailyBoot = async ({
   userId,
-  timezone,
 }: {
   userId: string;
-  timezone?: string | null;
 }): Promise<boolean> => {
   const key = generateStorageKey(
     StorageTopic.Boot,
@@ -758,14 +746,7 @@ const getDailyBoot = async ({
     userId,
   );
 
-  return setRedisObjectIfNotExistsWithExpiry(
-    key,
-    '1',
-    secondsUntilNextHourInTimezone({
-      hour: DAILY_DROP_HOUR,
-      timezone: timezone || DEFAULT_TIMEZONE,
-    }),
-  );
+  return !(await getRedisObject(key));
 };
 
 const loggedInBoot = async ({
@@ -809,6 +790,7 @@ const loggedInBoot = async ({
       anonymousTheme,
       engagementCreatives,
       liveRooms,
+      daily,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -838,6 +820,7 @@ const loggedInBoot = async ({
       getAnonymousTheme(userId),
       getEngagementCreatives(userId),
       getLiveRoomsBoot(con),
+      getDailyBoot({ userId }),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -866,8 +849,6 @@ const loggedInBoot = async ({
       refreshToken || isPlus !== req.isPlus
         ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
         : req.accessToken;
-
-    const daily = await getDailyBoot({ userId, timezone: user.timezone });
     return {
       user: {
         ...excludeProperties(user, [

@@ -70,7 +70,6 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import {
   DEFAULT_TIMEZONE,
-  ONE_DAY_IN_SECONDS,
   submitArticleThreshold,
   THREE_MONTHS_IN_SECONDS,
   updateFlagsStatement,
@@ -1106,19 +1105,11 @@ describe('daily boot', () => {
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
 
-  it('should return daily true on first boot and set the redis flag', async () => {
+  it('should return daily true when the flag is unset without writing it', async () => {
     const res = await bootLoggedIn();
 
     expect(res.body.daily).toBe(true);
-    expect(await getRedisObject(dailyKey())).not.toBeNull();
-  });
-
-  it('should expire the daily flag by the next drop hour', async () => {
-    await bootLoggedIn();
-
-    const ttl = await getRedisObjectExpiry(dailyKey());
-    expect(ttl).toBeGreaterThan(0);
-    expect(ttl).toBeLessThanOrEqual(ONE_DAY_IN_SECONDS);
+    expect(await getRedisObject(dailyKey())).toBeNull();
   });
 
   it('should return daily false while the flag is set', async () => {

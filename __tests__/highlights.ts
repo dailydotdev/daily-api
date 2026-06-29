@@ -6,9 +6,16 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import createOrGetConnection from '../src/db';
+import {
+  getRedisObject,
+  getRedisObjectExpiry,
+  ioRedisPool,
+} from '../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
 import { FreeformPost } from '../src/entity/posts/FreeformPost';
 import { BriefPost } from '../src/entity/posts/BriefPost';
@@ -1348,5 +1355,30 @@ describe('query postHighlightsFeed', () => {
     expect(
       secondPage.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
+  });
+});
+
+describe('mutation markDailySeen', () => {
+  const MUTATION = `mutation MarkDailySeen { markDailySeen { _ } }`;
+
+  const dailyKey = (userId = '1') =>
+    generateStorageKey(StorageTopic.Boot, StorageKey.DailyFeed, userId);
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.del(dailyKey()));
+  });
+
+  it('should require authentication', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+
+  it('should set the daily flag with an expiry until the next drop', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, usersFixture);
+
+    const res = await client.mutate(MUTATION);
+
+    expect(res.errors).toBeFalsy();
+    expect(await getRedisObject(dailyKey())).toBe('1');
+    expect(await getRedisObjectExpiry(dailyKey())).toBeGreaterThan(0);
   });
 });

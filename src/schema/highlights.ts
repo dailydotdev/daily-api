@@ -10,8 +10,15 @@ import { MoreThanOrEqual } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
-import { redisPubSub } from '../redis';
-import type { OffsetPage } from './common';
+import { redisPubSub, setRedisObjectIfNotExistsWithExpiry } from '../redis';
+import type { GQLEmptyResponse, OffsetPage } from './common';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import {
+  DEFAULT_TIMEZONE,
+  secondsUntilNextHourInTimezone,
+} from '../common/date';
+import { DAILY_DROP_HOUR } from '../types';
+import { User } from '../entity/user/User';
 import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import {
   HighlightSignificance,
@@ -139,6 +146,10 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Subscription {
     newHighlight: PostHighlight! @auth
+  }
+
+  extend type Mutation {
+    markDailySeen: EmptyResponse @auth
   }
 `;
 
@@ -403,6 +414,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (nodes) => nodes.slice(0, page.limit - 1),
         true,
       );
+    },
+  },
+  Mutation: {
+    markDailySeen: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const user = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(User).findOne({
+          select: ['timezone'],
+          where: { id: ctx.userId },
+        }),
+      );
+      const key = generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.DailyFeed,
+        ctx.userId,
+      );
+
+      await setRedisObjectIfNotExistsWithExpiry(
+        key,
+        '1',
+        secondsUntilNextHourInTimezone({
+          hour: DAILY_DROP_HOUR,
+          timezone: user?.timezone || DEFAULT_TIMEZONE,
+        }),
+      );
+
+      return { _: true };
     },
   },
   Subscription: {
