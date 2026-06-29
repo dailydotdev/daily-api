@@ -70,6 +70,7 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import {
   DEFAULT_TIMEZONE,
+  ONE_DAY_IN_SECONDS,
   submitArticleThreshold,
   THREE_MONTHS_IN_SECONDS,
   updateFlagsStatement,
@@ -184,6 +185,7 @@ const LOGGED_IN_BODY = {
   marketingCta: null,
   marketingCtaVariants: [],
   feeds: [],
+  daily: true,
 };
 
 const ANONYMOUS_BODY = {
@@ -1090,6 +1092,50 @@ describe('logged in boot', () => {
       const storesRedisValue = await getRedisObject(redisKey);
       expect(storesRedisValue).toBeNull();
     });
+  });
+});
+
+describe('daily boot', () => {
+  const dailyKey = (userId = '1') =>
+    generateStorageKey(StorageTopic.Boot, StorageKey.DailyFeed, userId);
+
+  const bootLoggedIn = async () =>
+    request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+  it('should return daily true on first boot and set the redis flag', async () => {
+    const res = await bootLoggedIn();
+
+    expect(res.body.daily).toBe(true);
+    expect(await getRedisObject(dailyKey())).not.toBeNull();
+  });
+
+  it('should expire the daily flag by the next drop hour', async () => {
+    await bootLoggedIn();
+
+    const ttl = await getRedisObjectExpiry(dailyKey());
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(ONE_DAY_IN_SECONDS);
+  });
+
+  it('should return daily false while the flag is set', async () => {
+    await setRedisObject(dailyKey(), '1');
+
+    const res = await bootLoggedIn();
+
+    expect(res.body.daily).toBe(false);
+  });
+
+  it('should not include daily for anonymous boot', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body.daily).toBeUndefined();
   });
 });
 

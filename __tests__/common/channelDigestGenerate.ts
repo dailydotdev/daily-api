@@ -123,6 +123,7 @@ describe('generateChannelDigest', () => {
     expect(result).toMatchObject({
       sourceId: AGENTS_DIGEST_SOURCE,
       title: 'Mock topical digest',
+      summary: 'Mock digest summary',
       content: [
         '**TLDR:** Mock digest summary',
         '---',
