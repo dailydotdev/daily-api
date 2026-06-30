@@ -1202,7 +1202,7 @@ describe('feed', () => {
     id: 'custom-feed-1',
     userId: feedUserId,
     createdAt: 0,
-    flags: {},
+    flags: '{}',
   } as unknown as ChangeObject<ObjectType>;
 
   beforeEach(async () => {
@@ -1255,7 +1255,10 @@ describe('feed', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after: { ...baseFeed, flags: { origin: FeedOrigin.TagChip } },
+        after: {
+          ...baseFeed,
+          flags: JSON.stringify({ origin: FeedOrigin.TagChip }),
+        },
         table: 'feed',
         op: 'c',
       }),

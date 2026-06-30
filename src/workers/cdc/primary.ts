@@ -1465,12 +1465,8 @@ const onFeedChange = async (
 
     // feed id differs from userId means custom feed
     const feed = data.payload.after!;
-    const rawFlags = feed.flags;
-    const feedFlags = (
-      typeof rawFlags === 'string'
-        ? JSON.parse(rawFlags || '{}')
-        : rawFlags || {}
-    ) as FeedFlags;
+    // flags arrive as a JSON string from CDC
+    const feedFlags = JSON.parse(feed.flags || '{}') as FeedFlags;
     // skip tag-chip feeds seeded during onboarding so they don't auto-complete
     // the "Create a custom feed" achievement on signup
     if (feed.id !== feed.userId && feedFlags.origin !== FeedOrigin.TagChip) {
