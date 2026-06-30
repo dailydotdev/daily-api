@@ -1209,7 +1209,7 @@ describe('feed', () => {
     feedAchievementId = randomUUID();
     await con.getRepository(Achievement).save({
       id: feedAchievementId,
-      name: 'Power user',
+      name: 'Power user (cdc feed test)',
       description: 'Create a custom feed',
       image: '',
       type: AchievementType.Instant,
