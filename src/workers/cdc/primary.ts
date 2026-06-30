@@ -15,6 +15,7 @@ import {
   ContentImage,
   Feature,
   Feed,
+  type FeedFlags,
   FeedOrigin,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
@@ -1464,9 +1465,15 @@ const onFeedChange = async (
 
     // feed id differs from userId means custom feed
     const feed = data.payload.after!;
+    const rawFlags = feed.flags;
+    const feedFlags = (
+      typeof rawFlags === 'string'
+        ? JSON.parse(rawFlags || '{}')
+        : rawFlags || {}
+    ) as FeedFlags;
     // skip tag-chip feeds seeded during onboarding so they don't auto-complete
     // the "Create a custom feed" achievement on signup
-    if (feed.id !== feed.userId && feed.flags?.origin !== FeedOrigin.TagChip) {
+    if (feed.id !== feed.userId && feedFlags.origin !== FeedOrigin.TagChip) {
       await checkAchievementProgress(
         con,
         logger,
