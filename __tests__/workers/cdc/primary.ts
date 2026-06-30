@@ -2117,7 +2117,7 @@ describe('feed', () => {
     userId: '1',
     id: '1',
     slug: '1',
-    flags: {},
+    flags: '{}',
     createdAt: Date.now(),
   };
 
