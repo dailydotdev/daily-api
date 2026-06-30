@@ -27,6 +27,7 @@ import {
   Feature,
   FeatureType,
   Feed,
+  FeedOrigin,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
@@ -1189,6 +1190,99 @@ describe('user', () => {
         await con.getRepository(SourceUser).countBy({ userId: '2' }),
       ).toEqual(0);
     });
+  });
+});
+
+describe('feed', () => {
+  type ObjectType = Feed;
+  const feedUserId = 'feed-achievement-user';
+  let feedAchievementId: string;
+
+  const baseFeed = {
+    id: 'custom-feed-1',
+    userId: feedUserId,
+    createdAt: 0,
+    flags: {},
+  } as unknown as ChangeObject<ObjectType>;
+
+  beforeEach(async () => {
+    feedAchievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: feedAchievementId,
+      name: 'Power user',
+      description: 'Create a custom feed',
+      image: '',
+      type: AchievementType.Instant,
+      eventType: AchievementEventType.FeedCreate,
+      criteria: { targetCount: 1 },
+      points: 10,
+    });
+
+    await saveFixtures(con, User, [
+      {
+        id: feedUserId,
+        bio: null,
+        name: 'Feed User',
+        image: 'https://daily.dev/feed-user.jpg',
+        email: `${feedUserId}@daily.dev`,
+        createdAt: new Date(),
+        username: 'feeduser',
+        infoConfirmed: true,
+      },
+    ]);
+  });
+
+  it('should unlock the create-custom-feed achievement on custom feed creation', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...baseFeed },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
+  });
+
+  it('should not progress the achievement for tag-chip seeded feeds', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...baseFeed, flags: { origin: FeedOrigin.TagChip } },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).toBeNull();
+  });
+
+  it('should not progress the achievement for the main feed', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...baseFeed, id: feedUserId },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).toBeNull();
   });
 });
 
