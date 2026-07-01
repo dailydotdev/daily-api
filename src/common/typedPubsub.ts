@@ -45,6 +45,7 @@ import {
   WarmIntro,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import type { ContributionSubmission } from '../entity/contribution/ContributionSubmission';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { z } from 'zod';
@@ -269,10 +270,7 @@ export type PubSubSchema = {
     sourceMember: ChangeObject<SourceMember>;
   };
   'api.v1.contribution-action-completed': {
-    submissionId: string;
-    userId: string;
-    actionId: string;
-    awardedPoints: number;
+    submission: ChangeObject<ContributionSubmission>;
   };
   'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
   'api.v1.candidate-rejected-opportunity': CandidateRejectedOpportunityMessage;

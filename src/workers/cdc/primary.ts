@@ -118,7 +118,10 @@ import {
   getRedisObject,
   setRedisObjectWithExpiry,
 } from '../../redis';
-import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../../entity/contribution/ContributionSubmission';
 import { counters } from '../../telemetry';
 import {
   cancelEntityReminderWorkflow,
@@ -1535,15 +1538,12 @@ const onContributionSubmissionChange = async (
   }
 
   const entity = data.payload.after;
-  if (!entity) {
+  if (!entity || entity.status !== ContributionSubmissionStatus.Approved) {
     return;
   }
 
   await triggerTypedEvent(logger, 'api.v1.contribution-action-completed', {
-    submissionId: entity.id,
-    userId: entity.userId,
-    actionId: entity.actionId,
-    awardedPoints: entity.awardedPoints,
+    submission: entity,
   });
 };
 
