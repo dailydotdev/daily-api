@@ -219,6 +219,7 @@ const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
+const apiHeapMemory = Math.floor(memory * 0.8);
 
 const wsMemory = 1600;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
@@ -231,17 +232,23 @@ const wsLimits: pulumi.Input<{
   memory: `${wsMemory}Mi`,
 };
 
-const bgLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
+const bgMemory = 512;
+const bgLimits: pulumi.Input<{ memory: string }> = { memory: `${bgMemory}Mi` };
 const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '560Mi' };
+const temporalMemory = 560;
+const temporalLimits: pulumi.Input<{ memory: string }> = {
+  memory: `${temporalMemory}Mi`,
+};
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '10m',
   memory: '280Mi',
 };
+
+const privateMemory = 700;
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
@@ -410,14 +417,17 @@ if (isAdhocEnv) {
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...jwtEnv],
+      env: [
+        { name: 'NODE_OPTIONS', value: `--max-old-space-size=${apiHeapMemory}` },
+        ...jwtEnv,
+      ],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
       requests: apiRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 120, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 90, memory: 160 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
@@ -459,7 +469,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [...jwtEnv],
+      env: [nodeOptions(bgMemory), ...jwtEnv],
       args: cliArgs('background'),
       minReplicas: 2,
       maxReplicas: 10,
@@ -481,7 +491,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...jwtEnv],
+      env: [nodeOptions(temporalMemory), ...jwtEnv],
       args: cliArgs('temporal'),
       minReplicas: 1,
       maxReplicas: 3,
@@ -497,19 +507,23 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
-      minReplicas: 1,
+      env: [
+        nodeOptions(privateMemory),
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...jwtEnv,
+      ],
+      minReplicas: 2,
       maxReplicas: 4,
       requests: {
-        memory: '350Mi',
+        memory: '500Mi',
         cpu: '10m',
       },
       limits: {
-        memory: '700Mi',
+        memory: `${privateMemory}Mi`,
       },
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 200, memory: 150 },
+      metric: { type: 'memory_cpu', cpu: 200 },
       createService: true,
       service: {
         type: 'LoadBalancer',
@@ -553,7 +567,7 @@ if (isAdhocEnv) {
 
   appsArgs.push({
     nameSuffix: 'worker-job',
-    env: [...jwtEnv],
+    env: [nodeOptions(bgMemory), ...jwtEnv],
     args: cliArgs('worker-job'),
     minReplicas: 1,
     maxReplicas: 10,
@@ -833,7 +847,7 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '3710894a40b8d7f9e4a463552e84a34e50d7885b',
+        tag: 'b52e9b68ef2d9be9079a24220268ff1c5af2c945',
       },
       resources: {
         requests: {

@@ -473,6 +473,25 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.readTime).toEqual(12);
 });
 
+it('should not overwrite an existing summary on update', async () => {
+  await con
+    .getRepository(FreeformPost)
+    .update({ id: 'p2' }, { summary: 'curated summary' });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p2',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'test',
+    url: 'https://test.com',
+    extra: {
+      summary: 'enriched summary',
+    },
+    content_type: PostType.Freeform,
+  });
+  const post = await con.getRepository(FreeformPost).findOneBy({ id: 'p2' });
+  expect(post.summary).toEqual('curated summary');
+});
+
 it('should save keywords without special characters', async () => {
   await createDefaultUser();
   await con

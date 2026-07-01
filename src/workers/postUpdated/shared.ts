@@ -278,6 +278,10 @@ export const updatePost = async ({
     }
   });
 
+  if (databasePost.summary) {
+    delete data.summary;
+  }
+
   if (isTwitterSocialType(content_type)) {
     onUpdateSocialTwitter({ databasePost, data });
   }

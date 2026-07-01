@@ -9,7 +9,8 @@ import {
   type FreeformPost,
   type SharePost,
 } from '../../entity';
-import { systemUser, updateFlagsStatement } from '../utils';
+import { isProd, systemUser, updateFlagsStatement } from '../utils';
+import { PostType } from '../../entity/posts/Post';
 import { getDiscussionLink, notificationsLink } from '../links';
 import { usdToCores } from '../number';
 
@@ -38,11 +39,11 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
   postId: string,
-): Promise<Pick<Post, 'id' | 'flags'>> => {
+): Promise<Pick<Post, 'id' | 'flags' | 'type'>> => {
   const { userId } = ctx;
 
   return ctx.con.getRepository(Post).findOneOrFail({
-    select: ['id', 'flags'],
+    select: ['id', 'flags', 'type'],
     where: [
       { id: postId, authorId: userId },
       { id: postId, scoutId: userId },
@@ -72,6 +73,13 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value: postId } = args;
   const post = await validatePostBoostPermissions(ctx, postId);
+
+  if (isProd && !ctx.isTeamMember && post.type === PostType.Share) {
+    throw new ValidationError(
+      'Boosting is currently not available for this post due to internal issue. We are working on it.',
+    );
+  }
+
   checkPostAlreadyBoosted(post);
 
   const request = await ctx.con.transaction(async (manager) => {

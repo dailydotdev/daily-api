@@ -133,6 +133,7 @@ describe('userGenerateBrief worker', () => {
         return true;
       })
       .reply(200, {
+        tldr: 'OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.',
         sections: [
           {
             title: 'Must know',
@@ -186,7 +187,13 @@ describe('userGenerateBrief worker', () => {
     expect(briefPost).toBeDefined();
     expect(briefPost!.private).toBe(false);
     expect(briefPost!.visible).toBe(true);
-    expect(briefPost!.content).toBe(`## Must know
+    expect(briefPost!.summary).toBe(
+      'OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.',
+    );
+    expect(briefPost!.content)
+      .toBe(`OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.
+
+## Must know
 
 - **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.
 
