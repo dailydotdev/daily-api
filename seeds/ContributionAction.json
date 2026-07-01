@@ -41,7 +41,11 @@
     "description": "Share what you love about daily.dev and drop the link.",
     "points": 25,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "x", "isLoveAction": false },
+    "metadata": {
+      "platform": "x",
+      "isLoveAction": false,
+      "instructions": "Publish a post about daily.dev, then paste the link so we can confirm it's live and public."
+    },
     "maxPerUser": 3,
     "cooldownSeconds": 86400,
     "active": true,
@@ -57,7 +61,8 @@
     "metadata": {
       "platform": "github",
       "isLoveAction": false,
-      "externalUrl": "https://github.com/dailydotdev/daily"
+      "externalUrl": "https://github.com/dailydotdev/daily",
+      "instructions": "Open the repo, hit Star, then paste the link to your GitHub profile or the starred repo."
     },
     "maxPerUser": 1,
     "active": true,
@@ -70,7 +75,11 @@
     "description": "Publish an article mentioning daily.dev.",
     "points": 100,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "blog", "isLoveAction": false },
+    "metadata": {
+      "platform": "blog",
+      "isLoveAction": false,
+      "instructions": "Publish an article that mentions daily.dev, then paste the public link to it."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 3
@@ -87,7 +96,11 @@
         "allowedDomains": ["chromewebstore.google.com", "chrome.google.com"]
       }
     },
-    "metadata": { "platform": "chrome_web_store", "isLoveAction": false },
+    "metadata": {
+      "platform": "chrome_web_store",
+      "isLoveAction": false,
+      "instructions": "Paste the link to your published review on the browser store."
+    },
     "maxPerUser": 1,
     "active": true,
     "sortOrder": 4
@@ -99,7 +112,11 @@
     "description": "Invite a fellow developer to daily.dev.",
     "points": 40,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "daily_dev", "isLoveAction": false },
+    "metadata": {
+      "platform": "daily_dev",
+      "isLoveAction": false,
+      "instructions": "Grab your personal invite link (Settings → Invite), share it with a developer, and paste that link here."
+    },
     "maxPerUser": 5,
     "cooldownSeconds": 43200,
     "active": true,
@@ -129,7 +146,11 @@
     "description": "Recommend daily.dev where developers hang out.",
     "points": 35,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "reddit", "isLoveAction": false },
+    "metadata": {
+      "platform": "reddit",
+      "isLoveAction": false,
+      "instructions": "Recommend daily.dev in a relevant subreddit, follow the community's rules, then paste the link to your post or comment."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 7
@@ -141,7 +162,11 @@
     "description": "Record a walkthrough or review of daily.dev.",
     "points": 150,
     "evidence": { "url": { "required": true }, "note": {} },
-    "metadata": { "platform": "youtube", "isLoveAction": false },
+    "metadata": {
+      "platform": "youtube",
+      "isLoveAction": false,
+      "instructions": "Publish a public video featuring daily.dev, paste the link, and add a short note on what it covers."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 8
@@ -153,7 +178,11 @@
     "description": "Show how you use daily.dev in your workflow.",
     "points": 90,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "dev", "isLoveAction": false },
+    "metadata": {
+      "platform": "dev",
+      "isLoveAction": false,
+      "instructions": "Publish your tutorial on DEV mentioning daily.dev, then paste the public link."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 9
@@ -165,7 +194,11 @@
     "description": "Share a guide or story that mentions daily.dev.",
     "points": 90,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "hashnode", "isLoveAction": false },
+    "metadata": {
+      "platform": "hashnode",
+      "isLoveAction": false,
+      "instructions": "Publish your article on Hashnode mentioning daily.dev, then paste the public link."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 10
@@ -198,7 +231,8 @@
     "metadata": {
       "platform": "product_hunt",
       "isLoveAction": false,
-      "externalUrl": "https://www.producthunt.com/products/daily-dev"
+      "externalUrl": "https://www.producthunt.com/products/daily-dev",
+      "instructions": "Leave an honest review on our Product Hunt page, then paste the link to it."
     },
     "maxPerUser": 1,
     "active": true,
@@ -227,7 +261,11 @@
     "description": "Rate the extension on the Edge Add-ons store.",
     "points": 50,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "edge_addons", "isLoveAction": false },
+    "metadata": {
+      "platform": "edge_addons",
+      "isLoveAction": false,
+      "instructions": "Rate the extension on the Edge Add-ons store, then paste the link to the listing."
+    },
     "maxPerUser": 1,
     "active": true,
     "sortOrder": 14
@@ -255,7 +293,11 @@
     "description": "Help a developer and link daily.dev where it fits.",
     "points": 35,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "stack_overflow", "isLoveAction": false },
+    "metadata": {
+      "platform": "stack_overflow",
+      "isLoveAction": false,
+      "instructions": "Answer a question and mention daily.dev where it genuinely helps, then paste the link to your answer."
+    },
     "maxPerUser": 5,
     "cooldownSeconds": 43200,
     "active": true,
@@ -288,7 +330,11 @@
     "description": "Post a thoughtful submission or comment.",
     "points": 40,
     "evidence": { "url": { "required": true } },
-    "metadata": { "platform": "hacker_news", "isLoveAction": false },
+    "metadata": {
+      "platform": "hacker_news",
+      "isLoveAction": false,
+      "instructions": "Post a thoughtful submission or comment about daily.dev, then paste the link to it."
+    },
     "maxPerUser": 2,
     "active": true,
     "sortOrder": 18
