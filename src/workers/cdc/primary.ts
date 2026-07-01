@@ -1533,17 +1533,20 @@ const onContributionSubmissionChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<ContributionSubmission>,
 ) => {
-  if (data.payload.op !== 'c') {
+  const { op, after, before } = data.payload;
+  if (op !== 'c' && op !== 'u') {
     return;
   }
 
-  const entity = data.payload.after;
-  if (!entity || entity.status !== ContributionSubmissionStatus.Approved) {
+  const isApproved = (status?: ContributionSubmissionStatus) =>
+    status === ContributionSubmissionStatus.Approved;
+
+  if (!after || !isApproved(after.status) || isApproved(before?.status)) {
     return;
   }
 
   await triggerTypedEvent(logger, 'api.v1.contribution-action-completed', {
-    submission: entity,
+    submission: after,
   });
 };
 

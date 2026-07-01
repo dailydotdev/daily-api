@@ -2392,7 +2392,24 @@ describe('contribution submission', () => {
     expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
-  it('should not emit on update', async () => {
+  it('should emit when a submission transitions to approved', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: { ...base, status: ContributionSubmissionStatus.Flagged },
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
+      { submission: base },
+    ]);
+  });
+
+  it('should not emit when an already-approved submission is edited', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
