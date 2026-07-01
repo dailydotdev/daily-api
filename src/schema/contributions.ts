@@ -4,13 +4,9 @@ import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { In } from 'typeorm';
 import type z from 'zod';
+import { AuthContext, BaseContext, Context } from '../Context';
 import {
-  AuthContext,
-  BaseContext,
-  Context,
-  SubscriptionContext,
-} from '../Context';
-import {
+  CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
   getApprovedContributorsCount,
   getApprovedPointsSum,
   getContributionConfig,
@@ -126,6 +122,7 @@ type GQLUserContributionCauseStats = {
 
 type GQLContributionActionCompleted = {
   submissionId: string;
+  userId: string;
   actionId: string;
   awardedPoints: number;
 };
@@ -428,6 +425,7 @@ export const typeDefs = /* GraphQL */ `
 
   type ContributionActionCompleted {
     submissionId: ID!
+    userId: ID!
     actionId: ID!
     awardedPoints: Int!
   }
@@ -957,18 +955,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   },
   Subscription: {
     contributionActionCompleted: {
-      subscribe: async (
-        _,
-        __,
-        ctx: SubscriptionContext,
-      ): Promise<
+      subscribe: async (): Promise<
         AsyncIterable<{
           contributionActionCompleted: GQLContributionActionCompleted;
         }>
       > => {
         const iterator =
           redisPubSub.asyncIterator<GQLContributionActionCompleted>(
-            `events.contributions.${ctx.userId}.completed`,
+            CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
           );
 
         return {

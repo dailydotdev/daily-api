@@ -18,6 +18,7 @@ import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
 import newNotificationRealTime from './newNotificationV2RealTime';
 import newHighlightRealTime from './newHighlightRealTime';
+import contributionActionCompletedRealTime from './contributionActionCompletedRealTime';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -177,6 +178,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   gearClassify,
   generateChannelDigest,
   newHighlightRealTime,
+  contributionActionCompletedRealTime,
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,

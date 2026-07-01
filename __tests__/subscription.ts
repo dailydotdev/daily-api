@@ -4,6 +4,7 @@ jest.mock('../src/redis', () => ({
   },
 }));
 
+import { CONTRIBUTION_ACTION_COMPLETED_CHANNEL } from '../src/common/contribution';
 import { NEW_HIGHLIGHT_CHANNEL } from '../src/common/highlights';
 import { QUEST_ROTATION_UPDATE_CHANNEL } from '../src/common/quest';
 import { redisPubSub } from '../src/redis';
@@ -130,21 +131,24 @@ describe('contribution subscriptions', () => {
     );
   });
 
-  it('should subscribe to the per-user completion channel', async () => {
+  it('should subscribe to the global completion channel', async () => {
     await expect(
-      subscriptionResolvers.contributionActionCompleted.subscribe(null, null, {
-        userId: '1',
-      }),
+      subscriptionResolvers.contributionActionCompleted.subscribe(
+        null,
+        null,
+        {},
+      ),
     ).resolves.toBeDefined();
 
     expect(redisPubSub.asyncIterator).toHaveBeenCalledWith(
-      'events.contributions.1.completed',
+      CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
     );
   });
 
   it('should wrap published events under the subscription field', async () => {
     const payload = {
       submissionId: 'sub-1',
+      userId: '1',
       actionId: 'action-1',
       awardedPoints: 50,
     };

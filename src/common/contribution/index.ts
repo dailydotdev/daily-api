@@ -21,6 +21,9 @@ import { ContributionSubmission } from '../../entity/contribution/ContributionSu
 import { UserContributionCausePreference } from '../../entity/contribution/UserContributionCausePreference';
 import { remoteConfig } from '../../remoteConfig';
 
+export const CONTRIBUTION_ACTION_COMPLETED_CHANNEL =
+  'events.contributions.completed';
+
 const ACTIVE_STATUSES_FOR_LIMITS = [
   ContributionSubmissionStatus.Approved,
   ContributionSubmissionStatus.Flagged,

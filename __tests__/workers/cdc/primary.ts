@@ -2362,8 +2362,7 @@ describe('contribution submission', () => {
     reviewedBy: null,
   };
 
-  it('should publish a completion event on insert', async () => {
-    const publish = jest.spyOn(redisFile.redisPubSub, 'publish');
+  it('should emit a completion event on insert', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -2373,19 +2372,19 @@ describe('contribution submission', () => {
         table: 'contribution_submission',
       }),
     );
-    expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish).toHaveBeenCalledWith(
-      `events.contributions.${base.userId}.completed`,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
       {
         submissionId: base.id,
+        userId: base.userId,
         actionId: base.actionId,
         awardedPoints: base.awardedPoints,
       },
-    );
+    ]);
   });
 
-  it('should not publish on update', async () => {
-    const publish = jest.spyOn(redisFile.redisPubSub, 'publish');
+  it('should not emit on update', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -2395,7 +2394,7 @@ describe('contribution submission', () => {
         table: 'contribution_submission',
       }),
     );
-    expect(publish).not.toHaveBeenCalled();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 

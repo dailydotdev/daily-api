@@ -116,7 +116,6 @@ import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   deleteRedisKey,
   getRedisObject,
-  redisPubSub,
   setRedisObjectWithExpiry,
 } from '../../redis';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
@@ -1540,8 +1539,9 @@ const onContributionSubmissionChange = async (
     return;
   }
 
-  await redisPubSub.publish(`events.contributions.${entity.userId}.completed`, {
+  await triggerTypedEvent(logger, 'api.v1.contribution-action-completed', {
     submissionId: entity.id,
+    userId: entity.userId,
     actionId: entity.actionId,
     awardedPoints: entity.awardedPoints,
   });

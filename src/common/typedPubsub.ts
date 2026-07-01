@@ -268,6 +268,12 @@ export type PubSubSchema = {
   'api.v1.member-joined-source': {
     sourceMember: ChangeObject<SourceMember>;
   };
+  'api.v1.contribution-action-completed': {
+    submissionId: string;
+    userId: string;
+    actionId: string;
+    awardedPoints: number;
+  };
   'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
   'api.v1.candidate-rejected-opportunity': CandidateRejectedOpportunityMessage;
   'api.v1.recruiter-rejected-candidate-match': CandidateRejectedOpportunityMessage;
