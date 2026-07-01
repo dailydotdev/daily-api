@@ -6,6 +6,7 @@ import { In } from 'typeorm';
 import type z from 'zod';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
   getApprovedContributorsCount,
   getApprovedPointsSum,
   getContributionConfig,
@@ -48,6 +49,7 @@ import {
   UserContributionRewardStatus,
 } from '../entity/contribution/UserContributionReward';
 import { NotFoundError } from '../errors';
+import { redisPubSub } from '../redis';
 import graphorm from '../graphorm';
 import type { GraphORMBuilder } from '../graphorm/graphorm';
 import {
@@ -116,6 +118,13 @@ type GQLUserContributionCauseStats = {
   cause: ContributionCause;
   points: number;
   amountCents: number;
+};
+
+type GQLContributionActionCompleted = {
+  submissionId: string;
+  userId: string;
+  actionId: string;
+  awardedPoints: number;
 };
 
 const toGQLReward = ({
@@ -412,6 +421,17 @@ export const typeDefs = /* GraphQL */ `
     claimContributionReward(tierId: ID!): UserContributionReward!
       @auth
       @contributionEligibility
+  }
+
+  type ContributionActionCompleted {
+    submissionId: ID!
+    userId: ID!
+    actionId: ID!
+    awardedPoints: Int!
+  }
+
+  extend type Subscription {
+    contributionActionCompleted: ContributionActionCompleted! @auth
   }
 `;
 
@@ -931,6 +951,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         return toGQLReward({ reward, tier });
       });
+    },
+  },
+  Subscription: {
+    contributionActionCompleted: {
+      subscribe: async (): Promise<
+        AsyncIterable<{
+          contributionActionCompleted: GQLContributionActionCompleted;
+        }>
+      > => {
+        const iterator =
+          redisPubSub.asyncIterator<GQLContributionActionCompleted>(
+            CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
+          );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return {
+                  done: false,
+                  value: { contributionActionCompleted: value },
+                };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
   ContributionRewardTier: {

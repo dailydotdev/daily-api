@@ -256,6 +256,10 @@ export const workers: Worker[] = [
     subscription: 'api.source-member-role-changed-notification',
   },
   {
+    topic: 'api.v1.contribution-action-completed',
+    subscription: 'api.contribution-action-completed-real-time',
+  },
+  {
     topic: 'analytics-api.v1.experiment-allocated',
     subscription: 'api.experiment-allocated',
   },
