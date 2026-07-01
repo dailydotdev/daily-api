@@ -550,12 +550,14 @@ export function getReferralFromCookie({
 
   const [referralId, referralOrigin] = joinReferralCookie.split(':');
 
-  if (!referralId || !referralOrigin) {
+  // referralOrigin (the campaign) is required; referralId (the referring user)
+  // is optional — campaign-only links (e.g. onboarding) set `:campaign`.
+  if (!referralOrigin) {
     return undefined;
   }
 
   return {
-    referralId,
+    referralId: referralId || undefined,
     referralOrigin,
   };
 }
@@ -709,6 +711,7 @@ const getLocation = async (
 
 const getEngagementCreatives = async (
   userId: string,
+  cid?: string,
 ): Promise<EngagementCreative[]> => {
   const mocked = isMockEnabled();
 
@@ -719,9 +722,11 @@ const getEngagementCreatives = async (
   try {
     const response = mocked
       ? mockSkadiEngagementResponse
-      : await skadiEngagementClient.getAd('default_engagement', {
-          USERID: userId,
-        });
+      : await skadiEngagementClient.getAd(
+          'default_engagement',
+          { USERID: userId },
+          { cid },
+        );
 
     if (!response.value?.engagement || !response.generation_id) {
       return [];
@@ -808,7 +813,10 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
-      getEngagementCreatives(userId),
+      getEngagementCreatives(
+        userId,
+        getReferralFromCookie({ req })?.referralOrigin,
+      ),
       getLiveRoomsBoot(con),
     ]);
 
@@ -1011,7 +1019,10 @@ const anonymousBoot = async (
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation({ userId: req.trackingId, con, ...geo }),
     getAnonymousTheme(req.trackingId),
-    getEngagementCreatives(req.trackingId ?? ''),
+    getEngagementCreatives(
+      req.trackingId ?? '',
+      getReferralFromCookie({ req })?.referralOrigin,
+    ),
     getLiveRoomsBoot(con),
   ]);
 

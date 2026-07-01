@@ -43,5 +43,10 @@ export interface ISkadiClient<TValue> {
     metadata: {
       USERID: string;
     },
+    options?: {
+      // Campaign id forwarded as a `cid` query param (e.g. from the user's
+      // referralOrigin) so skadi can target a specific campaign.
+      cid?: string;
+    },
   ): Promise<SkadiResponse<TValue>>;
 }
