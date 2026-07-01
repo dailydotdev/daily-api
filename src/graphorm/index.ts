@@ -1,4 +1,8 @@
 import { getPermissionsForMember } from '../schema/sources';
+import {
+  getNotificationCategory,
+  NotificationType,
+} from '../notifications/common';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -1602,6 +1606,12 @@ const obj = new GraphORM({
       createdAt: {
         rawSelect: true,
         select: () => `COALESCE(un."showAt", un."createdAt")`,
+      },
+      // Derived server-side from `type` so the client never re-implements the
+      // category map (the notifications page reads this for the type badge).
+      category: {
+        select: 'type',
+        transform: (value: NotificationType) => getNotificationCategory(value),
       },
       avatars: {
         relation: {

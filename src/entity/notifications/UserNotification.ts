@@ -1,6 +1,7 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from '../user';
 import { NotificationV2 } from './NotificationV2';
+import type { NotificationType } from '../../notifications/common';
 
 @Entity()
 @Index(
@@ -47,4 +48,10 @@ export class UserNotification {
 
   @Column({ type: 'timestamp', nullable: true, default: null })
   showAt: Date | null;
+
+  // Denormalized from NotificationV2.type so the notifications feed can filter
+  // by type using a (userId, type, date) index without scanning a heavy user's
+  // rows and discarding non-matching types post-join.
+  @Column({ type: 'text', nullable: true })
+  type?: NotificationType;
 }
