@@ -32,6 +32,9 @@ export type EngagementCreative = {
   tools: string[];
   keywords: string[];
   tags: string[];
+  // Prominent placements a campaign opted into (e.g. 'top_banner',
+  // 'feed_strip'). Optional: existing creatives won't carry it.
+  placements?: string[];
 };
 
 export interface ISkadiClient<TValue> {

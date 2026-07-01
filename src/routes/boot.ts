@@ -105,6 +105,8 @@ import {
   skadiEngagementClient,
   type EngagementCreative,
 } from '../integrations/skadi';
+import { isMockEnabled } from '../mocks/common';
+import { mockSkadiEngagementResponse } from '../mocks/skadi/engagement';
 import { LiveRoom } from '../entity/LiveRoom';
 import { LiveRoomStatus } from '../common/schema/liveRooms';
 
@@ -708,14 +710,18 @@ const getLocation = async (
 const getEngagementCreatives = async (
   userId: string,
 ): Promise<EngagementCreative[]> => {
-  if (!remoteConfig.vars.engagementAdsEnabled) {
+  const mocked = isMockEnabled();
+
+  if (!mocked && !remoteConfig.vars.engagementAdsEnabled) {
     return [];
   }
 
   try {
-    const response = await skadiEngagementClient.getAd('default_engagement', {
-      USERID: userId,
-    });
+    const response = mocked
+      ? mockSkadiEngagementResponse
+      : await skadiEngagementClient.getAd('default_engagement', {
+          USERID: userId,
+        });
 
     if (!response.value?.engagement || !response.generation_id) {
       return [];

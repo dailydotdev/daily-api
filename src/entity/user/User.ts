@@ -243,6 +243,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   experienceLevel: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  cloudProvider?: string | null;
+
   @Column({ type: 'jsonb', default: {} })
   flags: UserFlags;
 

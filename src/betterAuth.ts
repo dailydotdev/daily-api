@@ -29,7 +29,10 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from './notifications/common';
-import { addClaimableItemsToUser } from './entity/user/utils';
+import {
+  addClaimableItemsToUser,
+  allowedCloudProviders,
+} from './entity/user/utils';
 import { claimAnonOpportunities } from './common/opportunity/user';
 import { triggerTypedEvent } from './common/typedPubsub';
 import { assignIntroQuestsToUser } from './common/quest/intro';
@@ -515,6 +518,30 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           fieldName: 'experienceLevel',
           validator: {
             input: userExperienceLevelSchema,
+          },
+        },
+        company: {
+          type: 'string',
+          required: false,
+          fieldName: 'company',
+          validator: {
+            input: z.string().max(100),
+          },
+        },
+        title: {
+          type: 'string',
+          required: false,
+          fieldName: 'title',
+          validator: {
+            input: z.string().max(100),
+          },
+        },
+        cloudProvider: {
+          type: 'string',
+          required: false,
+          fieldName: 'cloudProvider',
+          validator: {
+            input: z.enum(allowedCloudProviders),
           },
         },
       },
