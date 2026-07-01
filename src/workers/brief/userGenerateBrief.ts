@@ -234,6 +234,9 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       const err = originalError as Error;
 
       logger.error({ err, data }, 'failed to generate user brief');
+
+      // remove the pending post so it doesn't stay invisible and block future generations
+      await con.getRepository(BriefPost).delete({ id: data.postId });
     }
   },
 };
