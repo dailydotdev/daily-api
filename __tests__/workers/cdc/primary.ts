@@ -152,6 +152,11 @@ import {
 import { Quest, QuestEventType, QuestType } from '../../../src/entity/Quest';
 import { QuestRotation } from '../../../src/entity/QuestRotation';
 import { UserQuest, UserQuestStatus } from '../../../src/entity/user/UserQuest';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../../../src/entity/contribution/ContributionSubmission';
+
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
@@ -2337,6 +2342,60 @@ describe('submission', () => {
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+});
+
+describe('contribution submission', () => {
+  type ObjectType = ContributionSubmission;
+  const base: ChangeObject<ObjectType> = {
+    id: randomUUID(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    userId: '1',
+    actionId: randomUUID(),
+    paymentId: null,
+    evidence: '{}',
+    status: ContributionSubmissionStatus.Approved,
+    awardedPoints: 50,
+    flags: '{}',
+    reviewedAt: null,
+    reviewedBy: null,
+  };
+
+  it('should publish a completion event on insert', async () => {
+    const publish = jest.spyOn(redisFile.redisPubSub, 'publish');
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith(
+      `events.contributions.${base.userId}.completed`,
+      {
+        submissionId: base.id,
+        actionId: base.actionId,
+        awardedPoints: base.awardedPoints,
+      },
+    );
+  });
+
+  it('should not publish on update', async () => {
+    const publish = jest.spyOn(redisFile.redisPubSub, 'publish');
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, awardedPoints: 100 },
+        before: base,
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(publish).not.toHaveBeenCalled();
   });
 });
 

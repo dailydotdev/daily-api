@@ -4,7 +4,12 @@ import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { In } from 'typeorm';
 import type z from 'zod';
-import { AuthContext, BaseContext, Context } from '../Context';
+import {
+  AuthContext,
+  BaseContext,
+  Context,
+  SubscriptionContext,
+} from '../Context';
 import {
   getApprovedContributorsCount,
   getApprovedPointsSum,
@@ -48,6 +53,7 @@ import {
   UserContributionRewardStatus,
 } from '../entity/contribution/UserContributionReward';
 import { NotFoundError } from '../errors';
+import { redisPubSub } from '../redis';
 import graphorm from '../graphorm';
 import type { GraphORMBuilder } from '../graphorm/graphorm';
 import {
@@ -116,6 +122,12 @@ type GQLUserContributionCauseStats = {
   cause: ContributionCause;
   points: number;
   amountCents: number;
+};
+
+type GQLContributionActionCompleted = {
+  submissionId: string;
+  actionId: string;
+  awardedPoints: number;
 };
 
 const toGQLReward = ({
@@ -412,6 +424,16 @@ export const typeDefs = /* GraphQL */ `
     claimContributionReward(tierId: ID!): UserContributionReward!
       @auth
       @contributionEligibility
+  }
+
+  type ContributionActionCompleted {
+    submissionId: ID!
+    actionId: ID!
+    awardedPoints: Int!
+  }
+
+  extend type Subscription {
+    contributionActionCompleted: ContributionActionCompleted! @auth
   }
 `;
 
@@ -931,6 +953,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         return toGQLReward({ reward, tier });
       });
+    },
+  },
+  Subscription: {
+    contributionActionCompleted: {
+      subscribe: async (
+        _,
+        __,
+        ctx: SubscriptionContext,
+      ): Promise<
+        AsyncIterable<{
+          contributionActionCompleted: GQLContributionActionCompleted;
+        }>
+      > => {
+        const iterator =
+          redisPubSub.asyncIterator<GQLContributionActionCompleted>(
+            `events.contributions.${ctx.userId}.completed`,
+          );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return {
+                  done: false,
+                  value: { contributionActionCompleted: value },
+                };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
   ContributionRewardTier: {

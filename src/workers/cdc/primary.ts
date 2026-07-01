@@ -116,8 +116,10 @@ import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   deleteRedisKey,
   getRedisObject,
+  redisPubSub,
   setRedisObjectWithExpiry,
 } from '../../redis';
+import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
 import { counters } from '../../telemetry';
 import {
   cancelEntityReminderWorkflow,
@@ -1524,6 +1526,27 @@ const onSubmissionChange = async (
   }
 };
 
+const onContributionSubmissionChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<ContributionSubmission>,
+) => {
+  if (data.payload.op !== 'c') {
+    return;
+  }
+
+  const entity = data.payload.after;
+  if (!entity) {
+    return;
+  }
+
+  await redisPubSub.publish(`events.contributions.${entity.userId}.completed`, {
+    submissionId: entity.id,
+    actionId: entity.actionId,
+    awardedPoints: entity.awardedPoints,
+  });
+};
+
 const onSourceMemberChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2813,6 +2836,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
+          break;
+        case getTableName(con, ContributionSubmission):
+          await onContributionSubmissionChange(con, logger, data);
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
