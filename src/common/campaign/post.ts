@@ -74,7 +74,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { value: postId } = args;
   const post = await validatePostBoostPermissions(ctx, postId);
 
-  if (isProd && post.type === PostType.Share) {
+  if (isProd && !ctx.isTeamMember && post.type === PostType.Share) {
     throw new ValidationError(
       'Boosting is currently not available for this post due to internal issue. We are working on it.',
     );
