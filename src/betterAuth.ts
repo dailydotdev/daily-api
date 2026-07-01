@@ -153,16 +153,18 @@ const parseTrackingIdFromCookieHeader = (
 
 const parseReferralFromCookieHeader = (
   cookieHeader: string,
-): { referralId: string; referralOrigin: string } | undefined => {
+): { referralId?: string; referralOrigin: string } | undefined => {
   const value = parseCookieValue(cookieHeader, JOIN_REFERRAL_COOKIE_KEY);
   if (!value) {
     return undefined;
   }
   const [referralId, referralOrigin] = value.split(':');
-  if (referralId && referralOrigin) {
-    return { referralId, referralOrigin };
+  // referralOrigin (the campaign) is required; referralId (the referring user)
+  // is optional — campaign-only links set `:campaign`.
+  if (!referralOrigin) {
+    return undefined;
   }
-  return undefined;
+  return { referralId: referralId || undefined, referralOrigin };
 };
 
 type BetterAuthDbHookContext = {
