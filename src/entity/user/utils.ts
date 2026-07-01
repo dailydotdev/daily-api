@@ -504,15 +504,6 @@ export const validateUserUpdate = async (
     throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
   }
 
-  if (
-    data.cloudProvider &&
-    !(allowedCloudProviders as readonly string[]).includes(data.cloudProvider)
-  ) {
-    throw new ValidationError(
-      JSON.stringify({ cloudProvider: 'invalid cloud provider' }),
-    );
-  }
-
   (['company', 'title'] as const).forEach((key) => {
     if ((data[key]?.length || 0) > profileTextLimit) {
       throw new ValidationError(

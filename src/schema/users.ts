@@ -230,7 +230,6 @@ export interface GQLUpdateUserInput {
   weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
-  cloudProvider?: string;
   language?: ContentLanguage;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
@@ -798,10 +797,6 @@ export const typeDefs = /* GraphQL */ `
     """
     experienceLevel: String
     """
-    Current cloud provider of the user (e.g. aws, gcp, azure, other, none)
-    """
-    cloudProvider: String
-    """
     Preferred language of the user
     """
     language: String
@@ -927,10 +922,6 @@ export const typeDefs = /* GraphQL */ `
     Experience level of the user
     """
     experienceLevel: String
-    """
-    Current cloud provider of the user (e.g. aws, gcp, azure, other, none)
-    """
-    cloudProvider: String
     """
     Preferred language of the user
     """

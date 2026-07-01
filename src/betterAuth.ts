@@ -536,14 +536,9 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
             input: z.string().max(100),
           },
         },
-        cloudProvider: {
-          type: 'string',
-          required: false,
-          fieldName: 'cloudProvider',
-          validator: {
-            input: z.enum(allowedCloudProviders),
-          },
-        },
+        // cloudProvider is intentionally NOT a column-backed additional field —
+        // it's stored in the `flags` JSONB and written from the signup body in
+        // the create.after hook below.
       },
     },
     session: {
@@ -594,14 +589,38 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 [user.id],
               );
 
-              const setClauses: string[] = [
-                `flags = CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}' ELSE flags END`,
-              ];
+              const hookCtx = ctx as BetterAuthDbHookContext;
+              const body = hookCtx?.body;
+
+              // Campaign onboarding stores cloud provider in the `flags` JSONB
+              // (not a dedicated column). Validate against the allowed list and
+              // merge it into flags alongside the default trustScore/vordr.
+              const rawCloudProvider = (
+                body as { cloudProvider?: unknown } | undefined
+              )?.cloudProvider;
+              const cloudProvider =
+                typeof rawCloudProvider === 'string' &&
+                (allowedCloudProviders as readonly string[]).includes(
+                  rawCloudProvider,
+                )
+                  ? rawCloudProvider
+                  : null;
+
               const values: unknown[] = [user.id];
               let paramIndex = 2;
 
-              const hookCtx = ctx as BetterAuthDbHookContext;
-              const body = hookCtx?.body;
+              const baseFlags = `CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}'::jsonb ELSE flags END`;
+              const setClauses: string[] = [];
+              if (cloudProvider) {
+                setClauses.push(
+                  `flags = (${baseFlags}) || $${paramIndex}::jsonb`,
+                );
+                values.push(JSON.stringify({ cloudProvider }));
+                paramIndex++;
+              } else {
+                setClauses.push(`flags = ${baseFlags}`);
+              }
+
               const addField = (column: string, value: unknown): void => {
                 if (typeof value === 'string' && value.length > 0) {
                   setClauses.push(`"${column}" = $${paramIndex}`);
