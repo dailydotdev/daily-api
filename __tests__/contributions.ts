@@ -47,6 +47,10 @@ import {
   CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
   detectContributionMilestones,
 } from '../src/common/contribution';
+import { grantFoundingContributorAward } from '../src/common/contribution/founding';
+import { ContributionFoundingContributor } from '../src/entity/contribution/ContributionFoundingContributor';
+import { Product, ProductType } from '../src/entity/Product';
+import { systemUser } from '../src/common/utils';
 import { deleteRedisKey } from '../src/redis';
 
 let con: DataSource;
@@ -68,6 +72,7 @@ const sponsorId = '33333333-3333-4333-8333-333333333335';
 const tierId = '44444444-4444-4444-8444-444444444444';
 const coresTierId = '44444444-4444-4444-8444-444444444445';
 const paymentId = '55555555-5555-4555-8555-555555555555';
+const foundingProductId = '77777777-7777-4777-8777-777777777771';
 
 const CONTRIBUTION_STATUS_QUERY = `
 query ContributionStatus {
@@ -327,9 +332,17 @@ beforeEach(async () => {
     .from(ContributionActionCategory)
     .execute();
   await con.createQueryBuilder().delete().from(ContributionMilestone).execute();
+  await con
+    .createQueryBuilder()
+    .delete()
+    .from(ContributionFoundingContributor)
+    .execute();
   await deleteRedisKey(CONTRIBUTION_LAST_MILESTONE_REDIS_KEY);
   await con.getRepository(User).delete({ id: userId });
   await con.getRepository(User).delete({ id: blockedUserId });
+  // After the users are gone their award transactions cascade away, so the
+  // founding award product is no longer referenced and can be removed.
+  await con.getRepository(Product).delete({ id: foundingProductId });
 
   remoteConfig.vars.contributionProgram = {
     enabled: true,
@@ -933,4 +946,128 @@ it('stamps crossed milestones once and exposes the highest reached', async () =>
     value: 500,
     title: '500',
   });
+});
+
+const seedFoundingProduct = () =>
+  saveFixtures(con, Product, [
+    {
+      id: foundingProductId,
+      name: 'Founding contributor',
+      image: 'https://daily.dev/founding.jpg',
+      type: ProductType.Award,
+      value: 30,
+    },
+  ]);
+
+const mockNjord = () =>
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() =>
+      createClient(Credits, createMockNjordTransport()),
+    );
+
+it('grants the founding contributor award, paid by the system', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  const granted = await grantFoundingContributorAward({
+    con,
+    userId,
+    productId: foundingProductId,
+  });
+
+  expect(granted).toBe(true);
+  await expect(
+    con
+      .getRepository(ContributionFoundingContributor)
+      .findOneByOrFail({ userId }),
+  ).resolves.toMatchObject({ userId });
+  await expect(
+    con.getRepository(UserTransaction).findOneByOrFail({
+      receiverId: userId,
+      productId: foundingProductId,
+    }),
+  ).resolves.toMatchObject({
+    senderId: systemUser.id,
+    processor: UserTransactionProcessor.Njord,
+    status: UserTransactionStatus.Success,
+    value: 30,
+    valueIncFees: 30,
+    fee: 0,
+    referenceType: UserTransactionType.User,
+  });
+});
+
+it('is idempotent per contributor', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+    }),
+  ).toBe(true);
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+    }),
+  ).toBe(false);
+
+  expect(
+    await con
+      .getRepository(UserTransaction)
+      .countBy({ receiverId: userId, productId: foundingProductId }),
+  ).toBe(1);
+});
+
+it('stops granting once the cap is reached', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+      limit: 1,
+    }),
+  ).toBe(true);
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId: blockedUserId,
+      productId: foundingProductId,
+      limit: 1,
+    }),
+  ).toBe(false);
+
+  expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
+    1,
+  );
+  await expect(
+    con
+      .getRepository(UserTransaction)
+      .findOneBy({ receiverId: blockedUserId, productId: foundingProductId }),
+  ).resolves.toBeNull();
+});
+
+it('is a no-op when the award product is unset or missing', async () => {
+  mockNjord();
+
+  expect(await grantFoundingContributorAward({ con, userId })).toBe(false);
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+    }),
+  ).toBe(false);
+
+  expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
+    0,
+  );
 });
