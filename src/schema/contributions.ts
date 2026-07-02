@@ -10,7 +10,9 @@ import {
   getApprovedContributorsCount,
   getApprovedPointsSum,
   getContributionConfig,
+  getContributionCauseBreakdown,
   getContributionEligibility,
+  getContributionUserRank,
   getLastReachedMilestone,
   getLifetimeAmountCents,
   parseContributionArgs,
@@ -120,6 +122,11 @@ type GQLUserContributionCauseStats = {
   cause: ContributionCause;
   points: number;
   amountCents: number;
+};
+
+type GQLContributionLeaderboardEntry = {
+  points: number;
+  rank: number;
 };
 
 type GQLContributionActionCompleted = {
@@ -362,6 +369,35 @@ export const typeDefs = /* GraphQL */ `
     edges: [ContributionSponsorEdge!]!
   }
 
+  type ContributionLeaderboardEntry {
+    user: User!
+    points: Int!
+    rank: Int!
+  }
+
+  type ContributionLeaderboardEntryEdge {
+    node: ContributionLeaderboardEntry!
+    cursor: String!
+  }
+
+  type ContributionLeaderboardConnection {
+    pageInfo: PageInfo!
+    edges: [ContributionLeaderboardEntryEdge!]!
+  }
+
+  type ContributionUserRank {
+    points: Int!
+    rank: Int!
+  }
+
+  """
+  Projected share of the current cycle's points for one cause category.
+  """
+  type ContributionCauseCategoryBreakdown {
+    category: String
+    points: Int!
+  }
+
   input SubmitContributionActionInput {
     actionId: ID!
     evidence: JSON!
@@ -423,6 +459,22 @@ export const typeDefs = /* GraphQL */ `
     gift-icon poll. Null until the first milestone is crossed.
     """
     contributionLastReachedMilestone: ContributionMilestone
+    """
+    Current-cycle leaderboard ranked by unpaid approved points.
+    """
+    contributionLeaderboard(
+      first: Int
+      after: String
+    ): ContributionLeaderboardConnection!
+    """
+    The viewer's own current-cycle points and rank. Null when they have no
+    current-cycle points.
+    """
+    contributionUserRank: ContributionUserRank @auth
+    """
+    Projected current-cycle points split across cause categories.
+    """
+    contributionCauseBreakdown: [ContributionCauseCategoryBreakdown!]!
   }
 
   extend type Mutation {
@@ -816,6 +868,53 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ContributionMilestone,
       'id' | 'value' | 'title' | 'reachedAt'
     > | null> => getLastReachedMilestone({ con: ctx.con.manager }),
+    contributionLeaderboard: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<GQLContributionLeaderboardEntry>> => {
+      const parsedArgs = parseContributionArgs(
+        contributionConnectionArgsSchema,
+        args,
+      );
+
+      return queryContributionConnection<GQLContributionLeaderboardEntry>({
+        args: parsedArgs,
+        ctx,
+        info,
+        beforeQuery: (builder, page) => {
+          builder.queryBuilder
+            .where(`${builder.alias}.status = :status`, {
+              status: ContributionSubmissionStatus.Approved,
+            })
+            .andWhere(`${builder.alias}."paymentId" IS NULL`)
+            .groupBy(`${builder.alias}."userId"`)
+            .orderBy(
+              `COALESCE(SUM(${builder.alias}."awardedPoints"), 0)`,
+              'DESC',
+            )
+            .addOrderBy(`MIN(${builder.alias}."createdAt")`, 'ASC')
+            .addOrderBy(`${builder.alias}."userId"`, 'ASC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          return builder;
+        },
+      });
+    },
+    contributionUserRank: (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<{ points: number; rank: number } | null> =>
+      getContributionUserRank({ con: ctx.con, userId: ctx.userId }),
+    contributionCauseBreakdown: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<{ category: string | null; points: number }[]> =>
+      getContributionCauseBreakdown({ con: ctx.con }),
   },
   Mutation: {
     submitContributionAction: async (

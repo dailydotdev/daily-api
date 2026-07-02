@@ -471,6 +471,27 @@ const obj = new GraphORM({
       },
     },
   },
+  ContributionLeaderboardEntry: {
+    from: 'ContributionSubmission',
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb.where(`"${childAlias}"."id" = "${parentAlias}"."userId"`),
+        },
+      },
+      points: {
+        select: (_, alias) => `COALESCE(SUM("${alias}"."awardedPoints"), 0)`,
+        transform: toContributionNumber,
+      },
+      rank: {
+        select: (_, alias) =>
+          `ROW_NUMBER() OVER (ORDER BY COALESCE(SUM("${alias}"."awardedPoints"), 0) DESC, MIN("${alias}"."createdAt") ASC, "${alias}"."userId" ASC)`,
+        transform: toContributionNumber,
+      },
+    },
+  },
   User: {
     requiredColumns: ['id', 'username', 'createdAt'],
     fields: {
