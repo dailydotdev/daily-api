@@ -185,6 +185,7 @@ const LOGGED_IN_BODY = {
   marketingCta: null,
   marketingCtaVariants: [],
   feeds: [],
+  daily: true,
 };
 
 const ANONYMOUS_BODY = {
@@ -1091,6 +1092,42 @@ describe('logged in boot', () => {
       const storesRedisValue = await getRedisObject(redisKey);
       expect(storesRedisValue).toBeNull();
     });
+  });
+});
+
+describe('daily boot', () => {
+  const dailyKey = (userId = '1') =>
+    generateStorageKey(StorageTopic.Boot, StorageKey.DailyFeed, userId);
+
+  const bootLoggedIn = async () =>
+    request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+  it('should return daily true when the flag is unset without writing it', async () => {
+    const res = await bootLoggedIn();
+
+    expect(res.body.daily).toBe(true);
+    expect(await getRedisObject(dailyKey())).toBeNull();
+  });
+
+  it('should return daily false while the flag is set', async () => {
+    await setRedisObject(dailyKey(), '1');
+
+    const res = await bootLoggedIn();
+
+    expect(res.body.daily).toBe(false);
+  });
+
+  it('should not include daily for anonymous boot', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body.daily).toBeUndefined();
   });
 });
 

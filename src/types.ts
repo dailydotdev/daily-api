@@ -36,6 +36,8 @@ declare global {
       COOKIES_KEY: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
+      ONESIGNAL_WEB_APP_ID?: string;
+      ONESIGNAL_WEB_API_KEY?: string;
       REDIS_HOST: string;
       REDIS_PORT: string;
       PERSONALIZED_DIGEST_FEED: string;
@@ -350,6 +352,8 @@ export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
 
 export const opportunityMatchBatchSize = 50;
+
+export const DAILY_DROP_HOUR = 9;
 
 // Map continent names to their codes
 export const continentMap: Record<string, string> = {

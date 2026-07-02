@@ -85,7 +85,7 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { maxFeedsPerUser, UserVote } from '../types';
+import { DAILY_DROP_HOUR, maxFeedsPerUser, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -1756,7 +1756,7 @@ const dailyFeedResolver = feedResolver<
           cacheKey,
           JSON.stringify(response),
           secondsUntilNextHourInTimezone({
-            hour: 9,
+            hour: DAILY_DROP_HOUR,
             timezone: user?.timezone || DEFAULT_TIMEZONE,
           }),
         );

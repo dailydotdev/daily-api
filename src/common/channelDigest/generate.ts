@@ -277,12 +277,14 @@ const createDigestPost = async ({
   now,
   sourceId,
   title,
+  summary,
   content,
 }: {
   con: DataSource;
   now: Date;
   sourceId: string;
   title: string;
+  summary: string;
   content: string;
 }): Promise<FreeformPost> => {
   const repo = con.getRepository(FreeformPost);
@@ -295,6 +297,7 @@ const createDigestPost = async ({
       sourceId,
       type: PostType.Freeform,
       title,
+      summary,
       content,
       contentHtml: markdown.render(content),
       visible: true,
@@ -374,6 +377,7 @@ export const generateChannelDigest = async ({
     now,
     sourceId: definition.sourceId,
     title: generated.title,
+    summary: generated.tldr,
     content: generateMarkdown({ digest: generated, postIds }),
   });
 };

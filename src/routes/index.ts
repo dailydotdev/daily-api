@@ -4,6 +4,7 @@ import rss from './rss';
 import alerts from './alerts';
 import redirector from './redirector';
 import devcards from './devcards';
+import shareImages from './shareImages';
 import privateRoutes from './private';
 import whoami from './whoami';
 import notifications from './notifications';
@@ -49,6 +50,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(emailTracking, { prefix: '/em/t' });
   fastify.register(devcards, { prefix: '/devcards' });
+  fastify.register(shareImages, { prefix: '/og' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });
   }

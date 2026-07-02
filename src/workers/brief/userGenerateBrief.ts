@@ -47,6 +47,10 @@ const generateItemLinkMarkdown = ({ item }: { item: BriefingItem }): string => {
 const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
 
+  if (data.tldr) {
+    markdown += `${data.tldr}\n\n`;
+  }
+
   for (const section of data.sections) {
     if (section.items.length) {
       markdown += `## ${section.title}\n\n`;
@@ -182,6 +186,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
         titleHtml: title,
         content,
         contentHtml: markdown.render(content),
+        summary: brief.tldr || undefined,
         visible: true,
         readTime: brief.readingTime
           ? parseReadTime(brief.readingTime / 60)

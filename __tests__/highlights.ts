@@ -6,11 +6,19 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import createOrGetConnection from '../src/db';
+import {
+  getRedisObject,
+  getRedisObjectExpiry,
+  ioRedisPool,
+} from '../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import { ArticlePost } from '../src/entity/posts/ArticlePost';
 import { FreeformPost } from '../src/entity/posts/FreeformPost';
+import { BriefPost } from '../src/entity/posts/BriefPost';
 import { ChannelDigest } from '../src/entity/ChannelDigest';
 import { ChannelHighlightDefinition } from '../src/entity/ChannelHighlightDefinition';
 import { HighlightsCanonical } from '../src/entity/HighlightsCanonical';
@@ -20,11 +28,16 @@ import { PostType } from '../src/entity/posts/Post';
 import { sourcesFixture } from './fixture/source';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
-import { NotificationPreferenceSource } from '../src/entity/notifications/NotificationPreferenceSource';
+import { Feed } from '../src/entity/Feed';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../src/notifications/common';
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { Keyword } from '../src/entity/Keyword';
+import { PostKeyword } from '../src/entity/PostKeyword';
+import { UserAction, UserActionType } from '../src/entity/user/UserAction';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -100,7 +113,7 @@ const createTestPosts = async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   loggedUser = null;
-  await con.getRepository(NotificationPreferenceSource).clear();
+  await con.getRepository(ContentPreferenceSource).clear();
   await con.getRepository(ChannelDigest).clear();
   await con.getRepository(ChannelHighlightDefinition).clear();
   await con.getRepository(HighlightsCanonical).clear();
@@ -366,17 +379,44 @@ describe('query dailyHeadlines', () => {
       private: false,
     });
 
-  const subscribeToDigest = (sourceId: string) =>
-    con.getRepository(NotificationPreferenceSource).save({
+  const followDigest = (
+    sourceId: string,
+    status: ContentPreferenceStatus = ContentPreferenceStatus.Follow,
+  ) =>
+    con.getRepository(ContentPreferenceSource).save({
       userId: '1',
+      feedId: '1',
       referenceId: sourceId,
       sourceId,
-      notificationType: NotificationType.SourcePostAdded,
-      status: NotificationPreferenceStatus.Subscribed,
+      status,
+    });
+
+  const hoursAgo = (hours: number): Date =>
+    new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const saveBriefPost = (
+    id: string,
+    title: string,
+    createdAt: Date,
+    authorId = '1',
+  ) =>
+    con.getRepository(BriefPost).save({
+      id,
+      shortId: id,
+      sourceId: 'briefing',
+      authorId,
+      type: PostType.Brief,
+      title,
+      visible: true,
+      visibleAt: createdAt,
+      createdAt,
+      metadataChangedAt: createdAt,
+      private: false,
     });
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   });
 
   it('should require authentication', () =>
@@ -386,7 +426,7 @@ describe('query dailyHeadlines', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return the latest digest post per subscribed channel', async () => {
+  it('should return the latest digest post per followed channel, including subscribed and excluding blocked', async () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');
@@ -395,33 +435,29 @@ describe('query dailyHeadlines', () => {
     await saveChannelDigest('backend', 'backend_digest', 'backend');
     await saveChannelDigest('career', 'career_digest', 'career');
     await saveChannelDigest('backendb', 'backend_digest_b', 'backendb');
-    await subscribeToDigest('backend_digest');
-    await subscribeToDigest('career_digest');
+    await followDigest('backend_digest', ContentPreferenceStatus.Follow);
+    await followDigest('career_digest', ContentPreferenceStatus.Subscribed);
+    await followDigest('backend_digest_b', ContentPreferenceStatus.Blocked);
 
     await saveDigestPost(
       'bd-old',
       'backend_digest',
       'Backend old',
-      new Date('2026-06-19T08:00:00.000Z'),
+      hoursAgo(20),
     );
     await saveDigestPost(
       'bd-new',
       'backend_digest',
       'Backend latest',
-      new Date('2026-06-19T12:00:00.000Z'),
+      hoursAgo(2),
     );
     await saveDigestPost(
       'career-d',
       'career_digest',
       'Career latest',
-      new Date('2026-06-19T10:00:00.000Z'),
+      hoursAgo(5),
     );
-    await saveDigestPost(
-      'bdb-d',
-      'backend_digest_b',
-      'Unsubscribed',
-      new Date('2026-06-19T13:00:00.000Z'),
-    );
+    await saveDigestPost('bdb-d', 'backend_digest_b', 'Blocked', hoursAgo(1));
 
     const res = await client.query(DAILY_HEADLINES_QUERY);
 
@@ -432,7 +468,7 @@ describe('query dailyHeadlines', () => {
     ]);
   });
 
-  it('should return empty when the user has no subscriptions', async () => {
+  it('should return empty when the user follows no digest channels', async () => {
     loggedUser = '1';
 
     await saveDigestSource('backend_digest');
@@ -443,6 +479,335 @@ describe('query dailyHeadlines', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
+  it('should exclude digest posts older than 24 hours', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('backend_digest');
+    await saveChannelDigest('backend', 'backend_digest', 'backend');
+    await followDigest('backend_digest');
+    await saveDigestPost('bd-stale', 'backend_digest', 'Stale', hoursAgo(30));
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
+  it('should lead with the latest brief even when a digest post is newer', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('briefing');
+    await saveDigestSource('backend_digest');
+    await saveChannelDigest('backend', 'backend_digest', 'backend');
+    await followDigest('backend_digest');
+    await saveDigestPost('bd-new', 'backend_digest', 'Backend', hoursAgo(1));
+    await saveBriefPost('brief-old', 'Your briefing', hoursAgo(10));
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges.map(({ node }) => node.id)).toEqual([
+      'brief-old',
+      'bd-new',
+    ]);
+  });
+
+  it('should return the brief even when the user follows no channels', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('briefing');
+    await saveBriefPost('brief-1', 'Your briefing', hoursAgo(1));
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges.map(({ node }) => node.id)).toEqual([
+      'brief-1',
+    ]);
+  });
+
+  it('should not return briefs authored by other users', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('briefing');
+    await saveBriefPost('brief-other', 'Other briefing', hoursAgo(1), '2');
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
+  it('should exclude a brief older than 24 hours', async () => {
+    loggedUser = '1';
+
+    await saveDigestSource('briefing');
+    await saveBriefPost('brief-stale', 'Your briefing', hoursAgo(30));
+
+    const res = await client.query(DAILY_HEADLINES_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyHeadlines.edges).toEqual([]);
+  });
+
+  const DAILY_HEADLINES_BACKFILL_QUERY = `
+  query DailyHeadlinesBackfill($first: Int, $after: String) {
+    dailyHeadlines(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          id
+        }
+      }
+    }
+  }
+`;
+
+  describe('backfill', () => {
+    const saveDigestSource = (id: string) =>
+      con.getRepository(Source).save({
+        id,
+        name: id,
+        image: `https://example.com/${id}.png`,
+        handle: id,
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+      });
+
+    const saveChannelDigest = (
+      key: string,
+      sourceId: string,
+      channel: string,
+    ) =>
+      con.getRepository(ChannelDigest).save({
+        key,
+        sourceId,
+        channel,
+        targetAudience: 'devs',
+        frequency: 'daily',
+        enabled: true,
+      });
+
+    const saveDigestPost = (id: string, sourceId: string, createdAt: Date) =>
+      con.getRepository(FreeformPost).save({
+        id,
+        shortId: id,
+        sourceId,
+        type: PostType.Freeform,
+        title: id,
+        content: id,
+        contentHtml: `<p>${id}</p>`,
+        visible: true,
+        visibleAt: createdAt,
+        createdAt,
+        metadataChangedAt: createdAt,
+        showOnFeed: true,
+        private: false,
+      });
+
+    const followKeyword = (value: string) =>
+      con.getRepository(ContentPreferenceKeyword).save({
+        userId: '1',
+        feedId: '1',
+        referenceId: value,
+        keywordId: value,
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+      });
+
+    const saveChannelPosts = async (
+      prefix: string,
+      channels: string[],
+      keyword: string,
+      count: number,
+    ) => {
+      for (let i = 0; i < count; i += 1) {
+        const id = `${prefix}-${i}`;
+        await con.getRepository(ArticlePost).save({
+          id,
+          shortId: id,
+          title: id,
+          url: `https://example.com/${id}`,
+          sourceId: 'a',
+          visible: true,
+          private: false,
+          deleted: false,
+          type: PostType.Article,
+          createdAt: new Date(),
+          metadataChangedAt: new Date(),
+          contentMeta: { channels },
+        });
+        await con.getRepository(PostKeyword).save({ postId: id, keyword });
+      }
+    };
+
+    const hoursAgo = (hours: number): Date =>
+      new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const refreshKeywordChannel = () =>
+      con.query('REFRESH MATERIALIZED VIEW keyword_channel');
+
+    beforeEach(async () => {
+      await con.getRepository(ContentPreferenceKeyword).clear();
+      await con.getRepository(PostKeyword).clear();
+      await con.getRepository(UserAction).delete({ userId: '1' });
+      await saveFixtures(con, User, usersFixture);
+      await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+      await saveFixtures(con, Source, [
+        {
+          id: 'a',
+          name: 'A',
+          image: 'https://example.com/a.png',
+          handle: 'a',
+          type: SourceType.Machine,
+          active: true,
+          private: false,
+        },
+      ]);
+      await saveFixtures(con, Keyword, [
+        { value: 'nodejs' },
+        { value: 'docker' },
+      ]);
+    });
+
+    it('should require authentication', () =>
+      testQueryErrorCode(
+        client,
+        { query: DAILY_HEADLINES_BACKFILL_QUERY },
+        'UNAUTHENTICATED',
+      ));
+
+    it('should seed channel digest follows from onboarding tags and return their digest posts', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await followKeyword('nodejs');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 3);
+      await saveDigestPost('bd-new', 'backend_digest', hoursAgo(2));
+      await refreshKeywordChannel();
+
+      const res = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .find({ where: { userId: '1', feedId: '1' } });
+      expect(follows).toHaveLength(1);
+      expect(follows[0]).toMatchObject({
+        referenceId: 'backend_digest',
+        sourceId: 'backend_digest',
+        status: ContentPreferenceStatus.Follow,
+      });
+      expect(res.data.dailyHeadlines.edges.map(({ node }) => node.id)).toEqual([
+        'bd-new',
+      ]);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
+    });
+
+    it('should mark backfilled without seeding when no channel clears the minimum post count', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await followKeyword('nodejs');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 2);
+      await refreshKeywordChannel();
+
+      const res = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .findBy({ userId: '1' });
+      expect(follows).toHaveLength(0);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
+    });
+
+    it('should not seed when the user was already backfilled', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await followKeyword('nodejs');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 3);
+      await con.getRepository(UserAction).save({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+
+      const res = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .findBy({ userId: '1', status: ContentPreferenceStatus.Follow });
+      expect(follows).toHaveLength(0);
+    });
+
+    it('should not seed when the user already has a channel digest preference', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await followKeyword('nodejs');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 3);
+      await con.getRepository(ContentPreferenceSource).save({
+        userId: '1',
+        feedId: '1',
+        referenceId: 'backend_digest',
+        sourceId: 'backend_digest',
+        status: ContentPreferenceStatus.Blocked,
+      });
+
+      const res = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .findBy({ userId: '1', status: ContentPreferenceStatus.Follow });
+      expect(follows).toHaveLength(0);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
+    });
+
+    it('should mark backfilled without seeding when the user has no onboarding tags', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 3);
+
+      const res = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .findBy({ userId: '1' });
+      expect(follows).toHaveLength(0);
+      const action = await con.getRepository(UserAction).findOneBy({
+        userId: '1',
+        type: UserActionType.DailyHeadlinesBackfilled,
+      });
+      expect(action).not.toBeNull();
+    });
   });
 });
 
@@ -990,5 +1355,30 @@ describe('query postHighlightsFeed', () => {
     expect(
       secondPage.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
     ).toEqual(['h3']);
+  });
+});
+
+describe('mutation markDailySeen', () => {
+  const MUTATION = `mutation MarkDailySeen { markDailySeen { _ } }`;
+
+  const dailyKey = (userId = '1') =>
+    generateStorageKey(StorageTopic.Boot, StorageKey.DailyFeed, userId);
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.del(dailyKey()));
+  });
+
+  it('should require authentication', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+
+  it('should set the daily flag with an expiry until the next drop', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, usersFixture);
+
+    const res = await client.mutate(MUTATION);
+
+    expect(res.errors).toBeFalsy();
+    expect(await getRedisObject(dailyKey())).toBe('1');
+    expect(await getRedisObjectExpiry(dailyKey())).toBeGreaterThan(0);
   });
 });
