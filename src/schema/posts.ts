@@ -165,6 +165,10 @@ import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { PollPost } from '../entity/posts/PollPost';
 import type { LiveRoom } from '../entity/LiveRoom';
+import {
+  getScheduledPostFlags,
+  validatePostScheduledAt,
+} from '../common/postScheduling';
 
 export interface GQLPollOption {
   id: string;
@@ -231,6 +235,25 @@ export interface GQLPost {
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
 }
+
+type ScheduledPostsContext = AuthContext & {
+  includeInvisiblePosts?: boolean;
+};
+
+const withInvisiblePosts = async <T>(
+  ctx: AuthContext,
+  callback: (ctx: ScheduledPostsContext) => Promise<T>,
+  includeInvisiblePosts = true,
+): Promise<T> => {
+  const graphormCtx = ctx as ScheduledPostsContext;
+  graphormCtx.includeInvisiblePosts = includeInvisiblePosts;
+
+  try {
+    return await callback(graphormCtx);
+  } finally {
+    delete graphormCtx.includeInvisiblePosts;
+  }
+};
 
 interface PinPostArgs {
   id: string;
@@ -466,6 +489,11 @@ export const typeDefs = /* GraphQL */ `
     The unix timestamp (seconds) the post will be promoted to public to
     """
     promoteToPublic: Int @auth(requires: [MODERATOR])
+
+    """
+    Time the post is scheduled to go live
+    """
+    scheduledAt: DateTime
 
     """
     Cover video
@@ -1386,6 +1414,20 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostConnection! @auth
+
+    """
+    Get paginated list of scheduled posts authored by the authenticated user
+    """
+    scheduledPosts(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1430,6 +1472,10 @@ export const typeDefs = /* GraphQL */ `
       Image URL to use
       """
       imageUrl: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
       """
       ID of the post to share
       """
@@ -1567,6 +1613,10 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post! @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1589,6 +1639,10 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post! @auth
 
     """
@@ -1986,6 +2040,7 @@ const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
   100,
   500,
 );
+const scheduledPostsPageGenerator = offsetPageGenerator<GQLPost>(20, 100);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -2534,6 +2589,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       );
     },
+    scheduledPosts: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      const page = scheduledPostsPageGenerator.connArgsToPage(args);
+
+      return withInvisiblePosts(ctx, (graphormCtx) =>
+        graphorm.queryPaginated(
+          graphormCtx,
+          info,
+          (nodeSize) =>
+            scheduledPostsPageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) => scheduledPostsPageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            scheduledPostsPageGenerator.nodeToCursor(page, args, node, index),
+          (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :userId`, {
+                userId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.visible = false`)
+              .andWhere(`${builder.alias}.flags->>'scheduledAt' IS NOT NULL`)
+              .andWhere(`${builder.alias}.type = :type`, {
+                type: PostType.Freeform,
+              })
+              .orderBy(`${builder.alias}.flags->>'scheduledAt'`, 'ASC')
+              .addOrderBy(`${builder.alias}.id`, 'ASC')
+              .limit(page.limit)
+              .offset(page.offset);
+
+            return builder;
+          },
+          undefined,
+          true,
+        ),
+      );
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
@@ -2777,13 +2871,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const { id } = await createFreeformPost(ctx.con, ctx, args);
 
-      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
-      }));
+      return withInvisiblePosts(
+        ctx,
+        (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id },
+            ),
+          })),
+        !!args.scheduledAt,
+      );
     },
     editPost: async (
       _,
@@ -2794,6 +2893,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const { id, image } = args;
       const { con, userId } = ctx;
       const { title, content } = validatePost(args);
+      const updatesContent = args.content !== undefined;
 
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
@@ -2821,7 +2921,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           );
         }
 
-        let updated: Partial<EditablePost> = {};
+        let updated: Partial<
+          EditablePost & Pick<Post, 'visible' | 'visibleAt'>
+        > = {};
+
+        if (args.scheduledAt !== undefined) {
+          if (post.visible) {
+            throw new ValidationError(
+              'Cannot update scheduled time after post is published',
+            );
+          }
+
+          const scheduledAt = validatePostScheduledAt(args.scheduledAt);
+
+          if (!scheduledAt) {
+            throw new ValidationError('Scheduled time is required');
+          }
+
+          updated.visible = false;
+          updated.visibleAt = null;
+          updated.flags = {
+            ...updated.flags,
+            ...getScheduledPostFlags(scheduledAt),
+          };
+        }
 
         if (title && title !== post.title) {
           updated.title = title;
@@ -2837,7 +2960,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           updated.image = coverImageUrl;
         }
 
-        if (content !== post.content) {
+        if (updatesContent && content !== post.content) {
           const mentions = await getMentions(
             manager,
             content,
@@ -2888,13 +3011,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
       });
 
-      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
-      }));
+      return withInvisiblePosts(ctx, (graphormCtx) =>
+        graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          ),
+        })),
+      );
     },
     banPost: async (
       source,

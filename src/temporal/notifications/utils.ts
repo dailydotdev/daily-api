@@ -11,10 +11,12 @@ import {
   BookmarkReminderParams,
   bookmarkReminderWorkflow,
   entityReminderWorkflow,
+  scheduledPostPublishWorkflow,
 } from './workflows';
 import { getTemporalClient } from '../client';
 import type z from 'zod';
 import type { entityReminderSchema } from '../../common/schema/reminders';
+import type { ScheduledPostPublishParams } from '../../common/postScheduling';
 
 interface ReminderWorkflowParams extends BookmarkReminderParams {
   remindAt: number;
@@ -103,6 +105,53 @@ export const cancelEntityReminderWorkflow = async (
   params: z.infer<typeof entityReminderSchema>,
 ) => {
   const workflowId = getEntityReminderWorkflowId(params);
+  const handle = await getWorkflowHandle(workflowId);
+
+  if (!handle) {
+    return;
+  }
+
+  const description = await getDescribeOrError(handle);
+
+  if (description?.status.name === 'RUNNING') {
+    return await handle.terminate();
+  }
+};
+
+export const getScheduledPostPublishWorkflowId = ({
+  postId,
+  scheduledAt,
+}: ScheduledPostPublishParams) =>
+  generateWorkflowId(
+    WorkflowTopic.Notification,
+    WorkflowTopicScope.ScheduledPost,
+    [postId, new Date(scheduledAt).getTime().toString()],
+  );
+
+export const runScheduledPostPublishWorkflow = async (
+  params: ScheduledPostPublishParams,
+) => {
+  const workflowId = getScheduledPostPublishWorkflowId(params);
+  const client = await getTemporalClient();
+  const description = await getWorkflowDescription(workflowId);
+  const delayMs = new Date(params.scheduledAt).getTime() - Date.now();
+
+  if (description?.status.name === 'RUNNING' || delayMs <= 0) {
+    return;
+  }
+
+  return client.workflow.start(scheduledPostPublishWorkflow, {
+    args: [params],
+    workflowId,
+    taskQueue: WorkflowQueue.Notification,
+    startDelay: delayMs,
+  });
+};
+
+export const cancelScheduledPostPublishWorkflow = async (
+  params: ScheduledPostPublishParams,
+) => {
+  const workflowId = getScheduledPostPublishWorkflowId(params);
   const handle = await getWorkflowHandle(workflowId);
 
   if (!handle) {

@@ -60,6 +60,7 @@ import {
   DEFAULT_POST_TITLE,
   notifyContentRequested,
   notifyView,
+  ONE_DAY_IN_SECONDS,
   pickImageUrl,
   postScraperOrigin,
   updateFlagsStatement,
@@ -2427,6 +2428,26 @@ describe('mutation deletePost', () => {
     await con
       .getRepository(Post)
       .update({ id: post.id }, { type: PostType.Freeform });
+    await verifyPostDeleted(post.id, loggedUser);
+  });
+
+  it('should allow member to delete their own scheduled post', async () => {
+    loggedUser = '2';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, loggedUser);
+    await con.getRepository(Post).update(
+      { id: post.id },
+      {
+        type: PostType.Freeform,
+        visible: false,
+        visibleAt: null,
+        flags: {
+          visible: false,
+          scheduledAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      },
+    );
+
     await verifyPostDeleted(post.id, loggedUser);
   });
 
@@ -5509,12 +5530,14 @@ describe('mutation createFreeformPost', () => {
       $title: String!
       $content: String!
       $image: Upload
+      $scheduledAt: DateTime
     ) {
       createFreeformPost(
         sourceId: $sourceId
         title: $title
         content: $content
         image: $image
+        scheduledAt: $scheduledAt
       ) {
         id
         author {
@@ -5531,6 +5554,9 @@ describe('mutation createFreeformPost', () => {
         contentHtml
         type
         private
+        flags {
+          scheduledAt
+        }
       }
     }
   `;
@@ -5543,6 +5569,82 @@ describe('mutation createFreeformPost', () => {
 
   beforeEach(async () => {
     await saveSquadFixtures();
+  });
+
+  it('should create a scheduled post', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, scheduledAt },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.flags.scheduledAt).toEqual(scheduledAt);
+
+    const post = await con.getRepository(Post).findOneByOrFail({
+      id: res.data.createFreeformPost.id,
+    });
+
+    expect(post.visible).toBe(false);
+    expect(post.visibleAt).toBeNull();
+    expect(post.flags.scheduledAt).toEqual(scheduledAt);
+  });
+
+  it('should not create a scheduled post more than 14 days ahead', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          scheduledAt: new Date(Date.now() + 15 * ONE_DAY_IN_SECONDS * 1000),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Scheduled time must be within 14 days',
+    );
+  });
+
+  it('should list scheduled posts', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+    const createRes = await client.mutate(MUTATION, {
+      variables: { ...params, scheduledAt },
+    });
+
+    expect(createRes.errors).toBeFalsy();
+
+    const res = await client.query(/* GraphQL */ `
+      query ScheduledPosts {
+        scheduledPosts {
+          edges {
+            node {
+              id
+              title
+              flags {
+                scheduledAt
+              }
+            }
+          }
+        }
+      }
+    `);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.scheduledPosts.edges).toEqual([
+      {
+        node: {
+          id: createRes.data.createFreeformPost.id,
+          title: params.title,
+          flags: {
+            scheduledAt,
+          },
+        },
+      },
+    ]);
   });
 
   it('should not authorize when moderation is required', async () => {
@@ -5652,7 +5754,7 @@ describe('mutation createFreeformPost', () => {
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Machine });
 
-    testMutationErrorCode(
+    return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { ...params, sourceId: 'a' } },
       'NOT_FOUND',
@@ -6982,13 +7084,16 @@ describe('mutation createSourcePostModeration', () => {
 
 describe('mutation editPost', () => {
   const MUTATION = `
-    mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {
-      editPost(id: $id, title: $title, content: $content, image: $image) {
+    mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload, $scheduledAt: DateTime) {
+      editPost(id: $id, title: $title, content: $content, image: $image, scheduledAt: $scheduledAt) {
         id
         title
         content
         contentHtml
         type
+        flags {
+          scheduledAt
+        }
         source {
           id
         }
@@ -7088,6 +7193,62 @@ describe('mutation editPost', () => {
       client,
       { mutation: MUTATION, variables: { id: 'p1', title: 'Test' } },
       'FORBIDDEN',
+    );
+  });
+
+  it('should update scheduled time for a scheduled post', async () => {
+    loggedUser = '1';
+    const oldScheduledAt = new Date(Date.now() + 60_000).toISOString();
+    const scheduledAt = new Date(Date.now() + 120_000).toISOString();
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        type: PostType.Freeform,
+        authorId: loggedUser,
+        visible: false,
+        visibleAt: null,
+        flags: {
+          visible: false,
+          scheduledAt: oldScheduledAt,
+        },
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', scheduledAt },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editPost.flags.scheduledAt).toEqual(scheduledAt);
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.visible).toBe(false);
+    expect(post.flags.scheduledAt).toEqual(scheduledAt);
+  });
+
+  it('should not update scheduled time after post is published', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        type: PostType.Freeform,
+        authorId: loggedUser,
+        visible: true,
+      },
+    );
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'p1',
+          scheduledAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Cannot update scheduled time after post is published',
     );
   });
 

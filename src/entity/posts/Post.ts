@@ -56,6 +56,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
+  scheduledAt: string;
   dedupKey: string;
   digestPostIds: string[];
   collectionSources: string[];
@@ -80,6 +81,7 @@ export type PostFlagsPublic = Pick<
   | 'sources'
   | 'savedTime'
   | 'generatedAt'
+  | 'scheduledAt'
   | 'digestPostIds'
   | 'ad'
 >;

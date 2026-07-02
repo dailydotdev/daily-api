@@ -83,3 +83,37 @@ describe('sendEntityReminder activity', () => {
     );
   });
 });
+
+describe('publishScheduledPost activity', () => {
+  it('should publish a scheduled post and refresh createdAt', async () => {
+    const scheduledAt = new Date(Date.now() - 1_000).toISOString();
+    const originalCreatedAt = new Date(Date.now() - 60_000);
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        visible: false,
+        visibleAt: null,
+        createdAt: originalCreatedAt,
+        flags: {
+          visible: false,
+          scheduledAt,
+        },
+      },
+    );
+
+    await env.run(activities.publishScheduledPost, {
+      postId: 'p1',
+      scheduledAt,
+    });
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+
+    expect(post.visible).toBe(true);
+    expect(post.visibleAt).toBeInstanceOf(Date);
+    expect(post.createdAt.getTime()).toBeGreaterThan(
+      originalCreatedAt.getTime(),
+    );
+    expect(post.flags).toEqual({ visible: true });
+  });
+});
