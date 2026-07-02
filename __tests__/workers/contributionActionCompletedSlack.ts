@@ -83,10 +83,14 @@ describe('contributionActionCompletedSlack worker', () => {
           fields: [
             {
               type: 'mrkdwn',
-              text: `*User:*\n<${process.env.COMMENTS_PREFIX}/scuser|SC User>`,
+              text: `*User:*\n<${process.env.COMMENTS_PREFIX}/scuser|SC User>\n\`sc-user\``,
             },
             { type: 'mrkdwn', text: '*Action:*\nPost on Reddit' },
             { type: 'mrkdwn', text: '*Points:*\n25' },
+            {
+              type: 'mrkdwn',
+              text: `*Submission:*\n\`${baseSubmission.id}\``,
+            },
           ],
         },
         {
@@ -134,7 +138,7 @@ describe('contributionActionCompletedSlack worker', () => {
       blocks: { fields?: { text: string }[]; text?: { text: string } }[];
     };
     expect(blocks[1].fields?.[0].text).toBe(
-      `*User:*\n<${process.env.COMMENTS_PREFIX}/scuser|Tom &lt;&amp; Jerry&gt;>`,
+      `*User:*\n<${process.env.COMMENTS_PREFIX}/scuser|Tom &lt;&amp; Jerry&gt;>\n\`sc-user\``,
     );
     expect(blocks[2].text?.text).toBe('*Proof*\n*Note:* a &lt;b&gt; &amp; c');
   });

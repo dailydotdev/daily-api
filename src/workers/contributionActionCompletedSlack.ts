@@ -61,10 +61,11 @@ const worker: TypedWorker<'api.v1.contribution-action-completed'> = {
           fields: [
             {
               type: 'mrkdwn',
-              text: `*User:*\n<${getUserPermalink(user)}|${displayName}>`,
+              text: `*User:*\n<${getUserPermalink(user)}|${displayName}>\n\`${user.id}\``,
             },
             { type: 'mrkdwn', text: `*Action:*\n${title}` },
             { type: 'mrkdwn', text: `*Points:*\n${submission.awardedPoints}` },
+            { type: 'mrkdwn', text: `*Submission:*\n\`${submission.id}\`` },
           ],
         },
       ];
