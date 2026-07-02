@@ -102,11 +102,13 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let isPlus: boolean = false;
+let trackingId: string | undefined;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, [], null, false, isPlus),
+    () =>
+      new MockContext(con, loggedUser, [], null, false, isPlus, '', trackingId),
   );
   client = state.client;
   app = state.app;
@@ -115,6 +117,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
+  trackingId = undefined;
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -530,6 +533,33 @@ describe('query anonymousFeed', () => {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
         cursor: 'b',
       });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toBeTruthy();
+  });
+
+  it('should forward the cached cpa_source keyed by tracking id for an anonymous user', async () => {
+    loggedUser = null;
+    trackingId = 'anon-track-1';
+    await setRedisObjectWithExpiry(
+      generateStorageKey(StorageTopic.Boot, StorageKey.CpaSource, trackingId),
+      'cpa-source-anon',
+      ONE_DAY_IN_SECONDS,
+    );
+
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        expect(body.user_id).toEqual('anon-track-1');
+        expect(body.cpa_source).toEqual('cpa-source-anon');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
