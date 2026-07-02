@@ -3,6 +3,8 @@ export * from './ContributionActionCategory';
 export * from './ContributionActionLink';
 export * from './ContributionBlockedUser';
 export * from './ContributionCause';
+export * from './ContributionFoundingContributor';
+export * from './ContributionMilestone';
 export * from './ContributionPayment';
 export * from './ContributionPaymentAllocation';
 export * from './ContributionRewardTier';

@@ -1,5 +1,5 @@
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { In, type EntityManager } from 'typeorm';
+import { In, type DataSource, type EntityManager } from 'typeorm';
 import type z from 'zod';
 import {
   contributionActionEvidenceSchema,
@@ -18,8 +18,30 @@ import {
 import { ContributionPaymentAllocation } from '../../entity/contribution/ContributionPaymentAllocation';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
+import { ContributionMilestone } from '../../entity/contribution/ContributionMilestone';
 import { UserContributionCausePreference } from '../../entity/contribution/UserContributionCausePreference';
 import { remoteConfig } from '../../remoteConfig';
+import { ONE_HOUR_IN_SECONDS } from '../constants';
+import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
+import { queryReadReplica } from '../queryReadReplica';
+
+export const CONTRIBUTION_ACTION_COMPLETED_CHANNEL =
+  'events.contributions.completed';
+
+// Cache for the single high-frequency polled endpoint (header gift icon). The
+// value only changes when detection stamps a new milestone, so the poll never
+// touches the DB. A short TTL bounds DB load if the cache is cold.
+export const CONTRIBUTION_LAST_MILESTONE_REDIS_KEY =
+  'contribution:last-milestone';
+// The cache is refreshed on every milestone write, so a long TTL is safe; it
+// only guards against a cold cache re-querying the DB on each poll.
+const CONTRIBUTION_LAST_MILESTONE_TTL_SECONDS = ONE_HOUR_IN_SECONDS;
+const CONTRIBUTION_LAST_MILESTONE_NONE = 'none';
+
+type CachedContributionMilestone = Pick<
+  ContributionMilestone,
+  'id' | 'value' | 'title' | 'reachedAt'
+>;
 
 const ACTIVE_STATUSES_FOR_LIMITS = [
   ContributionSubmissionStatus.Approved,
@@ -505,6 +527,217 @@ export const getLifetimeAmountCents = async ({
     .getRawOne<SumRow>();
 
   return toContributionInt(row?.sum);
+};
+
+// The viewer's standing in the current cycle (unpaid approved points). Null when
+// they have no current-cycle points and therefore no rank.
+export const getContributionUserRank = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId: string;
+}): Promise<{ points: number; rank: number } | null> => {
+  const row = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .addCommonTableExpression(
+        `
+          SELECT
+            "userId",
+            SUM("awardedPoints")::int AS points,
+            ROW_NUMBER() OVER (
+              ORDER BY COALESCE(SUM("awardedPoints"), 0) DESC,
+                MIN("createdAt") ASC,
+                "userId" ASC
+            ) AS rank
+          FROM "contribution_submission"
+          WHERE status = :status
+            AND "paymentId" IS NULL
+          GROUP BY "userId"
+        `,
+        'ranked',
+      )
+      .select('ranked.points', 'points')
+      .addSelect('ranked.rank', 'rank')
+      .from('ranked', 'ranked')
+      .where('ranked."userId" = :userId', { userId })
+      .setParameter('status', ContributionSubmissionStatus.Approved)
+      .getRawOne<{ points: string | number; rank: string | number }>(),
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    points: toContributionInt(row.points),
+    rank: toContributionInt(row.rank),
+  };
+};
+
+// Projects how the current cycle's unpaid points would be allocated across cause
+// categories: each contributor's points split equally among their preferred
+// active causes (falling back to all active causes), mirroring payout allocation
+// so the shares sum to the whole.
+export const getContributionCauseBreakdown = async ({
+  con,
+}: {
+  con: DataSource;
+}): Promise<{ category: string | null; points: number }[]> => {
+  const rows = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .addCommonTableExpression(
+        `SELECT id, category FROM "contribution_cause" WHERE active = true`,
+        'active_cause',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            "userId",
+            SUM("awardedPoints")::float AS points
+          FROM "contribution_submission"
+          WHERE status = :status
+            AND "paymentId" IS NULL
+          GROUP BY "userId"
+        `,
+        'user_points',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            up."userId",
+            up.points,
+            COALESCE(
+              (
+                SELECT array_agg(preference."causeId")
+                FROM "user_contribution_cause_preference" preference
+                INNER JOIN active_cause ON active_cause.id = preference."causeId"
+                WHERE preference."userId" = up."userId"
+              ),
+              (SELECT array_agg(id) FROM active_cause)
+            ) AS "causeIds"
+          FROM user_points up
+        `,
+        'user_cause',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            unnest(user_cause."causeIds") AS "causeId",
+            user_cause.points / array_length(user_cause."causeIds", 1) AS points
+          FROM user_cause
+          WHERE array_length(user_cause."causeIds", 1) > 0
+        `,
+        'split',
+      )
+      .select('active_cause.category', 'category')
+      .addSelect('SUM(split.points)', 'points')
+      .from('split', 'split')
+      .innerJoin(
+        'active_cause',
+        'active_cause',
+        'active_cause.id = split."causeId"',
+      )
+      .groupBy('active_cause.category')
+      .orderBy('points', 'DESC')
+      .addOrderBy('active_cause.category', 'ASC')
+      .setParameter('status', ContributionSubmissionStatus.Approved)
+      .getRawMany<{ category: string | null; points: string | number }>(),
+  );
+
+  // Round the fractional category shares to integers while preserving the total
+  // (largest-remainder method), so the parts still sum to the whole.
+  const shares = rows.map((row) => ({
+    category: row.category,
+    exact: Number(row.points ?? 0),
+  }));
+  const total = Math.round(shares.reduce((sum, share) => sum + share.exact, 0));
+  const result = shares.map((share) => ({
+    category: share.category,
+    points: Math.floor(share.exact),
+    remainder: share.exact - Math.floor(share.exact),
+  }));
+  const leftover = total - result.reduce((sum, share) => sum + share.points, 0);
+  [...result]
+    .sort((first, second) => second.remainder - first.remainder)
+    .slice(0, Math.max(0, leftover))
+    .forEach((share) => {
+      share.points += 1;
+    });
+
+  return result.map(({ category, points }) => ({ category, points }));
+};
+
+const cacheLastReachedMilestone = (
+  milestone: CachedContributionMilestone | null,
+): Promise<unknown> =>
+  setRedisObjectWithExpiry(
+    CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
+    milestone ? JSON.stringify(milestone) : CONTRIBUTION_LAST_MILESTONE_NONE,
+    CONTRIBUTION_LAST_MILESTONE_TTL_SECONDS,
+  );
+
+const queryLastReachedMilestone = (
+  con: EntityManager,
+): Promise<CachedContributionMilestone | null> =>
+  con
+    .getRepository(ContributionMilestone)
+    .createQueryBuilder('milestone')
+    .select([
+      'milestone.id',
+      'milestone.value',
+      'milestone.title',
+      'milestone.reachedAt',
+    ])
+    .where('milestone."reachedAt" IS NOT NULL')
+    .orderBy('milestone.value', 'DESC')
+    .getOne();
+
+// The highest milestone the campaign has crossed, served from cache for the
+// high-frequency header poll. Falls back to the DB on a cold cache.
+export const getLastReachedMilestone = async ({
+  con,
+}: {
+  con: EntityManager;
+}): Promise<CachedContributionMilestone | null> => {
+  const cached = await getRedisObject(CONTRIBUTION_LAST_MILESTONE_REDIS_KEY);
+  if (cached === CONTRIBUTION_LAST_MILESTONE_NONE) {
+    return null;
+  }
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  const milestone = await queryLastReachedMilestone(con);
+  await cacheLastReachedMilestone(milestone);
+
+  return milestone;
+};
+
+// Runs on each approved-submission event (low frequency). Sums lifetime
+// approved points, stamps any newly-crossed milestones exactly once, and
+// refreshes the polled cache when the last-reached milestone advances.
+export const detectContributionMilestones = async ({
+  con,
+}: {
+  con: EntityManager;
+}): Promise<void> => {
+  const total = await getApprovedPointsSum({ con });
+
+  const result = await con
+    .getRepository(ContributionMilestone)
+    .createQueryBuilder()
+    .update()
+    .set({ reachedAt: () => 'now()' })
+    .where('"reachedAt" IS NULL')
+    .andWhere('value <= :total', { total })
+    .execute();
+
+  if (result.affected) {
+    await cacheLastReachedMilestone(await queryLastReachedMilestone(con));
+  }
 };
 
 const getContributionActionUsage = async ({

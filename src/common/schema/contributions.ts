@@ -190,6 +190,11 @@ export const contributionPrivateUpdateSponsorSchema = z.object({
   sortOrder: contributionSortOrderSchema,
 });
 
+export const contributionPrivateCreateMilestoneSchema = z.object({
+  value: z.number().int().positive(),
+  title: z.string().trim().min(1).nullish(),
+});
+
 export const contributionPrivateCreateRewardTierSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1).nullish(),

@@ -107,6 +107,11 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
+
+type PostGraphormContext = Context & {
+  includeInvisiblePosts?: boolean;
+};
+
 export enum LocationVerificationStatus {
   GeoIP = 'geoip',
   UserProvided = 'user_provided',
@@ -471,6 +476,27 @@ const obj = new GraphORM({
       },
     },
   },
+  ContributionLeaderboardEntry: {
+    from: 'ContributionSubmission',
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb.where(`"${childAlias}"."id" = "${parentAlias}"."userId"`),
+        },
+      },
+      points: {
+        select: (_, alias) => `COALESCE(SUM("${alias}"."awardedPoints"), 0)`,
+        transform: toContributionNumber,
+      },
+      rank: {
+        select: (_, alias) =>
+          `ROW_NUMBER() OVER (ORDER BY COALESCE(SUM("${alias}"."awardedPoints"), 0) DESC, MIN("${alias}"."createdAt") ASC, "${alias}"."userId" ASC)`,
+        transform: toContributionNumber,
+      },
+    },
+  },
   User: {
     requiredColumns: ['id', 'username', 'createdAt'],
     fields: {
@@ -755,10 +781,15 @@ const obj = new GraphORM({
     },
   },
   Post: {
-    additionalQuery: (ctx, alias, qb) =>
-      qb
-        .andWhere(`"${alias}"."deleted" = false`)
-        .andWhere(`"${alias}"."visible" = true`),
+    additionalQuery: (ctx, alias, qb) => {
+      const query = qb.andWhere(`"${alias}"."deleted" = false`);
+
+      if (!(ctx as PostGraphormContext).includeInvisiblePosts) {
+        query.andWhere(`"${alias}"."visible" = true`);
+      }
+
+      return query;
+    },
     requiredColumns: [
       'id',
       'shortId',
@@ -973,6 +1004,7 @@ const obj = new GraphORM({
           return {
             ...value,
             generatedAt: transformDate(value.generatedAt),
+            scheduledAt: transformDate(value.scheduledAt),
             digestPostIds: value?.digestPostIds ?? null,
             ad: ad
               ? {

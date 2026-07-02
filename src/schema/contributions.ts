@@ -6,10 +6,14 @@ import { In } from 'typeorm';
 import type z from 'zod';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
   getApprovedContributorsCount,
   getApprovedPointsSum,
   getContributionConfig,
+  getContributionCauseBreakdown,
   getContributionEligibility,
+  getContributionUserRank,
+  getLastReachedMilestone,
   getLifetimeAmountCents,
   parseContributionArgs,
   validateContributionActionLimits,
@@ -29,6 +33,7 @@ import { ContributionAction } from '../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../entity/contribution/ContributionActionCategory';
 import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
+import { ContributionMilestone } from '../entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
   ContributionPaymentStatus,
@@ -48,6 +53,7 @@ import {
   UserContributionRewardStatus,
 } from '../entity/contribution/UserContributionReward';
 import { NotFoundError } from '../errors';
+import { redisPubSub } from '../redis';
 import graphorm from '../graphorm';
 import type { GraphORMBuilder } from '../graphorm/graphorm';
 import {
@@ -116,6 +122,18 @@ type GQLUserContributionCauseStats = {
   cause: ContributionCause;
   points: number;
   amountCents: number;
+};
+
+type GQLContributionLeaderboardEntry = {
+  points: number;
+  rank: number;
+};
+
+type GQLContributionActionCompleted = {
+  submissionId: string;
+  userId: string;
+  actionId: string;
+  awardedPoints: number;
 };
 
 const toGQLReward = ({
@@ -325,6 +343,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [ContributionSubmissionEdge!]!
   }
 
+  type ContributionMilestone {
+    id: ID!
+    value: Int!
+    title: String
+    reachedAt: DateTime
+  }
+
   type ContributionSponsor {
     id: ID!
     name: String!
@@ -342,6 +367,35 @@ export const typeDefs = /* GraphQL */ `
   type ContributionSponsorConnection {
     pageInfo: PageInfo!
     edges: [ContributionSponsorEdge!]!
+  }
+
+  type ContributionLeaderboardEntry {
+    user: User!
+    points: Int!
+    rank: Int!
+  }
+
+  type ContributionLeaderboardEntryEdge {
+    node: ContributionLeaderboardEntry!
+    cursor: String!
+  }
+
+  type ContributionLeaderboardConnection {
+    pageInfo: PageInfo!
+    edges: [ContributionLeaderboardEntryEdge!]!
+  }
+
+  type ContributionUserRank {
+    points: Int!
+    rank: Int!
+  }
+
+  """
+  Projected share of the current cycle's points for one cause category.
+  """
+  type ContributionCauseCategoryBreakdown {
+    category: String
+    points: Int!
   }
 
   input SubmitContributionActionInput {
@@ -400,6 +454,27 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionSponsorConnection!
+    """
+    The highest global milestone reached, served from cache for the header
+    gift-icon poll. Null until the first milestone is crossed.
+    """
+    contributionLastReachedMilestone: ContributionMilestone
+    """
+    Current-cycle leaderboard ranked by unpaid approved points.
+    """
+    contributionLeaderboard(
+      first: Int
+      after: String
+    ): ContributionLeaderboardConnection!
+    """
+    The viewer's own current-cycle points and rank. Null when they have no
+    current-cycle points.
+    """
+    contributionUserRank: ContributionUserRank @auth
+    """
+    Projected current-cycle points split across cause categories.
+    """
+    contributionCauseBreakdown: [ContributionCauseCategoryBreakdown!]!
   }
 
   extend type Mutation {
@@ -412,6 +487,17 @@ export const typeDefs = /* GraphQL */ `
     claimContributionReward(tierId: ID!): UserContributionReward!
       @auth
       @contributionEligibility
+  }
+
+  type ContributionActionCompleted {
+    submissionId: ID!
+    userId: ID!
+    actionId: ID!
+    awardedPoints: Int!
+  }
+
+  extend type Subscription {
+    contributionActionCompleted: ContributionActionCompleted! @auth
   }
 `;
 
@@ -774,6 +860,61 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
     },
+    contributionLastReachedMilestone: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<Pick<
+      ContributionMilestone,
+      'id' | 'value' | 'title' | 'reachedAt'
+    > | null> => getLastReachedMilestone({ con: ctx.con.manager }),
+    contributionLeaderboard: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<GQLContributionLeaderboardEntry>> => {
+      const parsedArgs = parseContributionArgs(
+        contributionConnectionArgsSchema,
+        args,
+      );
+
+      return queryContributionConnection<GQLContributionLeaderboardEntry>({
+        args: parsedArgs,
+        ctx,
+        info,
+        beforeQuery: (builder, page) => {
+          builder.queryBuilder
+            .where(`${builder.alias}.status = :status`, {
+              status: ContributionSubmissionStatus.Approved,
+            })
+            .andWhere(`${builder.alias}."paymentId" IS NULL`)
+            .groupBy(`${builder.alias}."userId"`)
+            .orderBy(
+              `COALESCE(SUM(${builder.alias}."awardedPoints"), 0)`,
+              'DESC',
+            )
+            .addOrderBy(`MIN(${builder.alias}."createdAt")`, 'ASC')
+            .addOrderBy(`${builder.alias}."userId"`, 'ASC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          return builder;
+        },
+      });
+    },
+    contributionUserRank: (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<{ points: number; rank: number } | null> =>
+      getContributionUserRank({ con: ctx.con, userId: ctx.userId }),
+    contributionCauseBreakdown: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<{ category: string | null; points: number }[]> =>
+      getContributionCauseBreakdown({ con: ctx.con }),
   },
   Mutation: {
     submitContributionAction: async (
@@ -931,6 +1072,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         return toGQLReward({ reward, tier });
       });
+    },
+  },
+  Subscription: {
+    contributionActionCompleted: {
+      subscribe: async (): Promise<
+        AsyncIterable<{
+          contributionActionCompleted: GQLContributionActionCompleted;
+        }>
+      > => {
+        const iterator =
+          redisPubSub.asyncIterator<GQLContributionActionCompleted>(
+            CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
+          );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return {
+                  done: false,
+                  value: { contributionActionCompleted: value },
+                };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
   ContributionRewardTier: {

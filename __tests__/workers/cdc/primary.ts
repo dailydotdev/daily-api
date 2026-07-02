@@ -153,6 +153,11 @@ import {
 import { Quest, QuestEventType, QuestType } from '../../../src/entity/Quest';
 import { QuestRotation } from '../../../src/entity/QuestRotation';
 import { UserQuest, UserQuestStatus } from '../../../src/entity/user/UserQuest';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../../../src/entity/contribution/ContributionSubmission';
+
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
@@ -2434,6 +2439,84 @@ describe('submission', () => {
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+});
+
+describe('contribution submission', () => {
+  type ObjectType = ContributionSubmission;
+  const base: ChangeObject<ObjectType> = {
+    id: randomUUID(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    userId: '1',
+    actionId: randomUUID(),
+    paymentId: null,
+    evidence: '{}',
+    status: ContributionSubmissionStatus.Approved,
+    awardedPoints: 50,
+    flags: '{}',
+    reviewedAt: null,
+    reviewedBy: null,
+  };
+
+  it('should emit a completion event on approved insert', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
+      { submission: base },
+    ]);
+  });
+
+  it('should not emit when the submission is not approved', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, status: ContributionSubmissionStatus.Flagged },
+        before: null,
+        op: 'c',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should emit when a submission transitions to approved', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: { ...base, status: ContributionSubmissionStatus.Flagged },
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
+      { submission: base },
+    ]);
+  });
+
+  it('should not emit when an already-approved submission is edited', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, awardedPoints: 100 },
+        before: base,
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 

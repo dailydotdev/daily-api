@@ -15,6 +15,7 @@ import {
 import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
 import { BriefingModel, BriefingType } from '../../../src/integrations/feed';
+import { briefFeedClient } from '../../../src/common/brief';
 import { BriefPost } from '../../../src/entity/posts/BriefPost';
 import { sourcesFixture } from '../../fixture';
 import { generateShortId } from '../../../src/ids';
@@ -828,5 +829,46 @@ describe('userGenerateBrief worker', () => {
 - **All invalid postIds**: Another body.
 - **Single invalid postId**: Yet another body.
 - **Single valid postId**: Valid single. [Read more](http://localhost:5002/posts/Ab3Kd9xZq)`);
+  });
+
+  it('should delete the pending post when brief generation fails', async () => {
+    const postId = await generateShortId();
+
+    await con.getRepository(BriefPost).save(
+      con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: false,
+        sourceId: BRIEFING_SOURCE,
+      }),
+    );
+
+    jest
+      .spyOn(briefFeedClient, 'getUserBrief')
+      .mockRejectedValueOnce(new Error('brief generation failed'));
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: 'ugbw-1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    const briefPost = await con.getRepository(BriefPost).findOne({
+      where: { id: postId },
+    });
+
+    expect(briefPost).toBeNull();
+    expect(triggerTypedEvent).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.brief-ready',
+      expect.anything(),
+    );
+
+    jest.restoreAllMocks();
   });
 });

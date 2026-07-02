@@ -112,6 +112,11 @@ export const feedV2TypeDefs = /* GraphQL */ `
       If zero or null, highlights items are not requested.
       """
       highlightsLimit: Int
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): FeedItemConnection! @auth
   }
 `;

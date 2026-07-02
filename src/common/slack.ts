@@ -52,6 +52,9 @@ export const webhooks = Object.freeze({
   userFeedback: process.env.SLACK_USER_FEEDBACK_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_USER_FEEDBACK_WEBHOOK)
     : nullWebhook,
+  contributions: process.env.SLACK_CONTRIBUTIONS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_CONTRIBUTIONS_WEBHOOK)
+    : nullWebhook,
 });
 
 export class SlackClient {

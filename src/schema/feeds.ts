@@ -399,6 +399,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -546,6 +551,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
 
     """
@@ -673,6 +683,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
 
     """
@@ -873,6 +888,11 @@ export const typeDefs = /* GraphQL */ `
       Tag to filter by
       """
       tag: String
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -908,6 +928,11 @@ export const typeDefs = /* GraphQL */ `
       Tag to filter by
       """
       tag: String
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -1067,6 +1092,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
   }
 
