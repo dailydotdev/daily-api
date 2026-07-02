@@ -74,6 +74,7 @@ import {
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import { remoteConfig } from '../remoteConfig';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { getCpaSource } from '../integrations/feed/cpaSource';
 import {
   DEFAULT_TIMEZONE,
   secondsUntilNextHourInTimezone,
@@ -1679,7 +1680,7 @@ const feedResolverV2Local: IFieldResolver<
 
 const feedResolverCursor = feedResolver<
   unknown,
-  FeedArgs & { generator: FeedGenerator },
+  FeedArgs & { generator: FeedGenerator; withCpaSource?: boolean },
   CursorPage,
   FeedResponse
 >(
@@ -1693,18 +1694,24 @@ const feedResolverCursor = feedResolver<
   feedCursorPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
-    fetchQueryParams: (
+    fetchQueryParams: async (
       ctx,
-      args: FeedArgs & { generator: FeedGenerator },
+      args: FeedArgs & { generator: FeedGenerator; withCpaSource?: boolean },
       page,
-    ) =>
-      args.generator.generate(ctx, {
-        user_id: ctx.userId || ctx.trackingId,
+    ) => {
+      const id = ctx.userId || ctx.trackingId;
+      // Forward the cached CPA campaign source (see boot) so the feed service
+      // can attribute/allocate against it. Scoped to feeds that opt in.
+      const cpaSource = args.withCpaSource ? await getCpaSource(id) : undefined;
+      return args.generator.generate(ctx, {
+        user_id: id,
         page_size: page.limit,
         offset: 0,
         cursor: page.cursor,
         allowed_post_types: args.supportedTypes,
-      }),
+        cpa_source: cpaSource,
+      });
+    },
     warnOnPartialFirstPage: true,
     // Feed service should take care of this
     removeNonPublicThresholdSquads: false,
@@ -1913,6 +1920,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               args.ranking === Ranking.TIME
                 ? feedGenerators['time']!
                 : feedGenerators['popular']!,
+            withCpaSource: true,
           },
           ctx,
           info,

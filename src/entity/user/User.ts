@@ -56,6 +56,9 @@ export type UserFlags = Partial<{
     updatedAt: string;
   };
   tagChipFeedsSeededAt: string | null;
+  // Current cloud provider from campaign onboarding (e.g. aws/gcp/azure/other/
+  // none). Stored here rather than a column since it's optional campaign data.
+  cloudProvider: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;

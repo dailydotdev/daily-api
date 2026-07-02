@@ -105,6 +105,8 @@ import {
   skadiEngagementClient,
   type EngagementCreative,
 } from '../integrations/skadi';
+import { isMockEnabled } from '../mocks/common';
+import { mockSkadiEngagementResponse } from '../mocks/skadi/engagement';
 import { LiveRoom } from '../entity/LiveRoom';
 import { LiveRoomStatus } from '../common/schema/liveRooms';
 
@@ -549,12 +551,14 @@ export function getReferralFromCookie({
 
   const [referralId, referralOrigin] = joinReferralCookie.split(':');
 
-  if (!referralId || !referralOrigin) {
+  // referralOrigin (the campaign) is required; referralId (the referring user)
+  // is optional — campaign-only links (e.g. onboarding) set `:campaign`.
+  if (!referralOrigin) {
     return undefined;
   }
 
   return {
-    referralId,
+    referralId: referralId || undefined,
     referralOrigin,
   };
 }
@@ -708,23 +712,48 @@ const getLocation = async (
 
 const getEngagementCreatives = async (
   userId: string,
+  cid?: string,
 ): Promise<EngagementCreative[]> => {
-  if (!remoteConfig.vars.engagementAdsEnabled) {
+  const mocked = isMockEnabled();
+
+  if (!mocked && !remoteConfig.vars.engagementAdsEnabled) {
     return [];
   }
 
   try {
-    const response = await skadiEngagementClient.getAd('default_engagement', {
-      USERID: userId,
-    });
+    const response = mocked
+      ? mockSkadiEngagementResponse
+      : await skadiEngagementClient.getAd(
+          'default_engagement',
+          { USERID: userId },
+          { cid },
+        );
 
     if (!response.value?.engagement || !response.generation_id) {
       return [];
     }
 
+    const { engagement } = response.value;
+
+    // Cache the CPA source->user mapping so feed queries can forward it as
+    // `cpa_source`. Short-lived (24h) and refreshed on every boot that detects
+    // a source, so the latest campaign source wins. Isolated in its own
+    // try/catch: a cache write failure must never drop the creative itself.
+    if (engagement.source_id && userId) {
+      try {
+        await setRedisObjectWithExpiry(
+          generateStorageKey(StorageTopic.Boot, StorageKey.CpaSource, userId),
+          engagement.source_id,
+          ONE_DAY_IN_SECONDS,
+        );
+      } catch (error) {
+        logger.error({ userId, err: error }, 'failed to cache cpa source');
+      }
+    }
+
     return [
       {
-        ...response.value.engagement,
+        ...engagement,
         gen_id: response.generation_id,
       },
     ];
@@ -818,7 +847,10 @@ const loggedInBoot = async ({
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
       getAnonymousTheme(userId),
-      getEngagementCreatives(userId),
+      getEngagementCreatives(
+        userId,
+        getReferralFromCookie({ req })?.referralOrigin,
+      ),
       getLiveRoomsBoot(con),
       getDailyBoot({ userId }),
     ]);
@@ -1023,7 +1055,10 @@ const anonymousBoot = async (
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation({ userId: req.trackingId, con, ...geo }),
     getAnonymousTheme(req.trackingId),
-    getEngagementCreatives(req.trackingId ?? ''),
+    getEngagementCreatives(
+      req.trackingId ?? '',
+      getReferralFromCookie({ req })?.referralOrigin,
+    ),
     getLiveRoomsBoot(con),
   ]);
 

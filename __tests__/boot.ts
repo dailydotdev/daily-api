@@ -70,6 +70,7 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import {
   DEFAULT_TIMEZONE,
+  ONE_DAY_IN_SECONDS,
   submitArticleThreshold,
   THREE_MONTHS_IN_SECONDS,
   updateFlagsStatement,
@@ -2366,9 +2367,10 @@ describe('engagement creatives', () => {
     gen_id: GENERATION_ID,
   };
 
-  afterEach(() => {
+  afterEach(async () => {
     nock.cleanAll();
     remoteConfig.vars.engagementAdsEnabled = true;
+    await deleteKeysByPattern('boot:cpa_source:*');
   });
 
   it('should not fetch engagement creatives when remote config is disabled', async () => {
@@ -2414,6 +2416,55 @@ describe('engagement creatives', () => {
       .expect(200);
 
     expect(res.body.engagementCreatives).toEqual([expectedCreative]);
+  });
+
+  it('should cache the cpa source->user mapping with a 24h expiry when skadi returns a source_id', async () => {
+    const cpaKey = generateStorageKey(
+      StorageTopic.Boot,
+      StorageKey.CpaSource,
+      '1',
+    );
+
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private')
+      .reply(200, {
+        generation_id: GENERATION_ID,
+        value: {
+          engagement: { ...skadiEngagementPayload, source_id: 'cpa-source-1' },
+        },
+      });
+
+    await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(await getRedisObject(cpaKey)).toEqual('cpa-source-1');
+    expect(await getRedisObjectExpiry(cpaKey)).toBeLessThanOrEqual(
+      ONE_DAY_IN_SECONDS,
+    );
+    expect(await getRedisObjectExpiry(cpaKey)).toBeGreaterThanOrEqual(
+      ONE_DAY_IN_SECONDS - 10,
+    );
+  });
+
+  it('should not cache a cpa source when skadi returns no source_id', async () => {
+    const cpaKey = generateStorageKey(
+      StorageTopic.Boot,
+      StorageKey.CpaSource,
+      '1',
+    );
+
+    nock(process.env.SKADI_ORIGIN).post('/private').reply(200, skadiResponse);
+
+    await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(await getRedisObject(cpaKey)).toBeNull();
   });
 
   it('should return empty array when skadi returns no generation_id', async () => {

@@ -48,6 +48,20 @@ import {
   NotificationType,
 } from '../../notifications/common';
 
+// Allowed values for the optional onboarding "current cloud provider" field
+// (collected on campaign funnels). Kept in app code, not the DB, so it's easy
+// to evolve. Keep this list in sync with the frontend dropdown options.
+export const allowedCloudProviders = [
+  'aws',
+  'gcp',
+  'azure',
+  'other',
+  'none',
+] as const;
+
+// Max length for free-text profile fields (company / job title).
+const profileTextLimit = 100;
+
 export type AddUserData = Pick<
   User,
   | 'id'
@@ -489,6 +503,14 @@ export const validateUserUpdate = async (
   if (!checkLanguage(data.language)) {
     throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
   }
+
+  (['company', 'title'] as const).forEach((key) => {
+    if ((data[key]?.length || 0) > profileTextLimit) {
+      throw new ValidationError(
+        JSON.stringify({ [key]: `${key} is too long` }),
+      );
+    }
+  });
 
   (
     ['name', 'twitter', 'github', 'hashnode'] as (keyof Pick<

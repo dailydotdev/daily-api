@@ -19,6 +19,7 @@ import {
   Ranking,
 } from '../common';
 import { HighlightsCanonical } from '../entity';
+import { getCpaSource } from '../integrations/feed/cpaSource';
 
 export type FeedV2Args = FeedArgs & {
   unreadOnly: boolean;
@@ -252,12 +253,15 @@ export const feedV2QueryResolver: IFieldResolver<
     cursor: args.after || undefined,
   };
   const allowedPostTypes = getFeedV2AllowedPostTypes(args.supportedTypes);
+  const id = ctx.userId || ctx.trackingId;
+  const cpaSource = await getCpaSource(id);
   const response = await getForYouFeedGenerator(args).generate(ctx, {
-    user_id: ctx.userId || ctx.trackingId,
+    user_id: id,
     page_size: page.limit,
     offset: 0,
     cursor: page.cursor,
     allowed_post_types: allowedPostTypes,
+    cpa_source: cpaSource,
     highlights_limit: supportsHighlights(args)
       ? args.highlightsLimit || undefined
       : undefined,
