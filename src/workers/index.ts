@@ -19,6 +19,7 @@ import cdcNotifications from './cdc/notifications';
 import newNotificationRealTime from './newNotificationV2RealTime';
 import newHighlightRealTime from './newHighlightRealTime';
 import contributionActionCompletedRealTime from './contributionActionCompletedRealTime';
+import contributionActionCompletedSlack from './contributionActionCompletedSlack';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -179,6 +180,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   generateChannelDigest,
   newHighlightRealTime,
   contributionActionCompletedRealTime,
+  contributionActionCompletedSlack,
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,
