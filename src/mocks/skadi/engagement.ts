@@ -38,6 +38,7 @@ const mockEngagementCreative: EngagementCreative = {
     'javascript',
   ],
   placements: ['top_banner', 'feed_strip'],
+  source_id: 'mock-cpa-source',
 };
 
 export const mockSkadiEngagementResponse: SkadiResponse<{

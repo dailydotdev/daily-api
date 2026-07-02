@@ -732,9 +732,27 @@ const getEngagementCreatives = async (
       return [];
     }
 
+    const { engagement } = response.value;
+
+    // Cache the CPA source->user mapping so feed queries can forward it as
+    // `cpa_source`. Short-lived (24h) and refreshed on every boot that detects
+    // a source, so the latest campaign source wins. Isolated in its own
+    // try/catch: a cache write failure must never drop the creative itself.
+    if (engagement.source_id && userId) {
+      try {
+        await setRedisObjectWithExpiry(
+          generateStorageKey(StorageTopic.Boot, StorageKey.CpaSource, userId),
+          engagement.source_id,
+          ONE_DAY_IN_SECONDS,
+        );
+      } catch (error) {
+        logger.error({ userId, err: error }, 'failed to cache cpa source');
+      }
+    }
+
     return [
       {
-        ...response.value.engagement,
+        ...engagement,
         gen_id: response.generation_id,
       },
     ];

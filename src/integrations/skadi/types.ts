@@ -35,6 +35,9 @@ export type EngagementCreative = {
   // Prominent placements a campaign opted into (e.g. 'top_banner',
   // 'feed_strip'). Optional: existing creatives won't carry it.
   placements?: string[];
+  // CPA campaign source id. When present, boot caches a source->user mapping
+  // in redis so feed queries can forward it as `cpa_source` for attribution.
+  source_id?: string;
 };
 
 export interface ISkadiClient<TValue> {

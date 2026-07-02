@@ -2,6 +2,7 @@ import {
   createSquadWelcomePost,
   feedToFilters,
   maxFeedNameLength,
+  ONE_DAY_IN_SECONDS,
   Ranking,
   updateFlagsStatement,
 } from '../src/common';
@@ -62,7 +63,8 @@ import {
 } from './fixture/post';
 import { keywordsFixture } from './fixture/keywords';
 import nock from 'nock';
-import { deleteKeysByPattern } from '../src/redis';
+import { deleteKeysByPattern, setRedisObjectWithExpiry } from '../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
@@ -130,6 +132,7 @@ beforeEach(async () => {
     { value: 'data', status: 'allow' },
   ]);
   await deleteKeysByPattern('feeds:*');
+  await deleteKeysByPattern('boot:cpa_source:*');
 });
 
 afterAll(() => app.close());
@@ -493,6 +496,45 @@ describe('query anonymousFeed', () => {
       variables: { ...variables, version: 2 },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should forward the cached cpa_source to the feed service', async () => {
+    loggedUser = '1';
+    await setRedisObjectWithExpiry(
+      generateStorageKey(StorageTopic.Boot, StorageKey.CpaSource, '1'),
+      'cpa-source-1',
+      ONE_DAY_IN_SECONDS,
+    );
+
+    nock('http://localhost:6000')
+      .post('/api/feed', {
+        total_pages: 1,
+        page_size: 10,
+        fresh_page_size: '4',
+        offset: 0,
+        user_id: '1',
+        source_types: ['machine', 'squad', 'user'],
+        allowed_languages: ['en'],
+        feed_config_name: 'popular',
+        min_day_range: 14,
+        allowed_content_curations: [
+          'news',
+          'release',
+          'opinion',
+          'comparison',
+          'story',
+        ],
+        cpa_source: 'cpa-source-1',
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toBeTruthy();
   });
 
   it('should safetly handle a case where the feed is empty', async () => {
@@ -1225,6 +1267,34 @@ describe('query feedV2', () => {
         highlightsLimit: 4,
       },
     });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedV2.edges).toHaveLength(1);
+  });
+
+  it('should forward the cached cpa_source to the feed service', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await setRedisObjectWithExpiry(
+      generateStorageKey(StorageTopic.Boot, StorageKey.CpaSource, '1'),
+      'cpa-source-1',
+      ONE_DAY_IN_SECONDS,
+    );
+
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, { user_id: '1', config: { providers: {} } });
+    nock('http://localhost:6000')
+      .post('/api/feed', (body) => {
+        expect(body.cpa_source).toEqual('cpa-source-1');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, { variables });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.feedV2.edges).toHaveLength(1);

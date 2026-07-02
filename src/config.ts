@@ -59,6 +59,7 @@ export enum StorageKey {
   ParticipantCount = 'participant_count',
   HasLiveRooms = 'has_live_rooms',
   DailyFeed = 'daily',
+  CpaSource = 'cpa_source',
 }
 
 export const generateStorageKey = (
