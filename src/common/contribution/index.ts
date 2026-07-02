@@ -547,7 +547,7 @@ export const getContributionUserRank = async ({
             "userId",
             SUM("awardedPoints")::int AS points,
             ROW_NUMBER() OVER (
-              ORDER BY SUM("awardedPoints") DESC,
+              ORDER BY COALESCE(SUM("awardedPoints"), 0) DESC,
                 MIN("createdAt") ASC,
                 "userId" ASC
             ) AS rank
@@ -633,7 +633,7 @@ export const getContributionCauseBreakdown = async ({
         'split',
       )
       .select('active_cause.category', 'category')
-      .addSelect('ROUND(SUM(split.points))::int', 'points')
+      .addSelect('SUM(split.points)', 'points')
       .from('split', 'split')
       .innerJoin(
         'active_cause',
@@ -647,10 +647,27 @@ export const getContributionCauseBreakdown = async ({
       .getRawMany<{ category: string | null; points: string | number }>(),
   );
 
-  return rows.map((row) => ({
+  // Round the fractional category shares to integers while preserving the total
+  // (largest-remainder method), so the parts still sum to the whole.
+  const shares = rows.map((row) => ({
     category: row.category,
-    points: toContributionInt(row.points),
+    exact: Number(row.points ?? 0),
   }));
+  const total = Math.round(shares.reduce((sum, share) => sum + share.exact, 0));
+  const result = shares.map((share) => ({
+    category: share.category,
+    points: Math.floor(share.exact),
+    remainder: share.exact - Math.floor(share.exact),
+  }));
+  const leftover = total - result.reduce((sum, share) => sum + share.points, 0);
+  [...result]
+    .sort((first, second) => second.remainder - first.remainder)
+    .slice(0, Math.max(0, leftover))
+    .forEach((share) => {
+      share.points += 1;
+    });
+
+  return result.map(({ category, points }) => ({ category, points }));
 };
 
 const cacheLastReachedMilestone = (

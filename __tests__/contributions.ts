@@ -1228,3 +1228,38 @@ it('projects the current-cycle cause breakdown across categories', async () => {
     { category: 'Open source', points: 70 },
   ]);
 });
+
+it('rounds fractional cause shares while preserving the total', async () => {
+  const catAId = '33333333-3333-4333-8333-333333333341';
+  const catBId = '33333333-3333-4333-8333-333333333342';
+  const catCId = '33333333-3333-4333-8333-333333333343';
+  await seedLeaderboardAction();
+  await saveFixtures(con, ContributionCause, [
+    { id: catAId, title: 'A', category: 'Cat A', sortOrder: 1 },
+    { id: catBId, title: 'B', category: 'Cat B', sortOrder: 2 },
+    { id: catCId, title: 'C', category: 'Cat C', sortOrder: 3 },
+  ]);
+  await saveFixtures(con, UserContributionCausePreference, [
+    { userId, causeId: catAId },
+    { userId, causeId: catBId },
+    { userId, causeId: catCId },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 10,
+    },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_CAUSE_BREAKDOWN_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  const points = res.data.contributionCauseBreakdown.map((row) => row.points);
+  // 10 split across 3 categories -> 4/3/3 via largest remainder, summing to 10.
+  expect(points.reduce((sum, value) => sum + value, 0)).toBe(10);
+  expect([...points].sort((first, second) => second - first)).toEqual([
+    4, 3, 3,
+  ]);
+});
