@@ -1,5 +1,5 @@
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { In, type EntityManager } from 'typeorm';
+import { In, type DataSource, type EntityManager } from 'typeorm';
 import type z from 'zod';
 import {
   contributionActionEvidenceSchema,
@@ -23,6 +23,7 @@ import { UserContributionCausePreference } from '../../entity/contribution/UserC
 import { remoteConfig } from '../../remoteConfig';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
+import { queryReadReplica } from '../queryReadReplica';
 
 export const CONTRIBUTION_ACTION_COMPLETED_CHANNEL =
   'events.contributions.completed';
@@ -526,6 +527,130 @@ export const getLifetimeAmountCents = async ({
     .getRawOne<SumRow>();
 
   return toContributionInt(row?.sum);
+};
+
+// The viewer's standing in the current cycle (unpaid approved points). Null when
+// they have no current-cycle points and therefore no rank.
+export const getContributionUserRank = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId: string;
+}): Promise<{ points: number; rank: number } | null> => {
+  const row = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .addCommonTableExpression(
+        `
+          SELECT
+            "userId",
+            SUM("awardedPoints")::int AS points,
+            ROW_NUMBER() OVER (
+              ORDER BY SUM("awardedPoints") DESC,
+                MIN("createdAt") ASC,
+                "userId" ASC
+            ) AS rank
+          FROM "contribution_submission"
+          WHERE status = :status
+            AND "paymentId" IS NULL
+          GROUP BY "userId"
+        `,
+        'ranked',
+      )
+      .select('ranked.points', 'points')
+      .addSelect('ranked.rank', 'rank')
+      .from('ranked', 'ranked')
+      .where('ranked."userId" = :userId', { userId })
+      .setParameter('status', ContributionSubmissionStatus.Approved)
+      .getRawOne<{ points: string | number; rank: string | number }>(),
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    points: toContributionInt(row.points),
+    rank: toContributionInt(row.rank),
+  };
+};
+
+// Projects how the current cycle's unpaid points would be allocated across cause
+// categories: each contributor's points split equally among their preferred
+// active causes (falling back to all active causes), mirroring payout allocation
+// so the shares sum to the whole.
+export const getContributionCauseBreakdown = async ({
+  con,
+}: {
+  con: DataSource;
+}): Promise<{ category: string | null; points: number }[]> => {
+  const rows = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .addCommonTableExpression(
+        `SELECT id, category FROM "contribution_cause" WHERE active = true`,
+        'active_cause',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            "userId",
+            SUM("awardedPoints")::float AS points
+          FROM "contribution_submission"
+          WHERE status = :status
+            AND "paymentId" IS NULL
+          GROUP BY "userId"
+        `,
+        'user_points',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            up."userId",
+            up.points,
+            COALESCE(
+              (
+                SELECT array_agg(preference."causeId")
+                FROM "user_contribution_cause_preference" preference
+                INNER JOIN active_cause ON active_cause.id = preference."causeId"
+                WHERE preference."userId" = up."userId"
+              ),
+              (SELECT array_agg(id) FROM active_cause)
+            ) AS "causeIds"
+          FROM user_points up
+        `,
+        'user_cause',
+      )
+      .addCommonTableExpression(
+        `
+          SELECT
+            unnest(user_cause."causeIds") AS "causeId",
+            user_cause.points / array_length(user_cause."causeIds", 1) AS points
+          FROM user_cause
+          WHERE array_length(user_cause."causeIds", 1) > 0
+        `,
+        'split',
+      )
+      .select('active_cause.category', 'category')
+      .addSelect('ROUND(SUM(split.points))::int', 'points')
+      .from('split', 'split')
+      .innerJoin(
+        'active_cause',
+        'active_cause',
+        'active_cause.id = split."causeId"',
+      )
+      .groupBy('active_cause.category')
+      .orderBy('points', 'DESC')
+      .addOrderBy('active_cause.category', 'ASC')
+      .setParameter('status', ContributionSubmissionStatus.Approved)
+      .getRawMany<{ category: string | null; points: string | number }>(),
+  );
+
+  return rows.map((row) => ({
+    category: row.category,
+    points: toContributionInt(row.points),
+  }));
 };
 
 const cacheLastReachedMilestone = (
