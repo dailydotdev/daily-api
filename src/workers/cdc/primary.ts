@@ -1077,8 +1077,8 @@ const syncScheduledPostPublishWorkflow = async (
 ): Promise<void> => {
   const before = data.payload.before;
   const after = data.payload.after;
-  const beforeScheduledAt = before ? getPostScheduledAt(before) : null;
-  const afterScheduledAt = after ? getPostScheduledAt(after) : null;
+  const beforeScheduledAt = before ? getPostChangeScheduledAt(before) : null;
+  const afterScheduledAt = after ? getPostChangeScheduledAt(after) : null;
 
   if (
     before &&
@@ -1110,6 +1110,11 @@ const syncScheduledPostPublishWorkflow = async (
     });
   }
 };
+
+const getPostChangeScheduledAt = (post: ChangeObject<Post>): Date | null =>
+  getPostScheduledAt({
+    flags: JSON.parse(post.flags || '{}') as Post['flags'],
+  });
 
 const onPostChange = async (
   con: DataSource,

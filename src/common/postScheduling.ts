@@ -1,21 +1,20 @@
 import { ValidationError } from 'apollo-server-errors';
 import type { DataSource, EntityManager } from 'typeorm';
 import { Post } from '../entity/posts/Post';
+import { ONE_DAY_IN_SECONDS } from './constants';
 
 type ConnectionManager = DataSource | EntityManager;
 
 type PostScheduleInput = Date | string | number | null | undefined;
 type PostScheduleFlagsInput = {
-  flags?: Post['flags'] | string | null;
+  flags?: Post['flags'] | null;
 };
+const MAX_POST_SCHEDULE_DAYS = 14;
 
 export type ScheduledPostPublishParams = {
   postId: string;
   scheduledAt: string;
 };
-
-export const getPostScore = (date: Date): number =>
-  Math.floor(date.getTime() / (1000 * 60));
 
 export const parsePostScheduledAt = (
   scheduledAt: PostScheduleInput,
@@ -42,16 +41,23 @@ export const validatePostScheduledAt = (
     throw new ValidationError('Scheduled time must be in the future');
   }
 
+  if (
+    date &&
+    date.getTime() >
+      Date.now() + MAX_POST_SCHEDULE_DAYS * ONE_DAY_IN_SECONDS * 1000
+  ) {
+    throw new ValidationError(
+      `Scheduled time must be within ${MAX_POST_SCHEDULE_DAYS} days`,
+    );
+  }
+
   return date;
 };
 
 export const getPostScheduledAt = ({
   flags,
 }: PostScheduleFlagsInput): Date | null => {
-  const parsedFlags =
-    typeof flags === 'string' ? JSON.parse(flags || '{}') : flags;
-
-  return parsePostScheduledAt(parsedFlags?.scheduledAt);
+  return parsePostScheduledAt(flags?.scheduledAt);
 };
 
 export const getScheduledPostFlags = (scheduledAt: Date) => ({
@@ -105,14 +111,11 @@ export const publishScheduledPost = async ({
     {
       id: post.id,
       visible: false,
-      deleted: false,
-      banned: false,
     },
     {
       visible: true,
       visibleAt: now,
       createdAt: now,
-      score: getPostScore(now),
       flags: getPublishedPostFlagsStatement(),
     },
   );

@@ -60,6 +60,7 @@ import {
   DEFAULT_POST_TITLE,
   notifyContentRequested,
   notifyView,
+  ONE_DAY_IN_SECONDS,
   pickImageUrl,
   postScraperOrigin,
   updateFlagsStatement,
@@ -5590,6 +5591,23 @@ describe('mutation createFreeformPost', () => {
     expect(post.flags.scheduledAt).toEqual(scheduledAt);
   });
 
+  it('should not create a scheduled post more than 14 days ahead', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          scheduledAt: new Date(Date.now() + 15 * ONE_DAY_IN_SECONDS * 1000),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Scheduled time must be within 14 days',
+    );
+  });
+
   it('should list scheduled posts', async () => {
     loggedUser = '1';
     const scheduledAt = new Date(Date.now() + 60_000).toISOString();
@@ -5736,7 +5754,7 @@ describe('mutation createFreeformPost', () => {
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Machine });
 
-    testMutationErrorCode(
+    return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { ...params, sourceId: 'a' } },
       'NOT_FOUND',
