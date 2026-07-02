@@ -264,6 +264,10 @@ export const workers: Worker[] = [
     subscription: 'api.contribution-action-completed-slack',
   },
   {
+    topic: 'api.v1.contribution-action-completed',
+    subscription: 'api.contribution-action-completed-milestone',
+  },
+  {
     topic: 'analytics-api.v1.experiment-allocated',
     subscription: 'api.experiment-allocated',
   },

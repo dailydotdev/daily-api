@@ -20,6 +20,7 @@ import newNotificationRealTime from './newNotificationV2RealTime';
 import newHighlightRealTime from './newHighlightRealTime';
 import contributionActionCompletedRealTime from './contributionActionCompletedRealTime';
 import contributionActionCompletedSlack from './contributionActionCompletedSlack';
+import contributionMilestoneReached from './contributionMilestoneReached';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -181,6 +182,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   newHighlightRealTime,
   contributionActionCompletedRealTime,
   contributionActionCompletedSlack,
+  contributionMilestoneReached,
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,

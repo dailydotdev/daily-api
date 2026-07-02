@@ -11,6 +11,7 @@ import {
   getApprovedPointsSum,
   getContributionConfig,
   getContributionEligibility,
+  getLastReachedMilestone,
   getLifetimeAmountCents,
   parseContributionArgs,
   validateContributionActionLimits,
@@ -30,6 +31,7 @@ import { ContributionAction } from '../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../entity/contribution/ContributionActionCategory';
 import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
+import { ContributionMilestone } from '../entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
   ContributionPaymentStatus,
@@ -334,6 +336,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [ContributionSubmissionEdge!]!
   }
 
+  type ContributionMilestone {
+    id: ID!
+    value: Int!
+    title: String
+    reachedAt: DateTime
+  }
+
   type ContributionSponsor {
     id: ID!
     name: String!
@@ -409,6 +418,11 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionSponsorConnection!
+    """
+    The highest global milestone reached, served from cache for the header
+    gift-icon poll. Null until the first milestone is crossed.
+    """
+    contributionLastReachedMilestone: ContributionMilestone
   }
 
   extend type Mutation {
@@ -794,6 +808,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
     },
+    contributionLastReachedMilestone: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<Pick<
+      ContributionMilestone,
+      'id' | 'value' | 'title' | 'reachedAt'
+    > | null> => getLastReachedMilestone({ con: ctx.con.manager }),
   },
   Mutation: {
     submitContributionAction: async (
