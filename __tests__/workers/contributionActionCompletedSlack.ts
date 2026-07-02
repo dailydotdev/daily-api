@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/contributionActionCompletedSlack';
+import { typedWorkers } from '../../src/workers';
 import createOrGetConnection from '../../src/db';
 import { webhooks } from '../../src/common/slack';
 import { ContributionAction } from '../../src/entity/contribution/ContributionAction';
@@ -54,8 +55,7 @@ afterEach(async () => {
 });
 
 describe('contributionActionCompletedSlack worker', () => {
-  it('should be registered', async () => {
-    const { typedWorkers } = await import('../../src/workers');
+  it('should be registered', () => {
     expect(
       typedWorkers.find((item) => item.subscription === worker.subscription),
     ).toBeDefined();
@@ -115,6 +115,28 @@ describe('contributionActionCompletedSlack worker', () => {
       blocks: { type: string }[];
     };
     expect(blocks.map((block) => block.type)).toEqual(['header', 'section']);
+  });
+
+  it('should escape mrkdwn-breaking characters in user and evidence text', async () => {
+    await con.getRepository(User).update('sc-user', { name: 'Tom <& Jerry>' });
+
+    await expectSuccessfulTypedBackground<'api.v1.contribution-action-completed'>(
+      worker,
+      {
+        submission: {
+          ...baseSubmission,
+          evidence: JSON.stringify({ note: 'a <b> & c' }),
+        },
+      },
+    );
+
+    const { blocks } = mockSend.mock.calls[0][0] as {
+      blocks: { fields?: { text: string }[]; text?: { text: string } }[];
+    };
+    expect(blocks[1].fields?.[0].text).toBe(
+      `*User:*\n<${process.env.COMMENTS_PREFIX}/scuser|Tom &lt;&amp; Jerry&gt;>`,
+    );
+    expect(blocks[2].text?.text).toBe('*Proof*\n*Note:* a &lt;b&gt; &amp; c');
   });
 
   it('should not send when the user or action is missing', async () => {
