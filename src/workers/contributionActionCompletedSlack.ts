@@ -20,10 +20,14 @@ const worker: TypedWorker<'api.v1.contribution-action-completed'> = {
 
     try {
       const [user, action] = await Promise.all([
-        con.getRepository(User).findOneBy({ id: submission.userId }),
-        con
-          .getRepository(ContributionAction)
-          .findOneBy({ id: submission.actionId }),
+        con.getRepository(User).findOne({
+          where: { id: submission.userId },
+          select: ['id', 'name', 'username'],
+        }),
+        con.getRepository(ContributionAction).findOne({
+          where: { id: submission.actionId },
+          select: ['id', 'title'],
+        }),
       ]);
 
       if (!user || !action) {
