@@ -128,8 +128,10 @@ import { counters } from '../../telemetry';
 import {
   cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
+  cancelScheduledPostPublishWorkflow,
   runEntityReminderWorkflow,
   runReminderWorkflow,
+  runScheduledPostPublishWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays, differenceInMonths, nextMonday, nextTuesday } from 'date-fns';
 import { hasPlusStatusChanged } from '../../paddle';
@@ -139,6 +141,7 @@ import {
   sourceReportReasonsMap,
   userReportReasonsMap,
 } from '../../entity/common';
+import { getPostScheduledAt } from '../../common/postScheduling';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
 import {
@@ -1069,11 +1072,52 @@ const onSettingsChange = async (
   }
 };
 
+const syncScheduledPostPublishWorkflow = async (
+  data: ChangeMessage<Post>,
+): Promise<void> => {
+  const before = data.payload.before;
+  const after = data.payload.after;
+  const beforeScheduledAt = before ? getPostScheduledAt(before) : null;
+  const afterScheduledAt = after ? getPostScheduledAt(after) : null;
+
+  if (
+    before &&
+    beforeScheduledAt &&
+    (!afterScheduledAt ||
+      beforeScheduledAt.getTime() !== afterScheduledAt.getTime() ||
+      after?.visible ||
+      after?.deleted ||
+      after?.banned)
+  ) {
+    await cancelScheduledPostPublishWorkflow({
+      postId: before.id,
+      scheduledAt: beforeScheduledAt.toISOString(),
+    });
+  }
+
+  if (
+    after &&
+    afterScheduledAt &&
+    !after.visible &&
+    !after.deleted &&
+    !after.banned &&
+    (!beforeScheduledAt ||
+      beforeScheduledAt.getTime() !== afterScheduledAt.getTime())
+  ) {
+    await runScheduledPostPublishWorkflow({
+      postId: after.id,
+      scheduledAt: afterScheduledAt.toISOString(),
+    });
+  }
+};
+
 const onPostChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
+  await syncScheduledPostPublishWorkflow(data);
+
   if (data.payload.after?.yggdrasilId && !data.payload.before?.yggdrasilId) {
     await notifyPostYggdrasilIdSet(logger, data.payload.after);
   }
@@ -1086,7 +1130,7 @@ const onPostChange = async (
       if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
-      if (data.payload.after!.authorId) {
+      if (data.payload.after!.visible && data.payload.after!.authorId) {
         await checkAchievementProgress(
           con,
           logger,
@@ -1145,6 +1189,17 @@ const onPostChange = async (
     if (data.payload.after!.visible) {
       if (!data.payload.before!.visible) {
         await notifyPostVisible(logger, data.payload.after!);
+        if (
+          data.payload.after!.type === PostType.Freeform &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PostFreeform,
+          );
+        }
       } else {
         // Trigger message only if the post is already visible and the conte was edited
         const freeform = data as ChangeMessage<FreeformPost>;

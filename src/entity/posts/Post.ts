@@ -56,6 +56,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
+  scheduledAt: string;
   dedupKey: string;
   digestPostIds: string[];
   collectionSources: string[];
@@ -80,6 +81,7 @@ export type PostFlagsPublic = Pick<
   | 'sources'
   | 'savedTime'
   | 'generatedAt'
+  | 'scheduledAt'
   | 'digestPostIds'
   | 'ad'
 >;
@@ -298,6 +300,7 @@ export class Post {
   @Index('IDX_post_flags_banned', { synchronize: false })
   @Index('IDX_post_flags_deleted', { synchronize: false })
   @Index('IDX_post_flags_vordr', { synchronize: false })
+  @Index('IDX_post_flags_scheduledAt', { synchronize: false })
   flags: PostFlags;
 
   @Column({ type: 'uuid', nullable: true })
