@@ -18,11 +18,29 @@ import {
 import { ContributionPaymentAllocation } from '../../entity/contribution/ContributionPaymentAllocation';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
+import { ContributionMilestone } from '../../entity/contribution/ContributionMilestone';
 import { UserContributionCausePreference } from '../../entity/contribution/UserContributionCausePreference';
 import { remoteConfig } from '../../remoteConfig';
+import { ONE_HOUR_IN_SECONDS } from '../constants';
+import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
 
 export const CONTRIBUTION_ACTION_COMPLETED_CHANNEL =
   'events.contributions.completed';
+
+// Cache for the single high-frequency polled endpoint (header gift icon). The
+// value only changes when detection stamps a new milestone, so the poll never
+// touches the DB. A short TTL bounds DB load if the cache is cold.
+export const CONTRIBUTION_LAST_MILESTONE_REDIS_KEY =
+  'contribution:last-milestone';
+// The cache is refreshed on every milestone write, so a long TTL is safe; it
+// only guards against a cold cache re-querying the DB on each poll.
+const CONTRIBUTION_LAST_MILESTONE_TTL_SECONDS = ONE_HOUR_IN_SECONDS;
+const CONTRIBUTION_LAST_MILESTONE_NONE = 'none';
+
+type CachedContributionMilestone = Pick<
+  ContributionMilestone,
+  'id' | 'value' | 'title' | 'reachedAt'
+>;
 
 const ACTIVE_STATUSES_FOR_LIMITS = [
   ContributionSubmissionStatus.Approved,
@@ -508,6 +526,76 @@ export const getLifetimeAmountCents = async ({
     .getRawOne<SumRow>();
 
   return toContributionInt(row?.sum);
+};
+
+const cacheLastReachedMilestone = (
+  milestone: CachedContributionMilestone | null,
+): Promise<unknown> =>
+  setRedisObjectWithExpiry(
+    CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
+    milestone ? JSON.stringify(milestone) : CONTRIBUTION_LAST_MILESTONE_NONE,
+    CONTRIBUTION_LAST_MILESTONE_TTL_SECONDS,
+  );
+
+const queryLastReachedMilestone = (
+  con: EntityManager,
+): Promise<CachedContributionMilestone | null> =>
+  con
+    .getRepository(ContributionMilestone)
+    .createQueryBuilder('milestone')
+    .select([
+      'milestone.id',
+      'milestone.value',
+      'milestone.title',
+      'milestone.reachedAt',
+    ])
+    .where('milestone."reachedAt" IS NOT NULL')
+    .orderBy('milestone.value', 'DESC')
+    .getOne();
+
+// The highest milestone the campaign has crossed, served from cache for the
+// high-frequency header poll. Falls back to the DB on a cold cache.
+export const getLastReachedMilestone = async ({
+  con,
+}: {
+  con: EntityManager;
+}): Promise<CachedContributionMilestone | null> => {
+  const cached = await getRedisObject(CONTRIBUTION_LAST_MILESTONE_REDIS_KEY);
+  if (cached === CONTRIBUTION_LAST_MILESTONE_NONE) {
+    return null;
+  }
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  const milestone = await queryLastReachedMilestone(con);
+  await cacheLastReachedMilestone(milestone);
+
+  return milestone;
+};
+
+// Runs on each approved-submission event (low frequency). Sums lifetime
+// approved points, stamps any newly-crossed milestones exactly once, and
+// refreshes the polled cache when the last-reached milestone advances.
+export const detectContributionMilestones = async ({
+  con,
+}: {
+  con: EntityManager;
+}): Promise<void> => {
+  const total = await getApprovedPointsSum({ con });
+
+  const result = await con
+    .getRepository(ContributionMilestone)
+    .createQueryBuilder()
+    .update()
+    .set({ reachedAt: () => 'now()' })
+    .where('"reachedAt" IS NULL')
+    .andWhere('value <= :total', { total })
+    .execute();
+
+  if (result.affected) {
+    await cacheLastReachedMilestone(await queryLastReachedMilestone(con));
+  }
 };
 
 const getContributionActionUsage = async ({

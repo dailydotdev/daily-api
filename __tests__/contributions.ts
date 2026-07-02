@@ -42,6 +42,12 @@ import {
   UserTransactionType,
 } from '../src/entity/user/UserTransaction';
 import { remoteConfig } from '../src/remoteConfig';
+import { ContributionMilestone } from '../src/entity/contribution/ContributionMilestone';
+import {
+  CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
+  detectContributionMilestones,
+} from '../src/common/contribution';
+import { deleteRedisKey } from '../src/redis';
 
 let con: DataSource;
 let client: GraphQLTestClient;
@@ -168,6 +174,17 @@ query ContributionSponsors {
         tier
       }
     }
+  }
+}
+`;
+
+const CONTRIBUTION_LAST_MILESTONE_QUERY = `
+query ContributionLastReachedMilestone {
+  contributionLastReachedMilestone {
+    id
+    value
+    title
+    reachedAt
   }
 }
 `;
@@ -309,6 +326,8 @@ beforeEach(async () => {
     .delete()
     .from(ContributionActionCategory)
     .execute();
+  await con.createQueryBuilder().delete().from(ContributionMilestone).execute();
+  await deleteRedisKey(CONTRIBUTION_LAST_MILESTONE_REDIS_KEY);
   await con.getRepository(User).delete({ id: userId });
   await con.getRepository(User).delete({ id: blockedUserId });
 
@@ -852,4 +871,66 @@ it('exposes the sponsor wall to anonymous visitors', async () => {
       },
     },
   ]);
+});
+
+const firstMilestoneId = '66666666-6666-4666-8666-666666666661';
+const secondMilestoneId = '66666666-6666-4666-8666-666666666662';
+const thirdMilestoneId = '66666666-6666-4666-8666-666666666663';
+
+it('returns null for the last reached milestone when none crossed', async () => {
+  await saveFixtures(con, ContributionMilestone, [
+    { id: firstMilestoneId, value: 100, title: '100' },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_LAST_MILESTONE_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionLastReachedMilestone).toBeNull();
+});
+
+it('stamps crossed milestones once and exposes the highest reached', async () => {
+  await seedActions();
+  await saveFixtures(con, ContributionMilestone, [
+    { id: firstMilestoneId, value: 100, title: '100' },
+    { id: secondMilestoneId, value: 500, title: '500' },
+    { id: thirdMilestoneId, value: 1000, title: '1000' },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 300,
+    },
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 300,
+    },
+  ]);
+
+  await detectContributionMilestones({ con: con.manager });
+
+  const stamped = await con
+    .getRepository(ContributionMilestone)
+    .find({ order: { value: 'ASC' } });
+  expect(
+    stamped.filter((m) => m.reachedAt !== null).map((m) => m.value),
+  ).toEqual([100, 500]);
+
+  const reachedAt = stamped.find((m) => m.value === 500)?.reachedAt;
+
+  // Re-running must not re-stamp an already-reached milestone.
+  await detectContributionMilestones({ con: con.manager });
+  const rerun = await con
+    .getRepository(ContributionMilestone)
+    .findOneByOrFail({ value: 500 });
+  expect(rerun.reachedAt).toEqual(reachedAt);
+
+  const last = await client.query(CONTRIBUTION_LAST_MILESTONE_QUERY);
+  expect(last.data.contributionLastReachedMilestone).toMatchObject({
+    value: 500,
+    title: '500',
+  });
 });

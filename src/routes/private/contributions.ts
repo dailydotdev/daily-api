@@ -11,6 +11,7 @@ import {
   contributionPrivateCreateActionLinkSchema,
   contributionPrivateCreateActionSchema,
   contributionPrivateCreateCauseSchema,
+  contributionPrivateCreateMilestoneSchema,
   contributionPrivateCreateRewardTierSchema,
   contributionPrivateCreateSponsorSchema,
   contributionPrivateFinalizePaymentSchema,
@@ -34,6 +35,7 @@ import { ContributionActionCategory } from '../../entity/contribution/Contributi
 import { ContributionActionLink } from '../../entity/contribution/ContributionActionLink';
 import { ContributionBlockedUser } from '../../entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../../entity/contribution/ContributionCause';
+import { ContributionMilestone } from '../../entity/contribution/ContributionMilestone';
 import { ContributionRewardTier } from '../../entity/contribution/ContributionRewardTier';
 import { ContributionSponsor } from '../../entity/contribution/ContributionSponsor';
 import { ContributionSubmission } from '../../entity/contribution/ContributionSubmission';
@@ -424,6 +426,50 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
     if (!result.affected) {
       return res.status(404).send({ error: 'Contribution sponsor not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  fastify.post<{
+    Body: z.infer<typeof contributionPrivateCreateMilestoneSchema>;
+  }>('/milestones', async (req, res) => {
+    const body = parseSchema({
+      schema: contributionPrivateCreateMilestoneSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const milestone = await con.getRepository(ContributionMilestone).save(body);
+
+    return res.status(201).send(milestone);
+  });
+
+  fastify.delete<{
+    Params: z.infer<typeof contributionPrivateIdParamsSchema>;
+  }>('/milestones/:id', async (req, res) => {
+    const params = parseSchema({
+      schema: contributionPrivateIdParamsSchema,
+      value: req.params,
+      res,
+    });
+    if (!params) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const result = await con
+      .getRepository(ContributionMilestone)
+      .delete(params.id);
+
+    if (!result.affected) {
+      return res
+        .status(404)
+        .send({ error: 'Contribution milestone not found' });
     }
 
     return res.status(200).send({ success: true });

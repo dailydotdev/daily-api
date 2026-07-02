@@ -10,6 +10,7 @@ import { ContributionActionCategory } from '../../../src/entity/contribution/Con
 import { ContributionActionLink } from '../../../src/entity/contribution/ContributionActionLink';
 import { ContributionBlockedUser } from '../../../src/entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../../../src/entity/contribution/ContributionCause';
+import { ContributionMilestone } from '../../../src/entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
   ContributionPaymentStatus,
@@ -334,6 +335,34 @@ describe('private contribution routes', () => {
 
     await request(app.server)
       .delete(`/p/contributions/links/${actionId}`)
+      .set(serviceAuthHeaders)
+      .expect(404);
+  });
+
+  it('creates and deletes milestones', async () => {
+    const { body: milestone } = await request(app.server)
+      .post('/p/contributions/milestones')
+      .set(serviceHeaders)
+      .send({ value: 500, title: '500 points' })
+      .expect(201);
+
+    expect(milestone).toMatchObject({
+      value: 500,
+      title: '500 points',
+      reachedAt: null,
+    });
+
+    await request(app.server)
+      .delete(`/p/contributions/milestones/${milestone.id}`)
+      .set(serviceAuthHeaders)
+      .expect(200);
+
+    await expect(
+      con.getRepository(ContributionMilestone).findOneBy({ id: milestone.id }),
+    ).resolves.toBeNull();
+
+    await request(app.server)
+      .delete(`/p/contributions/milestones/${milestone.id}`)
       .set(serviceAuthHeaders)
       .expect(404);
   });
