@@ -277,8 +277,8 @@ config:
       secure: AAABACoUzLQ6eGNpdjzl7sShD4BDSeSKJPtzdp9Ble0i3Mo3fh49v5dypv2VkcuXF2UH1dgaZlcCE6DhSBTrA/luWKc=
     onesignalWebApiKey:
       secure: AAABAPNWKCkjj4VNxfW9pxPksz2srCJuBaOfvxnyIRpnb/e7fBFUBIhTJjiZa8Kf2fAOFEqh1Xpioilpy6UrW//CFVHl5EEDtn+1U2K8Ig398ZbLwCYiJcsqj3m0NVnhs5tH/SUfHyiJBexftNuyAjE9KPW1UmyIeUpB4gTUMJG876JFVYqUY7a2XJFjGJ7a4Q==
-    SLACK_CONTRIBUTIONS_WEBHOOK:
-      secure: AAABAHV10o4ydqvS52/i2y/eeETUNWxA87FPEpZNp06icxF9ZJb9/YXSsHDXW0ZrKxrgRfUJqsQdf7uEZd+SqL9HH8LYMl4WpDoFQzwziG/xyPylrzjpP+AbXwq8ytMhlbhCdN12bBSMMb/6awihut0=
+    slackContributionsWebhook:
+      secure: AAABAOKNibr2AoUeSHJzmAyyNaOTqhvy/oDYDu1spT6YzFIUpPP32FbJqNJx6Y9AgoYrJksqY+H5PXMCT87RqKYyoqYXcktk4JQpGtWur8XEMAAEfLM55s3bQnF0hfmKgWQ17nk/CuF52K4ozY0rqnw=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
