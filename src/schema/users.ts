@@ -160,6 +160,7 @@ import {
 } from '../entity/UserIntegration';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
+import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import { generateVerifyCode } from '../ids';
 import {
   addClaimableItemsToUser,
@@ -2156,6 +2157,28 @@ const getUserCompanies = async (
   );
 };
 
+/**
+ * Ensure the user's Work experiences for a given company are marked verified,
+ * mirroring a verified UserCompany record. This closes the gap where verifying
+ * a company email (a `verified` flip that does not change `companyId`) never
+ * propagated to `UserExperienceWork.verified` via CDC, leaving the profile UI
+ * showing the experience as unverified while the backend already considers the
+ * email verified.
+ */
+const syncVerifiedUserWorkExperiences = async (
+  con: DataSource,
+  userId: string,
+  companyId: string | null,
+): Promise<void> => {
+  if (!companyId) {
+    return;
+  }
+
+  await con
+    .getRepository(UserExperienceWork)
+    .update({ userId, companyId, verified: false }, { verified: true });
+};
+
 interface ClearImagePreset {
   con: ConnectionManager;
   preset: UploadPreset;
@@ -3893,7 +3916,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
 
         if (existingUserCompanyEmail.verified) {
-          throw new ValidationError('This email has already been verified');
+          // The email is already verified for this user. Rather than throwing
+          // (which traps the user in a re-verify loop when the profile UI still
+          // shows the experience as unverified), re-assert the work-experience
+          // verification and return success idempotently.
+          await syncVerifiedUserWorkExperiences(
+            ctx.con,
+            ctx.userId,
+            existingUserCompanyEmail.companyId,
+          );
+
+          return { _: true };
         }
 
         const updatedRecord = { ...existingUserCompanyEmail, code };
@@ -3958,6 +3991,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const updatedRecord = { ...userCompany, verified: true };
 
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
+
+      // Propagate the verification to the matching Work experiences. The CDC
+      // worker only reacts to `companyId` changes, so a plain `verified` flip
+      // (companyId unchanged) would otherwise never mark the experience as
+      // verified.
+      await syncVerifiedUserWorkExperiences(
+        ctx.con,
+        ctx.userId,
+        updatedRecord.companyId,
+      );
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
         ctx,
