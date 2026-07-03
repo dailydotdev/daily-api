@@ -1167,7 +1167,7 @@ const onPostChange = async (
       const after = poll.payload.after!;
       const endsAt = after.endsAt as number | undefined;
 
-      if (after.authorId) {
+      if (after.authorId && after.visible) {
         await checkAchievementProgress(
           con,
           logger,
@@ -1203,6 +1203,34 @@ const onPostChange = async (
             logger,
             data.payload.after!.authorId,
             AchievementEventType.PostFreeform,
+          );
+        }
+        if (
+          data.payload.after!.type === PostType.Share &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PostShare,
+          );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: data.payload.after!.authorId,
+            eventType: QuestEventType.PostShare,
+          });
+        }
+        if (
+          data.payload.after!.type === PostType.Poll &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PollCreate,
           );
         }
       } else {

@@ -1473,10 +1473,6 @@ export const typeDefs = /* GraphQL */ `
       """
       imageUrl: String
       """
-      Time the post should go live
-      """
-      scheduledAt: DateTime
-      """
       ID of the post to share
       """
       sharedPostId: ID
@@ -1764,6 +1760,10 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): EmptyResponse @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1782,6 +1782,10 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1936,6 +1940,10 @@ export const typeDefs = /* GraphQL */ `
       Duration in days
       """
       duration: Int
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post! @auth @rateLimit(limit: 1, duration: 30)
   }
 
@@ -2613,9 +2621,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               })
               .andWhere(`${builder.alias}.visible = false`)
               .andWhere(`${builder.alias}.flags->>'scheduledAt' IS NOT NULL`)
-              .andWhere(`${builder.alias}.type = :type`, {
-                type: PostType.Freeform,
-              })
               .orderBy(`${builder.alias}.flags->>'scheduledAt'`, 'ASC')
               .addOrderBy(`${builder.alias}.id`, 'ASC')
               .limit(page.limit)
@@ -3113,7 +3118,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     submitExternalLink: async (
       _,
-      { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
+      {
+        sourceId,
+        commentary,
+        url,
+        title,
+        image,
+        scheduledAt,
+      }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!isValidHttpUrl(url)) {
@@ -3150,6 +3162,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               postId: existingPost.id,
               commentary,
               visible: existingPost.visible,
+              scheduledAt,
             },
           });
           return { _: true };
@@ -3168,6 +3181,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             image,
             commentary,
             originalUrl: url,
+            scheduledAt,
           },
         });
       });
@@ -3179,7 +3193,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         id,
         commentary,
         sourceId,
-      }: { id: string; commentary: string; sourceId: string },
+        scheduledAt,
+      }: {
+        id: string;
+        commentary: string;
+        sourceId: string;
+        scheduledAt?: Date | null;
+      },
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
@@ -3220,11 +3240,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           postId: sharedPostId,
           commentary,
           visible: post.visible,
+          scheduledAt,
         },
       });
 
       if (!newPost.visible) {
-        return newPost as unknown as GQLPost;
+        return withInvisiblePosts(ctx, (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id: newPost.id },
+            ),
+          })),
+        );
       }
 
       return getPostById(ctx, info, newPost.id);
@@ -3587,6 +3616,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           sourceId: args.sourceId,
           duration: args.duration,
           authorId: ctx.userId,
+          scheduledAt: args.scheduledAt,
           pollOptions: args.options.map((option) =>
             ctx.con.getRepository(PollOption).create({
               text: option.text,
@@ -3598,7 +3628,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
 
-      return getPostById(ctx, info, savedPost.id);
+      return withInvisiblePosts(
+        ctx,
+        (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id: savedPost.id },
+            ),
+          })),
+        !!args.scheduledAt,
+      );
     },
     votePoll: async (
       _,

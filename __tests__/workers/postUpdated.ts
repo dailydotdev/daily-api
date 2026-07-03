@@ -43,6 +43,7 @@ import { generateShortId } from '../../src/ids';
 import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
 import twitterSocialThreadPayloadFixture from '../fixture/twitterSocialThreadPayload.json';
 import { remoteConfig } from '../../src/remoteConfig';
+import { getScheduledPostFlags } from '../../src/common/postScheduling';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -141,15 +142,16 @@ const createDefaultQuestions = async (postId: string) => {
   await repo.save(DEFAULT_QUESTIONS.map((question) => ({ postId, question })));
 };
 
-const createSharedPost = async (id = 'sp1') => {
+const createSharedPost = async (id = 'sp1', args: Partial<SharePost> = {}) => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await con.getRepository(SharePost).save({
     ...post,
+    ...args,
     id,
     shortId: `short-${id}`,
     sharedPostId: 'p1',
     type: PostType.Share,
-    visible: false,
+    visible: args.visible ?? false,
   });
 };
 
@@ -356,6 +358,38 @@ it('should update all the post related shared posts to visible', async () => {
   expect(sharedPost2?.visible).toEqual(true);
   expect(sharedPost2?.flags.visible).toEqual(true);
   expect(sharedPost2?.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+});
+
+it('should not update scheduled shared posts to visible', async () => {
+  const scheduledAt = new Date('2023-01-06T12:00:00.000Z');
+  await createSharedPost();
+  await createSharedPost('sp2', {
+    flags: getScheduledPostFlags(scheduledAt),
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'test',
+  });
+
+  const sharedPost = await con
+    .getRepository(SharePost)
+    .findOneBy({ id: 'sp1' });
+  expect(sharedPost?.visible).toEqual(true);
+  expect(sharedPost?.flags.visible).toEqual(true);
+  expect(sharedPost?.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+
+  const scheduledSharedPost = await con
+    .getRepository(SharePost)
+    .findOneBy({ id: 'sp2' });
+  expect(scheduledSharedPost?.visible).toEqual(false);
+  expect(scheduledSharedPost?.visibleAt).toBeNull();
+  expect(scheduledSharedPost?.flags).toMatchObject({
+    scheduledAt: scheduledAt.toISOString(),
+    visible: false,
+  });
 });
 
 it('should update post and not modify keywords', async () => {
@@ -919,6 +953,60 @@ it('should reuse existing referenced social post for quote when status id alread
         name: 'DevRel Weekly',
         profile_image: 'https://pbs.twimg.com/profile_images/devrel.jpg',
       },
+    },
+  });
+});
+
+it('should preserve scheduled visibility when reusing referenced social post', async () => {
+  const yggdrasilId = randomUUID();
+  const scheduledAt = new Date('2023-01-06T12:00:00.000Z');
+  const referencedPostId = 'twref2003';
+
+  await con.getRepository(SocialTwitterPost).save({
+    id: referencedPostId,
+    shortId: referencedPostId,
+    type: PostType.SocialTwitter,
+    url: 'https://x.com/devrelweekly/status/2003',
+    canonicalUrl: 'https://x.com/devrelweekly/status/2003',
+    title: null,
+    sourceId: UNKNOWN_SOURCE,
+    visible: false,
+    visibleAt: null,
+    flags: {
+      ...getScheduledPostFlags(scheduledAt),
+      private: true,
+    },
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/10023',
+    source_id: 'a',
+    extra: {
+      sub_type: 'quote',
+      content: 'Main quote tweet #3',
+      reference: {
+        url: 'https://x.com/devrelweekly/status/2003',
+        content: 'Referenced quoted tweet',
+        author_username: 'devrelweekly',
+      },
+    },
+  });
+
+  const referencedPost = await con.getRepository(Post).findOneByOrFail({
+    id: referencedPostId,
+  });
+
+  expect(referencedPost).toMatchObject({
+    visible: false,
+    visibleAt: null,
+    flags: {
+      scheduledAt: scheduledAt.toISOString(),
+      visible: false,
+      private: true,
+      sentAnalyticsReport: true,
+      showOnFeed: false,
     },
   });
 });

@@ -8118,8 +8118,72 @@ describe('poll post', () => {
           type: PostType.Poll,
           authorId: pollAuthorId,
           createdAt,
+          visible: true,
         },
         op: 'c',
+        table: 'post',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: pollAchievementId,
+      userId: pollAuthorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
+  });
+
+  it('should not unlock the poll achievement on scheduled poll creation', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: false,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: pollAchievementId,
+      userId: pollAuthorId,
+    });
+
+    expect(userAchievement).toBeNull();
+  });
+
+  it('should unlock the poll achievement when scheduled poll becomes visible', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        before: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: false,
+        },
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: true,
+        },
+        op: 'u',
         table: 'post',
       }),
     );

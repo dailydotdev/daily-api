@@ -57,6 +57,7 @@ import { DataSource, DeepPartial, In, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   createSquadWelcomePost,
+  defaultImage,
   DEFAULT_POST_TITLE,
   notifyContentRequested,
   notifyView,
@@ -2851,10 +2852,23 @@ describe('mutation reportPost', () => {
 
 describe('mutation sharePost', () => {
   const MUTATION = /* GraphQL */ `
-    mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
-      sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+    mutation SharePost(
+      $sourceId: ID!
+      $id: ID!
+      $commentary: String
+      $scheduledAt: DateTime
+    ) {
+      sharePost(
+        sourceId: $sourceId
+        id: $id
+        commentary: $commentary
+        scheduledAt: $scheduledAt
+      ) {
         id
         titleHtml
+        flags {
+          scheduledAt
+        }
       }
     }
   `;
@@ -2927,6 +2941,28 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+
+  it('should schedule shared post', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, scheduledAt },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sharePost.flags.scheduledAt).toEqual(scheduledAt);
+
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: res.data.sharePost.id });
+    expect(post).toMatchObject({
+      authorId: '1',
+      sharedPostId: 'p1',
+      title: 'My comment',
+      visible: false,
+      visibleAt: null,
+    });
+    expect(post.flags.scheduledAt).toEqual(scheduledAt);
   });
 
   it('should create invisible share and still return mutation result', async () => {
@@ -3627,7 +3663,7 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should throw error when content exceeds maximum length', async () => {
       loggedUser = '1';
-      const longContent = 'a'.repeat(20001); // exceeds 20000 character limit
+      const longContent = 'a'.repeat(20_001);
       return testMutationErrorCode(
         client,
         {
@@ -4367,13 +4403,13 @@ describe('post creation', () => {
   }: {
     mutation: string;
     variables: Record<string, unknown>;
-    assertData: (data: TData) => void;
+    assertData: (data: TData) => void | Promise<void>;
   }): Promise<void> => {
     loggedUser = '1';
     const res = await client.mutate(mutation, { variables });
 
     expect(res.errors).toBeFalsy();
-    assertData(res.data as TData);
+    await assertData(res.data as TData);
   };
 
   it('should allow createFreeformPost for incomplete profile', async () => {
@@ -4470,6 +4506,61 @@ describe('post creation', () => {
     });
   });
 
+  it('should schedule createPollPost for incomplete profile', async () => {
+    await setupWritableSource('s-scheduled-poll');
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+
+    await expectSuccessfulPostCreation<{
+      createPollPost: { id: string; flags: { scheduledAt: string } };
+    }>({
+      mutation: `
+        mutation CreatePollPost(
+          $sourceId: ID!
+          $title: String!
+          $options: [PollOptionInput!]!
+          $duration: Int
+          $scheduledAt: DateTime
+        ) {
+          createPollPost(
+            sourceId: $sourceId
+            title: $title
+            options: $options
+            duration: $duration
+            scheduledAt: $scheduledAt
+          ) {
+            id
+            flags {
+              scheduledAt
+            }
+          }
+        }
+      `,
+      variables: {
+        sourceId: 's-scheduled-poll',
+        title: 'Scheduled poll title',
+        duration: 3,
+        scheduledAt,
+        options: [
+          { text: 'Option 1', order: 0 },
+          { text: 'Option 2', order: 1 },
+        ],
+      },
+      assertData: async (data) => {
+        expect(data.createPollPost.flags.scheduledAt).toEqual(scheduledAt);
+
+        const post = await con
+          .getRepository(PollPost)
+          .findOneByOrFail({ id: data.createPollPost.id });
+        expect(post.visible).toBe(false);
+        expect(post.visibleAt).toBeNull();
+        expect(post.flags.scheduledAt).toEqual(scheduledAt);
+        expect(post.endsAt?.toISOString()).toEqual(
+          addDays(new Date(scheduledAt), 3).toISOString(),
+        );
+      },
+    });
+  });
+
   it('should allow createPostInMultipleSources for incomplete profile', async () => {
     await con.getRepository(SourceMember).save({
       userId: '1',
@@ -4517,6 +4608,7 @@ describe('mutation submitExternalLink', () => {
       $commentary: String
       $title: String
       $image: String
+      $scheduledAt: DateTime
     ) {
       submitExternalLink(
         sourceId: $sourceId
@@ -4524,6 +4616,7 @@ describe('mutation submitExternalLink', () => {
         commentary: $commentary
         title: $title
         image: $image
+        scheduledAt: $scheduledAt
       ) {
         _
       }
@@ -4629,6 +4722,32 @@ describe('mutation submitExternalLink', () => {
     loggedUser = '1';
     variables.title = 'Sample external link title';
     await checkSharedPostExpectation(true);
+  });
+
+  it('should schedule external link share', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+    const url = 'https://scheduled.daily.dev';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url,
+        title: 'Scheduled external link title',
+        scheduledAt,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url });
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: articlePost.id });
+
+    expect(sharedPost.visible).toBe(false);
+    expect(sharedPost.visibleAt).toBeNull();
+    expect(sharedPost.flags.scheduledAt).toEqual(scheduledAt);
   });
 
   it('should share existing post to squad', async () => {
@@ -5375,9 +5494,7 @@ describe('mutation checkLinkPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
-    expect(res.data.checkLinkPreview.image).toEqual(
-      pickImageUrl({ createdAt: new Date() }),
-    );
+    expect(defaultImage.urls).toContain(res.data.checkLinkPreview.image);
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
@@ -5611,11 +5728,27 @@ describe('mutation createFreeformPost', () => {
   it('should list scheduled posts', async () => {
     loggedUser = '1';
     const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+    const shareScheduledAt = new Date(Date.now() + 120_000).toISOString();
     const createRes = await client.mutate(MUTATION, {
       variables: { ...params, scheduledAt },
     });
 
     expect(createRes.errors).toBeFalsy();
+    await con.getRepository(SharePost).save({
+      id: 'sched-share',
+      shortId: 'sched-share',
+      authorId: '1',
+      sourceId: 'a',
+      sharedPostId: 'p1',
+      title: 'Scheduled share',
+      type: PostType.Share,
+      visible: false,
+      visibleAt: null,
+      flags: {
+        visible: false,
+        scheduledAt: shareScheduledAt,
+      },
+    });
 
     const res = await client.query(/* GraphQL */ `
       query ScheduledPosts {
@@ -5624,6 +5757,7 @@ describe('mutation createFreeformPost', () => {
             node {
               id
               title
+              type
               flags {
                 scheduledAt
               }
@@ -5639,8 +5773,19 @@ describe('mutation createFreeformPost', () => {
         node: {
           id: createRes.data.createFreeformPost.id,
           title: params.title,
+          type: PostType.Freeform,
           flags: {
             scheduledAt,
+          },
+        },
+      },
+      {
+        node: {
+          id: 'sched-share',
+          title: 'Scheduled share',
+          type: PostType.Share,
+          flags: {
+            scheduledAt: shareScheduledAt,
           },
         },
       },
@@ -5719,8 +5864,8 @@ describe('mutation createFreeformPost', () => {
   it('should return an error if content exceeds 20000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here'; // 42 chars
-    const sample = new Array(480).fill(content); // 42*480 = 20_160
+    const content = 'Hello World! Start your squad journey here';
+    const sample = new Array(480).fill(content);
 
     return testMutationErrorCode(
       client,
@@ -7170,8 +7315,8 @@ describe('mutation editPost', () => {
   it('should return an error if content exceeds 20000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here'; // 42 chars
-    const sample = new Array(480).fill(content); // 42*480 = 20_160
+    const content = 'Hello World! Start your squad journey here';
+    const sample = new Array(480).fill(content);
 
     return testMutationErrorCode(
       client,

@@ -46,6 +46,10 @@ import {
   ContentEmbedReferenceType,
 } from '../ContentEmbed';
 import { Comment } from '../Comment';
+import {
+  getScheduledPostFlags,
+  validatePostScheduledAt,
+} from '../../common/postScheduling';
 
 export type PostStats = {
   numPosts: number;
@@ -309,6 +313,7 @@ export interface ExternalLink extends Partial<ExternalLinkPreview> {
 export interface SubmitExternalLinkArgs extends ExternalLink {
   sourceId: string;
   commentary: string;
+  scheduledAt?: Date | null;
 }
 
 interface CreateExternalLinkArgs {
@@ -324,6 +329,7 @@ interface CreateExternalLinkArgs {
     authorId: string;
     sourceId?: string;
     originalUrl: string;
+    scheduledAt?: Date | null;
   };
 }
 
@@ -384,6 +390,7 @@ export const createExternalLink = async ({
     sourceId,
     commentary,
     originalUrl,
+    scheduledAt,
   } = args;
   validateCommentary(commentary!);
   const isVisible = !!title;
@@ -435,6 +442,7 @@ export const createExternalLink = async ({
           sourceId,
           commentary,
           visible: isVisible,
+          scheduledAt,
         },
       });
     }
@@ -456,6 +464,7 @@ export interface SharePostArgs {
   commentary?: string | null;
   visible?: boolean;
   title?: string;
+  scheduledAt?: Date | null;
 }
 
 interface CreateSharePostArgs {
@@ -477,9 +486,17 @@ export const determineSharedPostId = (post: Post | SharePost): string => {
 export const createSharePost = async ({
   con,
   ctx,
-  args: { authorId: userId, sourceId, postId, commentary, visible = true },
+  args: {
+    authorId: userId,
+    sourceId,
+    postId,
+    commentary,
+    visible = true,
+    scheduledAt: rawScheduledAt,
+  },
 }: CreateSharePostArgs): Promise<SharePost> => {
   const strippedCommentary = await validateCommentary(commentary!);
+  const scheduledAt = validatePostScheduledAt(rawScheduledAt);
 
   try {
     const mentions = await getMentions(con, commentary!, userId, sourceId);
@@ -501,7 +518,7 @@ export const createSharePost = async ({
       originalPost.url &&
       originalPost.yggdrasilId,
     );
-    const isVisible = isBrokenOriginalPost ? false : visible;
+    const isVisible = !scheduledAt && !isBrokenOriginalPost && visible;
 
     const id = await generateShortId();
 
@@ -523,6 +540,7 @@ export const createSharePost = async ({
         sentAnalyticsReport: true,
         private: privacy,
         visible: isVisible,
+        ...(scheduledAt ? getScheduledPostFlags(scheduledAt) : {}),
       },
       type: PostType.Share,
     } as DeepPartial<SharePost>);

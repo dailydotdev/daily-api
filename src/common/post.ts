@@ -300,6 +300,7 @@ interface CreatePollPostArgs {
     authorId: string;
     duration?: number | null;
     pollOptions: CreatePollOption[];
+    scheduledAt?: Date | null;
   };
 }
 
@@ -308,24 +309,27 @@ export const createPollPost = async ({
   ctx,
   args,
 }: CreatePollPostArgs) => {
-  const { pollOptions, ...restArgs } = args;
+  const { pollOptions, scheduledAt: rawScheduledAt, ...restArgs } = args;
+  const scheduledAt = validatePostScheduledAt(rawScheduledAt);
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: restArgs.sourceId,
     type: In([SourceType.Squad, SourceType.User]),
   });
+  const startsAt = scheduledAt ?? new Date();
 
   const createdPost = con.getRepository(PollPost).create({
     ...restArgs,
     shortId: restArgs.id,
-    endsAt: restArgs?.duration ? addDays(new Date(), restArgs.duration) : null,
-    visible: true,
+    endsAt: restArgs?.duration ? addDays(startsAt, restArgs.duration) : null,
+    visible: !scheduledAt,
     private: privacy,
-    visibleAt: new Date(),
+    visibleAt: scheduledAt ? null : new Date(),
     origin: PostOrigin.UserGenerated,
     contentCuration: ['poll'],
     flags: {
-      visible: true,
+      visible: !scheduledAt,
       private: privacy,
+      ...(scheduledAt ? getScheduledPostFlags(scheduledAt) : {}),
     },
   });
 
@@ -611,7 +615,7 @@ export interface PollOptionInput {
 
 export interface CreatePollPostProps extends Pick<
   CreatePostArgs,
-  'title' | 'sourceId'
+  'title' | 'sourceId' | 'scheduledAt'
 > {
   options: PollOptionInput[];
   duration: number;
@@ -619,7 +623,7 @@ export interface CreatePollPostProps extends Pick<
 
 export interface CreateMultipleSourcePostProps
   extends
-    Omit<CreatePostArgs, 'sourceId'>,
+    Omit<CreatePostArgs, 'sourceId' | 'scheduledAt'>,
     Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
   externalLink?: string;
@@ -642,7 +646,6 @@ export const postInMultipleSourcesArgsSchema = z
     commentary: z.string().max(MAX_TITLE_LENGTH).optional(),
     image: z.custom<Promise<FileUpload>>(),
     imageUrl: z.httpUrl().optional(),
-    scheduledAt: z.coerce.date().nullish(),
     sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
     sharedPostId: z.string().optional(),
     externalLink: z.httpUrl().optional(),
@@ -709,12 +712,6 @@ export const createPostIntoSourceId = async (
   args: CreatePostInSourceArgs,
 ): Promise<Pick<Post, 'id'>> => {
   const type = getMultipleSourcesPostType(args);
-
-  if (args.scheduledAt && type !== PostType.Freeform) {
-    throw new ValidationError(
-      'Scheduling is only supported for freeform posts',
-    );
-  }
 
   switch (type) {
     case PostType.Share: {

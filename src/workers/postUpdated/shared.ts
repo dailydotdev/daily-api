@@ -26,6 +26,7 @@ import {
 } from '../../errors';
 import { generateShortId } from '../../ids';
 import { updateFlagsStatement } from '../../common';
+import { getPostScheduledAt } from '../../common/postScheduling';
 import { counters } from '../../telemetry';
 import { BriefPost } from '../../entity/posts/BriefPost';
 import { DigestPost } from '../../entity/posts/DigestPost';
@@ -257,12 +258,17 @@ export const updatePost = async ({
   data.id = databasePost.id;
   data.sourceId = data.sourceId || databasePost.sourceId;
 
+  const isScheduledPost = !!getPostScheduledAt(databasePost);
   const updateBecameVisible =
-    !databasePost.visible && getPostVisible({ post: { title } });
+    !isScheduledPost &&
+    !databasePost.visible &&
+    getPostVisible({ post: { title } });
 
   data.visible = updateBecameVisible || databasePost.visible;
 
-  if (data.visible && !databasePost.visibleAt) {
+  if (isScheduledPost) {
+    data.visibleAt = databasePost.visibleAt;
+  } else if (data.visible && !databasePost.visibleAt) {
     data.visibleAt = data.metadataChangedAt;
   }
 
@@ -332,9 +338,11 @@ export const updatePost = async ({
   );
 
   if (updateBecameVisible) {
-    await entityManager.getRepository(SharePost).update(
-      { sharedPostId: data.id },
-      {
+    await entityManager
+      .getRepository(SharePost)
+      .createQueryBuilder()
+      .update()
+      .set({
         visible: true,
         visibleAt: data.visibleAt,
         private: data.private,
@@ -343,8 +351,10 @@ export const updatePost = async ({
           private: data.private,
           visible: true,
         }),
-      },
-    );
+      })
+      .where('"sharedPostId" = :sharedPostId', { sharedPostId: data.id })
+      .andWhere(`flags->>'scheduledAt' IS NULL`)
+      .execute();
   }
 
   if (databasePost.tagsStr !== data.tagsStr) {
