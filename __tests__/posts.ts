@@ -3627,7 +3627,7 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should throw error when content exceeds maximum length', async () => {
       loggedUser = '1';
-      const longContent = 'a'.repeat(10001); // exceeds 10000 character limit
+      const longContent = 'a'.repeat(20001); // exceeds 20000 character limit
       return testMutationErrorCode(
         client,
         {
@@ -5716,11 +5716,11 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 10000 characters', async () => {
+  it('should return an error if content exceeds 20000 characters', async () => {
     loggedUser = '1';
 
     const content = 'Hello World! Start your squad journey here'; // 42 chars
-    const sample = new Array(240).fill(content); // 42*240 = 10_080
+    const sample = new Array(480).fill(content); // 42*480 = 20_160
 
     return testMutationErrorCode(
       client,
@@ -7167,11 +7167,11 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 10000 characters', async () => {
+  it('should return an error if content exceeds 20000 characters', async () => {
     loggedUser = '1';
 
     const content = 'Hello World! Start your squad journey here'; // 42 chars
-    const sample = new Array(240).fill(content); // 42*240 = 10_080
+    const sample = new Array(480).fill(content); // 42*480 = 20_160
 
     return testMutationErrorCode(
       client,
