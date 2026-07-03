@@ -629,7 +629,7 @@ export interface CreateMultipleSourcePostProps
 const MAX_MULTIPLE_POST_SOURCE_LIMIT = 4;
 
 const MAX_TITLE_LENGTH = 250;
-const MAX_CONTENT_LENGTH = 10_000;
+const MAX_CONTENT_LENGTH = 20_000;
 
 export const postInMultipleSourcesArgsSchema = z
   .object({

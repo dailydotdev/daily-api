@@ -9,8 +9,7 @@ import {
   type FreeformPost,
   type SharePost,
 } from '../../entity';
-import { isProd, systemUser, updateFlagsStatement } from '../utils';
-import { PostType } from '../../entity/posts/Post';
+import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink, notificationsLink } from '../links';
 import { usdToCores } from '../number';
 
@@ -73,12 +72,6 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value: postId } = args;
   const post = await validatePostBoostPermissions(ctx, postId);
-
-  if (isProd && !ctx.isTeamMember && post.type === PostType.Share) {
-    throw new ValidationError(
-      'Boosting is currently not available for this post due to internal issue. We are working on it.',
-    );
-  }
 
   checkPostAlreadyBoosted(post);
 
