@@ -101,9 +101,11 @@ const getPostSummary = ({
 const buildCandidate = ({
   canonicalPostId,
   memberPosts,
+  postsById,
 }: {
   canonicalPostId: string;
   memberPosts: HighlightPost[];
+  postsById: Map<string, HighlightPost>;
 }): HighlightCandidate => {
   const canonicalPost = selectCanonicalPost({
     posts: memberPosts,
@@ -117,7 +119,7 @@ const buildCandidate = ({
   return {
     postId: canonicalPost.id,
     title: canonicalPost.title || '',
-    summary: canonicalPost.summary || '',
+    summary: getPostSummary({ post: canonicalPost, postsById }) || '',
     createdAt: canonicalPost.createdAt,
     lastActivityAt,
     upvotes: canonicalPost.upvotes,
@@ -160,6 +162,7 @@ export const buildCandidates = ({
   horizonStart: Date;
 }): HighlightCandidate[] => {
   const availablePostIds = new Set(posts.map((post) => post.id));
+  const postsById = new Map(posts.map((post) => [post.id, post]));
   const storyFamilies = buildStoryFamilies({
     relations,
     postIds: availablePostIds,
@@ -169,15 +172,22 @@ export const buildCandidates = ({
     collectionByChildId: storyFamilies.collectionByChild,
   });
 
-  return [...groupedPosts.entries()]
-    .map(([canonicalPostId, memberPosts]) =>
-      buildCandidate({
-        canonicalPostId,
-        memberPosts,
-      }),
-    )
-    .filter((candidate) => candidate.lastActivityAt >= horizonStart)
-    .sort(compareCandidates);
+  return (
+    [...groupedPosts.entries()]
+      .map(([canonicalPostId, memberPosts]) =>
+        buildCandidate({
+          canonicalPostId,
+          memberPosts,
+          postsById,
+        }),
+      )
+      .filter((candidate) => candidate.lastActivityAt >= horizonStart)
+      // Bragi grades significance from title + summary; a post highlighted before
+      // its summary lands gets mis-graded and frozen. Skip until summarized — it
+      // re-enters as a candidate once the summary bumps metadataChangedAt.
+      .filter((candidate) => candidate.summary.trim().length > 0)
+      .sort(compareCandidates)
+  );
 };
 
 export const toHighlightItem = (
