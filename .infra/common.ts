@@ -336,6 +336,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-added-user-notification',
   },
   {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.scheduled-post-published-notification',
+  },
+  {
     topic: 'api.v1.source-post-moderation-submitted',
     subscription: 'api.source-post-moderation-submitted-notification',
   },
