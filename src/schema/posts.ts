@@ -1637,7 +1637,8 @@ export const typeDefs = /* GraphQL */ `
       """
       content: String
       """
-      Time the post should go live
+      Time the post should go live. Pass null to cancel the schedule and
+      publish the post immediately together with any edits.
       """
       scheduledAt: DateTime
     ): Post! @auth
@@ -2956,7 +2957,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
 
         let updated: Partial<
-          EditablePost & Pick<Post, 'visible' | 'visibleAt'>
+          EditablePost & Pick<Post, 'visible' | 'visibleAt' | 'createdAt'>
         > = {};
 
         if (args.scheduledAt !== undefined) {
@@ -2966,18 +2967,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             );
           }
 
-          const scheduledAt = validatePostScheduledAt(args.scheduledAt);
-
-          if (!scheduledAt) {
-            throw new ValidationError('Scheduled time is required');
+          // Guard both reschedule and publish-now to posts that are actually
+          // scheduled, so an unrelated invisible post can't be force-published.
+          if (!getPostScheduledAt(post)) {
+            throw new ValidationError('Post is not scheduled');
           }
 
-          updated.visible = false;
-          updated.visibleAt = null;
-          updated.flags = {
-            ...updated.flags,
-            ...getScheduledPostFlags(scheduledAt),
-          };
+          const scheduledAt = validatePostScheduledAt(args.scheduledAt);
+
+          if (scheduledAt) {
+            updated.visible = false;
+            updated.visibleAt = null;
+            updated.flags = {
+              ...updated.flags,
+              ...getScheduledPostFlags(scheduledAt),
+            };
+          } else {
+            // scheduledAt was explicitly null: cancel the schedule and publish
+            // now. The pending publish workflow no-ops once the post is visible.
+            const now = new Date();
+            updated.visible = true;
+            updated.visibleAt = now;
+            updated.createdAt = now;
+            updated.flags = {
+              ...updated.flags,
+              scheduledAt: null,
+              visible: true,
+            };
+          }
         }
 
         if (title && title !== post.title) {

@@ -1594,6 +1594,68 @@ describe('query post', () => {
     });
   });
 
+  describe('scheduled post', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          flags {
+            scheduledAt
+          }
+        }
+      }
+    `;
+
+    const scheduleP1 = async () => {
+      const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          type: PostType.Freeform,
+          authorId: '1',
+          visible: false,
+          visibleAt: null,
+          flags: { visible: false, scheduledAt },
+        },
+      );
+
+      return scheduledAt;
+    };
+
+    it('should return the scheduled post to its author', async () => {
+      loggedUser = '1';
+      const scheduledAt = await scheduleP1();
+
+      const res = await client.query(LOCAL_QUERY, { variables: { id: 'p1' } });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.id).toEqual('p1');
+      expect(res.data.post.flags.scheduledAt).toEqual(scheduledAt);
+    });
+
+    it('should not return the scheduled post to a non-author', async () => {
+      loggedUser = '2';
+      await scheduleP1();
+
+      return testQueryErrorCode(
+        client,
+        { query: LOCAL_QUERY, variables: { id: 'p1' } },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should not return the scheduled post to anonymous users', async () => {
+      loggedUser = null;
+      await scheduleP1();
+
+      return testQueryErrorCode(
+        client,
+        { query: LOCAL_QUERY, variables: { id: 'p1' } },
+        'NOT_FOUND',
+      );
+    });
+  });
+
   describe('analytics field', () => {
     const LOCAL_QUERY = /* GraphQL */ `
       query Post($id: ID!) {
@@ -7429,6 +7491,64 @@ describe('mutation editPost', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
       'Cannot update scheduled time after post is published',
+    );
+  });
+
+  it('should cancel scheduling and publish immediately when scheduledAt is null', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        type: PostType.Freeform,
+        authorId: loggedUser,
+        visible: false,
+        visibleAt: null,
+        flags: {
+          visible: false,
+          scheduledAt,
+        },
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title: 'Published now', scheduledAt: null },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editPost.title).toEqual('Published now');
+    expect(res.data.editPost.flags.scheduledAt).toBeNull();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.visible).toBe(true);
+    expect(post.visibleAt).not.toBeNull();
+    expect(post.flags.scheduledAt).toBeNull();
+  });
+
+  it('should not publish a post that is not scheduled', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        type: PostType.Freeform,
+        authorId: loggedUser,
+        visible: false,
+        visibleAt: null,
+        flags: {
+          visible: false,
+        },
+      },
+    );
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', scheduledAt: null },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Post is not scheduled',
     );
   });
 

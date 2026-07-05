@@ -1004,7 +1004,9 @@ const obj = new GraphORM({
           return {
             ...value,
             generatedAt: transformDate(value.generatedAt),
-            scheduledAt: transformDate(value.scheduledAt),
+            scheduledAt: value.scheduledAt
+              ? transformDate(value.scheduledAt)
+              : null,
             digestPostIds: value?.digestPostIds ?? null,
             ad: ad
               ? {

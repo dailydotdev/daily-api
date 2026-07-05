@@ -56,7 +56,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
-  scheduledAt: string;
+  scheduledAt: string | null;
   dedupKey: string;
   digestPostIds: string[];
   collectionSources: string[];
