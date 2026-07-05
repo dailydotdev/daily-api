@@ -166,6 +166,7 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { PollPost } from '../entity/posts/PollPost';
 import type { LiveRoom } from '../entity/LiveRoom';
 import {
+  getPostScheduledAt,
   getScheduledPostFlags,
   validatePostScheduledAt,
 } from '../common/postScheduling';
@@ -2021,14 +2022,21 @@ const getPostById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
   id: string,
+  includeInvisible = false,
 ): Promise<GQLPost> => {
-  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    ...builder,
-    queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
-      { id },
-    ),
-  }));
+  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => {
+    const baseCondition = `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`;
+
+    return {
+      ...builder,
+      queryBuilder: builder.queryBuilder.where(
+        includeInvisible
+          ? baseCondition
+          : `${baseCondition} AND "${builder.alias}"."visible" = true`,
+        { id },
+      ),
+    };
+  });
   if (res.length) {
     return res[0];
   }
@@ -2113,7 +2121,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       info,
     ): Promise<GQLPost> => {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['id', 'sourceId', 'private', 'authorId', 'type'],
+        select: [
+          'id',
+          'sourceId',
+          'private',
+          'authorId',
+          'type',
+          'visible',
+          'flags',
+        ],
         relations: ['source'],
         where: [{ id }, { slug: id }],
       });
@@ -2143,6 +2159,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           throw permissionError;
         }
       }
+
+      const isOwnScheduledPost =
+        ctx.userId &&
+        partialPost.authorId === ctx.userId &&
+        !partialPost.visible &&
+        !!getPostScheduledAt(partialPost);
+
+      if (isOwnScheduledPost) {
+        return withInvisiblePosts(ctx as AuthContext, (graphormCtx) =>
+          getPostById(graphormCtx, info, partialPost.id, true),
+        );
+      }
+
       return getPostById(ctx, info, partialPost.id);
     },
     postByUrl: async (

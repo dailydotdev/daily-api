@@ -1403,6 +1403,41 @@ describe('query post', () => {
     );
   });
 
+  it('should return own scheduled post before it is visible', async () => {
+    loggedUser = '1';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: loggedUser,
+        visible: false,
+        flags: { scheduledAt, visible: false },
+      },
+    );
+
+    const res = await client.query(QUERY('p1'));
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.id).toEqual('p1');
+  });
+
+  it('should not return another user scheduled post before it is visible', async () => {
+    loggedUser = '2';
+    const scheduledAt = new Date(Date.now() + 60_000).toISOString();
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+        visible: false,
+        flags: { scheduledAt, visible: false },
+      },
+    );
+
+    return testQueryErrorCode(client, { query: QUERY('p1') }, 'NOT_FOUND');
+  });
+
   it('should throw error when user cannot access the post', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
