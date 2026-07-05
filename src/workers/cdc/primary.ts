@@ -1193,7 +1193,11 @@ const onPostChange = async (
 
     if (data.payload.after!.visible) {
       if (!data.payload.before!.visible) {
-        await notifyPostVisible(logger, data.payload.after!);
+        await notifyPostVisible(
+          logger,
+          data.payload.after!,
+          data.payload.before!,
+        );
         if (
           data.payload.after!.type === PostType.Freeform &&
           data.payload.after!.authorId

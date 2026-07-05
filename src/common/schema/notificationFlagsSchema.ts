@@ -25,6 +25,7 @@ export const notificationFlagsSchema = z.object({
   [NotificationType.UserPostAdded]: notificationPreferenceSchema,
   [NotificationType.CollectionUpdated]: notificationPreferenceSchema,
   [NotificationType.PostBookmarkReminder]: notificationPreferenceSchema,
+  [NotificationType.ScheduledPostPublished]: notificationPreferenceSchema,
   [NotificationType.PromotedToAdmin]: notificationPreferenceSchema,
   [NotificationType.PromotedToModerator]: notificationPreferenceSchema,
   [NotificationType.DemotedToMember]: notificationPreferenceSchema,

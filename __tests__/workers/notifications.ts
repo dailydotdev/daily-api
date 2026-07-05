@@ -79,6 +79,7 @@ import { SubmissionFailErrorKeys } from '../../src/errors';
 import { devCardUnlocked } from '../../src/workers/notifications/devCardUnlocked';
 import { postAdded } from '../../src/workers/notifications/postAdded';
 import { postMention } from '../../src/workers/notifications/postMention';
+import { scheduledPostPublishedNotification } from '../../src/workers/notifications/scheduledPostPublishedNotification';
 import { sourceMemberRoleChanged } from '../../src/workers/notifications/sourceMemberRoleChanged';
 import { sourceRequest } from '../../src/workers/notifications/sourceRequest';
 import { squadMemberJoined } from '../../src/workers/notifications/squadMemberJoined';
@@ -2794,6 +2795,54 @@ describe('user post added', () => {
         post,
       },
     );
+    expect(actual).toBeUndefined();
+  });
+});
+
+describe('scheduled post published', () => {
+  it('should notify the author when a scheduled post goes live', async () => {
+    const scheduledAt = new Date(Date.now() - 1_000).toISOString();
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    const changedPost = toChangeObject(post);
+
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      scheduledPostPublishedNotification,
+      {
+        post: changedPost,
+        previousPost: {
+          ...changedPost,
+          flags: JSON.stringify({ scheduledAt, visible: false }),
+        },
+      },
+    );
+
+    expect(actual).toHaveLength(1);
+    if (!actual) {
+      throw new Error('Expected scheduled post notification');
+    }
+    expect(actual[0].type).toEqual(NotificationType.ScheduledPostPublished);
+    expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
+    expect(actual[0].ctx.userIds).toEqual(['1']);
+  });
+
+  it('should skip regular post-visible events', async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    const changedPost = toChangeObject(post);
+
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      scheduledPostPublishedNotification,
+      {
+        post: changedPost,
+        previousPost: {
+          ...changedPost,
+          flags: JSON.stringify({ visible: false }),
+        },
+      },
+    );
+
     expect(actual).toBeUndefined();
   });
 });

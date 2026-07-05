@@ -307,7 +307,12 @@ export const notifyFeatureAccess = async (
 export const notifyPostVisible = async (
   log: EventLogger,
   post: ChangeObject<Post>,
-): Promise<void> => publishEvent(log, postVisibleTopic, { post });
+  previousPost?: ChangeObject<Post>,
+): Promise<void> =>
+  publishEvent(log, postVisibleTopic, {
+    post,
+    ...(previousPost ? { previousPost } : {}),
+  });
 
 export const notifyBannerCreated = async (
   log: EventLogger,

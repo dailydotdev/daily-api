@@ -1409,6 +1409,7 @@ describe('post', () => {
     expect(notifyPostVisible).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
       after,
+      base,
     ]);
   });
 

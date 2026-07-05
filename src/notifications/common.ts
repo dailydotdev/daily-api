@@ -57,6 +57,7 @@ export enum NotificationType {
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
   PostBookmarkReminder = 'post_bookmark_reminder',
+  ScheduledPostPublished = 'scheduled_post_published',
   StreakResetRestore = 'streak_reset_restore',
   UserPostAdded = 'user_post_added',
   UserTopReaderBadge = 'user_given_top_reader',
@@ -203,6 +204,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.PostBookmarkReminder]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.ScheduledPostPublished]: {
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.PromotedToAdmin]: {
@@ -536,6 +541,7 @@ export const getUnreadNotificationsCount = async (
 enum UserNotificationUniqueKey {
   PostAdded = 'post_added',
   DigestReady = 'digest_ready',
+  ScheduledPostPublished = 'scheduled_post_published',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -545,6 +551,8 @@ const notificationTypeToUniqueKey: Partial<
   [NotificationType.SourcePostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.UserPostAdded]: UserNotificationUniqueKey.PostAdded,
   [NotificationType.DigestReady]: UserNotificationUniqueKey.DigestReady,
+  [NotificationType.ScheduledPostPublished]:
+    UserNotificationUniqueKey.ScheduledPostPublished,
 };
 
 const fixedUniqueKeyTypes = new Set<NotificationType>([

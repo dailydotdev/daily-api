@@ -1558,6 +1558,28 @@ describe('storeNotificationBundle', () => {
     ]);
   });
 
+  it('should generate scheduled_post_published notification', () => {
+    const type = NotificationType.ScheduledPostPublished;
+    const ctx: NotificationSourceContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.title).toEqual(
+      'Your scheduled post is now <span class="text-theme-color-cabbage">live</span>',
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+  });
+
   it('should generate source_post_submitted notification', async () => {
     const [, ...fixtures] = usersFixture;
     await con.getRepository(Source).save(sourcesFixture);
