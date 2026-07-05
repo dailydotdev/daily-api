@@ -53,7 +53,6 @@ declare global {
       NODE_ENV: 'development' | 'production' | 'test';
       LOFN_ORIGIN: string;
       INTERNAL_FEED: string;
-      ROASTER_URL: string;
       MAGNI_ORIGIN: string;
       ANALYTICS_URL: string;
       POST_SCRAPER_ORIGIN: string;

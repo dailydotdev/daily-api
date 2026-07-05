@@ -13,7 +13,6 @@ import users from './users';
 import redirects from './redirects';
 import webhooks from './webhooks';
 import localAds from './localAds';
-import automations from './automations';
 import sitemaps from './sitemaps';
 import createOrGetConnection from '../db';
 import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
@@ -65,7 +64,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(users, { prefix: '/v1/users' });
   fastify.register(webhooks, { prefix: '/webhooks' });
   fastify.register(redirects);
-  fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
