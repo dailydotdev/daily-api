@@ -13,6 +13,9 @@ import { systemUser } from '../utils';
 
 export const CONTRIBUTION_FOUNDING_LIMIT = 1000;
 
+export const CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID =
+  '3bbe8325-ceb9-411b-be83-ffba2703ce82';
+
 // Grants the founding-contributor award (a Product award paid by the system) the
 // first time a user contributes, while the campaign is under the cap. Idempotent
 // per user via the founding-contributor PK; the whole grant is transactional, so
@@ -22,19 +25,13 @@ export const grantFoundingContributorAward = async ({
   con,
   userId,
   limit = CONTRIBUTION_FOUNDING_LIMIT,
-  // Award (Product) granted to the first contributors. Unset until the dedicated
-  // product exists, in which case the grant is a no-op.
-  productId = process.env.CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+  productId = CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
 }: {
   con: DataSource;
   userId: string;
   limit?: number;
   productId?: string;
 }): Promise<boolean> => {
-  if (!productId) {
-    return false;
-  }
-
   return con.transaction(async (manager) => {
     const foundingRepo = manager.getRepository(ContributionFoundingContributor);
 

@@ -10,6 +10,7 @@ import {
 export type ProductFlags = Partial<{
   description: string;
   imageGlow: string;
+  restricted: boolean;
 }>;
 
 export type ProductFlagsPublic = Pick<

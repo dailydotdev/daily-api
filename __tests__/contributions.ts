@@ -1092,17 +1092,10 @@ it('stops granting once the cap is reached', async () => {
   ).resolves.toBeNull();
 });
 
-it('is a no-op when the award product is unset or missing', async () => {
+it('is a no-op when the award product is missing', async () => {
   mockNjord();
 
   expect(await grantFoundingContributorAward({ con, userId })).toBe(false);
-  expect(
-    await grantFoundingContributorAward({
-      con,
-      userId,
-      productId: foundingProductId,
-    }),
-  ).toBe(false);
 
   expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
     0,

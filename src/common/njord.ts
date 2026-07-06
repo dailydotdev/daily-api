@@ -535,6 +535,14 @@ export type TransactionCreated = {
   referenceId?: string;
 };
 
+const assertGiftableProduct = (
+  product: Pick<Product, 'type' | 'flags'>,
+): void => {
+  if (product.type !== ProductType.Award || product.flags?.restricted) {
+    throw new ForbiddenError('Can not award this product');
+  }
+};
+
 const canAward = async ({
   ctx,
   receiverId,
@@ -628,18 +636,15 @@ export const awardUser = async (
   try {
     await canAward({ ctx, receiverId: props.entityId });
 
-    const product: Pick<Product, 'id' | 'type'> = await ctx.con.manager
-      .getRepository(Product)
-      .findOneOrFail({
-        select: ['id', 'type'],
+    const product: Pick<Product, 'id' | 'type' | 'flags'> =
+      await ctx.con.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type', 'flags'],
         where: {
           id: props.productId,
         },
       });
 
-    if (product.type !== ProductType.Award) {
-      throw new ForbiddenError('Can not award this product');
-    }
+    assertGiftableProduct(product);
 
     const { transaction, transfer } = await ctx.con.transaction(
       async (entityManager) => {
@@ -712,12 +717,12 @@ export const awardPost = async (
 
   try {
     const [product, post, userPost]: [
-      Pick<Product, 'id' | 'type'>,
+      Pick<Product, 'id' | 'type' | 'flags'>,
       Pick<Post, 'id' | 'authorId' | 'sourceId'>,
       Pick<UserPost, 'awardTransactionId'> | null,
     ] = await Promise.all([
       ctx.con.manager.getRepository(Product).findOneOrFail({
-        select: ['id', 'type'],
+        select: ['id', 'type', 'flags'],
         where: {
           id: props.productId,
         },
@@ -739,9 +744,7 @@ export const awardPost = async (
 
     await canAward({ ctx, receiverId: post.authorId });
 
-    if (product.type !== ProductType.Award) {
-      throw new ForbiddenError('Can not award this product');
-    }
+    assertGiftableProduct(product);
 
     if (userPost?.awardTransactionId) {
       throw new ConflictError('Post already awarded');
@@ -873,12 +876,12 @@ export const awardComment = async (
 
   try {
     const [product, comment, userComment]: [
-      Pick<Product, 'id' | 'type'>,
+      Pick<Product, 'id' | 'type' | 'flags'>,
       Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
       Pick<UserComment, 'awardTransactionId'> | null,
     ] = await Promise.all([
       ctx.con.manager.getRepository(Product).findOneOrFail({
-        select: ['id', 'type'],
+        select: ['id', 'type', 'flags'],
         where: {
           id: props.productId,
         },
@@ -903,9 +906,7 @@ export const awardComment = async (
 
     await canAward({ ctx, receiverId: comment.userId });
 
-    if (product.type !== ProductType.Award) {
-      throw new ForbiddenError('Can not award this product');
-    }
+    assertGiftableProduct(product);
 
     if (userComment?.awardTransactionId) {
       throw new ConflictError('Comment already awarded');
