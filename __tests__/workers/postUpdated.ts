@@ -2127,6 +2127,44 @@ describe('on post update', () => {
     });
   });
 
+  it('should replace content quality for freeform', async () => {
+    const postId = 'ff-cq-p1';
+
+    const existingPost = await con.getRepository(FreeformPost).save({
+      id: postId,
+      shortId: postId,
+      type: PostType.Freeform,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      sourceId: 'a',
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_type: PostType.Freeform,
+      content_quality: {
+        is_ai_probability: 0,
+        is_clickbait_probability: 0.8,
+        specificity: 'focused',
+        intent: 'learning',
+      },
+    });
+
+    const updatedPost = await con.getRepository(FreeformPost).findOneBy({
+      id: postId,
+    });
+
+    expect(updatedPost).not.toBeNull();
+    expect(updatedPost?.contentQuality).toMatchObject({
+      is_ai_probability: 0,
+      is_clickbait_probability: 0.8,
+      specificity: 'focused',
+      intent: 'learning',
+    });
+  });
+
   it('should replace content quality', async () => {
     const postId = 'p1';
 
