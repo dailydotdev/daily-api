@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { Quest, QuestType } from '../../entity/Quest';
+import { Quest, QuestEventType, QuestType } from '../../entity/Quest';
 import { QuestRotation } from '../../entity/QuestRotation';
 import { getQuestWindow } from './window';
 
@@ -12,6 +12,9 @@ const REQUIRED_REGULAR_QUESTS: Record<QuestType, number> = {
 };
 
 const REQUIRED_PLUS_QUESTS = 1;
+
+const isPlusOnlyQuest = (quest: Quest): boolean =>
+  quest.eventType === QuestEventType.BriefRead;
 
 const compareQuestOrder = (left: Quest, right: Quest): number => {
   const createdAtDiff = left.createdAt.getTime() - right.createdAt.getTime();
@@ -113,23 +116,35 @@ export const rotateQuestPeriod = async ({
   const freshQuests = allQuests.filter(
     (quest) => !previousQuestIds.has(quest.id),
   );
+  const allRegularQuests = allQuests.filter((quest) => !isPlusOnlyQuest(quest));
+  const freshRegularQuests = freshQuests.filter(
+    (quest) => !isPlusOnlyQuest(quest),
+  );
   let regularQuests: Quest[] = [];
   let plusQuests: Quest[] = [];
 
-  if (freshQuests.length >= totalLimit) {
+  if (
+    freshQuests.length === totalLimit &&
+    freshRegularQuests.length >= regularLimit
+  ) {
     const selectedFreshQuests = pickQuests({
       pool: freshQuests,
       count: totalLimit,
       selectedIds: new Set<string>(),
     }).sort(compareQuestOrder);
 
-    regularQuests = selectedFreshQuests.slice(0, regularLimit);
-    plusQuests = selectedFreshQuests.slice(regularLimit);
+    regularQuests = selectedFreshQuests
+      .filter((quest) => !isPlusOnlyQuest(quest))
+      .slice(0, regularLimit);
+    const regularQuestIds = new Set(regularQuests.map((quest) => quest.id));
+    plusQuests = selectedFreshQuests
+      .filter((quest) => !regularQuestIds.has(quest.id))
+      .slice(0, REQUIRED_PLUS_QUESTS);
   } else {
     const selectedQuestIds = new Set<string>();
 
     regularQuests = pickQuests({
-      pool: freshQuests,
+      pool: freshRegularQuests,
       count: regularLimit,
       selectedIds: selectedQuestIds,
     });
@@ -137,7 +152,7 @@ export const rotateQuestPeriod = async ({
     if (regularQuests.length < regularLimit) {
       regularQuests.push(
         ...pickQuests({
-          pool: allQuests,
+          pool: allRegularQuests,
           count: regularLimit - regularQuests.length,
           selectedIds: selectedQuestIds,
         }),
