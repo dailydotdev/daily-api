@@ -49,7 +49,11 @@ import {
   CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
   detectContributionMilestones,
 } from '../src/common/contribution';
-import { grantFoundingContributorAward } from '../src/common/contribution/founding';
+import {
+  CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+  CONTRIBUTION_FOUNDING_LIMIT,
+  grantFoundingContributorAward,
+} from '../src/common/contribution/founding';
 import { ContributionFoundingContributor } from '../src/entity/contribution/ContributionFoundingContributor';
 import { Product, ProductType } from '../src/entity/Product';
 import { systemUser } from '../src/common/utils';
@@ -94,6 +98,17 @@ query ContributionStatus {
 const CONTRIBUTION_FOUNDING_AWARD_QUERY = `
 query ContributionFoundingAward {
   contributionFoundingAward {
+    totalSpots
+    claimedCount
+    isFoundingMember
+    memberNumber
+  }
+}
+`;
+
+const CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION = `
+mutation ClaimContributionFoundingAward {
+  claimContributionFoundingAward {
     totalSpots
     claimedCount
     isFoundingMember
@@ -393,6 +408,9 @@ beforeEach(async () => {
   // After the users are gone their award transactions cascade away, so the
   // founding award product is no longer referenced and can be removed.
   await con.getRepository(Product).delete({ id: foundingProductId });
+  await con
+    .getRepository(Product)
+    .delete({ id: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID });
 
   remoteConfig.vars.contributionProgram = {
     enabled: true,
@@ -1264,6 +1282,131 @@ it('is a no-op when the award product is missing', async () => {
   expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
     0,
   );
+});
+
+const seedRealFoundingProduct = () =>
+  saveFixtures(con, Product, [
+    {
+      id: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+      name: 'Giveback Founding Member',
+      image: 'https://daily.dev/founding.jpg',
+      type: ProductType.Award,
+      value: 1000,
+    },
+  ]);
+
+const seedApprovedFoundingContribution = async () => {
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Post', points: 10, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 10,
+    },
+  ]);
+};
+
+it('claims the founding award for an eligible contributor', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await seedApprovedFoundingContribution();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toEqual({
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount: 1,
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+  await expect(
+    con
+      .getRepository(ContributionFoundingContributor)
+      .findOneByOrFail({ userId }),
+  ).resolves.toMatchObject({ userId });
+});
+
+it('is idempotent when claiming the founding award again', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await seedApprovedFoundingContribution();
+
+  await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toEqual({
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount: 1,
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+  expect(
+    await con.getRepository(UserTransaction).countBy({
+      receiverId: userId,
+      productId: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+    }),
+  ).toBe(1);
+});
+
+it('rejects claiming the founding award without an approved contribution', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors?.[0].message).toEqual(
+    'Complete a giveback action before claiming the founding award',
+  );
+  expect(
+    await con
+      .getRepository(ContributionFoundingContributor)
+      .countBy({ userId }),
+  ).toBe(0);
+});
+
+it('allows claiming the founding award from a zero-point approved action', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Love action', points: 0, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 0,
+    },
+  ]);
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toMatchObject({
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+});
+
+it('surfaces a distinct error when the award product is misconfigured, not "sold out"', async () => {
+  mockNjord();
+  await seedApprovedFoundingContribution();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors?.[0].message).not.toEqual(
+    'All founding spots have been claimed',
+  );
+  expect(
+    await con.getRepository(ContributionFoundingContributor).countBy({
+      userId,
+    }),
+  ).toBe(0);
 });
 
 const seedLeaderboardAction = () =>

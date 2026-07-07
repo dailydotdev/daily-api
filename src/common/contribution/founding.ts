@@ -16,11 +16,13 @@ export const CONTRIBUTION_FOUNDING_LIMIT = 1000;
 export const CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID =
   '3bbe8325-ceb9-411b-be83-ffba2703ce82';
 
-// Grants the founding-contributor award (a Product award paid by the system) the
-// first time a user contributes, while the campaign is under the cap. Idempotent
-// per user via the founding-contributor PK; the whole grant is transactional, so
-// a failed Cores transfer rolls back the reservation and retries cleanly. The cap
-// is best-effort under concurrency (a small overshoot is acceptable).
+// Grants the founding-contributor award (a Product award paid by the system),
+// called from the claimContributionFoundingAward mutation once a user has at
+// least one approved contribution, while the campaign is under the cap.
+// Idempotent per user via the founding-contributor PK; the whole grant is
+// transactional, so a failed Cores transfer rolls back the reservation and
+// retries cleanly. The cap is best-effort under concurrency (a small overshoot
+// is acceptable).
 export const grantFoundingContributorAward = async ({
   con,
   userId,

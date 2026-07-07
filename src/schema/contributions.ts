@@ -1,8 +1,8 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { In, LessThanOrEqual } from 'typeorm';
+import { In, type DataSource } from 'typeorm';
 import type z from 'zod';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
@@ -37,7 +37,10 @@ import { ContributionActionCategory } from '../entity/contribution/ContributionA
 import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
 import { ContributionFoundingContributor } from '../entity/contribution/ContributionFoundingContributor';
-import { CONTRIBUTION_FOUNDING_LIMIT } from '../common/contribution/founding';
+import {
+  CONTRIBUTION_FOUNDING_LIMIT,
+  grantFoundingContributorAward,
+} from '../common/contribution/founding';
 import { ContributionMilestone } from '../entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
@@ -148,6 +151,46 @@ type GQLContributionActionCompleted = {
   awardedPoints: number;
 };
 
+// Shared by the query (public, keyed off the viewer) and the claim mutation
+// (which re-reads the state right after granting).
+const getFoundingAwardState = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId?: string;
+}): Promise<GQLContributionFoundingAward> => {
+  const repo = con.getRepository(ContributionFoundingContributor);
+  const [claimedCount, isFoundingMember] = await Promise.all([
+    repo.count(),
+    userId ? repo.exists({ where: { userId } }) : false,
+  ]);
+
+  // 1-based grant order (how many founders joined at or before this one).
+  // Compared entirely in Postgres via a subquery (rather than round-tripping
+  // the row's createdAt through JS Date, which truncates the DB's microsecond
+  // precision to milliseconds) so a freshly granted row's own timestamp
+  // always satisfies "<=" against itself.
+  const memberNumber = isFoundingMember
+    ? await repo
+        .createQueryBuilder('contributor')
+        .where(
+          `contributor."createdAt" <= (
+            SELECT "createdAt" FROM "contribution_founding_contributor" WHERE "userId" = :userId
+          )`,
+          { userId },
+        )
+        .getCount()
+    : null;
+
+  return {
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount,
+    isFoundingMember,
+    memberNumber,
+  };
+};
+
 const toGQLReward = ({
   reward,
   tier,
@@ -215,9 +258,10 @@ export const typeDefs = /* GraphQL */ `
 
   """
   The founding-contributor award: a one-time, capped gift for the first N
-  contributors, granted automatically on a contributor's first approved action.
-  Campaign-wide fields render for everyone; the visitor's own membership is null
-  until they sign in (and stays false/null until they become a founder).
+  contributors, granted via claimContributionFoundingAward once a contributor
+  has completed at least one approved action. Campaign-wide fields render for
+  everyone; the visitor's own membership is null until they sign in (and stays
+  false/null until they claim it).
   """
   type ContributionFoundingAward {
     totalSpots: Int!
@@ -526,6 +570,13 @@ export const typeDefs = /* GraphQL */ `
     claimContributionReward(tierId: ID!): UserContributionReward!
       @auth
       @contributionEligibility
+    """
+    Claims the founding-contributor award. Requires at least one approved
+    action; idempotent for an existing founding member.
+    """
+    claimContributionFoundingAward: ContributionFoundingAward!
+      @auth
+      @contributionEligibility
   }
 
   type ContributionActionCompleted {
@@ -606,32 +657,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       __,
       ctx: Context,
-    ): Promise<GQLContributionFoundingAward> => {
+    ): Promise<GQLContributionFoundingAward> =>
       // Public query: the spots-taken counter renders for everyone; the visitor's
-      // own founding membership stays false/null until they sign in and qualify.
-      const repo = ctx.con.getRepository(ContributionFoundingContributor);
-      const { userId } = ctx;
-      const [claimedCount, membership] = await Promise.all([
-        repo.count(),
-        userId
-          ? repo.findOne({ select: ['userId', 'createdAt'], where: { userId } })
-          : null,
-      ]);
-
-      // 1-based grant order (how many founders joined at or before this one).
-      const memberNumber = membership
-        ? await repo.countBy({
-            createdAt: LessThanOrEqual(membership.createdAt),
-          })
-        : null;
-
-      return {
-        totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
-        claimedCount,
-        isFoundingMember: !!membership,
-        memberNumber,
-      };
-    },
+      // own founding membership stays false/null until they sign in and claim it.
+      getFoundingAwardState({ con: ctx.con, userId: ctx.userId }),
     contributionActionCategories: async (
       _,
       args: ConnectionArguments,
@@ -1171,6 +1200,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       return toGQLReward({ reward, tier });
+    },
+    claimContributionFoundingAward: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLContributionFoundingAward> => {
+      const hasApprovedContribution = await ctx.con
+        .getRepository(ContributionSubmission)
+        .exists({
+          where: {
+            userId: ctx.userId,
+            status: ContributionSubmissionStatus.Approved,
+          },
+        });
+
+      if (!hasApprovedContribution) {
+        throw new ValidationError(
+          'Complete a giveback action before claiming the founding award',
+        );
+      }
+
+      await grantFoundingContributorAward({ con: ctx.con, userId: ctx.userId });
+
+      const state = await getFoundingAwardState({
+        con: ctx.con,
+        userId: ctx.userId,
+      });
+
+      if (!state.isFoundingMember) {
+        // grantFoundingContributorAward returns false both when the cap is
+        // genuinely full and when the award Product is missing/misconfigured;
+        // distinguish them here so a config issue doesn't masquerade as
+        // "sold out".
+        if (state.claimedCount >= state.totalSpots) {
+          throw new ForbiddenError('All founding spots have been claimed');
+        }
+        throw new Error('Founding award is not available right now');
+      }
+
+      return state;
     },
   },
   Subscription: {
