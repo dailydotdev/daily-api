@@ -15,6 +15,7 @@ import {
 } from './helpers';
 import { User } from '../src/entity/user/User';
 import * as njordCommon from '../src/common/njord';
+import { webhooks } from '../src/common/slack';
 import { SubscriptionCycles } from '../src/paddle';
 import { ContributionAction } from '../src/entity/contribution/ContributionAction';
 import { ContributionActionLink } from '../src/entity/contribution/ContributionActionLink';
@@ -816,6 +817,117 @@ it('fulfills claimed Cores reward tiers through Njord', async () => {
     valueIncFees: 25,
     fee: 0,
   });
+});
+
+it('fulfills content-only reward tiers without side effects', async () => {
+  const patchyTierId = '44444444-4444-4444-8444-444444444446';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: patchyTierId,
+      title: 'Picture with Patchy',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.PatchyPicture,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: patchyTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  await expect(
+    con.getRepository(UserTransaction).findOneBy({
+      receiverId: userId,
+      referenceId: patchyTierId,
+    }),
+  ).resolves.toBeNull();
+});
+
+it('grants the cause-suggestion right when claiming a suggest_causes reward', async () => {
+  const suggestTierId = '44444444-4444-4444-8444-444444444447';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: suggestTierId,
+      title: 'Suggest a cause',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.SuggestCauses,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: suggestTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  expect(user.flags?.canSuggestContributionCauses).toBe(true);
+});
+
+it('notifies Slack when claiming a store_discount reward', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+  const discountTierId = '44444444-4444-4444-8444-444444444448';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: discountTierId,
+      title: '50% off the store',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.StoreDiscount,
+      metadata: { percent: 50 },
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: discountTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  expect(sendSpy).toHaveBeenCalledTimes(1);
+
+  // Re-claiming an already-fulfilled reward must not notify again.
+  await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: discountTierId },
+  });
+  expect(sendSpy).toHaveBeenCalledTimes(1);
 });
 
 it('returns finalized cause totals, user cause stats, and sponsors', async () => {

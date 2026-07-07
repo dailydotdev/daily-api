@@ -9,6 +9,12 @@ import {
 export enum ContributionRewardType {
   Cores = 'cores',
   PlusDays = 'plus_days',
+  StoreDiscount = 'store_discount',
+  SuggestCauses = 'suggest_causes',
+  Council = 'council',
+  PatchyPicture = 'patchy_picture',
+  Joke = 'joke',
+  Trivia = 'trivia',
   Call = 'call',
   Privilege = 'privilege',
   Custom = 'custom',

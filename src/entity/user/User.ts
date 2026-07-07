@@ -59,6 +59,9 @@ export type UserFlags = Partial<{
   // Current cloud provider from campaign onboarding (e.g. aws/gcp/azure/other/
   // none). Stored here rather than a column since it's optional campaign data.
   cloudProvider: string | null;
+  // Granted by claiming a `suggest_causes` contribution reward; gates the
+  // right to nominate causes for the giveback campaign.
+  canSuggestContributionCauses: boolean;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;

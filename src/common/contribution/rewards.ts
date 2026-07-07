@@ -8,7 +8,7 @@ import {
   contributionCoresRewardMetadataSchema,
   contributionPlusDaysRewardMetadataSchema,
 } from '../schema/contributions';
-import { updateSubscriptionFlags } from '../utils';
+import { updateFlagsStatement, updateSubscriptionFlags } from '../utils';
 import { transferCores } from '../njord';
 import { systemUser } from '../utils';
 import { isPlusMember, SubscriptionCycles } from '../../paddle';
@@ -204,6 +204,22 @@ const fulfillContributionPlusDaysReward = async ({
   return markContributionRewardFulfilled({ con, reward, fulfilledAt: now });
 };
 
+const fulfillContributionSuggestCausesReward = async ({
+  con,
+  reward,
+  now,
+}: {
+  con: EntityManager;
+  reward: UserContributionReward;
+  now: Date;
+}): Promise<UserContributionReward> => {
+  await con.getRepository(User).update(reward.userId, {
+    flags: updateFlagsStatement<User>({ canSuggestContributionCauses: true }),
+  });
+
+  return markContributionRewardFulfilled({ con, reward, fulfilledAt: now });
+};
+
 export const fulfillContributionReward = async ({
   con,
   ctx,
@@ -226,6 +242,17 @@ export const fulfillContributionReward = async ({
       return fulfillContributionCoresReward({ con, ctx, tier, reward, now });
     case ContributionRewardType.PlusDays:
       return fulfillContributionPlusDaysReward({ con, tier, reward, now });
+    case ContributionRewardType.SuggestCauses:
+      return fulfillContributionSuggestCausesReward({ con, reward, now });
+    // The team is notified on Slack to email the coupon / council invite (see
+    // the claim resolver); content-only rewards (Patchy, joke, trivia) render
+    // straight from the tier. All just flip the reward to fulfilled.
+    case ContributionRewardType.StoreDiscount:
+    case ContributionRewardType.Council:
+    case ContributionRewardType.PatchyPicture:
+    case ContributionRewardType.Joke:
+    case ContributionRewardType.Trivia:
+      return markContributionRewardFulfilled({ con, reward, fulfilledAt: now });
     default:
       return reward;
   }

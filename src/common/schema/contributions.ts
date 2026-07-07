@@ -88,6 +88,12 @@ export const contributionPlusDaysRewardMetadataSchema = z
   })
   .strict();
 
+export const contributionStoreDiscountRewardMetadataSchema = z
+  .object({
+    percent: z.number().int().positive().max(100),
+  })
+  .strict();
+
 const contributionMetadataSchema = z
   .object({})
   .catchall(z.unknown())

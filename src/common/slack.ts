@@ -14,7 +14,8 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
-import { getAbsoluteDifferenceInDays } from './users';
+import { getAbsoluteDifferenceInDays, getUserPermalink } from './users';
+import type { ContributionRewardTier } from '../entity/contribution/ContributionRewardTier';
 import { concatTextToNewline } from './utils';
 import { capitalize } from 'lodash';
 import {
@@ -275,6 +276,45 @@ export const notifyNewPostBoostedSlack = async ({
               capitalize(campaign.type.toLowerCase()),
             ),
           },
+        ],
+      },
+    ],
+  });
+};
+
+// Some contribution rewards (store discount, council access) are fulfilled by a
+// human: the team gets pinged here with the contributor's email and emails them
+// the coupon / invite. Content and auto-granted rewards don't call this.
+export const notifyContributionRewardClaimedSlack = async ({
+  user,
+  tier,
+}: {
+  user: Pick<User, 'id' | 'username' | 'name' | 'email'>;
+  tier: Pick<ContributionRewardTier, 'title' | 'rewardType'>;
+}): Promise<void> => {
+  const displayName = user.name || user.username || user.id;
+
+  await webhooks.contributions.send({
+    text: `${displayName} claimed "${tier.title}" — needs fulfilment`,
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '🎁 Contribution reward to fulfil',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*User:*\n<${getUserPermalink(user)}|${displayName}>\n\`${user.id}\``,
+          },
+          { type: 'mrkdwn', text: `*Email:*\n${user.email ?? '—'}` },
+          { type: 'mrkdwn', text: `*Reward:*\n${tier.title}` },
+          { type: 'mrkdwn', text: `*Type:*\n\`${tier.rewardType}\`` },
         ],
       },
     ],
