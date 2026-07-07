@@ -2,7 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { ValidationError } from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, LessThanOrEqual } from 'typeorm';
 import type z from 'zod';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
@@ -36,6 +36,8 @@ import { ContributionAction } from '../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../entity/contribution/ContributionActionCategory';
 import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
+import { ContributionFoundingContributor } from '../entity/contribution/ContributionFoundingContributor';
+import { CONTRIBUTION_FOUNDING_LIMIT } from '../common/contribution/founding';
 import { ContributionMilestone } from '../entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
@@ -112,6 +114,13 @@ type GQLContributionStatus = {
   // Distinct developers who have contributed at least one approved action.
   contributorsCount: number;
   userPoints: number | null;
+};
+
+type GQLContributionFoundingAward = {
+  totalSpots: number;
+  claimedCount: number;
+  isFoundingMember: boolean;
+  memberNumber: number | null;
 };
 
 type GQLUserContributionReward = Pick<
@@ -202,6 +211,26 @@ export const typeDefs = /* GraphQL */ `
     The visitor's own approved points. Null for anonymous visitors.
     """
     userPoints: Int
+  }
+
+  """
+  The founding-contributor award: a one-time, capped gift for the first N
+  contributors, granted automatically on a contributor's first approved action.
+  Campaign-wide fields render for everyone; the visitor's own membership is null
+  until they sign in (and stays false/null until they become a founder).
+  """
+  type ContributionFoundingAward {
+    totalSpots: Int!
+    claimedCount: Int!
+    """
+    Whether the visitor is a founding contributor. False for anonymous visitors.
+    """
+    isFoundingMember: Boolean!
+    """
+    The visitor's founding number (1-based, by grant order). Null unless they are
+    a founding contributor.
+    """
+    memberNumber: Int
   }
 
   type ContributionActionMetadata {
@@ -414,6 +443,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     contributionStatus: ContributionStatus!
+    contributionFoundingAward: ContributionFoundingAward!
     contributionActionCategories(
       first: Int
       after: String
@@ -570,6 +600,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         lifetimeAmountCents,
         contributorsCount,
         userPoints,
+      };
+    },
+    contributionFoundingAward: async (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<GQLContributionFoundingAward> => {
+      // Public query: the spots-taken counter renders for everyone; the visitor's
+      // own founding membership stays false/null until they sign in and qualify.
+      const repo = ctx.con.getRepository(ContributionFoundingContributor);
+      const { userId } = ctx;
+      const [claimedCount, membership] = await Promise.all([
+        repo.count(),
+        userId
+          ? repo.findOne({ select: ['userId', 'createdAt'], where: { userId } })
+          : null,
+      ]);
+
+      // 1-based grant order (how many founders joined at or before this one).
+      const memberNumber = membership
+        ? await repo.countBy({
+            createdAt: LessThanOrEqual(membership.createdAt),
+          })
+        : null;
+
+      return {
+        totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+        claimedCount,
+        isFoundingMember: !!membership,
+        memberNumber,
       };
     },
     contributionActionCategories: async (

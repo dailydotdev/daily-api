@@ -91,6 +91,17 @@ query ContributionStatus {
 }
 `;
 
+const CONTRIBUTION_FOUNDING_AWARD_QUERY = `
+query ContributionFoundingAward {
+  contributionFoundingAward {
+    totalSpots
+    claimedCount
+    isFoundingMember
+    memberNumber
+  }
+}
+`;
+
 const CONTRIBUTION_ACTIONS_QUERY = `
 query ContributionActions($categoryId: ID) {
   contributionActions(categoryId: $categoryId, first: 10) {
@@ -1152,6 +1163,39 @@ it('grants the founding contributor award, paid by the system', async () => {
     valueIncFees: 30,
     fee: 0,
     referenceType: UserTransactionType.User,
+  });
+});
+
+it('exposes founding-award spots and the visitor founding number', async () => {
+  await saveFixtures(con, ContributionFoundingContributor, [
+    { userId: blockedUserId, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    { userId, createdAt: new Date('2026-02-01T00:00:00.000Z') },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_FOUNDING_AWARD_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionFoundingAward).toEqual({
+    totalSpots: 1000,
+    claimedCount: 2,
+    isFoundingMember: true,
+    memberNumber: 2,
+  });
+});
+
+it('reports no founding membership for a non-member visitor', async () => {
+  await saveFixtures(con, ContributionFoundingContributor, [
+    { userId: blockedUserId, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_FOUNDING_AWARD_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionFoundingAward).toEqual({
+    totalSpots: 1000,
+    claimedCount: 1,
+    isFoundingMember: false,
+    memberNumber: null,
   });
 });
 
