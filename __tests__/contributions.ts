@@ -14,6 +14,7 @@ import {
   type GraphQLTestingState,
 } from './helpers';
 import { User } from '../src/entity/user/User';
+import { Feature, FeatureType, FeatureValue } from '../src/entity/Feature';
 import * as njordCommon from '../src/common/njord';
 import { webhooks } from '../src/common/slack';
 import { SubscriptionCycles } from '../src/paddle';
@@ -885,8 +886,15 @@ it('grants the cause-suggestion right when claiming a suggest_causes reward', as
 
   expect(claimed.errors).toBeUndefined();
   expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
-  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  expect(user.flags?.canSuggestContributionCauses).toBe(true);
+  await expect(
+    con.getRepository(Feature).exists({
+      where: {
+        userId,
+        feature: FeatureType.ContributionSuggestCauses,
+        value: FeatureValue.Allow,
+      },
+    }),
+  ).resolves.toBe(true);
 });
 
 it('notifies Slack when claiming a store_discount reward', async () => {

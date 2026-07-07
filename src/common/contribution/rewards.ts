@@ -8,12 +8,13 @@ import {
   contributionCoresRewardMetadataSchema,
   contributionPlusDaysRewardMetadataSchema,
 } from '../schema/contributions';
-import { updateFlagsStatement, updateSubscriptionFlags } from '../utils';
+import { updateSubscriptionFlags } from '../utils';
 import { transferCores } from '../njord';
 import { systemUser } from '../utils';
 import { isPlusMember, SubscriptionCycles } from '../../paddle';
 import { SubscriptionStatus } from '../plus';
 import { User } from '../../entity/user/User';
+import { Feature, FeatureType, FeatureValue } from '../../entity/Feature';
 import {
   ContributionRewardTier,
   ContributionRewardType,
@@ -213,9 +214,19 @@ const fulfillContributionSuggestCausesReward = async ({
   reward: UserContributionReward;
   now: Date;
 }): Promise<UserContributionReward> => {
-  await con.getRepository(User).update(reward.userId, {
-    flags: updateFlagsStatement<User>({ canSuggestContributionCauses: true }),
-  });
+  // Grant the right through the feature table (wired to the feature-flag system),
+  // idempotent on the (feature, userId) PK so a re-claim is a no-op.
+  await con
+    .getRepository(Feature)
+    .createQueryBuilder()
+    .insert()
+    .values({
+      userId: reward.userId,
+      feature: FeatureType.ContributionSuggestCauses,
+      value: FeatureValue.Allow,
+    })
+    .orIgnore()
+    .execute();
 
   return markContributionRewardFulfilled({ con, reward, fulfilledAt: now });
 };
