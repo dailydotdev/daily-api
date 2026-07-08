@@ -36,7 +36,7 @@ import {
 } from '../src/entity';
 import { PollOption } from '../src/entity/polls/PollOption';
 import { SourceMemberRoles } from '../src/roles';
-import { snotraClient } from '../src/integrations/snotra/clients';
+import { snotraUserApiClient } from '../src/integrations/snotra/clients';
 import { PersonaliseState } from '../src/integrations/snotra/types';
 import { Category } from '../src/entity/Category';
 import { Persona } from '../src/entity/Persona';
@@ -1578,7 +1578,7 @@ describe('query dailyFeed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
 
-    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
       personalise: { state: PersonaliseState.Personalised },
     });
     nock('http://localhost:6000')
@@ -1605,7 +1605,7 @@ describe('query dailyFeed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
 
-    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
       personalise: { state: PersonaliseState.NonPersonalised },
     });
     nock('http://localhost:6000')
@@ -1630,7 +1630,7 @@ describe('query dailyFeed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
 
-    jest.spyOn(snotraClient, 'getUserProfile').mockResolvedValue({
+    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
       personalise: { state: PersonaliseState.Personalised },
     });
     // Only one feed-service mock: a second call would have no nock match and fail.

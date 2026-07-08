@@ -18,7 +18,7 @@ import {
   SimpleFeedConfigGenerator,
 } from './configs';
 import { LofnClient } from '../lofn';
-import { snotraClient } from '../snotra/clients';
+import { snotraUserApiClient } from '../snotra/clients';
 import { GarmrService } from '../garmr';
 import { FeedOrderBy } from '../../entity/Feed';
 import { postTypes } from '../../entity/posts/Post';
@@ -131,7 +131,7 @@ export const getForYouByTagFeedGenerator = (tags: string[]): FeedGenerator =>
 
 export const dailyFeedConfigGenerator = new FeedDailyConfigGenerator(
   baseFeedConfig,
-  snotraClient,
+  snotraUserApiClient,
   opts,
 );
 
