@@ -20,9 +20,13 @@ import {
   validateContributionEvidence,
 } from '../common/contribution';
 import { fulfillContributionReward } from '../common/contribution/rewards';
-import { notifyContributionRewardClaimedSlack } from '../common/slack';
+import {
+  notifyContributionCauseSuggestedSlack,
+  notifyContributionRewardClaimedSlack,
+} from '../common/slack';
 import { logger } from '../logger';
 import { User } from '../entity/user/User';
+import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import {
   claimContributionRewardArgsSchema,
   contributionActionLinksArgsSchema,
@@ -30,6 +34,7 @@ import {
   contributionConnectionArgsSchema,
   contributionSubmissionsArgsSchema,
   submitContributionActionInputSchema,
+  suggestContributionCauseArgsSchema,
   updateContributionCausePreferencesArgsSchema,
 } from '../common/schema/contributions';
 import { ContributionAction } from '../entity/contribution/ContributionAction';
@@ -565,6 +570,13 @@ export const typeDefs = /* GraphQL */ `
       input: SubmitContributionActionInput!
     ): ContributionSubmission! @auth @contributionEligibility
     updateContributionCausePreferences(causeIds: [ID!]!): EmptyResponse!
+      @auth
+      @contributionEligibility
+    """
+    Nominates a cause (by URL, with an optional note) for the team to review.
+    Not stored — the suggestion is posted to Slack for a human decision.
+    """
+    suggestContributionCause(url: String!, note: String): EmptyResponse!
       @auth
       @contributionEligibility
     claimContributionReward(tierId: ID!): UserContributionReward!
@@ -1240,6 +1252,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       return state;
+    },
+    suggestContributionCause: async (
+      _,
+      args: z.infer<typeof suggestContributionCauseArgsSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { url, note } = parseContributionArgs(
+        suggestContributionCauseArgsSchema,
+        args,
+      );
+
+      // Nominating a cause is a reward: only contributors who claimed the
+      // `suggest_causes` tier hold the feature access it grants (see
+      // fulfillContributionSuggestCausesReward).
+      const canSuggest = await ctx.con.getRepository(Feature).exists({
+        where: {
+          userId: ctx.userId,
+          feature: FeatureType.ContributionSuggestCauses,
+          value: FeatureValue.Allow,
+        },
+      });
+
+      if (!canSuggest) {
+        throw new ForbiddenError(
+          'Unlock the suggest-a-cause reward to nominate a cause',
+        );
+      }
+
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['id', 'username', 'name', 'email'],
+        where: { id: ctx.userId },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // The Slack post is the only place the suggestion lands (no DB row), so a
+      // failed send must surface as an error the caller can retry — don't
+      // swallow it the way reward-claim notifications do.
+      await notifyContributionCauseSuggestedSlack({ user, url, note });
+
+      return { _: true };
     },
   },
   Subscription: {

@@ -72,6 +72,11 @@ export const updateContributionCausePreferencesArgsSchema = z.object({
   causeIds: z.array(z.uuid()).max(50),
 });
 
+export const suggestContributionCauseArgsSchema = z.object({
+  url: z.url(),
+  note: z.string().trim().min(1).max(1000).nullish(),
+});
+
 export const claimContributionRewardArgsSchema = z.object({
   tierId: z.uuid(),
 });

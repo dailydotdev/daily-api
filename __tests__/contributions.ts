@@ -331,6 +331,14 @@ mutation ClaimContributionReward($tierId: ID!) {
 }
 `;
 
+const SUGGEST_CONTRIBUTION_CAUSE_MUTATION = `
+mutation SuggestContributionCause($url: String!, $note: String) {
+  suggestContributionCause(url: $url, note: $note) {
+    _
+  }
+}
+`;
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   const app = await appFunc();
@@ -965,6 +973,57 @@ it('notifies Slack when claiming a store_discount reward', async () => {
     variables: { tierId: discountTierId },
   });
   expect(sendSpy).toHaveBeenCalledTimes(1);
+});
+
+it('posts a suggested cause to Slack for a contributor who unlocked the reward', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+  await con.getRepository(Feature).save({
+    userId,
+    feature: FeatureType.ContributionSuggestCauses,
+    value: FeatureValue.Allow,
+  });
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'https://example.org', note: 'they do great work' },
+  });
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.suggestContributionCause).toEqual({ _: true });
+  expect(sendSpy).toHaveBeenCalledTimes(1);
+  expect(sendSpy).toHaveBeenCalledWith(
+    expect.objectContaining({
+      text: expect.stringContaining('https://example.org'),
+    }),
+  );
+});
+
+it('rejects a cause suggestion when the reward is not unlocked', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'https://example.org' },
+  });
+
+  expect(res.errors?.[0].extensions?.code).toBe('FORBIDDEN');
+  expect(sendSpy).not.toHaveBeenCalled();
+});
+
+it('rejects a malformed cause url', async () => {
+  await con.getRepository(Feature).save({
+    userId,
+    feature: FeatureType.ContributionSuggestCauses,
+    value: FeatureValue.Allow,
+  });
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'not-a-url' },
+  });
+
+  expect(res.errors).toBeTruthy();
 });
 
 it('returns finalized cause totals, user cause stats, and sponsors', async () => {

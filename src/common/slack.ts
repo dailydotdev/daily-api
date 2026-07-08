@@ -321,6 +321,54 @@ export const notifyContributionRewardClaimedSlack = async ({
   });
 };
 
+// A contributor who unlocked the "suggest a cause" reward nominated a nonprofit
+// or open-source fund. We don't store it — the team reviews the link here and
+// decides whether to add it to the vetted causes.
+export const notifyContributionCauseSuggestedSlack = async ({
+  user,
+  url,
+  note,
+}: {
+  user: Pick<User, 'id' | 'username' | 'name' | 'email'>;
+  url: string;
+  note?: string | null;
+}): Promise<void> => {
+  const displayName = user.name || user.username || user.id;
+
+  await webhooks.contributions.send({
+    text: `${displayName} suggested a cause: ${url}`,
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '💡 New cause suggestion to review',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*From:*\n<${getUserPermalink(user)}|${displayName}>\n\`${user.id}\``,
+          },
+          { type: 'mrkdwn', text: `*Email:*\n${user.email ?? '—'}` },
+          { type: 'mrkdwn', text: `*Cause:*\n<${url}|${url}>` },
+        ],
+      },
+      ...(note
+        ? [
+            {
+              type: 'section' as const,
+              text: { type: 'mrkdwn' as const, text: `*Note:*\n${note}` },
+            },
+          ]
+        : []),
+    ],
+  });
+};
+
 export const notifyNewComment = async (
   post: Post,
   userId: string,
