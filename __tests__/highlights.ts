@@ -715,7 +715,7 @@ describe('query dailyHeadlines', () => {
       expect(action).not.toBeNull();
     });
 
-    it('should mark backfilled without seeding when no channel clears the minimum post count', async () => {
+    it('should not seed and not mark backfilled when no channel clears the minimum post count', async () => {
       loggedUser = '1';
 
       await saveDigestSource('backend_digest');
@@ -735,7 +735,7 @@ describe('query dailyHeadlines', () => {
         userId: '1',
         type: UserActionType.DailyHeadlinesBackfilled,
       });
-      expect(action).not.toBeNull();
+      expect(action).toBeNull();
     });
 
     it('should not seed when the user was already backfilled', async () => {
@@ -788,7 +788,7 @@ describe('query dailyHeadlines', () => {
       expect(action).not.toBeNull();
     });
 
-    it('should mark backfilled without seeding when the user has no onboarding tags', async () => {
+    it('should not seed and not mark backfilled when the user has no onboarding tags', async () => {
       loggedUser = '1';
 
       await saveDigestSource('backend_digest');
@@ -806,7 +806,45 @@ describe('query dailyHeadlines', () => {
         userId: '1',
         type: UserActionType.DailyHeadlinesBackfilled,
       });
-      expect(action).not.toBeNull();
+      expect(action).toBeNull();
+    });
+
+    it('should seed on a later call once onboarding tags exist', async () => {
+      loggedUser = '1';
+
+      await saveDigestSource('backend_digest');
+      await saveChannelDigest('backend', 'backend_digest', 'backend');
+      await saveChannelPosts('mh', ['backend'], 'nodejs', 3);
+      await saveDigestPost('bd-new', 'backend_digest', hoursAgo(2));
+      await refreshKeywordChannel();
+
+      const first = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+      expect(first.errors).toBeFalsy();
+      expect(
+        await con.getRepository(UserAction).findOneBy({
+          userId: '1',
+          type: UserActionType.DailyHeadlinesBackfilled,
+        }),
+      ).toBeNull();
+
+      await followKeyword('nodejs');
+
+      const second = await client.query(DAILY_HEADLINES_BACKFILL_QUERY);
+      expect(second.errors).toBeFalsy();
+      const follows = await con
+        .getRepository(ContentPreferenceSource)
+        .find({ where: { userId: '1', feedId: '1' } });
+      expect(follows).toHaveLength(1);
+      expect(follows[0]).toMatchObject({
+        referenceId: 'backend_digest',
+        status: ContentPreferenceStatus.Follow,
+      });
+      expect(
+        await con.getRepository(UserAction).findOneBy({
+          userId: '1',
+          type: UserActionType.DailyHeadlinesBackfilled,
+        }),
+      ).not.toBeNull();
     });
   });
 });

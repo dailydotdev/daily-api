@@ -138,7 +138,6 @@ export const seedHeadlineChannelsForUser = async ({
   });
 
   if (!sourceIds.length) {
-    await markBackfilled({ manager: con, userId });
     return { seeded: false, sourceIds: [] };
   }
 
