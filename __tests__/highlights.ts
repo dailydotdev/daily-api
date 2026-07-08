@@ -1156,6 +1156,44 @@ describe('query postHighlightsFeed', () => {
     ]);
   });
 
+  it('should exclude highlights whose post is deleted or not visible', async () => {
+    await createTestPosts();
+    await con.getRepository(ArticlePost).update('h2', { deleted: true });
+    await con.getRepository(ArticlePost).update('h3', { visible: false });
+    await saveCanonicalHighlights([
+      {
+        postId: 'h1',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Visible headline',
+        significance: HighlightSignificance.Breaking,
+      },
+      {
+        postId: 'h2',
+        channel: 'vibes',
+        highlightedAt: new Date('2026-03-19T10:35:00.000Z'),
+        headline: 'Deleted post headline',
+        significance: HighlightSignificance.Notable,
+      },
+      {
+        postId: 'h3',
+        channel: 'agentic',
+        highlightedAt: new Date('2026-03-19T10:30:00.000Z'),
+        headline: 'Invisible post headline',
+        significance: HighlightSignificance.Routine,
+      },
+    ]);
+
+    const res = await client.query(POST_HIGHLIGHTS_FEED_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.postHighlightsFeed.edges.map(({ node }) => node.post.id),
+    ).toEqual(['h1']);
+  });
+
   it('should filter by channel', async () => {
     await createTestPosts();
     await saveCanonicalHighlights([

@@ -171,6 +171,20 @@ type HighlightsFilters = {
   significances?: HighlightSignificance[];
 };
 
+const applyVisiblePostFilter = <T extends HighlightsCanonical>(
+  builder: SelectQueryBuilder<T>,
+  alias: string,
+): SelectQueryBuilder<T> =>
+  builder.andWhere(
+    `EXISTS (
+      SELECT 1
+      FROM "post" p
+      WHERE p."id" = "${alias}"."postId"
+        AND p."deleted" = false
+        AND p."visible" = true
+    )`,
+  );
+
 const applyHighlightsFilters = <T extends HighlightsCanonical>(
   builder: SelectQueryBuilder<T>,
   alias: string,
@@ -188,7 +202,7 @@ const applyHighlightsFilters = <T extends HighlightsCanonical>(
     builder.andWhere(`:highlightChannel = ANY("${alias}"."channels")`);
   }
 
-  return builder;
+  return applyVisiblePostFilter(builder, alias);
 };
 
 const resolveCanonicalHighlightsFeed = (
@@ -276,6 +290,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             })
             .orderBy(`"${builder.alias}"."highlightedAt"`, 'DESC')
             .addOrderBy(`"${builder.alias}"."id"`, 'DESC');
+          applyVisiblePostFilter(
+            builder.queryBuilder as SelectQueryBuilder<HighlightsCanonical>,
+            builder.alias,
+          );
           return builder;
         },
         true,
