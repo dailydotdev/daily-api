@@ -1198,6 +1198,17 @@ const onPostChange = async (
           data.payload.after!,
           data.payload.before!,
         );
+        if (data.payload.after!.type === PostType.Freeform) {
+          // A scheduled freeform post just went live. Its tags/contentQuality were
+          // captured once when it was scheduled and are never refreshed at publish,
+          // so a post enriched during a broken window (e.g. empty tags) goes live
+          // broken. Re-request enrichment — same content-requested emit as creation —
+          // so yggdrasil re-enriches against current models before it's shown.
+          const freeform = data as ChangeMessage<FreeformPost>;
+          if (isFreeformPostLongEnough(freeform)) {
+            await notifyFreeformContentRequested(logger, freeform);
+          }
+        }
         if (
           data.payload.after!.type === PostType.Freeform &&
           data.payload.after!.authorId

@@ -1781,6 +1781,61 @@ describe('post', () => {
     expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
+  it('should re-request enrichment when a scheduled freeform post becomes visible', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
+      visible: false,
+    };
+    const after = {
+      ...before,
+      visible: true,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
+  });
+
+  it('should not re-request enrichment when a freeform post that becomes visible is too short', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      title: '',
+      content: '',
+      visible: false,
+    };
+    const after = {
+      ...before,
+      visible: true,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(0);
+  });
+
   it('should notify when yggdrasil id is available on creation', async () => {
     const after = {
       ...base,
