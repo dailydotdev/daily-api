@@ -269,6 +269,7 @@ export async function checkAchievementProgress(
     }
 
     const absoluteValueEventTypes: AchievementEventType[] = [
+      AchievementEventType.FollowerGain,
       AchievementEventType.ReferralCount,
       AchievementEventType.ReputationGain,
       AchievementEventType.ReadingStreak,

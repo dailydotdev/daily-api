@@ -108,7 +108,7 @@ import {
   triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
 import { CommentReport } from '../../entity/CommentReport';
@@ -2178,7 +2178,10 @@ const onContentPreferenceChange = async (
               where: {
                 referenceId: contentPreferenceUser.referenceId,
                 type: ContentPreferenceType.User,
-                status: ContentPreferenceStatus.Follow,
+                status: In([
+                  ContentPreferenceStatus.Follow,
+                  ContentPreferenceStatus.Subscribed,
+                ]),
               },
             });
           await checkAchievementProgress(
