@@ -11,12 +11,16 @@ import {
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import nock from 'nock';
+import { randomUUID } from 'crypto';
+import { offsetToCursor } from 'graphql-relay';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 import {
   ArticlePost,
   Feed,
   Keyword,
+  PostType,
   Source,
+  SourceMember,
   SourceUser,
   User,
   UserPost,
@@ -28,6 +32,9 @@ import { ghostUser, updateFlagsStatement } from '../src/common';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { SourceMemberRoles } from '../src/roles';
+import { mimirClient } from '../src/integrations/mimir';
+import { SearchResponse, SearchResult } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1068,5 +1075,175 @@ describe('query searchUserSuggestions', () => {
 
     expect(result.query).toBe('ghost');
     expect(result.hits).toHaveLength(0);
+  });
+});
+
+describe('query searchSourcePosts', () => {
+  const QUERY = ({
+    source,
+    query = 'p',
+    first,
+    after,
+  }: {
+    source: string;
+    query?: string;
+    first?: number;
+    after?: string;
+  }): string => `{
+    searchSourcePosts(source: "${source}", query: "${query}"${
+      typeof first === 'number' ? `, first: ${first}` : ''
+    }${after ? `, after: "${after}"` : ''}) {
+      query
+      pageInfo {
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+        }
+      }
+    }
+  }`;
+
+  const mockMimirSearch = (postIds: string[]) =>
+    jest.spyOn(mimirClient, 'search').mockResolvedValue(
+      new SearchResponse({
+        result: postIds.map((postId) => new SearchResult({ postId })),
+      }),
+    );
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should return hydrated posts of a public source in Mimir ranked order', async () => {
+    mockMimirSearch(['p5', 'p2']);
+
+    const res = await client.query(QUERY({ source: 'b' }));
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSourcePosts.query).toBe('p');
+    expect(res.data.searchSourcePosts.edges.map(({ node }) => node.id)).toEqual(
+      ['p5', 'p2'],
+    );
+  });
+
+  it('should throw FORBIDDEN for an anonymous user on a private squad', async () => {
+    mockMimirSearch(['p1']);
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY({ source: 'squad' }) },
+      'FORBIDDEN',
+    );
+    expect(mimirClient.search).not.toHaveBeenCalled();
+  });
+
+  it('should throw FORBIDDEN for a logged in non-member on a private squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'b',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    });
+    mockMimirSearch(['p1']);
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY({ source: 'squad' }) },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow a member to search posts of a private squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).save({
+      id: 'squadPost1',
+      shortId: 'squadPost1',
+      title: 'Squad Post 1',
+      url: 'http://squadpost1.com',
+      score: 1,
+      sourceId: 'squad',
+      private: true,
+      createdAt: new Date(),
+      type: PostType.Article,
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    });
+    mockMimirSearch(['squadPost1']);
+
+    const res = await client.query(QUERY({ source: 'squad' }));
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSourcePosts.edges.map(({ node }) => node.id)).toEqual(
+      ['squadPost1'],
+    );
+  });
+
+  it('should scope the Mimir request to the source, omit the private filter and include safety filters', async () => {
+    const search = mockMimirSearch(['p2']);
+
+    await client.query(QUERY({ source: 'b', query: 'hello' }));
+
+    expect(search).toHaveBeenCalledTimes(1);
+    const searchRequest = search.mock.calls[0][0];
+
+    expect(searchRequest.filters).toEqual([
+      expect.objectContaining({
+        field: 'source_id',
+        condition: expect.objectContaining({
+          case: 'stringListFilter',
+          value: expect.objectContaining({ value: ['b'] }),
+        }),
+      }),
+      expect.objectContaining({
+        field: 'deleted',
+        condition: expect.objectContaining({
+          case: 'boolFilter',
+          value: expect.objectContaining({ value: false }),
+        }),
+      }),
+      expect.objectContaining({
+        field: 'visible',
+        condition: expect.objectContaining({
+          case: 'boolFilter',
+          value: expect.objectContaining({ value: true }),
+        }),
+      }),
+      expect.objectContaining({
+        field: 'banned',
+        condition: expect.objectContaining({
+          case: 'boolFilter',
+          value: expect.objectContaining({ value: false }),
+        }),
+      }),
+    ]);
+    expect(
+      searchRequest.filters.some((filter) => filter.field === 'private'),
+    ).toBe(false);
+  });
+
+  it('should compute offset and limit from first/after for pagination', async () => {
+    const search = mockMimirSearch(['p2']);
+
+    await client.query(
+      QUERY({ source: 'b', first: 1, after: offsetToCursor(4) }),
+    );
+
+    expect(search).toHaveBeenCalledTimes(1);
+    const searchRequest = search.mock.calls[0][0];
+    expect(searchRequest.offset).toBe(5);
+    expect(searchRequest.limit).toBe(1);
   });
 });

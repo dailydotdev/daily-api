@@ -34,6 +34,8 @@ import { whereVordrFilter } from '../common/vordr';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { mimirClient } from '../integrations/mimir';
+import { ensureSourcePermissions } from './sources';
+import { searchSourcePostsSchema } from '../common/schema/search';
 import {
   BoolFilter,
   Filter,
@@ -237,6 +239,41 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection!
 
     """
+    Search posts in a specific source (squad)
+    """
+    searchSourcePosts(
+      """
+      Id or handle of the source (squad) to search posts in
+      """
+      source: ID!
+
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
+    ): PostConnection!
+
+    """
     Get tags for search tags query
     """
     searchTagSuggestions(
@@ -338,6 +375,23 @@ const mimirSearchResolver = feedResolver(
     removeHiddenPosts: true,
     removeBannedPosts: false,
     allowPrivatePosts: false,
+  },
+);
+
+const mimirSourcePostsSearchResolver = feedResolver(
+  (
+    ctx,
+    { ids }: FeedArgs & { ids: string[]; pagination: MeiliPagination },
+    builder,
+    alias,
+  ) => fixedIdsFeedBuilder(ctx, ids, builder, alias),
+  mimirOffsetGenerator(),
+  (ctx, args, page, builder) => builder,
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivatePosts: true,
+    removeNonPublicThresholdSquads: false,
   },
 );
 
@@ -449,6 +503,45 @@ const mimirFilterBuilder = ({
 
   return output;
 };
+
+const mimirSourcePostsFilterBuilder = ({
+  sourceId,
+}: {
+  sourceId: string;
+}): Filter[] => [
+  new Filter({
+    field: 'source_id',
+    condition: {
+      value: new StringListFilter({
+        value: [sourceId],
+        quantifier: Quantifier.ANY,
+        operation: Operation.INCLUDE,
+      }),
+      case: MimirFilterCases.StringListFilter,
+    },
+  }),
+  new Filter({
+    field: 'deleted',
+    condition: {
+      value: new BoolFilter({ value: false }),
+      case: MimirFilterCases.BoolFilter,
+    },
+  }),
+  new Filter({
+    field: 'visible',
+    condition: {
+      value: new BoolFilter({ value: true }),
+      case: MimirFilterCases.BoolFilter,
+    },
+  }),
+  new Filter({
+    field: 'banned',
+    condition: {
+      value: new BoolFilter({ value: false }),
+      case: MimirFilterCases.BoolFilter,
+    },
+  }),
+];
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -584,6 +677,57 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return {
         ...res,
         query: args.query,
+      };
+    },
+    searchSourcePosts: async (
+      source,
+      args: FeedArgs & {
+        source: string;
+        query: string;
+        version: number;
+        first: number;
+        after: string;
+      },
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
+      const { source: sourceId, query } = searchSourcePostsSchema.parse(args);
+
+      await ensureSourcePermissions(ctx, sourceId);
+
+      const limit = args.first || 10;
+      const offset = getOffsetWithDefault(args.after, -1) + 1;
+      const searchReq = new SearchRequest({
+        query,
+        version: args.version,
+        offset,
+        limit,
+        filters: mimirSourcePostsFilterBuilder({ sourceId }),
+      });
+
+      const mimirSearchRes = await mimirClient.search(searchReq);
+      const idsArr = mimirSearchRes.result?.length
+        ? mimirSearchRes.result.map((id) => id.postId)
+        : ['nosuchid'];
+
+      const res = await mimirSourcePostsSearchResolver(
+        source,
+        {
+          ...args,
+          ids: idsArr,
+          pagination: {
+            limit,
+            offset,
+            total: limit + 1,
+            current: mimirSearchRes.result.length,
+          },
+        },
+        ctx,
+        info,
+      );
+      return {
+        ...res,
+        query,
       };
     },
     searchTagSuggestions: async (
