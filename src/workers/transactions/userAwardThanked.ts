@@ -27,15 +27,9 @@ export const userAwardThanked: TypedNotificationWorker<'api.v1.user-award-thanke
         return;
       }
 
-      if (!transaction.productId) {
-        return;
-      }
-
-      if (transaction.processor !== UserTransactionProcessor.Njord) {
-        return;
-      }
-
       if (
+        !transaction.productId ||
+        transaction.processor !== UserTransactionProcessor.Njord ||
         !transaction.senderId ||
         isSpecialUser({ userId: transaction.senderId })
       ) {

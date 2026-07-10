@@ -1052,11 +1052,8 @@ export const sayThanksForAward = async (
     throw new NotFoundError('Transaction not found');
   }
 
-  if (transaction.receiverId !== ctx.userId) {
-    throw new ForbiddenError('You can not thank for this Award');
-  }
-
   if (
+    transaction.receiverId !== ctx.userId ||
     transaction.processor !== UserTransactionProcessor.Njord ||
     !transaction.productId ||
     !transaction.senderId ||
