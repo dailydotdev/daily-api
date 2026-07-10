@@ -36,7 +36,7 @@ const saveArticle = async ({
   channels = ['vibes'],
   sourceId = 'content-source',
   contentCuration = [] as string[],
-  summary,
+  summary = 'A newsworthy summary describing the story in detail.',
 }: {
   id: string;
   title: string;
@@ -46,7 +46,7 @@ const saveArticle = async ({
   channels?: string[];
   sourceId?: string;
   contentCuration?: string[];
-  summary?: string;
+  summary?: string | null;
 }) =>
   con.getRepository(ArticlePost).save({
     id,
@@ -447,6 +447,75 @@ describe('channel highlight generation cron', () => {
       expect.objectContaining({
         postId: 'pshare-high',
         title: 'Unknown source story',
+      }),
+    ]);
+  });
+
+  it('should not evaluate a candidate until it has a summary', async () => {
+    const now = new Date('2026-03-03T16:00:00.000Z');
+    await saveArticle({
+      id: 'summarized',
+      title: 'Summarized story',
+      summary: 'A concise summary of what happened.',
+      createdAt: new Date('2026-03-03T15:45:00.000Z'),
+    });
+    await saveArticle({
+      id: 'no-summary',
+      title: 'Pending summary story',
+      summary: null,
+      createdAt: new Date('2026-03-03T15:50:00.000Z'),
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await runChannelHighlights({ con, now });
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({ postId: 'summarized' }),
+    ]);
+  });
+
+  it('should evaluate a public share using the referred post summary', async () => {
+    const now = new Date('2026-03-03T17:00:00.000Z');
+    await con
+      .getRepository(Source)
+      .save(
+        createSource(
+          UNKNOWN_SOURCE,
+          'Unknown',
+          'https://daily.dev/unknown.png',
+          undefined,
+          true,
+        ),
+      );
+    await saveArticle({
+      id: 'under-summ',
+      sourceId: UNKNOWN_SOURCE,
+      title: 'Referred story',
+      summary: 'The referred post carries the summary.',
+      createdAt: new Date('2026-03-03T16:30:00.000Z'),
+    });
+    await saveShare({
+      id: 'pshare-summ',
+      sharedPostId: 'under-summ',
+      createdAt: new Date('2026-03-03T16:35:00.000Z'),
+      upvotes: 2,
+    });
+
+    const evaluatorSpy = jest
+      .spyOn(evaluator, 'evaluateHighlights')
+      .mockResolvedValue({ items: [] });
+
+    await runChannelHighlights({ con, now });
+
+    expect(evaluatorSpy).toHaveBeenCalledTimes(1);
+    expect(evaluatorSpy.mock.calls[0][0].newCandidates).toEqual([
+      expect.objectContaining({
+        postId: 'pshare-summ',
+        summary: 'The referred post carries the summary.',
       }),
     ]);
   });

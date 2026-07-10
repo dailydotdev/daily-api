@@ -24,7 +24,6 @@ export class FeedTag {
   @CreateDateColumn()
   createdAt: Date;
 
-  @Index()
   @UpdateDateColumn()
   updatedAt: Date;
 

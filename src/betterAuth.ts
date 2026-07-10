@@ -29,7 +29,10 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from './notifications/common';
-import { addClaimableItemsToUser } from './entity/user/utils';
+import {
+  addClaimableItemsToUser,
+  allowedCloudProviders,
+} from './entity/user/utils';
 import { claimAnonOpportunities } from './common/opportunity/user';
 import { triggerTypedEvent } from './common/typedPubsub';
 import { assignIntroQuestsToUser } from './common/quest/intro';
@@ -150,16 +153,18 @@ const parseTrackingIdFromCookieHeader = (
 
 const parseReferralFromCookieHeader = (
   cookieHeader: string,
-): { referralId: string; referralOrigin: string } | undefined => {
+): { referralId?: string; referralOrigin: string } | undefined => {
   const value = parseCookieValue(cookieHeader, JOIN_REFERRAL_COOKIE_KEY);
   if (!value) {
     return undefined;
   }
   const [referralId, referralOrigin] = value.split(':');
-  if (referralId && referralOrigin) {
-    return { referralId, referralOrigin };
+  // referralOrigin (the campaign) is required; referralId (the referring user)
+  // is optional — campaign-only links set `:campaign`.
+  if (!referralOrigin) {
+    return undefined;
   }
-  return undefined;
+  return { referralId: referralId || undefined, referralOrigin };
 };
 
 type BetterAuthDbHookContext = {
@@ -517,6 +522,25 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
             input: userExperienceLevelSchema,
           },
         },
+        company: {
+          type: 'string',
+          required: false,
+          fieldName: 'company',
+          validator: {
+            input: z.string().max(100),
+          },
+        },
+        title: {
+          type: 'string',
+          required: false,
+          fieldName: 'title',
+          validator: {
+            input: z.string().max(100),
+          },
+        },
+        // cloudProvider is intentionally NOT a column-backed additional field —
+        // it's stored in the `flags` JSONB and written from the signup body in
+        // the create.after hook below.
       },
     },
     session: {
@@ -567,14 +591,38 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
                 [user.id],
               );
 
-              const setClauses: string[] = [
-                `flags = CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}' ELSE flags END`,
-              ];
+              const hookCtx = ctx as BetterAuthDbHookContext;
+              const body = hookCtx?.body;
+
+              // Campaign onboarding stores cloud provider in the `flags` JSONB
+              // (not a dedicated column). Validate against the allowed list and
+              // merge it into flags alongside the default trustScore/vordr.
+              const rawCloudProvider = (
+                body as { cloudProvider?: unknown } | undefined
+              )?.cloudProvider;
+              const cloudProvider =
+                typeof rawCloudProvider === 'string' &&
+                (allowedCloudProviders as readonly string[]).includes(
+                  rawCloudProvider,
+                )
+                  ? rawCloudProvider
+                  : null;
+
               const values: unknown[] = [user.id];
               let paramIndex = 2;
 
-              const hookCtx = ctx as BetterAuthDbHookContext;
-              const body = hookCtx?.body;
+              const baseFlags = `CASE WHEN flags = '{}' THEN '{"trustScore": 1, "vordr": false}'::jsonb ELSE flags END`;
+              const setClauses: string[] = [];
+              if (cloudProvider) {
+                setClauses.push(
+                  `flags = (${baseFlags}) || $${paramIndex}::jsonb`,
+                );
+                values.push(JSON.stringify({ cloudProvider }));
+                paramIndex++;
+              } else {
+                setClauses.push(`flags = ${baseFlags}`);
+              }
+
               const addField = (column: string, value: unknown): void => {
                 if (typeof value === 'string' && value.length > 0) {
                   setClauses.push(`"${column}" = $${paramIndex}`);

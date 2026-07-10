@@ -3,8 +3,11 @@ import {
   cancelReminderWorkflow,
   getEntityReminderWorkflowId,
   getReminderWorkflowId,
+  getScheduledPostPublishWorkflowId,
   runEntityReminderWorkflow,
   runReminderWorkflow,
+  runScheduledPostPublishWorkflow,
+  cancelScheduledPostPublishWorkflow,
 } from '../../../src/temporal/notifications/utils';
 import { createMockTemporalClient } from '../../helpers';
 
@@ -192,5 +195,67 @@ describe('cancelEntityReminderWorkflow', () => {
     await cancelEntityReminderWorkflow(params);
 
     expect(mock.terminate).not.toHaveBeenCalled();
+  });
+});
+
+describe('getScheduledPostPublishWorkflowId', () => {
+  it('should generate scheduled post workflow id', () => {
+    const params = {
+      postId: 'p1',
+      scheduledAt: '2026-07-02T09:00:00.000Z',
+    };
+
+    expect(getScheduledPostPublishWorkflowId(params)).toBe(
+      `notification:scheduled-post:p1:${new Date(params.scheduledAt).getTime()}`,
+    );
+  });
+});
+
+describe('runScheduledPostPublishWorkflow', () => {
+  it('should start scheduled post workflow', async () => {
+    mock.describe.mockRejectedValueOnce(notFoundError());
+    mock.start.mockResolvedValueOnce({ describe: mock.describe });
+
+    const params = {
+      postId: 'p1',
+      scheduledAt: new Date(Date.now() + 10_000).toISOString(),
+    };
+
+    const result = await runScheduledPostPublishWorkflow(params);
+
+    expect(result).toBeDefined();
+    expect(mock.start).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: getScheduledPostPublishWorkflowId(params),
+        taskQueue: 'notification-queue',
+      }),
+    );
+  });
+
+  it('should not start scheduled post workflow when workflow exists', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+
+    const result = await runScheduledPostPublishWorkflow({
+      postId: 'p1',
+      scheduledAt: new Date(Date.now() + 10_000).toISOString(),
+    });
+
+    expect(result).toBeUndefined();
+    expect(mock.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('cancelScheduledPostPublishWorkflow', () => {
+  it('should cancel scheduled post workflow', async () => {
+    mock.describe.mockResolvedValueOnce({ status: { name: 'RUNNING' } });
+    mock.terminate.mockResolvedValueOnce(undefined);
+
+    await cancelScheduledPostPublishWorkflow({
+      postId: 'p1',
+      scheduledAt: '2026-07-02T09:00:00.000Z',
+    });
+
+    expect(mock.terminate).toHaveBeenCalled();
   });
 });

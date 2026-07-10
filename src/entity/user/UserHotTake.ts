@@ -13,7 +13,6 @@ import type { HotTake } from './HotTake';
 import { UserVote } from '../../types';
 
 @Entity()
-@Index(['hotTakeId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
 export class UserHotTake {
   @PrimaryColumn({ type: 'uuid' })

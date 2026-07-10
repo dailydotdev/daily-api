@@ -107,6 +107,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_rejected: '43',
   squad_public_approved: '41',
   post_bookmark_reminder: '',
+  scheduled_post_published: '',
   streak_reset_restore: '',
   squad_featured: '56',
   user_post_added: '58',
@@ -282,6 +283,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   source_post_rejected: async () => null,
   post_bookmark_reminder: async () => null,
+  scheduled_post_published: async () => null,
   streak_reset_restore: async () => null,
   community_picks_failed: async (con, user, notification) => {
     const submission = await con

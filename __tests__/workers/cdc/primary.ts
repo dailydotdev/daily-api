@@ -1,6 +1,7 @@
 import nock from 'nock';
 import {
   CandidateStatus,
+  HighlightsCanonicalPublishedMessage,
   OpportunityState,
   OpportunityType,
 } from '@dailydotdev/schema';
@@ -26,9 +27,11 @@ import {
   Feature,
   FeatureType,
   Feed,
+  FeedOrigin,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
+  HighlightsCanonical,
   Keyword,
   KeywordStatus,
   MarketingCta,
@@ -138,6 +141,7 @@ import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
+import { HighlightSignificance } from '../../../src/common/channelHighlight/significance';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import { Product, ProductType } from '../../../src/entity/Product';
 import {
@@ -149,6 +153,11 @@ import {
 import { Quest, QuestEventType, QuestType } from '../../../src/entity/Quest';
 import { QuestRotation } from '../../../src/entity/QuestRotation';
 import { UserQuest, UserQuestStatus } from '../../../src/entity/user/UserQuest';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../../../src/entity/contribution/ContributionSubmission';
+
 import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
@@ -1189,6 +1198,102 @@ describe('user', () => {
   });
 });
 
+describe('feed', () => {
+  type ObjectType = Feed;
+  const feedUserId = 'feed-achievement-user';
+  let feedAchievementId: string;
+
+  const baseFeed = {
+    id: 'custom-feed-1',
+    userId: feedUserId,
+    createdAt: 0,
+    flags: '{}',
+  } as unknown as ChangeObject<ObjectType>;
+
+  beforeEach(async () => {
+    feedAchievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: feedAchievementId,
+      name: 'Power user (cdc feed test)',
+      description: 'Create a custom feed',
+      image: '',
+      type: AchievementType.Instant,
+      eventType: AchievementEventType.FeedCreate,
+      criteria: { targetCount: 1 },
+      points: 10,
+    });
+
+    await saveFixtures(con, User, [
+      {
+        id: feedUserId,
+        bio: null,
+        name: 'Feed User',
+        image: 'https://daily.dev/feed-user.jpg',
+        email: `${feedUserId}@daily.dev`,
+        createdAt: new Date(),
+        username: 'feeduser',
+        infoConfirmed: true,
+      },
+    ]);
+  });
+
+  it('should unlock the create-custom-feed achievement on custom feed creation', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...baseFeed },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
+  });
+
+  it('should not progress the achievement for tag-chip seeded feeds', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...baseFeed,
+          flags: JSON.stringify({ origin: FeedOrigin.TagChip }),
+        },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).toBeNull();
+  });
+
+  it('should not progress the achievement for the main feed', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...baseFeed, id: feedUserId },
+        table: 'feed',
+        op: 'c',
+      }),
+    );
+
+    const userAchievement = await con
+      .getRepository(UserAchievement)
+      .findOneBy({ achievementId: feedAchievementId, userId: feedUserId });
+
+    expect(userAchievement).toBeNull();
+  });
+});
+
 describe('comment mention', () => {
   type ObjectType = CommentMention;
   const base: ChangeObject<ObjectType> = {
@@ -1304,6 +1409,7 @@ describe('post', () => {
     expect(notifyPostVisible).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
       after,
+      base,
     ]);
   });
 
@@ -2017,7 +2123,7 @@ describe('feed', () => {
     userId: '1',
     id: '1',
     slug: '1',
-    flags: {},
+    flags: '{}',
     createdAt: Date.now(),
   };
 
@@ -2334,6 +2440,84 @@ describe('submission', () => {
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+});
+
+describe('contribution submission', () => {
+  type ObjectType = ContributionSubmission;
+  const base: ChangeObject<ObjectType> = {
+    id: randomUUID(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    userId: '1',
+    actionId: randomUUID(),
+    paymentId: null,
+    evidence: '{}',
+    status: ContributionSubmissionStatus.Approved,
+    awardedPoints: 50,
+    flags: '{}',
+    reviewedAt: null,
+    reviewedBy: null,
+  };
+
+  it('should emit a completion event on approved insert', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
+      { submission: base },
+    ]);
+  });
+
+  it('should not emit when the submission is not approved', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, status: ContributionSubmissionStatus.Flagged },
+        before: null,
+        op: 'c',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should emit when a submission transitions to approved', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: { ...base, status: ContributionSubmissionStatus.Flagged },
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.contribution-action-completed',
+      { submission: base },
+    ]);
+  });
+
+  it('should not emit when an already-approved submission is edited', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, awardedPoints: 100 },
+        before: base,
+        op: 'u',
+        table: 'contribution_submission',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -3212,6 +3396,104 @@ describe('marketing cta', () => {
         ),
       ).toHaveLength(4);
     });
+  });
+});
+
+describe('highlights canonical', () => {
+  type ObjectType = HighlightsCanonical;
+
+  const base: ChangeObject<ObjectType> = {
+    id: 'hc_1',
+    postId: 'p1',
+    channels: ['javascript'],
+    highlightedAt: 1_770_000_000_000_000,
+    headline: 'JavaScript in 2026',
+    significance: HighlightSignificance.Major,
+    reason: 'Fast ecosystem update',
+    createdAt: 1_770_000_000_000_000,
+    updatedAt: 1_770_000_000_000_000,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should publish canonical highlight event on create', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expectTypedEvent(
+      'api.v1.post-highlighted',
+      new HighlightsCanonicalPublishedMessage({
+        highlightId: base.id,
+        channels: base.channels,
+        publishedChannels: base.channels,
+        postId: base.postId,
+        headline: base.headline,
+        significance: base.significance,
+        reason: base.reason ?? undefined,
+        highlightedAt: base.highlightedAt,
+      }),
+    );
+  });
+
+  it('should publish only newly added channels on update', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      channels: ['javascript', 'backend'],
+      updatedAt: 1_770_000_100_000_000,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expectTypedEvent(
+      'api.v1.post-highlighted',
+      new HighlightsCanonicalPublishedMessage({
+        highlightId: after.id,
+        channels: after.channels,
+        publishedChannels: ['backend'],
+        postId: after.postId,
+        headline: after.headline,
+        significance: after.significance,
+        reason: after.reason ?? undefined,
+        highlightedAt: after.highlightedAt,
+      }),
+    );
+  });
+
+  it('should not publish on update without a new channel', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      headline: 'Updated headline',
+      updatedAt: 1_770_000_100_000_000,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'highlights_canonical',
+      }),
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });
 
@@ -7837,8 +8119,72 @@ describe('poll post', () => {
           type: PostType.Poll,
           authorId: pollAuthorId,
           createdAt,
+          visible: true,
         },
         op: 'c',
+        table: 'post',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: pollAchievementId,
+      userId: pollAuthorId,
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement!.progress).toEqual(1);
+    expect(userAchievement!.unlockedAt).not.toBeNull();
+  });
+
+  it('should not unlock the poll achievement on scheduled poll creation', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: false,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId: pollAchievementId,
+      userId: pollAuthorId,
+    });
+
+    expect(userAchievement).toBeNull();
+  });
+
+  it('should unlock the poll achievement when scheduled poll becomes visible', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        before: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: false,
+        },
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          authorId: pollAuthorId,
+          createdAt,
+          visible: true,
+        },
+        op: 'u',
         table: 'post',
       }),
     );

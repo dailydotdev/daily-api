@@ -90,3 +90,19 @@ const garmrSnotraService = new GarmrService({
 export const snotraClient = new SnotraClient(process.env.SNOTRA_ORIGIN!, {
   garmr: garmrSnotraService,
 });
+
+const garmrSnotraUserApiService = new GarmrService({
+  service: 'snotra-user-api',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+});
+
+export const snotraUserApiClient = new SnotraClient(
+  process.env.SNOTRA_USER_API_ORIGIN!,
+  {
+    garmr: garmrSnotraUserApiService,
+  },
+);

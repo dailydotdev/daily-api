@@ -10,6 +10,7 @@ export const freeformAllowedFields = [
   'summary',
   'tagsStr',
   'contentMeta',
+  'contentQuality',
 ];
 
 export const processFreeform = async ({

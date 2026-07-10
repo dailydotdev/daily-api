@@ -14,7 +14,8 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
-import { getAbsoluteDifferenceInDays } from './users';
+import { getAbsoluteDifferenceInDays, getUserPermalink } from './users';
+import type { ContributionRewardTier } from '../entity/contribution/ContributionRewardTier';
 import { concatTextToNewline } from './utils';
 import { capitalize } from 'lodash';
 import {
@@ -51,6 +52,9 @@ export const webhooks = Object.freeze({
     : nullWebhook,
   userFeedback: process.env.SLACK_USER_FEEDBACK_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_USER_FEEDBACK_WEBHOOK)
+    : nullWebhook,
+  contributions: process.env.SLACK_CONTRIBUTIONS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_CONTRIBUTIONS_WEBHOOK)
     : nullWebhook,
 });
 
@@ -274,6 +278,93 @@ export const notifyNewPostBoostedSlack = async ({
           },
         ],
       },
+    ],
+  });
+};
+
+// Some contribution rewards (store discount, council access) are fulfilled by a
+// human: the team gets pinged here with the contributor's email and emails them
+// the coupon / invite. Content and auto-granted rewards don't call this.
+export const notifyContributionRewardClaimedSlack = async ({
+  user,
+  tier,
+}: {
+  user: Pick<User, 'id' | 'username' | 'name' | 'email'>;
+  tier: Pick<ContributionRewardTier, 'title' | 'rewardType'>;
+}): Promise<void> => {
+  const displayName = user.name || user.username || user.id;
+
+  await webhooks.contributions.send({
+    text: `${displayName} claimed "${tier.title}" — needs fulfilment`,
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '🎁 Contribution reward to fulfil',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*User:*\n<${getUserPermalink(user)}|${displayName}>\n\`${user.id}\``,
+          },
+          { type: 'mrkdwn', text: `*Email:*\n${user.email ?? '—'}` },
+          { type: 'mrkdwn', text: `*Reward:*\n${tier.title}` },
+          { type: 'mrkdwn', text: `*Type:*\n\`${tier.rewardType}\`` },
+        ],
+      },
+    ],
+  });
+};
+
+// A contributor who unlocked the "suggest a cause" reward nominated a nonprofit
+// or open-source fund. We don't store it — the team reviews the link here and
+// decides whether to add it to the vetted causes.
+export const notifyContributionCauseSuggestedSlack = async ({
+  user,
+  url,
+  note,
+}: {
+  user: Pick<User, 'id' | 'username' | 'name' | 'email'>;
+  url: string;
+  note?: string | null;
+}): Promise<void> => {
+  const displayName = user.name || user.username || user.id;
+
+  await webhooks.contributions.send({
+    text: `${displayName} suggested a cause: ${url}`,
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '💡 New cause suggestion to review',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*From:*\n<${getUserPermalink(user)}|${displayName}>\n\`${user.id}\``,
+          },
+          { type: 'mrkdwn', text: `*Email:*\n${user.email ?? '—'}` },
+          { type: 'mrkdwn', text: `*Cause:*\n<${url}|${url}>` },
+        ],
+      },
+      ...(note
+        ? [
+            {
+              type: 'section' as const,
+              text: { type: 'mrkdwn' as const, text: `*Note:*\n${note}` },
+            },
+          ]
+        : []),
     ],
   });
 };

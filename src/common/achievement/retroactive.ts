@@ -1,13 +1,16 @@
 import { differenceInMonths } from 'date-fns';
 import type { FastifyBaseLogger } from 'fastify';
-import type { DataSource, EntityManager } from 'typeorm';
+import { In, type DataSource, type EntityManager } from 'typeorm';
 import { Achievement, AchievementEventType } from '../../entity/Achievement';
 import { updateUserAchievementProgress } from './index';
+import { SubscriptionStatus } from '../plus/subscription';
 type ProgressMap = Map<string, number>;
 type RetroactiveHandler = (
   con: DataSource | EntityManager,
   userIds: string[],
 ) => Promise<ProgressMap>;
+
+const sharePostClicksExpression = `GREATEST(pa.clicks + pa."clicksAds" + pa."goToLink", 0)`;
 
 interface SyncUsersRetroactiveAchievementsParams {
   con: DataSource | EntityManager;
@@ -219,7 +222,9 @@ const handleShareClick: RetroactiveHandler = async (con, userIds) => {
     `SELECT DISTINCT p."authorId" AS "userId"
      FROM post p
      JOIN post_analytics pa ON pa.id = p.id
-     WHERE p."authorId" = ANY($1) AND p.type = 'share' AND pa.clicks > 0`,
+     WHERE p."authorId" = ANY($1)
+       AND p.type = 'share'
+       AND ${sharePostClicksExpression} > 0`,
     [userIds],
   );
 
@@ -443,8 +448,10 @@ const handleSubscriptionAnniversary: RetroactiveHandler = async (
   const rows: { userId: string; createdAt: string }[] = await con.query(
     `SELECT id AS "userId", "subscriptionFlags"->>'createdAt' AS "createdAt"
      FROM "user"
-     WHERE id = ANY($1) AND "subscriptionFlags"->>'createdAt' IS NOT NULL`,
-    [userIds],
+     WHERE id = ANY($1)
+       AND "subscriptionFlags"->>'createdAt' IS NOT NULL
+       AND "subscriptionFlags"->>'status' = $2`,
+    [userIds, SubscriptionStatus.Active],
   );
 
   const map: ProgressMap = new Map();
@@ -490,7 +497,7 @@ const handlePostImpressions: RetroactiveHandler = async (con, userIds) => {
 
 const handleShareClickMilestone: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
-    `SELECT p."authorId" AS "userId", MAX(pa.clicks)::int AS count
+    `SELECT p."authorId" AS "userId", MAX(${sharePostClicksExpression})::int AS count
      FROM post p
      JOIN post_analytics pa ON pa.id = p.id
      WHERE p."authorId" = ANY($1) AND p.type = 'share'
@@ -506,7 +513,9 @@ const handleSharePostsClicked: RetroactiveHandler = async (con, userIds) => {
     `SELECT p."authorId" AS "userId", COUNT(*)::int AS count
      FROM post p
      JOIN post_analytics pa ON pa.id = p.id
-     WHERE p."authorId" = ANY($1) AND p.type = 'share' AND pa.clicks > 0
+     WHERE p."authorId" = ANY($1)
+       AND p.type = 'share'
+       AND ${sharePostClicksExpression} > 0
      GROUP BY p."authorId"`,
     [userIds],
   );
@@ -590,7 +599,10 @@ export const syncUsersRetroactiveAchievements = async ({
     };
   }
 
-  const allAchievements = await con.getRepository(Achievement).find();
+  const achievementRepo = con.getRepository(Achievement);
+  const allAchievements = eventTypes?.length
+    ? await achievementRepo.find({ where: { eventType: In(eventTypes) } })
+    : await achievementRepo.find();
   const achievementsByEventType = new Map<
     AchievementEventType,
     Achievement[]

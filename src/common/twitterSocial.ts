@@ -6,12 +6,14 @@ import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
 import { generateTitleHtml } from '../entity/posts/utils';
 import { markdown } from './markdown';
+import { getPostScheduledAt } from './postScheduling';
 import {
   type TwitterSocialMedia,
   type TwitterSocialPayload,
   type TwitterSocialSubType,
   twitterSocialPayloadSchema,
 } from './schema/socialTwitter';
+import { updateFlagsStatement } from './utils';
 
 export interface TwitterMappedPostFields {
   type: PostType.SocialTwitter;
@@ -488,10 +490,13 @@ export const upsertTwitterReferencedPost = async ({
     .createQueryBuilder()
     .from(Post, 'post')
     .select('post.id', 'id')
+    .addSelect('post.flags', 'flags')
+    .addSelect('post.visible', 'visible')
+    .addSelect('post.visibleAt', 'visibleAt')
     .where('post.url = :url OR post."canonicalUrl" = :url', {
       url: referenceUrl,
     })
-    .getRawOne<{ id: string }>();
+    .getRawOne<Pick<Post, 'id' | 'flags' | 'visible' | 'visibleAt'>>();
 
   if (existingPost?.id) {
     const fields = await buildReferencePostFields({
@@ -499,7 +504,20 @@ export const upsertTwitterReferencedPost = async ({
       reference,
       language,
     });
-    await entityManager.getRepository(Post).update(existingPost.id, fields);
+    const scheduledAt = getPostScheduledAt(existingPost);
+    await entityManager.getRepository(Post).update(existingPost.id, {
+      ...fields,
+      ...(scheduledAt
+        ? {
+            visible: existingPost.visible,
+            visibleAt: existingPost.visibleAt,
+            flags: updateFlagsStatement<Post>({
+              ...fields.flags,
+              visible: existingPost.visible,
+            }),
+          }
+        : {}),
+    });
     return existingPost.id;
   }
 
@@ -509,10 +527,13 @@ export const upsertTwitterReferencedPost = async ({
       .createQueryBuilder()
       .from(Post, 'post')
       .select('post.id', 'id')
+      .addSelect('post.flags', 'flags')
+      .addSelect('post.visible', 'visible')
+      .addSelect('post.visibleAt', 'visibleAt')
       .where('post.url ~ :statusRegex OR post."canonicalUrl" ~ :statusRegex', {
         statusRegex,
       })
-      .getRawOne<{ id: string }>();
+      .getRawOne<Pick<Post, 'id' | 'flags' | 'visible' | 'visibleAt'>>();
 
     if (existingByStatusId?.id) {
       const fields = await buildReferencePostFields({
@@ -520,9 +541,20 @@ export const upsertTwitterReferencedPost = async ({
         reference,
         language,
       });
-      await entityManager
-        .getRepository(Post)
-        .update(existingByStatusId.id, fields);
+      const scheduledAt = getPostScheduledAt(existingByStatusId);
+      await entityManager.getRepository(Post).update(existingByStatusId.id, {
+        ...fields,
+        ...(scheduledAt
+          ? {
+              visible: existingByStatusId.visible,
+              visibleAt: existingByStatusId.visibleAt,
+              flags: updateFlagsStatement<Post>({
+                ...fields.flags,
+                visible: existingByStatusId.visible,
+              }),
+            }
+          : {}),
+      });
       return existingByStatusId.id;
     }
   }

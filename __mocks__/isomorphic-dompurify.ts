@@ -1,10 +1,25 @@
-// Mock for isomorphic-dompurify to avoid ESM compatibility issues in Jest
-// When using dynamic import(), the module is accessed directly (not via .default)
-// because Jest's moduleNameMapper resolves to this file which exports these functions directly
+import { parse } from 'node-html-parser';
 
-export const sanitize = (html: string): string => {
-  // Simple mock that returns the input - actual sanitization not needed in tests
-  return html;
+type SanitizeConfig = {
+  ALLOWED_TAGS?: string[];
+};
+
+export const sanitize = (html: string, config?: SanitizeConfig): string => {
+  if (config?.ALLOWED_TAGS?.length !== 0) {
+    return html;
+  }
+
+  const root = parse(html);
+  root.querySelectorAll('script,style').forEach((node) => node.remove());
+  return root.textContent
+    .split('<script')
+    .join('')
+    .split('<style')
+    .join('')
+    .split('<')
+    .join('')
+    .split('>')
+    .join('');
 };
 
 export const addHook = (): void => {

@@ -14,6 +14,6 @@
   },
   "packageManager": "pnpm@10.33.4+sha256.8e70ddc6649b18bc3d895cf3a908c0291ea4c38039ad8722c47e018daf1e9cfc",
   "volta": {
-    "node": "24.14.0"
+    "node": "24.18.0"
   }
 }

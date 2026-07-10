@@ -59,7 +59,7 @@ config:
       secure: AAABAGChdDxbV+V6t2pQOYBecCRy36qLbPoyD2Ee3ssIIArwBkjx2NmMPK9SnjLWV5pqg7YWV8EkcB3ldysVDzrTTslLimQH5VtgQ1Fe32uqWUUUrZUJmZlDv9+xgYeo
     cloudinaryUrl:
       secure: AAABANjdKplLPf64fvQRXN0mUtB6I7yh0lG44SsBC6BcKsH3MulzTCJ8adEN4BQYlytY0otXJOJL+fqNjzgYG+WIXO2GPecSvPeFem5ZyFVrbfxX42wyb2iwVHDyegOb5cY=
-    commentsPrefix: https://app.daily.dev
+    commentsPrefix: https://daily.dev
     cookiesKey:
       secure: AAABAI6r/VqBFrSL3TkFzy1JF7INkGFPmakbJr72jjDGmYUqoJV4t6ha1yDoYaA97MIcFHmW4t1+cRKQcHTwy7vUYCCaf9gLSvrb1ax1cA==
     defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/s--P4t4XyoV--/f_auto/v1722860399/public/Placeholder%2001,https://res.cloudinary.com/daily-now/image/upload/s--VDukGCjf--/f_auto/v1722860399/public/Placeholder%2002,https://res.cloudinary.com/daily-now/image/upload/s--HRgLpUt6--/f_auto/v1722860399/public/Placeholder%2003,https://res.cloudinary.com/daily-now/image/upload/s--foaA6JGU--/f_auto/v1722860399/public/Placeholder%2004,https://res.cloudinary.com/daily-now/image/upload/s--CxzD6vbw--/f_auto/v1722860399/public/Placeholder%2005,https://res.cloudinary.com/daily-now/image/upload/s--ZrL_HSsR--/f_auto/v1722860399/public/Placeholder%2006,https://res.cloudinary.com/daily-now/image/upload/s--1KxV4ohY--/f_auto/v1722860400/public/Placeholder%2007,https://res.cloudinary.com/daily-now/image/upload/s--0_ODbtD2--/f_auto/v1722860399/public/Placeholder%2008,https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1722860399/public/Placeholder%2009,https://res.cloudinary.com/daily-now/image/upload/s--OHB84bZF--/f_auto/v1722860399/public/Placeholder%2010,https://res.cloudinary.com/daily-now/image/upload/s--2-1xRawN--/f_auto/v1722860399/public/Placeholder%2011,https://res.cloudinary.com/daily-now/image/upload/s--58gMhC4P--/f_auto/v1722860399/public/Placeholder%2012
@@ -112,8 +112,6 @@ config:
     postScraperOrigin: http://post-scraper-one-ai-server.content.svc.cluster.local
     yggdrasilOrigin: http://yggdrasil-link-preview.yggdrasil.svc.cluster.local
     yggdrasilSentimentOrigin: http://yggdrasil-sentiment-api.yggdrasil.svc.cluster.local
-    roasterUrl:
-      secure: AAABAG345FgrKQUdnHkiyTstCqLN33wENnz6dIoBkxqaUAbJPS2h+kPwSH/W0i8+TWHmE4npH37runeN8qm/fyoZxz425ATWQsyrTVJU4KMAApeHwGUI4pgtAvDB11x96eWDX5SBLW2t4UemyaHXw1kYagdwWkd9LP4e3j8E7oKXJE7YwHRaIT4LI09JoTQWTuMLwYfZY1vWzAy5BOHqouf1v1+hGWWSF+NTdFHHkw==
     scraperUrl: http://scraper
     sendgridWebhookAnalyticsKey:
       secure: AAABAN93rTdOaHRB0LdcCsxtW0iEDhqNeUQaldjnx44gUVu2xjn0lR9bW1MgPZ8v6KBfAG8k8Uf2tqg2zWKiP9Dk1eDH7TR5v2XmKnvnP/rzCwhz0eZ0Yd3qoSJ8NUBhxcB/somueTshRZI2xfjtQf2aKyZ9KKIoPPs1U8D1fiyQPeQm2e7in0CouLbEGkS/FUpyHVLS6l2mUlq4
@@ -244,7 +242,7 @@ config:
     betterAuthSecret:
       secure: AAABALZQwVSAbe3t3eq7WkNUv6E/YW40U6Tv/8/9AHdMztBwQIRDuJAq84vVRqh/6OtZx34g9wXLvUG5pkAgjBkO2K5pNDC7LagmDxqwFXGBNWmiRKsFbC0LXosX4kOg
     betterAuthBaseUrl: https://api.daily.dev
-    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.app.daily.dev,https://daily.dev,https://next.daily.dev
+    betterAuthTrustedOrigins: https://app.daily.dev,chrome-extension://jlmpjdjjbgclbocgajdjefcidcncaied,https://appleid.apple.com,https://*.preview.app.daily.dev,https://daily.dev
     betterAuthRedirectUrl: https://sso.daily.dev/api
     googleClientId:
       secure: AAABAKpAJnPFQwwZoZubPX++3FKQhi0/gw+Kh6AP0Ax7GApzkXoxOUXYrezrUyf02MIzIrsNlJAeZisv6p12U0ziCdKKhj7Jv/CZThEX9FB8uSWArHS68NdrQkcTL8gUk/PK/GU4cAM=
@@ -273,6 +271,12 @@ config:
       secure: AAABAA85JTyvqc0H0ymWJ4UZ+btCk31WpH78pgaNOIiIRKW9jr6p7W1xBMzmCbO6vBfL90LeadptoNV9KQnaPnsmIVlQhTDEERY17PoQ
     emailTrackingOrigin:
       secure: AAABAErY3w6A5DQ0qsRNWLnAJZhLaLnMdqbimt6M5rZSYgAw6yNbtrlUJLeiHW/EQCDUhw==
+    onesignalWebAppId:
+      secure: AAABACoUzLQ6eGNpdjzl7sShD4BDSeSKJPtzdp9Ble0i3Mo3fh49v5dypv2VkcuXF2UH1dgaZlcCE6DhSBTrA/luWKc=
+    onesignalWebApiKey:
+      secure: AAABAPNWKCkjj4VNxfW9pxPksz2srCJuBaOfvxnyIRpnb/e7fBFUBIhTJjiZa8Kf2fAOFEqh1Xpioilpy6UrW//CFVHl5EEDtn+1U2K8Ig398ZbLwCYiJcsqj3m0NVnhs5tH/SUfHyiJBexftNuyAjE9KPW1UmyIeUpB4gTUMJG876JFVYqUY7a2XJFjGJ7a4Q==
+    slackContributionsWebhook:
+      secure: AAABAOKNibr2AoUeSHJzmAyyNaOTqhvy/oDYDu1spT6YzFIUpPP32FbJqNJx6Y9AgoYrJksqY+H5PXMCT87RqKYyoqYXcktk4JQpGtWur8XEMAAEfLM55s3bQnF0hfmKgWQ17nk/CuF52K4ozY0rqnw=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

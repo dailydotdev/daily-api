@@ -15,6 +15,7 @@ import {
 import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
 import { BriefingModel, BriefingType } from '../../../src/integrations/feed';
+import { briefFeedClient } from '../../../src/common/brief';
 import { BriefPost } from '../../../src/entity/posts/BriefPost';
 import { sourcesFixture } from '../../fixture';
 import { generateShortId } from '../../../src/ids';
@@ -133,6 +134,7 @@ describe('userGenerateBrief worker', () => {
         return true;
       })
       .reply(200, {
+        tldr: 'OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.',
         sections: [
           {
             title: 'Must know',
@@ -186,7 +188,13 @@ describe('userGenerateBrief worker', () => {
     expect(briefPost).toBeDefined();
     expect(briefPost!.private).toBe(false);
     expect(briefPost!.visible).toBe(true);
-    expect(briefPost!.content).toBe(`## Must know
+    expect(briefPost!.summary).toBe(
+      'OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.',
+    );
+    expect(briefPost!.content)
+      .toBe(`OpenAI signs a federal AI deal while agents still struggle with basic CRM tasks.
+
+## Must know
 
 - **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.
 
@@ -821,5 +829,46 @@ describe('userGenerateBrief worker', () => {
 - **All invalid postIds**: Another body.
 - **Single invalid postId**: Yet another body.
 - **Single valid postId**: Valid single. [Read more](http://localhost:5002/posts/Ab3Kd9xZq)`);
+  });
+
+  it('should delete the pending post when brief generation fails', async () => {
+    const postId = await generateShortId();
+
+    await con.getRepository(BriefPost).save(
+      con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: false,
+        sourceId: BRIEFING_SOURCE,
+      }),
+    );
+
+    jest
+      .spyOn(briefFeedClient, 'getUserBrief')
+      .mockRejectedValueOnce(new Error('brief generation failed'));
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: 'ugbw-1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    const briefPost = await con.getRepository(BriefPost).findOne({
+      where: { id: postId },
+    });
+
+    expect(briefPost).toBeNull();
+    expect(triggerTypedEvent).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.brief-ready',
+      expect.anything(),
+    );
+
+    jest.restoreAllMocks();
   });
 });

@@ -35,9 +35,15 @@ export class SkadiClient<TValue> implements ISkadiClient<TValue> {
     metadata: {
       USERID: string;
     },
+    options?: {
+      cid?: string;
+    },
   ): Promise<SkadiResponse<TValue>> {
+    const url = options?.cid
+      ? `${this.url}/private?cid=${encodeURIComponent(options.cid)}`
+      : `${this.url}/private`;
     return this.garmr.execute(({ signal }) => {
-      return fetchParse(`${this.url}/private`, {
+      return fetchParse(url, {
         ...this.fetchOptions,
         method: 'POST',
         headers: {

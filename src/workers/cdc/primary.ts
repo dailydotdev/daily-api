@@ -1,4 +1,8 @@
-import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
+import {
+  HighlightsCanonicalPublishedMessage,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -11,6 +15,8 @@ import {
   ContentImage,
   Feature,
   Feed,
+  type FeedFlags,
+  FeedOrigin,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
@@ -46,6 +52,7 @@ import {
   Feedback,
 } from '../../entity';
 import { BookmarkList } from '../../entity/BookmarkList';
+import { HighlightsCanonical } from '../../entity/HighlightsCanonical';
 import { HotTake } from '../../entity/user/HotTake';
 import type { UserFlags } from '../../entity/user/User';
 import { UserStack } from '../../entity/user/UserStack';
@@ -101,7 +108,7 @@ import {
   triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
 import { CommentReport } from '../../entity/CommentReport';
@@ -113,12 +120,18 @@ import {
   getRedisObject,
   setRedisObjectWithExpiry,
 } from '../../redis';
+import {
+  ContributionSubmission,
+  ContributionSubmissionStatus,
+} from '../../entity/contribution/ContributionSubmission';
 import { counters } from '../../telemetry';
 import {
   cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
+  cancelScheduledPostPublishWorkflow,
   runEntityReminderWorkflow,
   runReminderWorkflow,
+  runScheduledPostPublishWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays, differenceInMonths, nextMonday, nextTuesday } from 'date-fns';
 import { hasPlusStatusChanged } from '../../paddle';
@@ -128,6 +141,7 @@ import {
   sourceReportReasonsMap,
   userReportReasonsMap,
 } from '../../entity/common';
+import { getPostScheduledAt } from '../../common/postScheduling';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
 import {
@@ -1058,11 +1072,57 @@ const onSettingsChange = async (
   }
 };
 
+const syncScheduledPostPublishWorkflow = async (
+  data: ChangeMessage<Post>,
+): Promise<void> => {
+  const before = data.payload.before;
+  const after = data.payload.after;
+  const beforeScheduledAt = before ? getPostChangeScheduledAt(before) : null;
+  const afterScheduledAt = after ? getPostChangeScheduledAt(after) : null;
+
+  if (
+    before &&
+    beforeScheduledAt &&
+    (!afterScheduledAt ||
+      beforeScheduledAt.getTime() !== afterScheduledAt.getTime() ||
+      after?.visible ||
+      after?.deleted ||
+      after?.banned)
+  ) {
+    await cancelScheduledPostPublishWorkflow({
+      postId: before.id,
+      scheduledAt: beforeScheduledAt.toISOString(),
+    });
+  }
+
+  if (
+    after &&
+    afterScheduledAt &&
+    !after.visible &&
+    !after.deleted &&
+    !after.banned &&
+    (!beforeScheduledAt ||
+      beforeScheduledAt.getTime() !== afterScheduledAt.getTime())
+  ) {
+    await runScheduledPostPublishWorkflow({
+      postId: after.id,
+      scheduledAt: afterScheduledAt.toISOString(),
+    });
+  }
+};
+
+const getPostChangeScheduledAt = (post: ChangeObject<Post>): Date | null =>
+  getPostScheduledAt({
+    flags: JSON.parse(post.flags || '{}') as Post['flags'],
+  });
+
 const onPostChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
+  await syncScheduledPostPublishWorkflow(data);
+
   if (data.payload.after?.yggdrasilId && !data.payload.before?.yggdrasilId) {
     await notifyPostYggdrasilIdSet(logger, data.payload.after);
   }
@@ -1075,7 +1135,7 @@ const onPostChange = async (
       if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
-      if (data.payload.after!.authorId) {
+      if (data.payload.after!.visible && data.payload.after!.authorId) {
         await checkAchievementProgress(
           con,
           logger,
@@ -1107,7 +1167,7 @@ const onPostChange = async (
       const after = poll.payload.after!;
       const endsAt = after.endsAt as number | undefined;
 
-      if (after.authorId) {
+      if (after.authorId && after.visible) {
         await checkAchievementProgress(
           con,
           logger,
@@ -1133,7 +1193,50 @@ const onPostChange = async (
 
     if (data.payload.after!.visible) {
       if (!data.payload.before!.visible) {
-        await notifyPostVisible(logger, data.payload.after!);
+        await notifyPostVisible(
+          logger,
+          data.payload.after!,
+          data.payload.before!,
+        );
+        if (
+          data.payload.after!.type === PostType.Freeform &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PostFreeform,
+          );
+        }
+        if (
+          data.payload.after!.type === PostType.Share &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PostShare,
+          );
+          await checkQuestProgress({
+            con,
+            logger,
+            userId: data.payload.after!.authorId,
+            eventType: QuestEventType.PostShare,
+          });
+        }
+        if (
+          data.payload.after!.type === PostType.Poll &&
+          data.payload.after!.authorId
+        ) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            data.payload.after!.authorId,
+            AchievementEventType.PollCreate,
+          );
+        }
       } else {
         // Trigger message only if the post is already visible and the conte was edited
         const freeform = data as ChangeMessage<FreeformPost>;
@@ -1458,7 +1561,13 @@ const onFeedChange = async (
 
     // feed id differs from userId means custom feed
     const feed = data.payload.after!;
-    if (feed.id !== feed.userId) {
+    // flags arrive as a JSON string from CDC
+    const feedFlags = JSON.parse(
+      (feed.flags as unknown as string) || '{}',
+    ) as FeedFlags;
+    // skip tag-chip feeds seeded during onboarding so they don't auto-complete
+    // the "Create a custom feed" achievement on signup
+    if (feed.id !== feed.userId && feedFlags.origin !== FeedOrigin.TagChip) {
       await checkAchievementProgress(
         con,
         logger,
@@ -1517,6 +1626,28 @@ const onSubmissionChange = async (
       await notifySubmissionRejected(logger, entity);
     }
   }
+};
+
+const onContributionSubmissionChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<ContributionSubmission>,
+) => {
+  const { op, after, before } = data.payload;
+  if (op !== 'c' && op !== 'u') {
+    return;
+  }
+
+  const isApproved = (status?: ContributionSubmissionStatus) =>
+    status === ContributionSubmissionStatus.Approved;
+
+  if (!after || !isApproved(after.status) || isApproved(before?.status)) {
+    return;
+  }
+
+  await triggerTypedEvent(logger, 'api.v1.contribution-action-completed', {
+    submission: after,
+  });
 };
 
 const onSourceMemberChange = async (
@@ -2047,7 +2178,10 @@ const onContentPreferenceChange = async (
               where: {
                 referenceId: contentPreferenceUser.referenceId,
                 type: ContentPreferenceType.User,
-                status: ContentPreferenceStatus.Follow,
+                status: In([
+                  ContentPreferenceStatus.Follow,
+                  ContentPreferenceStatus.Subscribed,
+                ]),
               },
             });
           await checkAchievementProgress(
@@ -2637,6 +2771,56 @@ const onFeedbackChange = async (
   }
 };
 
+const getPublishedHighlightChannels = (
+  data: ChangeMessage<HighlightsCanonical>,
+): string[] => {
+  const { before, after, op } = data.payload;
+  if (!after) {
+    return [];
+  }
+
+  if (op === 'c') {
+    return after.channels;
+  }
+
+  if (op !== 'u' || !before) {
+    return [];
+  }
+
+  const previousChannels = new Set(before.channels);
+  return after.channels.filter((channel) => !previousChannels.has(channel));
+};
+
+const onHighlightsCanonicalChange = async (
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<HighlightsCanonical>,
+) => {
+  const after = data.payload.after;
+  if (!after) {
+    return;
+  }
+
+  const channels = getPublishedHighlightChannels(data);
+  if (!channels.length) {
+    return;
+  }
+
+  await triggerTypedEvent(
+    logger,
+    'api.v1.post-highlighted',
+    new HighlightsCanonicalPublishedMessage({
+      highlightId: after.id,
+      channels: after.channels,
+      publishedChannels: channels,
+      postId: after.postId,
+      headline: after.headline,
+      significance: after.significance,
+      reason: after.reason ?? undefined,
+      highlightedAt: after.highlightedAt,
+    }),
+  );
+};
+
 const onHotTakeChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2759,6 +2943,9 @@ const worker: Worker = {
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
           break;
+        case getTableName(con, ContributionSubmission):
+          await onContributionSubmissionChange(con, logger, data);
+          break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
           break;
@@ -2821,6 +3008,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
+          break;
+        case getTableName(con, HighlightsCanonical):
+          await onHighlightsCanonicalChange(logger, data);
           break;
         case getTableName(con, HotTake):
           await onHotTakeChange(con, logger, data);

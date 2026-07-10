@@ -56,6 +56,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
+  scheduledAt: string | null;
   dedupKey: string;
   digestPostIds: string[];
   collectionSources: string[];
@@ -80,6 +81,7 @@ export type PostFlagsPublic = Pick<
   | 'sources'
   | 'savedTime'
   | 'generatedAt'
+  | 'scheduledAt'
   | 'digestPostIds'
   | 'ad'
 >;
@@ -243,7 +245,6 @@ export class Post {
   sentAnalyticsReport: boolean;
 
   @Column({ default: 0 })
-  @Index('IDX_post_viewsThreshold')
   viewsThreshold: number;
 
   @Column({ nullable: true })
@@ -254,11 +255,9 @@ export class Post {
   lastTrending?: Date;
 
   @Column({ type: 'integer', nullable: true })
-  @Index('IDX_post_discussion_score')
   discussionScore?: number;
 
   @Column({ default: false })
-  @Index('IDX_post_banned')
   banned: boolean;
 
   @Column({ default: false })
@@ -291,7 +290,6 @@ export class Post {
   showOnFeed: boolean;
 
   @Column({ type: 'integer', default: 0 })
-  @Index('IDX_post_downvotes')
   downvotes: number;
 
   @Column({ type: 'text', nullable: true, default: 'en' })
@@ -301,7 +299,6 @@ export class Post {
   @Index('IDX_post_flags_sentAnalyticsReport', { synchronize: false })
   @Index('IDX_post_flags_banned', { synchronize: false })
   @Index('IDX_post_flags_deleted', { synchronize: false })
-  @Index('IDX_post_flags_promoteToPublic', { synchronize: false })
   @Index('IDX_post_flags_vordr', { synchronize: false })
   flags: PostFlags;
 

@@ -165,6 +165,11 @@ import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { PollPost } from '../entity/posts/PollPost';
 import type { LiveRoom } from '../entity/LiveRoom';
+import {
+  getPostScheduledAt,
+  getScheduledPostFlags,
+  validatePostScheduledAt,
+} from '../common/postScheduling';
 
 export interface GQLPollOption {
   id: string;
@@ -231,6 +236,25 @@ export interface GQLPost {
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
 }
+
+type ScheduledPostsContext = AuthContext & {
+  includeInvisiblePosts?: boolean;
+};
+
+const withInvisiblePosts = async <T>(
+  ctx: AuthContext,
+  callback: (ctx: ScheduledPostsContext) => Promise<T>,
+  includeInvisiblePosts = true,
+): Promise<T> => {
+  const graphormCtx = ctx as ScheduledPostsContext;
+  graphormCtx.includeInvisiblePosts = includeInvisiblePosts;
+
+  try {
+    return await callback(graphormCtx);
+  } finally {
+    delete graphormCtx.includeInvisiblePosts;
+  }
+};
 
 interface PinPostArgs {
   id: string;
@@ -466,6 +490,11 @@ export const typeDefs = /* GraphQL */ `
     The unix timestamp (seconds) the post will be promoted to public to
     """
     promoteToPublic: Int @auth(requires: [MODERATOR])
+
+    """
+    Time the post is scheduled to go live
+    """
+    scheduledAt: DateTime
 
     """
     Cover video
@@ -1386,6 +1415,20 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostConnection! @auth
+
+    """
+    Get paginated list of scheduled posts authored by the authenticated user
+    """
+    scheduledPosts(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1567,6 +1610,10 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post! @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1589,6 +1636,11 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
+      """
+      Time the post should go live. Pass null to cancel the schedule and
+      publish the post immediately together with any edits.
+      """
+      scheduledAt: DateTime
     ): Post! @auth
 
     """
@@ -1710,6 +1762,10 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): EmptyResponse @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1728,6 +1784,10 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -1882,6 +1942,10 @@ export const typeDefs = /* GraphQL */ `
       Duration in days
       """
       duration: Int
+      """
+      Time the post should go live
+      """
+      scheduledAt: DateTime
     ): Post! @auth @rateLimit(limit: 1, duration: 30)
   }
 
@@ -1959,14 +2023,21 @@ const getPostById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
   id: string,
+  includeInvisible = false,
 ): Promise<GQLPost> => {
-  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    ...builder,
-    queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
-      { id },
-    ),
-  }));
+  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => {
+    const baseCondition = `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`;
+
+    return {
+      ...builder,
+      queryBuilder: builder.queryBuilder.where(
+        includeInvisible
+          ? baseCondition
+          : `${baseCondition} AND "${builder.alias}"."visible" = true`,
+        { id },
+      ),
+    };
+  });
   if (res.length) {
     return res[0];
   }
@@ -1986,6 +2057,7 @@ const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
   100,
   500,
 );
+const scheduledPostsPageGenerator = offsetPageGenerator<GQLPost>(20, 100);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -2050,7 +2122,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       info,
     ): Promise<GQLPost> => {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['id', 'sourceId', 'private', 'authorId', 'type'],
+        select: [
+          'id',
+          'sourceId',
+          'private',
+          'authorId',
+          'type',
+          'visible',
+          'flags',
+        ],
         relations: ['source'],
         where: [{ id }, { slug: id }],
       });
@@ -2080,6 +2160,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           throw permissionError;
         }
       }
+
+      const isOwnScheduledPost =
+        ctx.userId &&
+        partialPost.authorId === ctx.userId &&
+        !partialPost.visible &&
+        !!getPostScheduledAt(partialPost);
+
+      if (isOwnScheduledPost) {
+        return withInvisiblePosts(ctx as AuthContext, (graphormCtx) =>
+          getPostById(graphormCtx, info, partialPost.id, true),
+        );
+      }
+
       return getPostById(ctx, info, partialPost.id);
     },
     postByUrl: async (
@@ -2534,6 +2627,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       );
     },
+    scheduledPosts: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      const page = scheduledPostsPageGenerator.connArgsToPage(args);
+
+      return withInvisiblePosts(ctx, (graphormCtx) =>
+        graphorm.queryPaginated(
+          graphormCtx,
+          info,
+          (nodeSize) =>
+            scheduledPostsPageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) => scheduledPostsPageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            scheduledPostsPageGenerator.nodeToCursor(page, args, node, index),
+          (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :userId`, {
+                userId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.visible = false`)
+              .andWhere(`${builder.alias}.flags->>'scheduledAt' IS NOT NULL`)
+              .orderBy(`${builder.alias}.flags->>'scheduledAt'`, 'ASC')
+              .addOrderBy(`${builder.alias}.id`, 'ASC')
+              .limit(page.limit)
+              .offset(page.offset);
+
+            return builder;
+          },
+          undefined,
+          true,
+        ),
+      );
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
@@ -2777,13 +2906,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const { id } = await createFreeformPost(ctx.con, ctx, args);
 
-      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
-      }));
+      return withInvisiblePosts(
+        ctx,
+        (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id },
+            ),
+          })),
+        !!args.scheduledAt,
+      );
     },
     editPost: async (
       _,
@@ -2794,6 +2928,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const { id, image } = args;
       const { con, userId } = ctx;
       const { title, content } = validatePost(args);
+      const updatesContent = args.content !== undefined;
 
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
@@ -2821,7 +2956,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           );
         }
 
-        let updated: Partial<EditablePost> = {};
+        let updated: Partial<
+          EditablePost & Pick<Post, 'visible' | 'visibleAt' | 'createdAt'>
+        > = {};
+
+        if (args.scheduledAt !== undefined) {
+          if (post.visible) {
+            throw new ValidationError(
+              'Cannot update scheduled time after post is published',
+            );
+          }
+
+          // Guard both reschedule and publish-now to posts that are actually
+          // scheduled, so an unrelated invisible post can't be force-published.
+          if (!getPostScheduledAt(post)) {
+            throw new ValidationError('Post is not scheduled');
+          }
+
+          const scheduledAt = validatePostScheduledAt(args.scheduledAt);
+
+          if (scheduledAt) {
+            updated.visible = false;
+            updated.visibleAt = null;
+            updated.flags = {
+              ...updated.flags,
+              ...getScheduledPostFlags(scheduledAt),
+            };
+          } else {
+            // scheduledAt was explicitly null: cancel the schedule and publish
+            // now. The pending publish workflow no-ops once the post is visible.
+            const now = new Date();
+            updated.visible = true;
+            updated.visibleAt = now;
+            updated.createdAt = now;
+            updated.flags = {
+              ...updated.flags,
+              scheduledAt: null,
+              visible: true,
+            };
+          }
+        }
 
         if (title && title !== post.title) {
           updated.title = title;
@@ -2837,7 +3011,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           updated.image = coverImageUrl;
         }
 
-        if (content !== post.content) {
+        if (updatesContent && content !== post.content) {
           const mentions = await getMentions(
             manager,
             content,
@@ -2888,13 +3062,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
       });
 
-      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
-      }));
+      return withInvisiblePosts(ctx, (graphormCtx) =>
+        graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          ),
+        })),
+      );
     },
     banPost: async (
       source,
@@ -2988,7 +3164,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     submitExternalLink: async (
       _,
-      { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
+      {
+        sourceId,
+        commentary,
+        url,
+        title,
+        image,
+        scheduledAt,
+      }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!isValidHttpUrl(url)) {
@@ -3025,6 +3208,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               postId: existingPost.id,
               commentary,
               visible: existingPost.visible,
+              scheduledAt,
             },
           });
           return { _: true };
@@ -3043,6 +3227,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             image,
             commentary,
             originalUrl: url,
+            scheduledAt,
           },
         });
       });
@@ -3054,7 +3239,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         id,
         commentary,
         sourceId,
-      }: { id: string; commentary: string; sourceId: string },
+        scheduledAt,
+      }: {
+        id: string;
+        commentary: string;
+        sourceId: string;
+        scheduledAt?: Date | null;
+      },
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
@@ -3095,11 +3286,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           postId: sharedPostId,
           commentary,
           visible: post.visible,
+          scheduledAt,
         },
       });
 
       if (!newPost.visible) {
-        return newPost as unknown as GQLPost;
+        return withInvisiblePosts(ctx, (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id: newPost.id },
+            ),
+          })),
+        );
       }
 
       return getPostById(ctx, info, newPost.id);
@@ -3462,6 +3662,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           sourceId: args.sourceId,
           duration: args.duration,
           authorId: ctx.userId,
+          scheduledAt: args.scheduledAt,
           pollOptions: args.options.map((option) =>
             ctx.con.getRepository(PollOption).create({
               text: option.text,
@@ -3473,7 +3674,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
 
-      return getPostById(ctx, info, savedPost.id);
+      return withInvisiblePosts(
+        ctx,
+        (graphormCtx) =>
+          graphorm.queryOneOrFail<GQLPost>(graphormCtx, info, (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id: savedPost.id },
+            ),
+          })),
+        !!args.scheduledAt,
+      );
     },
     votePoll: async (
       _,

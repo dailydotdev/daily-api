@@ -17,6 +17,10 @@ import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
 import newNotificationRealTime from './newNotificationV2RealTime';
+import newHighlightRealTime from './newHighlightRealTime';
+import contributionActionCompletedRealTime from './contributionActionCompletedRealTime';
+import contributionActionCompletedSlack from './contributionActionCompletedSlack';
+import contributionMilestoneReached from './contributionMilestoneReached';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
 import { workers as notificationWorkers } from './notifications';
@@ -46,6 +50,7 @@ import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDige
 import commentDownvotedRep from './commentDownvotedRep';
 import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
 import userUpdatedCio from './userUpdatedCio';
+import userActivatedContributionReferral from './userActivatedContributionReferral';
 import userDeletedCio from './userDeletedCio';
 import userStreakUpdatedCio from './userStreakUpdatedCio';
 import { vordrPostCommentPrevented } from './vordrPostCommentPrevented';
@@ -138,6 +143,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postDownvotedRep,
   postDownvoteCanceledRep,
   userUpdatedCio,
+  userActivatedContributionReferral,
   userDeletedCio,
   userStreakUpdatedCio,
   vordrPostCommentPrevented,
@@ -173,6 +179,10 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackUpdatedSlack,
   gearClassify,
   generateChannelDigest,
+  newHighlightRealTime,
+  contributionActionCompletedRealTime,
+  contributionActionCompletedSlack,
+  contributionMilestoneReached,
   userDeletionCleanup,
   liveRoomStartedWorker,
   liveRoomEndedWorker,

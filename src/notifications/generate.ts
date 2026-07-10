@@ -134,6 +134,8 @@ export const notificationTitleMap: Record<
   dev_card_unlocked: () => 'Your DevCard is ready to generate',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
     `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
+  scheduled_post_published: () =>
+    `Your scheduled post is now <span class="text-theme-color-cabbage">live</span>`,
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post in <b>${ctx.source.name}</b>`,
@@ -314,6 +316,14 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .uniqueKey(ctx.bookmark.remindAt.toString())
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
+  scheduled_post_published: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
+      .uniqueKey(ctx.post.id),
   streak_reset_restore: (builder, ctx: NotificationStreakRestoreContext) =>
     builder
       .icon(NotificationIcon.Streak)

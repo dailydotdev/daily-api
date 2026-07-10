@@ -22,11 +22,20 @@ export type ContributionEvidenceSchema = {
   };
 };
 
+export enum ContributionAssistType {
+  ExternalLink = 'external_link',
+  ReferralLink = 'referral_link',
+  LinkPool = 'link_pool',
+}
+
 export type ContributionActionMetadata = {
   platform?: string;
   instructions?: string;
   externalUrl?: string;
   isLoveAction?: boolean;
+  // How the UI helps the user complete the action: open a link, surface their
+  // referral link, or pick from a rotating pool (contribution_action_link).
+  assistType?: ContributionAssistType;
 };
 
 @Entity()

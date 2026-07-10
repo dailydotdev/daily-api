@@ -1,5 +1,7 @@
 # Delay new package versions for 7 days before pnpm may resolve them.
 minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - '@dailydotdev/schema'
 blockExoticSubdeps: true
 
 patchedDependencies:

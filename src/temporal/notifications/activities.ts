@@ -4,6 +4,10 @@ import { Bookmark } from '../../entity/Bookmark';
 import { logger } from '../../logger';
 import type { entityReminderSchema } from '../../common/schema/reminders';
 import type z from 'zod';
+import {
+  publishScheduledPost as publishScheduledPostRecord,
+  type ScheduledPostPublishParams,
+} from '../../common/postScheduling';
 
 interface CommonBookmarkReminderParams {
   userId: string;
@@ -38,6 +42,11 @@ export const createActivities = ({ con }: InjectedProps) => ({
       'api.v1.delayed-notification-reminder',
       params,
     );
+  },
+  async publishScheduledPost(
+    params: ScheduledPostPublishParams,
+  ): Promise<void> {
+    await publishScheduledPostRecord({ con, ...params });
   },
 });
 

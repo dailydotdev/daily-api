@@ -74,6 +74,7 @@ import {
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import { remoteConfig } from '../remoteConfig';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { getCpaSource } from '../integrations/feed/cpaSource';
 import {
   DEFAULT_TIMEZONE,
   secondsUntilNextHourInTimezone,
@@ -84,7 +85,7 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { maxFeedsPerUser, UserVote } from '../types';
+import { DAILY_DROP_HOUR, maxFeedsPerUser, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -398,6 +399,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -545,6 +551,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
 
     """
@@ -672,6 +683,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
 
     """
@@ -872,6 +888,11 @@ export const typeDefs = /* GraphQL */ `
       Tag to filter by
       """
       tag: String
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -907,6 +928,11 @@ export const typeDefs = /* GraphQL */ `
       Tag to filter by
       """
       tag: String
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """
@@ -1066,6 +1092,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection! @auth
   }
 
@@ -1649,7 +1680,7 @@ const feedResolverV2Local: IFieldResolver<
 
 const feedResolverCursor = feedResolver<
   unknown,
-  FeedArgs & { generator: FeedGenerator },
+  FeedArgs & { generator: FeedGenerator; withCpaSource?: boolean },
   CursorPage,
   FeedResponse
 >(
@@ -1663,18 +1694,24 @@ const feedResolverCursor = feedResolver<
   feedCursorPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
-    fetchQueryParams: (
+    fetchQueryParams: async (
       ctx,
-      args: FeedArgs & { generator: FeedGenerator },
+      args: FeedArgs & { generator: FeedGenerator; withCpaSource?: boolean },
       page,
-    ) =>
-      args.generator.generate(ctx, {
-        user_id: ctx.userId || ctx.trackingId,
+    ) => {
+      const id = ctx.userId || ctx.trackingId;
+      // Forward the cached CPA campaign source (see boot) so the feed service
+      // can attribute/allocate against it. Scoped to feeds that opt in.
+      const cpaSource = args.withCpaSource ? await getCpaSource(id) : undefined;
+      return args.generator.generate(ctx, {
+        user_id: id,
         page_size: page.limit,
         offset: 0,
         cursor: page.cursor,
         allowed_post_types: args.supportedTypes,
-      }),
+        cpa_source: cpaSource,
+      });
+    },
     warnOnPartialFirstPage: true,
     // Feed service should take care of this
     removeNonPublicThresholdSquads: false,
@@ -1715,6 +1752,10 @@ const dailyFeedResolver = feedResolver<
       );
       const cached = await getRedisObject(cacheKey);
       if (cached) {
+        ctx.log.info(
+          { userId: ctx.userId ?? ctx.trackingId, cached: true, cacheKey },
+          'daily feed served from cache',
+        );
         return JSON.parse(cached) as FeedResponse;
       }
 
@@ -1745,7 +1786,7 @@ const dailyFeedResolver = feedResolver<
           cacheKey,
           JSON.stringify(response),
           secondsUntilNextHourInTimezone({
-            hour: 9,
+            hour: DAILY_DROP_HOUR,
             timezone: user?.timezone || DEFAULT_TIMEZONE,
           }),
         );
@@ -1879,6 +1920,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               args.ranking === Ranking.TIME
                 ? feedGenerators['time']!
                 : feedGenerators['popular']!,
+            withCpaSource: true,
           },
           ctx,
           info,

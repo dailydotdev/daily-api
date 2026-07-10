@@ -34,6 +34,7 @@ import {
   CandidatePreferenceUpdated,
   CandidateRejectedOpportunityMessage,
   ContentUpdatedMessage,
+  type HighlightsCanonicalPublishedMessage,
   MatchedCandidate,
   type OpportunityMessage,
   type OpportunityPreviewResult,
@@ -44,6 +45,7 @@ import {
   WarmIntro,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import type { ContributionSubmission } from '../entity/contribution/ContributionSubmission';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { z } from 'zod';
@@ -147,6 +149,7 @@ export type PubSubSchema = {
   };
   'api.v1.post-visible': {
     post: ChangeObject<Post>;
+    previousPost?: ChangeObject<Post>;
   };
   'api.v1.squad-featured-updated': {
     squad: ChangeObject<SquadSource>;
@@ -209,6 +212,7 @@ export type PubSubSchema = {
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
+  'api.v1.post-highlighted': HighlightsCanonicalPublishedMessage;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
@@ -265,6 +269,9 @@ export type PubSubSchema = {
   };
   'api.v1.member-joined-source': {
     sourceMember: ChangeObject<SourceMember>;
+  };
+  'api.v1.contribution-action-completed': {
+    submission: ChangeObject<ContributionSubmission>;
   };
   'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
   'api.v1.candidate-rejected-opportunity': CandidateRejectedOpportunityMessage;

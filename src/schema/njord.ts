@@ -307,6 +307,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
+            .andWhere(
+              `(${builder.alias}.flags->>'restricted') IS DISTINCT FROM 'true'`,
+            )
             .limit(page.limit)
             .offset(page.offset)
             .addOrderBy(`${builder.alias}."value"`, 'ASC');

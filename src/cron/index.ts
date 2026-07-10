@@ -42,6 +42,7 @@ import updateTagMaterializedViews from './updateTagMaterializedViews';
 import { materializeMonthlyBestPostArchives } from './materializeMonthlyBestPostArchives';
 import { materializeYearlyBestPostArchives } from './materializeYearlyBestPostArchives';
 import cleanOldNotifications from './cleanOldNotifications';
+import { subscriptionAnniversaryAchievementsCron } from './subscriptionAnniversaryAchievements';
 
 export const crons: Cron[] = [
   updateViews,
@@ -87,4 +88,5 @@ export const crons: Cron[] = [
   materializeMonthlyBestPostArchives,
   materializeYearlyBestPostArchives,
   cleanOldNotifications,
+  subscriptionAnniversaryAchievementsCron,
 ];

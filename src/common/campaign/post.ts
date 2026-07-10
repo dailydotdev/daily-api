@@ -38,11 +38,11 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
   postId: string,
-): Promise<Pick<Post, 'id' | 'flags'>> => {
+): Promise<Pick<Post, 'id' | 'flags' | 'type'>> => {
   const { userId } = ctx;
 
   return ctx.con.getRepository(Post).findOneOrFail({
-    select: ['id', 'flags'],
+    select: ['id', 'flags', 'type'],
     where: [
       { id: postId, authorId: userId },
       { id: postId, scoutId: userId },
@@ -72,6 +72,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value: postId } = args;
   const post = await validatePostBoostPermissions(ctx, postId);
+
   checkPostAlreadyBoosted(post);
 
   const request = await ctx.con.transaction(async (manager) => {

@@ -1,15 +1,19 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, type DataSource } from 'typeorm';
 import type z from 'zod';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
   getApprovedContributorsCount,
   getApprovedPointsSum,
   getContributionConfig,
+  getContributionCauseBreakdown,
   getContributionEligibility,
+  getContributionUserRank,
+  getLastReachedMilestone,
   getLifetimeAmountCents,
   parseContributionArgs,
   validateContributionActionLimits,
@@ -17,16 +21,32 @@ import {
 } from '../common/contribution';
 import { fulfillContributionReward } from '../common/contribution/rewards';
 import {
+  notifyContributionCauseSuggestedSlack,
+  notifyContributionRewardClaimedSlack,
+} from '../common/slack';
+import { logger } from '../logger';
+import { User } from '../entity/user/User';
+import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
+import {
   claimContributionRewardArgsSchema,
+  contributionActionLinksArgsSchema,
   contributionActionsArgsSchema,
   contributionConnectionArgsSchema,
   contributionSubmissionsArgsSchema,
   submitContributionActionInputSchema,
+  suggestContributionCauseArgsSchema,
   updateContributionCausePreferencesArgsSchema,
 } from '../common/schema/contributions';
 import { ContributionAction } from '../entity/contribution/ContributionAction';
 import { ContributionActionCategory } from '../entity/contribution/ContributionActionCategory';
+import { ContributionActionLink } from '../entity/contribution/ContributionActionLink';
 import { ContributionCause } from '../entity/contribution/ContributionCause';
+import { ContributionFoundingContributor } from '../entity/contribution/ContributionFoundingContributor';
+import {
+  CONTRIBUTION_FOUNDING_LIMIT,
+  grantFoundingContributorAward,
+} from '../common/contribution/founding';
+import { ContributionMilestone } from '../entity/contribution/ContributionMilestone';
 import {
   ContributionPayment,
   ContributionPaymentStatus,
@@ -46,6 +66,7 @@ import {
   UserContributionRewardStatus,
 } from '../entity/contribution/UserContributionReward';
 import { NotFoundError } from '../errors';
+import { redisPubSub } from '../redis';
 import graphorm from '../graphorm';
 import type { GraphORMBuilder } from '../graphorm/graphorm';
 import {
@@ -103,6 +124,13 @@ type GQLContributionStatus = {
   userPoints: number | null;
 };
 
+type GQLContributionFoundingAward = {
+  totalSpots: number;
+  claimedCount: number;
+  isFoundingMember: boolean;
+  memberNumber: number | null;
+};
+
 type GQLUserContributionReward = Pick<
   UserContributionReward,
   'status' | 'claimedAt' | 'fulfilledAt'
@@ -114,6 +142,58 @@ type GQLUserContributionCauseStats = {
   cause: ContributionCause;
   points: number;
   amountCents: number;
+};
+
+type GQLContributionLeaderboardEntry = {
+  points: number;
+  rank: number;
+};
+
+type GQLContributionActionCompleted = {
+  submissionId: string;
+  userId: string;
+  actionId: string;
+  awardedPoints: number;
+};
+
+// Shared by the query (public, keyed off the viewer) and the claim mutation
+// (which re-reads the state right after granting).
+const getFoundingAwardState = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId?: string;
+}): Promise<GQLContributionFoundingAward> => {
+  const repo = con.getRepository(ContributionFoundingContributor);
+  const [claimedCount, isFoundingMember] = await Promise.all([
+    repo.count(),
+    userId ? repo.exists({ where: { userId } }) : false,
+  ]);
+
+  // 1-based grant order (how many founders joined at or before this one).
+  // Compared entirely in Postgres via a subquery (rather than round-tripping
+  // the row's createdAt through JS Date, which truncates the DB's microsecond
+  // precision to milliseconds) so a freshly granted row's own timestamp
+  // always satisfies "<=" against itself.
+  const memberNumber = isFoundingMember
+    ? await repo
+        .createQueryBuilder('contributor')
+        .where(
+          `contributor."createdAt" <= (
+            SELECT "createdAt" FROM "contribution_founding_contributor" WHERE "userId" = :userId
+          )`,
+          { userId },
+        )
+        .getCount()
+    : null;
+
+  return {
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount,
+    isFoundingMember,
+    memberNumber,
+  };
 };
 
 const toGQLReward = ({
@@ -139,6 +219,12 @@ export const typeDefs = /* GraphQL */ `
   enum ContributionRewardType {
     cores
     plus_days
+    store_discount
+    suggest_causes
+    council
+    patchy_picture
+    joke
+    trivia
     call
     privilege
     custom
@@ -175,11 +261,33 @@ export const typeDefs = /* GraphQL */ `
     userPoints: Int
   }
 
+  """
+  The founding-contributor award: a one-time, capped gift for the first N
+  contributors, granted via claimContributionFoundingAward once a contributor
+  has completed at least one approved action. Campaign-wide fields render for
+  everyone; the visitor's own membership is null until they sign in (and stays
+  false/null until they claim it).
+  """
+  type ContributionFoundingAward {
+    totalSpots: Int!
+    claimedCount: Int!
+    """
+    Whether the visitor is a founding contributor. False for anonymous visitors.
+    """
+    isFoundingMember: Boolean!
+    """
+    The visitor's founding number (1-based, by grant order). Null unless they are
+    a founding contributor.
+    """
+    memberNumber: Int
+  }
+
   type ContributionActionMetadata {
     platform: String
     instructions: String
     externalUrl: String
     isLoveAction: Boolean!
+    assistType: String
   }
 
   type ContributionActionCategory {
@@ -210,6 +318,12 @@ export const typeDefs = /* GraphQL */ `
     userCooldownEndsAt: DateTime
     userCompletions: Int!
     latestUserSubmission: ContributionSubmission
+  }
+
+  type ContributionActionLink {
+    id: ID!
+    url: String!
+    label: String
   }
 
   type ContributionActionEdge {
@@ -316,6 +430,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [ContributionSubmissionEdge!]!
   }
 
+  type ContributionMilestone {
+    id: ID!
+    value: Int!
+    title: String
+    reachedAt: DateTime
+  }
+
   type ContributionSponsor {
     id: ID!
     name: String!
@@ -335,6 +456,35 @@ export const typeDefs = /* GraphQL */ `
     edges: [ContributionSponsorEdge!]!
   }
 
+  type ContributionLeaderboardEntry {
+    user: User!
+    points: Int!
+    rank: Int!
+  }
+
+  type ContributionLeaderboardEntryEdge {
+    node: ContributionLeaderboardEntry!
+    cursor: String!
+  }
+
+  type ContributionLeaderboardConnection {
+    pageInfo: PageInfo!
+    edges: [ContributionLeaderboardEntryEdge!]!
+  }
+
+  type ContributionUserRank {
+    points: Int!
+    rank: Int!
+  }
+
+  """
+  Projected share of the current cycle's points for one cause category.
+  """
+  type ContributionCauseCategoryBreakdown {
+    category: String
+    points: Int!
+  }
+
   input SubmitContributionActionInput {
     actionId: ID!
     evidence: JSON!
@@ -342,6 +492,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     contributionStatus: ContributionStatus!
+    contributionFoundingAward: ContributionFoundingAward!
     contributionActionCategories(
       first: Int
       after: String
@@ -351,6 +502,14 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionActionConnection! @auth @contributionEligibility
+    """
+    A randomized handful of pool links for a link_pool action (e.g. community
+    questions to answer). The pool can hold hundreds; we surface a few at a time.
+    """
+    contributionActionLinks(
+      actionId: ID!
+      limit: Int
+    ): [ContributionActionLink!]! @auth @contributionEligibility
     userContributionSubmissions(
       actionId: ID
       first: Int
@@ -383,6 +542,27 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): ContributionSponsorConnection!
+    """
+    The highest global milestone reached, served from cache for the header
+    gift-icon poll. Null until the first milestone is crossed.
+    """
+    contributionLastReachedMilestone: ContributionMilestone
+    """
+    Current-cycle leaderboard ranked by unpaid approved points.
+    """
+    contributionLeaderboard(
+      first: Int
+      after: String
+    ): ContributionLeaderboardConnection!
+    """
+    The viewer's own current-cycle points and rank. Null when they have no
+    current-cycle points.
+    """
+    contributionUserRank: ContributionUserRank @auth
+    """
+    Projected current-cycle points split across cause categories.
+    """
+    contributionCauseBreakdown: [ContributionCauseCategoryBreakdown!]!
   }
 
   extend type Mutation {
@@ -392,11 +572,38 @@ export const typeDefs = /* GraphQL */ `
     updateContributionCausePreferences(causeIds: [ID!]!): EmptyResponse!
       @auth
       @contributionEligibility
+    """
+    Nominates a cause (by URL, with an optional note) for the team to review.
+    Not stored — the suggestion is posted to Slack for a human decision.
+    """
+    suggestContributionCause(url: String!, note: String): EmptyResponse!
+      @auth
+      @contributionEligibility
     claimContributionReward(tierId: ID!): UserContributionReward!
       @auth
       @contributionEligibility
+    """
+    Claims the founding-contributor award. Requires at least one approved
+    action; idempotent for an existing founding member.
+    """
+    claimContributionFoundingAward: ContributionFoundingAward!
+      @auth
+      @contributionEligibility
+  }
+
+  type ContributionActionCompleted {
+    submissionId: ID!
+    userId: ID!
+    actionId: ID!
+    awardedPoints: Int!
+  }
+
+  extend type Subscription {
+    contributionActionCompleted: ContributionActionCompleted! @auth
   }
 `;
+
+const DEFAULT_POOL_LINK_LIMIT = 5;
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -458,6 +665,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         userPoints,
       };
     },
+    contributionFoundingAward: async (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<GQLContributionFoundingAward> =>
+      // Public query: the spots-taken counter renders for everyone; the visitor's
+      // own founding membership stays false/null until they sign in and claim it.
+      getFoundingAwardState({ con: ctx.con, userId: ctx.userId }),
     contributionActionCategories: async (
       _,
       args: ConnectionArguments,
@@ -517,6 +732,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
           return builder;
         },
+      });
+    },
+    contributionActionLinks: async (
+      _,
+      args: { actionId: string; limit?: number | null },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<ContributionActionLink[]> => {
+      const { actionId, limit } = parseContributionArgs(
+        contributionActionLinksArgsSchema,
+        args,
+      );
+
+      return graphorm.query<ContributionActionLink>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where(`"${builder.alias}"."actionId" = :actionId`, { actionId })
+          .andWhere(`"${builder.alias}"."active" = true`)
+          .orderBy('RANDOM()')
+          .limit(limit ?? DEFAULT_POOL_LINK_LIMIT);
+
+        return builder;
       });
     },
     userContributionSubmissions: async (
@@ -734,6 +970,61 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
       });
     },
+    contributionLastReachedMilestone: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<Pick<
+      ContributionMilestone,
+      'id' | 'value' | 'title' | 'reachedAt'
+    > | null> => getLastReachedMilestone({ con: ctx.con.manager }),
+    contributionLeaderboard: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<GQLContributionLeaderboardEntry>> => {
+      const parsedArgs = parseContributionArgs(
+        contributionConnectionArgsSchema,
+        args,
+      );
+
+      return queryContributionConnection<GQLContributionLeaderboardEntry>({
+        args: parsedArgs,
+        ctx,
+        info,
+        beforeQuery: (builder, page) => {
+          builder.queryBuilder
+            .where(`${builder.alias}.status = :status`, {
+              status: ContributionSubmissionStatus.Approved,
+            })
+            .andWhere(`${builder.alias}."paymentId" IS NULL`)
+            .groupBy(`${builder.alias}."userId"`)
+            .orderBy(
+              `COALESCE(SUM(${builder.alias}."awardedPoints"), 0)`,
+              'DESC',
+            )
+            .addOrderBy(`MIN(${builder.alias}."createdAt")`, 'ASC')
+            .addOrderBy(`${builder.alias}."userId"`, 'ASC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          return builder;
+        },
+      });
+    },
+    contributionUserRank: (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<{ points: number; rank: number } | null> =>
+      getContributionUserRank({ con: ctx.con, userId: ctx.userId }),
+    contributionCauseBreakdown: (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<{ category: string | null; points: number }[]> =>
+      getContributionCauseBreakdown({ con: ctx.con }),
   },
   Mutation: {
     submitContributionAction: async (
@@ -835,62 +1126,214 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         args,
       );
 
-      return ctx.con.transaction(async (con) => {
-        const tier = await con.getRepository(ContributionRewardTier).findOne({
+      const { tier, reward, newlyFulfilled } = await ctx.con.transaction(
+        async (con) => {
+          const rewardTier = await con
+            .getRepository(ContributionRewardTier)
+            .findOne({
+              where: {
+                id: tierId,
+                active: true,
+              },
+            });
+
+          if (!rewardTier) {
+            throw new NotFoundError('Contribution reward tier not found');
+          }
+
+          const userPoints = await getApprovedPointsSum({
+            con,
+            userId: ctx.userId,
+          });
+
+          if (userPoints < rewardTier.thresholdPoints) {
+            throw new ValidationError('Reward threshold has not been reached');
+          }
+
+          const existing = await con
+            .getRepository(UserContributionReward)
+            .findOne({
+              where: {
+                userId: ctx.userId,
+                tierId: rewardTier.id,
+              },
+            });
+          const wasFulfilled =
+            existing?.status === UserContributionRewardStatus.Fulfilled;
+
+          const claimedReward = await fulfillContributionReward({
+            con,
+            ctx,
+            tier: rewardTier,
+            reward:
+              existing ??
+              (await con.getRepository(UserContributionReward).save({
+                userId: ctx.userId,
+                tierId: rewardTier.id,
+                status: UserContributionRewardStatus.Claimed,
+                claimedAt: new Date(),
+                fulfilledAt: null,
+              })),
+          });
+
+          return {
+            tier: rewardTier,
+            reward: claimedReward,
+            newlyFulfilled:
+              !wasFulfilled &&
+              claimedReward.status === UserContributionRewardStatus.Fulfilled,
+          };
+        },
+      );
+
+      // Coupon / council rewards are fulfilled by a human — ping the team once,
+      // after the claim has committed, so a failed claim never notifies and a
+      // Slack outage never fails the claim.
+      const slackNotifyTypes = [
+        ContributionRewardType.StoreDiscount,
+        ContributionRewardType.Council,
+      ];
+      if (newlyFulfilled && slackNotifyTypes.includes(tier.rewardType)) {
+        try {
+          const user = await ctx.con.getRepository(User).findOne({
+            select: ['id', 'username', 'name', 'email'],
+            where: { id: ctx.userId },
+          });
+
+          if (user) {
+            await notifyContributionRewardClaimedSlack({ user, tier });
+          }
+        } catch (err) {
+          logger.error(
+            { err, tierId: tier.id, userId: ctx.userId },
+            'failed to notify Slack of contribution reward claim',
+          );
+        }
+      }
+
+      return toGQLReward({ reward, tier });
+    },
+    claimContributionFoundingAward: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLContributionFoundingAward> => {
+      const hasApprovedContribution = await ctx.con
+        .getRepository(ContributionSubmission)
+        .exists({
           where: {
-            id: tierId,
-            active: true,
+            userId: ctx.userId,
+            status: ContributionSubmissionStatus.Approved,
           },
         });
 
-        if (!tier) {
-          throw new NotFoundError('Contribution reward tier not found');
-        }
+      if (!hasApprovedContribution) {
+        throw new ValidationError(
+          'Complete a giveback action before claiming the founding award',
+        );
+      }
 
-        const userPoints = await getApprovedPointsSum({
-          con,
-          userId: ctx.userId,
-        });
+      await grantFoundingContributorAward({ con: ctx.con, userId: ctx.userId });
 
-        if (userPoints < tier.thresholdPoints) {
-          throw new ValidationError('Reward threshold has not been reached');
-        }
-
-        const existing = await con
-          .getRepository(UserContributionReward)
-          .findOne({
-            where: {
-              userId: ctx.userId,
-              tierId: tier.id,
-            },
-          });
-
-        if (existing) {
-          const reward = await fulfillContributionReward({
-            con,
-            ctx,
-            tier,
-            reward: existing,
-          });
-
-          return toGQLReward({ reward, tier });
-        }
-
-        const reward = await fulfillContributionReward({
-          con,
-          ctx,
-          tier,
-          reward: await con.getRepository(UserContributionReward).save({
-            userId: ctx.userId,
-            tierId: tier.id,
-            status: UserContributionRewardStatus.Claimed,
-            claimedAt: new Date(),
-            fulfilledAt: null,
-          }),
-        });
-
-        return toGQLReward({ reward, tier });
+      const state = await getFoundingAwardState({
+        con: ctx.con,
+        userId: ctx.userId,
       });
+
+      if (!state.isFoundingMember) {
+        // grantFoundingContributorAward returns false both when the cap is
+        // genuinely full and when the award Product is missing/misconfigured;
+        // distinguish them here so a config issue doesn't masquerade as
+        // "sold out".
+        if (state.claimedCount >= state.totalSpots) {
+          throw new ForbiddenError('All founding spots have been claimed');
+        }
+        throw new Error('Founding award is not available right now');
+      }
+
+      return state;
+    },
+    suggestContributionCause: async (
+      _,
+      args: z.infer<typeof suggestContributionCauseArgsSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { url, note } = parseContributionArgs(
+        suggestContributionCauseArgsSchema,
+        args,
+      );
+
+      // Nominating a cause is a reward: only contributors who claimed the
+      // `suggest_causes` tier hold the feature access it grants (see
+      // fulfillContributionSuggestCausesReward).
+      const canSuggest = await ctx.con.getRepository(Feature).exists({
+        where: {
+          userId: ctx.userId,
+          feature: FeatureType.ContributionSuggestCauses,
+          value: FeatureValue.Allow,
+        },
+      });
+
+      if (!canSuggest) {
+        throw new ForbiddenError(
+          'Unlock the suggest-a-cause reward to nominate a cause',
+        );
+      }
+
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['id', 'username', 'name', 'email'],
+        where: { id: ctx.userId },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // The Slack post is the only place the suggestion lands (no DB row), so a
+      // failed send must surface as an error the caller can retry — don't
+      // swallow it the way reward-claim notifications do.
+      await notifyContributionCauseSuggestedSlack({ user, url, note });
+
+      return { _: true };
+    },
+  },
+  Subscription: {
+    contributionActionCompleted: {
+      subscribe: async (): Promise<
+        AsyncIterable<{
+          contributionActionCompleted: GQLContributionActionCompleted;
+        }>
+      > => {
+        const iterator =
+          redisPubSub.asyncIterator<GQLContributionActionCompleted>(
+            CONTRIBUTION_ACTION_COMPLETED_CHANNEL,
+          );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return {
+                  done: false,
+                  value: { contributionActionCompleted: value },
+                };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
+        };
+      },
     },
   },
   ContributionRewardTier: {

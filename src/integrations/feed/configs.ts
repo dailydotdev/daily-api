@@ -406,7 +406,20 @@ export class FeedDailyConfigGenerator implements FeedConfigGenerator {
           ? this.coldStartGenerator
           : this.personalisedGenerator;
 
-      return generator.generate(ctx, opts);
+      const result = await generator.generate(ctx, opts);
+
+      ctx.log.info(
+        {
+          userId: opts.user_id,
+          personaliseState,
+          feedConfig: result,
+          pageSize: opts.page_size,
+          cursor: opts.cursor,
+        },
+        'daily feed config resolved',
+      );
+
+      return result;
     });
   }
 }

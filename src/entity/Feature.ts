@@ -6,6 +6,9 @@ export enum FeatureType {
   Squad = 'squad',
   Search = 'search',
   Standup = 'standup',
+  // Granted by claiming a `suggest_causes` contribution reward; gates the right
+  // to nominate causes for the giveback campaign.
+  ContributionSuggestCauses = 'contribution_suggest_causes',
 }
 
 export enum FeatureValue {

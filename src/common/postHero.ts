@@ -12,6 +12,6 @@ export const POST_HERO_SIZES: Record<PostHeroSignificance, number> = {
   major: 3,
   notable: 2,
   routine: 1,
-  breakout: 3,
+  breakout: 2,
   evergreen: 2,
 };

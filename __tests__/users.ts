@@ -122,6 +122,7 @@ import {
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
 import { UserExperience } from '../src/entity/user/experiences/UserExperience';
+import { UserExperienceWork } from '../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../src/entity/user/experiences/types';
 import { SourceReport } from '../src/entity/sources/SourceReport';
 import { SourceMemberRoles } from '../src/roles';
@@ -2524,20 +2525,35 @@ describe('user company', () => {
         code: '654321',
         userId: loggedUser,
       });
-      return testQueryError(
-        client,
-        { query: QUERY, variables: { email: 'u1@com3.com' } },
-        (errors) => {
-          expect(errors[0].extensions!.code).toEqual(
-            'GRAPHQL_VALIDATION_FAILED',
-          );
-          expect(errors[0].message).toEqual(
-            'This email has already been verified',
-          );
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.addUserCompany._).toBe(true);
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
 
-          expect(sendEmail).not.toHaveBeenCalled();
-        },
-      );
+    it('should re-assert work experience verification when email is already verified', async () => {
+      loggedUser = '1';
+      // beforeEach seeds a verified UserCompany (companyId 1) and an unverified
+      // Work experience for company 1. Re-submitting the already-verified email
+      // should idempotently mark that experience verified instead of erroring.
+      const before = await con
+        .getRepository(UserExperienceWork)
+        .findOneByOrFail({ userId: loggedUser, companyId: '1' });
+      expect(before.verified).toBe(false);
+
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com1.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.addUserCompany._).toBe(true);
+      expect(sendEmail).not.toHaveBeenCalled();
+
+      const after = await con
+        .getRepository(UserExperienceWork)
+        .findOneByOrFail({ userId: loggedUser, companyId: '1' });
+      expect(after.verified).toBe(true);
     });
   });
 
@@ -2697,6 +2713,29 @@ describe('user company', () => {
         email: 'u1@com3.com',
       });
       expect(row.verified).toBeTruthy();
+    });
+
+    it('should mark the matching work experience as verified', async () => {
+      loggedUser = '1';
+      // Seed an unverified Work experience for company 3 (email u1@com3.com).
+      await con.getRepository(UserExperienceWork).save({
+        userId: loggedUser,
+        companyId: '3',
+        title: 'Staff Engineer',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2024-01-01'),
+        endedAt: null,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com', code: '123' },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const experience = await con
+        .getRepository(UserExperienceWork)
+        .findOneByOrFail({ userId: loggedUser, companyId: '3' });
+      expect(experience.verified).toBe(true);
     });
   });
 });

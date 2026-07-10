@@ -441,7 +441,7 @@ Array [
   },
   Object {
     "id": "system",
-    "image": "https://cdn.daily.dev/assets/maskable_icon.png",
+    "image": "https://daily.dev/assets/maskable_icon.png",
     "name": "daily.dev system user",
     "username": "system",
   },

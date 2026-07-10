@@ -1,6 +1,7 @@
 import {
   bookmarkReminderWorkflow,
   entityReminderWorkflow,
+  scheduledPostPublishWorkflow,
 } from '../../../src/temporal/notifications/workflows';
 import { BookmarkActivities } from '../../../src/temporal/notifications/activities';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
@@ -8,6 +9,7 @@ import { Worker } from '@temporalio/worker';
 import {
   getEntityReminderWorkflowId,
   getReminderWorkflowId,
+  getScheduledPostPublishWorkflowId,
 } from '../../../src/temporal/notifications/utils';
 
 let testEnv: TestWorkflowEnvironment;
@@ -15,10 +17,12 @@ let testEnv: TestWorkflowEnvironment;
 const validateBookmark = jest.fn();
 const sendBookmarkReminder = jest.fn();
 const sendEntityReminder = jest.fn();
+const publishScheduledPost = jest.fn();
 const mockActivities: BookmarkActivities = {
   validateBookmark,
   sendBookmarkReminder,
   sendEntityReminder,
+  publishScheduledPost,
 };
 
 jest.mock('../../../src/temporal/client', () => ({
@@ -115,5 +119,28 @@ describe('entityReminderWorkflow workflow', () => {
 
     expect(mockActivities.sendEntityReminder).toHaveBeenCalledTimes(1);
     expect(mockActivities.sendEntityReminder).toHaveBeenCalledWith(params);
+  });
+});
+
+describe('scheduledPostPublishWorkflow workflow', () => {
+  it('should publish scheduled post', async () => {
+    const worker = await createWorker();
+    const params = {
+      postId: 'p1',
+      scheduledAt: new Date().toISOString(),
+    };
+
+    publishScheduledPost.mockReturnValueOnce(undefined);
+
+    await worker.runUntil(
+      testEnv.client.workflow.execute(scheduledPostPublishWorkflow, {
+        workflowId: getScheduledPostPublishWorkflowId(params),
+        args: [params],
+        taskQueue: 'test',
+      }),
+    );
+
+    expect(mockActivities.publishScheduledPost).toHaveBeenCalledTimes(1);
+    expect(mockActivities.publishScheduledPost).toHaveBeenCalledWith(params);
   });
 });

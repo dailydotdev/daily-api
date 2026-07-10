@@ -4,6 +4,7 @@ import rss from './rss';
 import alerts from './alerts';
 import redirector from './redirector';
 import devcards from './devcards';
+import shareImages from './shareImages';
 import privateRoutes from './private';
 import whoami from './whoami';
 import notifications from './notifications';
@@ -12,7 +13,6 @@ import users from './users';
 import redirects from './redirects';
 import webhooks from './webhooks';
 import localAds from './localAds';
-import automations from './automations';
 import sitemaps from './sitemaps';
 import createOrGetConnection from '../db';
 import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
@@ -49,6 +49,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(emailTracking, { prefix: '/em/t' });
   fastify.register(devcards, { prefix: '/devcards' });
+  fastify.register(shareImages, { prefix: '/og' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });
   }
@@ -63,7 +64,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(users, { prefix: '/v1/users' });
   fastify.register(webhooks, { prefix: '/webhooks' });
   fastify.register(redirects);
-  fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });

@@ -127,6 +127,10 @@ export const crons: Cron[] = [
     schedule: '2-59/15 * * * *',
   },
   {
+    name: 'subscription-anniversary-achievements',
+    schedule: '30 3 1 * *',
+  },
+  {
     name: 'post-analytics-history-day-clickhouse',
     schedule: '3-59/5 * * * *',
   },

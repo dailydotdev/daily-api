@@ -229,6 +229,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the search algorithm
       """
       version: Int = 2
+
+      """
+      Number of columns in the feed grid layout (1 when displayed as a list)
+      """
+      columns: Int
     ): PostConnection!
 
     """

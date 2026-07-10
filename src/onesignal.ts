@@ -1,22 +1,167 @@
 import * as OneSignal from '@onesignal/node-onesignal';
-import { NotificationV2, NotificationAvatarV2 } from './entity';
-import { addNotificationUtm, basicHtmlStrip, mapCloudinaryUrl } from './common';
+import type { NotificationAvatarV2 } from './entity/notifications/NotificationAvatarV2';
+import type { NotificationV2 } from './entity/notifications/NotificationV2';
+import { mapCloudinaryUrl } from './common/cloudinary';
+import { addNotificationUtm, basicHtmlStrip } from './common/notificationUtils';
 import { escapeRegExp } from 'lodash';
 import { NotificationType } from './notifications/common';
 
-const appId = process.env.ONESIGNAL_APP_ID;
-const apiKey = process.env.ONESIGNAL_API_KEY;
 const safeCommentsPrefix = escapeRegExp(process.env.COMMENTS_PREFIX || '');
 
-const configuration = OneSignal.createConfiguration({
-  appKey: apiKey,
-});
-
-const client = new OneSignal.DefaultApi(configuration);
 const chromeWebBadge =
   'https://media.daily.dev/image/upload/v1672745846/public/dailydev.png';
 const chromeWebIcon =
   'https://media.daily.dev/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
+const webPushSubscriptionTypes: ReadonlySet<OneSignal.SubscriptionObjectTypeEnum> =
+  new Set(['ChromePush', 'FirefoxPush', 'SafariLegacyPush', 'SafariPush']);
+
+type OneSignalApp = {
+  appId: string;
+  apiKey: string;
+};
+
+const clientByApiKey = new Map<string, OneSignal.DefaultApi>();
+
+const getOneSignalClient = (apiKey: string): OneSignal.DefaultApi => {
+  const existing = clientByApiKey.get(apiKey);
+  if (existing) return existing;
+
+  const client = new OneSignal.DefaultApi(
+    OneSignal.createConfiguration({ appKey: apiKey }),
+  );
+  clientByApiKey.set(apiKey, client);
+  return client;
+};
+
+const oneSignalApp = (
+  appId: string | undefined,
+  apiKey: string | undefined,
+): OneSignalApp | null => {
+  if (!appId || !apiKey) {
+    return null;
+  }
+
+  return { appId, apiKey };
+};
+
+const getOneSignalDeliveryApps = (): OneSignalApp[] => {
+  const primary = oneSignalApp(
+    process.env.ONESIGNAL_APP_ID,
+    process.env.ONESIGNAL_API_KEY,
+  );
+  if (!primary) {
+    return [];
+  }
+
+  const web = oneSignalApp(
+    process.env.ONESIGNAL_WEB_APP_ID,
+    process.env.ONESIGNAL_WEB_API_KEY,
+  );
+  if (!web || web.appId === primary.appId) {
+    return [primary];
+  }
+
+  return [primary, web];
+};
+
+const isNotFoundError = (err: unknown): boolean => {
+  if (!err || typeof err !== 'object') {
+    return false;
+  }
+
+  return (
+    ('code' in err && err.code === 404) ||
+    ('status' in err && err.status === 404)
+  );
+};
+
+const fetchOneSignalUser = async (
+  app: OneSignalApp,
+  userId: string,
+): Promise<OneSignal.User | null> => {
+  try {
+    return await getOneSignalClient(app.apiKey).fetchUser(
+      app.appId,
+      'external_id',
+      userId,
+    );
+  } catch (err) {
+    if (isNotFoundError(err)) {
+      return null;
+    }
+
+    throw err;
+  }
+};
+
+const deleteOneSignalSubscription = async (
+  app: OneSignalApp,
+  subscriptionId: string,
+): Promise<void> => {
+  try {
+    await getOneSignalClient(app.apiKey).deleteSubscription(
+      app.appId,
+      subscriptionId,
+    );
+  } catch (err) {
+    if (isNotFoundError(err)) {
+      return;
+    }
+
+    throw err;
+  }
+};
+
+const sendToOneSignalApps = async (
+  createNotification: (appId: string) => OneSignal.Notification,
+): Promise<OneSignal.CreateNotificationSuccessResponse[]> => {
+  const apps = getOneSignalDeliveryApps();
+  if (!apps.length) {
+    return [];
+  }
+
+  return Promise.all(
+    apps.map((app) =>
+      getOneSignalClient(app.apiKey).createNotification(
+        createNotification(app.appId),
+      ),
+    ),
+  );
+};
+
+export const cleanupStaleOneSignalWebSubscriptions = async (
+  userId: string,
+): Promise<number> => {
+  const legacyApp = oneSignalApp(
+    process.env.ONESIGNAL_APP_ID,
+    process.env.ONESIGNAL_API_KEY,
+  );
+  const webApp = oneSignalApp(
+    process.env.ONESIGNAL_WEB_APP_ID,
+    process.env.ONESIGNAL_WEB_API_KEY,
+  );
+  if (!legacyApp || !webApp || webApp.appId === legacyApp.appId) {
+    return 0;
+  }
+
+  const oneSignalUser = await fetchOneSignalUser(legacyApp, userId);
+
+  if (!oneSignalUser?.subscriptions?.length) {
+    return 0;
+  }
+
+  const staleWebSubscriptions = oneSignalUser.subscriptions.filter(
+    ({ id, type }) => !!id && !!type && webPushSubscriptionTypes.has(type),
+  );
+
+  await Promise.all(
+    staleWebSubscriptions.map(({ id }) =>
+      deleteOneSignalSubscription(legacyApp, id!),
+    ),
+  );
+
+  return staleWebSubscriptions.length;
+};
 
 const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.ArticleNewComment]: 'New comment',
@@ -115,6 +260,7 @@ const getPushHeading = (type: string, title?: string): string => {
 type PushOpts = { increaseBadge?: boolean };
 
 function createPush(
+  appId: string,
   userIds: string[],
   url: string | undefined,
   notificationType: string,
@@ -123,6 +269,7 @@ function createPush(
   const push = new OneSignal.Notification();
   push.app_id = appId;
   push.include_external_user_ids = userIds;
+  push.channel_for_external_user_ids = 'push';
   push.chrome_web_badge = chromeWebBadge;
   push.chrome_web_icon = chromeWebIcon;
   if (opts?.increaseBadge) {
@@ -152,19 +299,21 @@ export async function sendPushNotification(
   avatar?: Pick<NotificationAvatarV2, 'image'>,
   sendAfter?: Date,
 ): Promise<void> {
-  if (!appId || !apiKey) return;
-
-  const push = createPush(userIds, targetUrl, type, { increaseBadge: true });
-  push.contents = { en: basicHtmlStrip(title) };
-  push.headings = { en: getPushHeading(type, title) };
-  push.data = { notificationId: id };
-  if (avatar) {
-    push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
-  }
-  if (sendAfter) {
-    push.send_after = sendAfter.toISOString();
-  }
-  await client.createNotification(push);
+  await sendToOneSignalApps((appId) => {
+    const push = createPush(appId, userIds, targetUrl, type, {
+      increaseBadge: true,
+    });
+    push.contents = { en: basicHtmlStrip(title) };
+    push.headings = { en: getPushHeading(type, title) };
+    push.data = { notificationId: id };
+    if (avatar) {
+      push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
+    }
+    if (sendAfter) {
+      push.send_after = sendAfter.toISOString();
+    }
+    return push;
+  });
 }
 
 const readingReminderHeadings = [
@@ -194,41 +343,45 @@ export async function sendReadingReminderPush(
   userIds: string[],
   at: Date,
 ): Promise<void> {
-  if (!appId || !apiKey) return;
-
   const seed = Math.floor(new Date().getTime() / 1000);
 
-  const push = createPush(
-    userIds,
-    `${process.env.COMMENTS_PREFIX}`,
-    'reminder',
-  );
-  push.send_after = at.toISOString();
-  push.contents = {
-    en: readingReminderContents[seed % readingReminderContents.length],
-  };
-  push.headings = {
-    en: readingReminderHeadings[seed % readingReminderHeadings.length],
-  };
-  await client.createNotification(push);
+  await sendToOneSignalApps((appId) => {
+    const push = createPush(
+      appId,
+      userIds,
+      `${process.env.COMMENTS_PREFIX}`,
+      'reminder',
+    );
+    push.send_after = at.toISOString();
+    push.contents = {
+      en: readingReminderContents[seed % readingReminderContents.length],
+    };
+    push.headings = {
+      en: readingReminderHeadings[seed % readingReminderHeadings.length],
+    };
+    return push;
+  });
 }
 
 export async function sendStreakReminderPush(
   userIds: string[],
 ): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
-  if (!appId || !apiKey) return null;
-  const push = createPush(
-    userIds,
-    process.env.COMMENTS_PREFIX,
-    'streak_reminder',
-  );
-  push.contents = {
-    en: streakReminderContent,
-  };
-  push.headings = {
-    en: streakReminderHeading,
-  };
-  return await client.createNotification(push);
+  const responses = await sendToOneSignalApps((appId) => {
+    const push = createPush(
+      appId,
+      userIds,
+      process.env.COMMENTS_PREFIX,
+      'streak_reminder',
+    );
+    push.contents = {
+      en: streakReminderContent,
+    };
+    push.headings = {
+      en: streakReminderHeading,
+    };
+    return push;
+  });
+  return responses[0] ?? null;
 }
 
 export type GenericPushPayload = {
@@ -242,17 +395,20 @@ export const sendGenericPush = async (
   userIds: string[],
   notification: GenericPushPayload,
 ) => {
-  if (!appId || !apiKey) return null;
-  const push = createPush(
-    userIds,
-    notification.url,
-    notification.utm_campaign ?? 'generic',
-  );
-  push.contents = {
-    en: notification.body,
-  };
-  push.headings = {
-    en: notification.title,
-  };
-  return client.createNotification(push);
+  const responses = await sendToOneSignalApps((appId) => {
+    const push = createPush(
+      appId,
+      userIds,
+      notification.url,
+      notification.utm_campaign ?? 'generic',
+    );
+    push.contents = {
+      en: notification.body,
+    };
+    push.headings = {
+      en: notification.title,
+    };
+    return push;
+  });
+  return responses[0] ?? null;
 };

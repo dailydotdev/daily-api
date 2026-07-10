@@ -1,4 +1,5 @@
 import z from 'zod';
+import { ContributionAssistType } from '../../entity/contribution/ContributionAction';
 import { ContributionRewardType } from '../../entity/contribution/ContributionRewardTier';
 import { ContributionSubmissionStatus } from '../../entity/contribution/ContributionSubmission';
 import { enumValues } from './utils';
@@ -30,6 +31,7 @@ export const contributionActionMetadataSchema = z
     instructions: z.string().trim().min(1).optional(),
     externalUrl: z.url().optional(),
     isLoveAction: z.boolean().optional(),
+    assistType: z.enum(enumValues(ContributionAssistType)).optional(),
   })
   .strict();
 
@@ -56,6 +58,11 @@ export const contributionSubmissionsArgsSchema =
     actionId: z.uuid().nullish(),
   });
 
+export const contributionActionLinksArgsSchema = z.object({
+  actionId: z.uuid(),
+  limit: z.number().int().positive().max(20).nullish(),
+});
+
 export const submitContributionActionInputSchema = z.object({
   actionId: z.uuid(),
   evidence: contributionSubmissionEvidenceSchema,
@@ -63,6 +70,11 @@ export const submitContributionActionInputSchema = z.object({
 
 export const updateContributionCausePreferencesArgsSchema = z.object({
   causeIds: z.array(z.uuid()).max(50),
+});
+
+export const suggestContributionCauseArgsSchema = z.object({
+  url: z.url(),
+  note: z.string().trim().min(1).max(1000).nullish(),
 });
 
 export const claimContributionRewardArgsSchema = z.object({
@@ -78,6 +90,12 @@ export const contributionCoresRewardMetadataSchema = z
 export const contributionPlusDaysRewardMetadataSchema = z
   .object({
     days: z.number().int().positive(),
+  })
+  .strict();
+
+export const contributionStoreDiscountRewardMetadataSchema = z
+  .object({
+    percent: z.number().int().positive().max(100),
   })
   .strict();
 
@@ -183,6 +201,11 @@ export const contributionPrivateUpdateSponsorSchema = z.object({
   sortOrder: contributionSortOrderSchema,
 });
 
+export const contributionPrivateCreateMilestoneSchema = z.object({
+  value: z.number().int().positive(),
+  title: z.string().trim().min(1).nullish(),
+});
+
 export const contributionPrivateCreateRewardTierSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().min(1).nullish(),
@@ -222,4 +245,22 @@ export const contributionPrivateBlockUserSchema = z.object({
 export const contributionPrivateFinalizePaymentSchema = z.object({
   amountCents: z.number().int().positive(),
   createdBy: contributionUserIdSchema.nullish(),
+});
+
+export const contributionPrivateCreateActionLinkSchema = z.object({
+  url: z.url(),
+  label: z.string().trim().min(1).nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
+});
+
+export const contributionPrivateBulkCreateActionLinkSchema = z.object({
+  links: z.array(contributionPrivateCreateActionLinkSchema).min(1).max(500),
+});
+
+export const contributionPrivateUpdateActionLinkSchema = z.object({
+  url: z.url().optional(),
+  label: z.string().trim().min(1).nullish(),
+  active: contributionActiveSchema,
+  sortOrder: contributionSortOrderSchema,
 });

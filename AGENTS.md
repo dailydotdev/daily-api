@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Prerequisites
 
-- **Node.js**: 24.14.0 (managed via Volta)
+- **Node.js**: 24.18.0 (managed via Volta)
 - **Package Manager**: pnpm 10.33.4 (activate via `corepack enable && corepack prepare pnpm@10.33.4 --activate`)
 
 ## Essential Commands
@@ -31,7 +31,7 @@ This file provides guidance to coding agents when working with code in this repo
 When adding or modifying entity columns, **always generate a migration** using:
 
 ```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.14)
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.18)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
@@ -96,6 +96,7 @@ The migration generator compares entities against the local database schema. Ens
 - For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
 - For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.
 - For post-based sitemaps, keep ordering consistent across sitemap types: use oldest-first ordering with a deterministic tie-breaker (`createdAt`, then `id`) unless there is a documented reason not to.
+- To verify a `typeDefs`/SDL change assembles into a valid schema, run the relevant domain integration test (e.g. `__tests__/feeds.ts`, `__tests__/search.ts`) — it builds the full schema through the app's normal import path. Do NOT cold-`require` `build/src/graphql.js` (or import `src/graphql` via ts-node) to check it: the `src/entity` barrel has circular-import ordering that throws (`Cannot read properties of undefined`) outside the app's entry sequence, which looks like a real error but is not.
 
 **Data Layer:**
 

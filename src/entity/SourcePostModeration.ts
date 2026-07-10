@@ -149,7 +149,6 @@ export class SourcePostModeration {
   externalLink?: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
   @Index('IDX_source_post_moderation_flags_dedupKey', { synchronize: false })
   flags: SourcePostModerationFlags;
 

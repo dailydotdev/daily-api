@@ -126,7 +126,14 @@ describe('postAnalyticsAchievements cron', () => {
   it('should sync analytics achievements for authors with recent analytics changes', async () => {
     await con.getRepository(PostAnalytics).save([
       { id: 'paa-article', impressions: 700, impressionsAds: 300, clicks: 0 },
-      { id: 'paa-share', impressions: 0, impressionsAds: 0, clicks: 5 },
+      {
+        id: 'paa-share',
+        impressions: 0,
+        impressionsAds: 0,
+        clicks: 0,
+        clicksAds: 2,
+        goToLink: 3,
+      },
     ]);
 
     await expectSuccessfulCron(cron);

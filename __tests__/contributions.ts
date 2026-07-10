@@ -14,9 +14,12 @@ import {
   type GraphQLTestingState,
 } from './helpers';
 import { User } from '../src/entity/user/User';
+import { Feature, FeatureType, FeatureValue } from '../src/entity/Feature';
 import * as njordCommon from '../src/common/njord';
+import { webhooks } from '../src/common/slack';
 import { SubscriptionCycles } from '../src/paddle';
 import { ContributionAction } from '../src/entity/contribution/ContributionAction';
+import { ContributionActionLink } from '../src/entity/contribution/ContributionActionLink';
 import { ContributionActionCategory } from '../src/entity/contribution/ContributionActionCategory';
 import { ContributionBlockedUser } from '../src/entity/contribution/ContributionBlockedUser';
 import { ContributionCause } from '../src/entity/contribution/ContributionCause';
@@ -41,6 +44,20 @@ import {
   UserTransactionType,
 } from '../src/entity/user/UserTransaction';
 import { remoteConfig } from '../src/remoteConfig';
+import { ContributionMilestone } from '../src/entity/contribution/ContributionMilestone';
+import {
+  CONTRIBUTION_LAST_MILESTONE_REDIS_KEY,
+  detectContributionMilestones,
+} from '../src/common/contribution';
+import {
+  CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+  CONTRIBUTION_FOUNDING_LIMIT,
+  grantFoundingContributorAward,
+} from '../src/common/contribution/founding';
+import { ContributionFoundingContributor } from '../src/entity/contribution/ContributionFoundingContributor';
+import { Product, ProductType } from '../src/entity/Product';
+import { systemUser } from '../src/common/utils';
+import { deleteRedisKey } from '../src/redis';
 
 let con: DataSource;
 let client: GraphQLTestClient;
@@ -61,6 +78,7 @@ const sponsorId = '33333333-3333-4333-8333-333333333335';
 const tierId = '44444444-4444-4444-8444-444444444444';
 const coresTierId = '44444444-4444-4444-8444-444444444445';
 const paymentId = '55555555-5555-4555-8555-555555555555';
+const foundingProductId = '77777777-7777-4777-8777-777777777771';
 
 const CONTRIBUTION_STATUS_QUERY = `
 query ContributionStatus {
@@ -73,6 +91,28 @@ query ContributionStatus {
     lifetimeAmountCents
     contributorsCount
     userPoints
+  }
+}
+`;
+
+const CONTRIBUTION_FOUNDING_AWARD_QUERY = `
+query ContributionFoundingAward {
+  contributionFoundingAward {
+    totalSpots
+    claimedCount
+    isFoundingMember
+    memberNumber
+  }
+}
+`;
+
+const CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION = `
+mutation ClaimContributionFoundingAward {
+  claimContributionFoundingAward {
+    totalSpots
+    claimedCount
+    isFoundingMember
+    memberNumber
   }
 }
 `;
@@ -102,6 +142,16 @@ query ContributionActions($categoryId: ID) {
         }
       }
     }
+  }
+}
+`;
+
+const CONTRIBUTION_ACTION_LINKS_QUERY = `
+query ContributionActionLinks($actionId: ID!, $limit: Int) {
+  contributionActionLinks(actionId: $actionId, limit: $limit) {
+    id
+    url
+    label
   }
 }
 `;
@@ -157,6 +207,54 @@ query ContributionSponsors {
         tier
       }
     }
+  }
+}
+`;
+
+const CONTRIBUTION_LAST_MILESTONE_QUERY = `
+query ContributionLastReachedMilestone {
+  contributionLastReachedMilestone {
+    id
+    value
+    title
+    reachedAt
+  }
+}
+`;
+
+const CONTRIBUTION_LEADERBOARD_QUERY = `
+query ContributionLeaderboard($first: Int) {
+  contributionLeaderboard(first: $first) {
+    edges {
+      node {
+        user {
+          id
+        }
+        points
+        rank
+      }
+    }
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`;
+
+const CONTRIBUTION_USER_RANK_QUERY = `
+query ContributionUserRank {
+  contributionUserRank {
+    points
+    rank
+  }
+}
+`;
+
+const CONTRIBUTION_CAUSE_BREAKDOWN_QUERY = `
+query ContributionCauseBreakdown {
+  contributionCauseBreakdown {
+    category
+    points
   }
 }
 `;
@@ -233,6 +331,14 @@ mutation ClaimContributionReward($tierId: ID!) {
 }
 `;
 
+const SUGGEST_CONTRIBUTION_CAUSE_MUTATION = `
+mutation SuggestContributionCause($url: String!, $note: String) {
+  suggestContributionCause(url: $url, note: $note) {
+    _
+  }
+}
+`;
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   const app = await appFunc();
@@ -298,8 +404,21 @@ beforeEach(async () => {
     .delete()
     .from(ContributionActionCategory)
     .execute();
+  await con.createQueryBuilder().delete().from(ContributionMilestone).execute();
+  await con
+    .createQueryBuilder()
+    .delete()
+    .from(ContributionFoundingContributor)
+    .execute();
+  await deleteRedisKey(CONTRIBUTION_LAST_MILESTONE_REDIS_KEY);
   await con.getRepository(User).delete({ id: userId });
   await con.getRepository(User).delete({ id: blockedUserId });
+  // After the users are gone their award transactions cascade away, so the
+  // founding award product is no longer referenced and can be removed.
+  await con.getRepository(Product).delete({ id: foundingProductId });
+  await con
+    .getRepository(Product)
+    .delete({ id: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID });
 
   remoteConfig.vars.contributionProgram = {
     enabled: true,
@@ -582,6 +701,36 @@ it('returns actions by category and records approved submissions with limits', a
   );
 });
 
+it('returns a randomized handful of active pool links for an action', async () => {
+  await seedActions();
+  await saveFixtures(con, ContributionActionLink, [
+    { actionId, url: 'https://stackoverflow.com/q/1' },
+    { actionId, url: 'https://stackoverflow.com/q/2' },
+    { actionId, url: 'https://stackoverflow.com/q/3' },
+    { actionId, url: 'https://stackoverflow.com/q/4', active: false },
+  ]);
+
+  const limited = await client.query(CONTRIBUTION_ACTION_LINKS_QUERY, {
+    variables: { actionId, limit: 2 },
+  });
+
+  expect(limited.errors).toBeUndefined();
+  expect(limited.data.contributionActionLinks).toHaveLength(2);
+
+  const all = await client.query(CONTRIBUTION_ACTION_LINKS_QUERY, {
+    variables: { actionId },
+  });
+
+  const urls = all.data.contributionActionLinks
+    .map((link: { url: string }) => link.url)
+    .sort();
+  expect(urls).toEqual([
+    'https://stackoverflow.com/q/1',
+    'https://stackoverflow.com/q/2',
+    'https://stackoverflow.com/q/3',
+  ]);
+});
+
 it('updates cause preferences and claims unlocked reward tiers', async () => {
   await seedCauses();
   await saveFixtures(con, ContributionRewardTier, [
@@ -708,6 +857,175 @@ it('fulfills claimed Cores reward tiers through Njord', async () => {
   });
 });
 
+it('fulfills content-only reward tiers without side effects', async () => {
+  const patchyTierId = '44444444-4444-4444-8444-444444444446';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: patchyTierId,
+      title: 'Picture with Patchy',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.PatchyPicture,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: patchyTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  await expect(
+    con.getRepository(UserTransaction).findOneBy({
+      receiverId: userId,
+      referenceId: patchyTierId,
+    }),
+  ).resolves.toBeNull();
+});
+
+it('grants the cause-suggestion right when claiming a suggest_causes reward', async () => {
+  const suggestTierId = '44444444-4444-4444-8444-444444444447';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: suggestTierId,
+      title: 'Suggest a cause',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.SuggestCauses,
+      metadata: {},
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: suggestTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  await expect(
+    con.getRepository(Feature).exists({
+      where: {
+        userId,
+        feature: FeatureType.ContributionSuggestCauses,
+        value: FeatureValue.Allow,
+      },
+    }),
+  ).resolves.toBe(true);
+});
+
+it('notifies Slack when claiming a store_discount reward', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+  const discountTierId = '44444444-4444-4444-8444-444444444448';
+  await saveFixtures(con, ContributionRewardTier, [
+    {
+      id: discountTierId,
+      title: '50% off the store',
+      thresholdPoints: 50,
+      rewardType: ContributionRewardType.StoreDiscount,
+      metadata: { percent: 50 },
+    },
+  ]);
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Referral', points: 50, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 50,
+    },
+  ]);
+
+  const claimed = await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: discountTierId },
+  });
+
+  expect(claimed.errors).toBeUndefined();
+  expect(claimed.data.claimContributionReward.status).toBe('fulfilled');
+  expect(sendSpy).toHaveBeenCalledTimes(1);
+
+  // Re-claiming an already-fulfilled reward must not notify again.
+  await client.mutate(CLAIM_CONTRIBUTION_REWARD_MUTATION, {
+    variables: { tierId: discountTierId },
+  });
+  expect(sendSpy).toHaveBeenCalledTimes(1);
+});
+
+it('posts a suggested cause to Slack for a contributor who unlocked the reward', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+  await con.getRepository(Feature).save({
+    userId,
+    feature: FeatureType.ContributionSuggestCauses,
+    value: FeatureValue.Allow,
+  });
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'https://example.org', note: 'they do great work' },
+  });
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.suggestContributionCause).toEqual({ _: true });
+  expect(sendSpy).toHaveBeenCalledTimes(1);
+  expect(sendSpy).toHaveBeenCalledWith(
+    expect.objectContaining({
+      text: expect.stringContaining('https://example.org'),
+    }),
+  );
+});
+
+it('rejects a cause suggestion when the reward is not unlocked', async () => {
+  const sendSpy = jest
+    .spyOn(webhooks.contributions, 'send')
+    .mockResolvedValue(undefined);
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'https://example.org' },
+  });
+
+  expect(res.errors?.[0].extensions?.code).toBe('FORBIDDEN');
+  expect(sendSpy).not.toHaveBeenCalled();
+});
+
+it('rejects a malformed cause url', async () => {
+  await con.getRepository(Feature).save({
+    userId,
+    feature: FeatureType.ContributionSuggestCauses,
+    value: FeatureValue.Allow,
+  });
+
+  const res = await client.mutate(SUGGEST_CONTRIBUTION_CAUSE_MUTATION, {
+    variables: { url: 'not-a-url' },
+  });
+
+  expect(res.errors).toBeTruthy();
+});
+
 it('returns finalized cause totals, user cause stats, and sponsors', async () => {
   await seedCauses();
   await saveFixtures(con, ContributionPayment, [
@@ -810,5 +1128,497 @@ it('exposes the sponsor wall to anonymous visitors', async () => {
         tier: 'gold',
       },
     },
+  ]);
+});
+
+const firstMilestoneId = '66666666-6666-4666-8666-666666666661';
+const secondMilestoneId = '66666666-6666-4666-8666-666666666662';
+const thirdMilestoneId = '66666666-6666-4666-8666-666666666663';
+
+it('returns null for the last reached milestone when none crossed', async () => {
+  await saveFixtures(con, ContributionMilestone, [
+    { id: firstMilestoneId, value: 100, title: '100' },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_LAST_MILESTONE_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionLastReachedMilestone).toBeNull();
+});
+
+it('stamps crossed milestones once and exposes the highest reached', async () => {
+  await seedActions();
+  await saveFixtures(con, ContributionMilestone, [
+    { id: firstMilestoneId, value: 100, title: '100' },
+    { id: secondMilestoneId, value: 500, title: '500' },
+    { id: thirdMilestoneId, value: 1000, title: '1000' },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 300,
+    },
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 300,
+    },
+  ]);
+
+  await detectContributionMilestones({ con: con.manager });
+
+  const stamped = await con
+    .getRepository(ContributionMilestone)
+    .find({ order: { value: 'ASC' } });
+  expect(
+    stamped.filter((m) => m.reachedAt !== null).map((m) => m.value),
+  ).toEqual([100, 500]);
+
+  const reachedAt = stamped.find((m) => m.value === 500)?.reachedAt;
+
+  // Re-running must not re-stamp an already-reached milestone.
+  await detectContributionMilestones({ con: con.manager });
+  const rerun = await con
+    .getRepository(ContributionMilestone)
+    .findOneByOrFail({ value: 500 });
+  expect(rerun.reachedAt).toEqual(reachedAt);
+
+  const last = await client.query(CONTRIBUTION_LAST_MILESTONE_QUERY);
+  expect(last.data.contributionLastReachedMilestone).toMatchObject({
+    value: 500,
+    title: '500',
+  });
+});
+
+const seedFoundingProduct = () =>
+  saveFixtures(con, Product, [
+    {
+      id: foundingProductId,
+      name: 'Founding contributor',
+      image: 'https://daily.dev/founding.jpg',
+      type: ProductType.Award,
+      value: 30,
+    },
+  ]);
+
+const mockNjord = () =>
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() =>
+      createClient(Credits, createMockNjordTransport()),
+    );
+
+it('grants the founding contributor award, paid by the system', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  const granted = await grantFoundingContributorAward({
+    con,
+    userId,
+    productId: foundingProductId,
+  });
+
+  expect(granted).toBe(true);
+  await expect(
+    con
+      .getRepository(ContributionFoundingContributor)
+      .findOneByOrFail({ userId }),
+  ).resolves.toMatchObject({ userId });
+  await expect(
+    con.getRepository(UserTransaction).findOneByOrFail({
+      receiverId: userId,
+      productId: foundingProductId,
+    }),
+  ).resolves.toMatchObject({
+    senderId: systemUser.id,
+    processor: UserTransactionProcessor.Njord,
+    status: UserTransactionStatus.Success,
+    value: 30,
+    valueIncFees: 30,
+    fee: 0,
+    referenceType: UserTransactionType.User,
+  });
+});
+
+it('exposes founding-award spots and the visitor founding number', async () => {
+  await saveFixtures(con, ContributionFoundingContributor, [
+    { userId: blockedUserId, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    { userId, createdAt: new Date('2026-02-01T00:00:00.000Z') },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_FOUNDING_AWARD_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionFoundingAward).toEqual({
+    totalSpots: 1000,
+    claimedCount: 2,
+    isFoundingMember: true,
+    memberNumber: 2,
+  });
+});
+
+it('reports no founding membership for a non-member visitor', async () => {
+  await saveFixtures(con, ContributionFoundingContributor, [
+    { userId: blockedUserId, createdAt: new Date('2026-01-01T00:00:00.000Z') },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_FOUNDING_AWARD_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionFoundingAward).toEqual({
+    totalSpots: 1000,
+    claimedCount: 1,
+    isFoundingMember: false,
+    memberNumber: null,
+  });
+});
+
+it('is idempotent per contributor', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+    }),
+  ).toBe(true);
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+    }),
+  ).toBe(false);
+
+  expect(
+    await con
+      .getRepository(UserTransaction)
+      .countBy({ receiverId: userId, productId: foundingProductId }),
+  ).toBe(1);
+});
+
+it('stops granting once the cap is reached', async () => {
+  mockNjord();
+  await seedFoundingProduct();
+
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId,
+      productId: foundingProductId,
+      limit: 1,
+    }),
+  ).toBe(true);
+  expect(
+    await grantFoundingContributorAward({
+      con,
+      userId: blockedUserId,
+      productId: foundingProductId,
+      limit: 1,
+    }),
+  ).toBe(false);
+
+  expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
+    1,
+  );
+  await expect(
+    con
+      .getRepository(UserTransaction)
+      .findOneBy({ receiverId: blockedUserId, productId: foundingProductId }),
+  ).resolves.toBeNull();
+});
+
+it('is a no-op when the award product is missing', async () => {
+  mockNjord();
+
+  expect(await grantFoundingContributorAward({ con, userId })).toBe(false);
+
+  expect(await con.getRepository(ContributionFoundingContributor).count()).toBe(
+    0,
+  );
+});
+
+const seedRealFoundingProduct = () =>
+  saveFixtures(con, Product, [
+    {
+      id: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+      name: 'Giveback Founding Member',
+      image: 'https://daily.dev/founding.jpg',
+      type: ProductType.Award,
+      value: 1000,
+    },
+  ]);
+
+const seedApprovedFoundingContribution = async () => {
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Post', points: 10, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 10,
+    },
+  ]);
+};
+
+it('claims the founding award for an eligible contributor', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await seedApprovedFoundingContribution();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toEqual({
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount: 1,
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+  await expect(
+    con
+      .getRepository(ContributionFoundingContributor)
+      .findOneByOrFail({ userId }),
+  ).resolves.toMatchObject({ userId });
+});
+
+it('is idempotent when claiming the founding award again', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await seedApprovedFoundingContribution();
+
+  await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toEqual({
+    totalSpots: CONTRIBUTION_FOUNDING_LIMIT,
+    claimedCount: 1,
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+  expect(
+    await con.getRepository(UserTransaction).countBy({
+      receiverId: userId,
+      productId: CONTRIBUTION_FOUNDING_AWARD_PRODUCT_ID,
+    }),
+  ).toBe(1);
+});
+
+it('rejects claiming the founding award without an approved contribution', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors?.[0].message).toEqual(
+    'Complete a giveback action before claiming the founding award',
+  );
+  expect(
+    await con
+      .getRepository(ContributionFoundingContributor)
+      .countBy({ userId }),
+  ).toBe(0);
+});
+
+it('allows claiming the founding award from a zero-point approved action', async () => {
+  mockNjord();
+  await seedRealFoundingProduct();
+  await saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Love action', points: 0, evidence: {} },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 0,
+    },
+  ]);
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.claimContributionFoundingAward).toMatchObject({
+    isFoundingMember: true,
+    memberNumber: 1,
+  });
+});
+
+it('surfaces a distinct error when the award product is misconfigured, not "sold out"', async () => {
+  mockNjord();
+  await seedApprovedFoundingContribution();
+
+  const res = await client.mutate(CLAIM_CONTRIBUTION_FOUNDING_AWARD_MUTATION);
+
+  expect(res.errors?.[0].message).not.toEqual(
+    'All founding spots have been claimed',
+  );
+  expect(
+    await con.getRepository(ContributionFoundingContributor).countBy({
+      userId,
+    }),
+  ).toBe(0);
+});
+
+const seedLeaderboardAction = () =>
+  saveFixtures(con, ContributionAction, [
+    { id: actionId, title: 'Post', points: 10, evidence: {} },
+  ]);
+
+it('returns the current-cycle leaderboard ranked by unpaid points', async () => {
+  await seedLeaderboardAction();
+  await saveFixtures(con, ContributionPayment, [
+    {
+      id: paymentId,
+      status: ContributionPaymentStatus.Finalized,
+      totalPoints: 500,
+      amountCents: 1000,
+      finalizedAt: new Date(),
+    },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 30,
+    },
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 40,
+    },
+    {
+      userId: blockedUserId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 100,
+    },
+    // Paid submission belongs to a past cycle and must be excluded.
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 500,
+      paymentId,
+    },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_LEADERBOARD_QUERY, {
+    variables: { first: 10 },
+  });
+
+  expect(res.errors).toBeUndefined();
+  expect(
+    res.data.contributionLeaderboard.edges.map((edge) => edge.node),
+  ).toEqual([
+    { user: { id: blockedUserId }, points: 100, rank: 1 },
+    { user: { id: userId }, points: 70, rank: 2 },
+  ]);
+});
+
+it('returns the viewer rank, null when they have no current-cycle points', async () => {
+  await seedLeaderboardAction();
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId: blockedUserId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 100,
+    },
+  ]);
+
+  loggedUser = userId;
+  const noRank = await client.query(CONTRIBUTION_USER_RANK_QUERY);
+  expect(noRank.data.contributionUserRank).toBeNull();
+
+  loggedUser = blockedUserId;
+  const ranked = await client.query(CONTRIBUTION_USER_RANK_QUERY);
+  expect(ranked.data.contributionUserRank).toEqual({ points: 100, rank: 1 });
+});
+
+it('projects the current-cycle cause breakdown across categories', async () => {
+  const thirdCauseId = '33333333-3333-4333-8333-333333333336';
+  await seedLeaderboardAction();
+  await saveFixtures(con, ContributionCause, [
+    { id: causeId, title: 'Cause A', category: 'Education', sortOrder: 1 },
+    {
+      id: secondCauseId,
+      title: 'Cause B',
+      category: 'Open source',
+      sortOrder: 2,
+    },
+    { id: thirdCauseId, title: 'Cause C', category: 'Education', sortOrder: 3 },
+  ]);
+  await saveFixtures(con, UserContributionCausePreference, [
+    { userId, causeId },
+    { userId, causeId: secondCauseId },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 100,
+    },
+    // No preference: splits equally across all active causes.
+    {
+      userId: blockedUserId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 60,
+    },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_CAUSE_BREAKDOWN_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  expect(res.data.contributionCauseBreakdown).toEqual([
+    { category: 'Education', points: 90 },
+    { category: 'Open source', points: 70 },
+  ]);
+});
+
+it('rounds fractional cause shares while preserving the total', async () => {
+  const catAId = '33333333-3333-4333-8333-333333333341';
+  const catBId = '33333333-3333-4333-8333-333333333342';
+  const catCId = '33333333-3333-4333-8333-333333333343';
+  await seedLeaderboardAction();
+  await saveFixtures(con, ContributionCause, [
+    { id: catAId, title: 'A', category: 'Cat A', sortOrder: 1 },
+    { id: catBId, title: 'B', category: 'Cat B', sortOrder: 2 },
+    { id: catCId, title: 'C', category: 'Cat C', sortOrder: 3 },
+  ]);
+  await saveFixtures(con, UserContributionCausePreference, [
+    { userId, causeId: catAId },
+    { userId, causeId: catBId },
+    { userId, causeId: catCId },
+  ]);
+  await saveFixtures(con, ContributionSubmission, [
+    {
+      userId,
+      actionId,
+      status: ContributionSubmissionStatus.Approved,
+      awardedPoints: 10,
+    },
+  ]);
+
+  const res = await client.query(CONTRIBUTION_CAUSE_BREAKDOWN_QUERY);
+
+  expect(res.errors).toBeUndefined();
+  const points = res.data.contributionCauseBreakdown.map((row) => row.points);
+  // 10 split across 3 categories -> 4/3/3 via largest remainder, summing to 10.
+  expect(points.reduce((sum, value) => sum + value, 0)).toBe(10);
+  expect([...points].sort((first, second) => second - first)).toEqual([
+    4, 3, 3,
   ]);
 });

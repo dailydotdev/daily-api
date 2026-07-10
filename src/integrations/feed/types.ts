@@ -102,6 +102,9 @@ export type FeedConfig = {
   allowed_languages?: string[];
   experience_level?: string;
   country?: string;
+  // CPA campaign source id, forwarded from the redis source->user mapping
+  // that boot caches when skadi returns an engagement creative with a source.
+  cpa_source?: string;
   config?: {
     [key: string]: unknown;
   };

@@ -110,7 +110,34 @@ describe('award user mutation', () => {
         type: ProductType.Award,
         value: 20,
       },
+      {
+        id: 'e1c2b3a4-5d6e-4f70-8a91-b2c3d4e5f607',
+        name: 'Restricted Award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+        flags: {
+          restricted: true,
+        },
+      },
     ]);
+  });
+
+  it('should throw when awarding a restricted product', async () => {
+    loggedUser = 't-awum-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'e1c2b3a4-5d6e-4f70-8a91-b2c3d4e5f607',
+          entityId: 't-awum-2',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
   });
 
   it('should not authorize when not logged in', async () => {
@@ -777,7 +804,30 @@ describe('query products', () => {
         type: ProductType.Award,
         value: 20,
       },
+      {
+        id: 'b3d9d8b1-1f2e-4c3a-9d6f-2a5e7c1b0f4d',
+        name: 'Restricted Award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 5,
+        flags: {
+          restricted: true,
+        },
+      },
     ]);
+  });
+
+  it('should exclude restricted products from the catalog', async () => {
+    loggedUser = 't-awpm-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.products.edges.map(
+        ({ node }: { node: { id: string } }) => node.id,
+      ),
+    ).not.toContain('b3d9d8b1-1f2e-4c3a-9d6f-2a5e7c1b0f4d');
   });
 
   it('should return products sorted by value', async () => {

@@ -2,6 +2,7 @@ import { proxyActivities } from '@temporalio/workflow';
 import { BookmarkActivities, type createActivities } from './activities';
 import type { entityReminderSchema } from '../../common/schema/reminders';
 import type z from 'zod';
+import type { ScheduledPostPublishParams } from '../../common/postScheduling';
 
 export interface BookmarkReminderParams {
   userId: string;
@@ -34,4 +35,16 @@ export const entityReminderWorkflow = async (
   }); // the amount of time the process is willing to wait for the activity to complete
 
   await sendEntityReminder(params);
+};
+
+export const scheduledPostPublishWorkflow = async (
+  params: ScheduledPostPublishParams,
+): Promise<void> => {
+  const { publishScheduledPost } = proxyActivities<
+    ReturnType<typeof createActivities>
+  >({
+    scheduleToCloseTimeout: '15s',
+  });
+
+  await publishScheduledPost(params);
 };

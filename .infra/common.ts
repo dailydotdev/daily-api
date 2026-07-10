@@ -31,6 +31,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
+    subscription: 'api.user-activated-contribution-referral',
+  },
+  {
+    topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-squad',
   },
   {
@@ -151,6 +155,10 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
+    topic: 'api.v1.post-highlighted',
+    subscription: 'api.new-highlight-real-time',
+  },
+  {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
   },
@@ -248,6 +256,18 @@ export const workers: Worker[] = [
     subscription: 'api.source-member-role-changed-notification',
   },
   {
+    topic: 'api.v1.contribution-action-completed',
+    subscription: 'api.contribution-action-completed-real-time',
+  },
+  {
+    topic: 'api.v1.contribution-action-completed',
+    subscription: 'api.contribution-action-completed-slack',
+  },
+  {
+    topic: 'api.v1.contribution-action-completed',
+    subscription: 'api.contribution-action-completed-milestone',
+  },
+  {
     topic: 'analytics-api.v1.experiment-allocated',
     subscription: 'api.experiment-allocated',
   },
@@ -310,6 +330,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-user-notification',
+  },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.scheduled-post-published-notification',
   },
   {
     topic: 'api.v1.source-post-moderation-submitted',

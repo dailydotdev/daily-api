@@ -10,6 +10,7 @@ export enum WorkflowTopic {
 export enum WorkflowTopicScope {
   Bookmark = 'bookmark',
   Entity = 'entity',
+  ScheduledPost = 'scheduled-post',
 }
 
 export enum WorkflowQueue {

@@ -51,10 +51,6 @@ const counterMap = {
       name: 'user_id_conflict',
       description: 'How many times a user id conflict happened on registration',
     },
-    automations: {
-      name: 'automations',
-      description: 'How many automations were triggered',
-    },
     sendgridEvents: {
       name: 'sendgrid_events',
       description: 'How many sendgrid events were to analytics',

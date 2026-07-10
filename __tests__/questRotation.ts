@@ -356,6 +356,140 @@ describe('rotateQuestPeriod', () => {
     expect(existingUserQuest.claimedAt).toBeNull();
   });
 
+  it('should only rotate brief_read quests into the plus slot', async () => {
+    const now = new Date('2026-03-12T12:00:00.000Z');
+    const logger = createMockLogger();
+    const { periodStart } = getQuestWindow(QuestType.Daily, now);
+
+    await saveFixtures(con, Quest, [
+      {
+        id: questIds[0],
+        name: 'Rotation regular quest 1',
+        description: 'Upvote 5 posts',
+        type: QuestType.Daily,
+        eventType: QuestEventType.PostUpvote,
+        criteria: { targetCount: 5 },
+        active: true,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: questIds[1],
+        name: 'Rotation regular quest 2',
+        description: 'Write 2 comments',
+        type: QuestType.Daily,
+        eventType: QuestEventType.CommentCreate,
+        criteria: { targetCount: 2 },
+        active: true,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+      {
+        id: questIds[2],
+        name: 'Rotation brief read quest',
+        description: 'Read 1 brief',
+        type: QuestType.Daily,
+        eventType: QuestEventType.BriefRead,
+        criteria: { targetCount: 1 },
+        active: true,
+        createdAt: new Date('2026-03-03T00:00:00.000Z'),
+      },
+    ]);
+
+    const result = await rotateQuestPeriod({
+      con,
+      logger,
+      type: QuestType.Daily,
+      now,
+    });
+
+    const rotations = await con.getRepository(QuestRotation).find({
+      where: {
+        type: QuestType.Daily,
+        periodStart,
+      },
+      order: {
+        plusOnly: 'ASC',
+        slot: 'ASC',
+      },
+    });
+
+    expect(result.created).toBe(3);
+    expect(
+      rotations.map(({ questId, plusOnly, slot }) => ({
+        questId,
+        plusOnly,
+        slot,
+      })),
+    ).toEqual([
+      { questId: questIds[0], plusOnly: false, slot: 1 },
+      { questId: questIds[1], plusOnly: false, slot: 2 },
+      { questId: questIds[2], plusOnly: true, slot: 1 },
+    ]);
+  });
+
+  it('should never rotate a brief_read quest into a regular slot', async () => {
+    const now = new Date('2026-03-12T12:00:00.000Z');
+    const logger = createMockLogger();
+    const { periodStart } = getQuestWindow(QuestType.Daily, now);
+
+    await saveFixtures(con, Quest, [
+      {
+        id: questIds[0],
+        name: 'Rotation regular quest 1',
+        description: 'Upvote 5 posts',
+        type: QuestType.Daily,
+        eventType: QuestEventType.PostUpvote,
+        criteria: { targetCount: 5 },
+        active: true,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: questIds[1],
+        name: 'Rotation brief read quest 1',
+        description: 'Read 1 brief',
+        type: QuestType.Daily,
+        eventType: QuestEventType.BriefRead,
+        criteria: { targetCount: 1 },
+        active: true,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+      {
+        id: questIds[2],
+        name: 'Rotation brief read quest 2',
+        description: 'Read 2 briefs',
+        type: QuestType.Daily,
+        eventType: QuestEventType.BriefRead,
+        criteria: { targetCount: 2 },
+        active: true,
+        createdAt: new Date('2026-03-03T00:00:00.000Z'),
+      },
+    ]);
+
+    await rotateQuestPeriod({
+      con,
+      logger,
+      type: QuestType.Daily,
+      now,
+    });
+
+    const rotations = await con.getRepository(QuestRotation).find({
+      where: {
+        type: QuestType.Daily,
+        periodStart,
+      },
+      relations: {
+        quest: true,
+      },
+    });
+
+    const regularEventTypes = await Promise.all(
+      rotations
+        .filter((rotation) => !rotation.plusOnly)
+        .map(async (rotation) => (await rotation.quest).eventType),
+    );
+
+    expect(regularEventTypes).not.toContain(QuestEventType.BriefRead);
+  });
+
   it('should only reuse previous quests when there are not enough fresh quests left', async () => {
     const previousNow = new Date('2026-03-11T12:00:00.000Z');
     const now = new Date('2026-03-12T12:00:00.000Z');

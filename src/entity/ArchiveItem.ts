@@ -12,9 +12,6 @@ import type { Archive } from './Archive';
 @Index('IDX_archive_item_archive_id_rank', ['archiveId', 'rank'], {
   unique: true,
 })
-@Index('IDX_archive_item_archive_id_subject_id', ['archiveId', 'subjectId'], {
-  unique: true,
-})
 export class ArchiveItem {
   @PrimaryColumn({ type: 'uuid' })
   archiveId: string;

@@ -37,6 +37,5 @@ export class SourceCategory {
     generatedType: 'STORED',
     asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(source_category.title,100),''))), '[^a-z0-9-]+', '-', 'gi'))`,
   })
-  @Index('IDX_source_category_slug', { unique: true })
   slug: string;
 }

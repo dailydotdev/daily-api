@@ -74,6 +74,10 @@ import { z } from 'zod';
 import { canPostToSquad } from '../schema/sources';
 import { MAX_POST_CONTENT_EMBEDS, replaceContentEmbeds } from './contentEmbeds';
 import { ContentEmbedParentType } from '../entity/ContentEmbed';
+import {
+  getScheduledPostFlags,
+  validatePostScheduledAt,
+} from './postScheduling';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -275,7 +279,9 @@ export type EditablePost = Pick<
 export type CreatePost = Pick<
   FreeformPost,
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
->;
+> & {
+  scheduledAt?: Date | null;
+};
 
 type CreateFreeformPostArgs = {
   con: DataSource | EntityManager;
@@ -294,6 +300,7 @@ interface CreatePollPostArgs {
     authorId: string;
     duration?: number | null;
     pollOptions: CreatePollOption[];
+    scheduledAt?: Date | null;
   };
 }
 
@@ -302,24 +309,27 @@ export const createPollPost = async ({
   ctx,
   args,
 }: CreatePollPostArgs) => {
-  const { pollOptions, ...restArgs } = args;
+  const { pollOptions, scheduledAt: rawScheduledAt, ...restArgs } = args;
+  const scheduledAt = validatePostScheduledAt(rawScheduledAt);
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: restArgs.sourceId,
     type: In([SourceType.Squad, SourceType.User]),
   });
+  const startsAt = scheduledAt ?? new Date();
 
   const createdPost = con.getRepository(PollPost).create({
     ...restArgs,
     shortId: restArgs.id,
-    endsAt: restArgs?.duration ? addDays(new Date(), restArgs.duration) : null,
-    visible: true,
+    endsAt: restArgs?.duration ? addDays(startsAt, restArgs.duration) : null,
+    visible: !scheduledAt,
     private: privacy,
-    visibleAt: new Date(),
+    visibleAt: scheduledAt ? null : new Date(),
     origin: PostOrigin.UserGenerated,
     contentCuration: ['poll'],
     flags: {
-      visible: true,
+      visible: !scheduledAt,
       private: privacy,
+      ...(scheduledAt ? getScheduledPostFlags(scheduledAt) : {}),
     },
   });
 
@@ -385,6 +395,16 @@ export const insertFreeformPost = async ({
       private: privacy,
     },
   });
+  const scheduledAt = validatePostScheduledAt(args.scheduledAt);
+
+  if (scheduledAt) {
+    createdPost.visible = false;
+    createdPost.visibleAt = null;
+    createdPost.flags = {
+      ...createdPost.flags,
+      ...getScheduledPostFlags(scheduledAt),
+    };
+  }
 
   // Apply vordr checks before saving
   createdPost = await preparePostForInsert(createdPost, {
@@ -577,6 +597,7 @@ export interface EditPostArgs extends Pick<
   'id' | 'title' | 'content'
 > {
   image: Promise<FileUpload>;
+  scheduledAt?: Date | null;
 }
 
 export interface CreatePostArgs extends Pick<
@@ -584,6 +605,7 @@ export interface CreatePostArgs extends Pick<
   'title' | 'content' | 'image'
 > {
   sourceId: string;
+  scheduledAt?: Date | null;
 }
 
 export interface PollOptionInput {
@@ -593,7 +615,7 @@ export interface PollOptionInput {
 
 export interface CreatePollPostProps extends Pick<
   CreatePostArgs,
-  'title' | 'sourceId'
+  'title' | 'sourceId' | 'scheduledAt'
 > {
   options: PollOptionInput[];
   duration: number;
@@ -601,7 +623,7 @@ export interface CreatePollPostProps extends Pick<
 
 export interface CreateMultipleSourcePostProps
   extends
-    Omit<CreatePostArgs, 'sourceId'>,
+    Omit<CreatePostArgs, 'sourceId' | 'scheduledAt'>,
     Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
   externalLink?: string;
@@ -611,7 +633,7 @@ export interface CreateMultipleSourcePostProps
 const MAX_MULTIPLE_POST_SOURCE_LIMIT = 4;
 
 const MAX_TITLE_LENGTH = 250;
-const MAX_CONTENT_LENGTH = 10_000;
+const MAX_CONTENT_LENGTH = 20_000;
 
 export const postInMultipleSourcesArgsSchema = z
   .object({
@@ -690,6 +712,7 @@ export const createPostIntoSourceId = async (
   args: CreatePostInSourceArgs,
 ): Promise<Pick<Post, 'id'>> => {
   const type = getMultipleSourcesPostType(args);
+
   switch (type) {
     case PostType.Share: {
       await ctx.con
@@ -1459,6 +1482,7 @@ export const createFreeformPost = async (
       contentHtml,
       authorId: userId,
       sourceId,
+      scheduledAt: args.scheduledAt,
     };
 
     if (image && process.env.CLOUDINARY_URL) {
