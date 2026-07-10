@@ -368,6 +368,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-received-award',
   },
   {
+    topic: 'api.v1.user-award-thanked',
+    subscription: 'api.user-award-thanked-notification',
+  },
+  {
     topic: 'api.v1.organization-user-joined',
     subscription: 'api.organization-user-joined',
   },

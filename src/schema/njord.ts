@@ -8,6 +8,7 @@ import {
   AwardType,
   awardUser,
   type GetBalanceResult,
+  sayThanksForAward,
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -121,6 +122,7 @@ export const typeDefs = /* GraphQL */ `
     error: String
     sourceId: String
     sourceName: String
+    thankedAt: DateTime
   }
 
   type UserTransaction {
@@ -280,6 +282,16 @@ export const typeDefs = /* GraphQL */ `
       """
       note: String
     ): TransactionCreated @auth
+
+    """
+    Say thanks to the sender of a received Cores Award
+    """
+    sayThanksForAward(
+      """
+      Id of the award transaction to thank for
+      """
+      transactionId: ID!
+    ): UserTransaction @auth
   }
 `;
 
@@ -516,6 +528,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         default:
           throw new ForbiddenError('Can not award this entity');
       }
+    },
+    sayThanksForAward: async (
+      _: unknown,
+      { transactionId }: { transactionId: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserTransaction> => {
+      const validationSchema = z.object({
+        transactionId: z.uuid('Invalid transaction id provided'),
+      });
+      const result = validationSchema.safeParse({ transactionId });
+
+      if (result.error) {
+        throw new ValidationError(result.error.issues[0].message);
+      }
+
+      await sayThanksForAward({ transactionId }, ctx);
+
+      return graphorm.queryOneOrFail<GQLUserTransaction>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder
+            .where(`${builder.alias}.id = :id`, { id: transactionId })
+            .andWhere(`${builder.alias}."receiverId" = :receiverId`, {
+              receiverId: ctx.userId,
+            }),
+        }),
+      );
     },
   },
 };

@@ -114,6 +114,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
   user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
+  user_award_thanked: '', // in-app only, no email
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   briefing_ready: '81',
@@ -1075,6 +1076,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   user_follow: async () => {
+    return null;
+  },
+  user_award_thanked: async () => {
     return null;
   },
   marketing: async () => {

@@ -36,6 +36,15 @@ import {
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
 import { CoresRole } from '../src/types';
+import { triggerTypedEvent } from '../src/common/typedPubsub';
+
+jest.mock('../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
+}));
 
 const mockTransport = createMockNjordTransport();
 
@@ -1848,5 +1857,162 @@ describe('query userProductSummary', () => {
         count: 1,
       },
     ]);
+  });
+});
+
+describe('sayThanksForAward mutation', () => {
+  const MUTATION = `
+    mutation sayThanksForAward($transactionId: ID!) {
+      sayThanksForAward(transactionId: $transactionId) {
+        id
+        flags {
+          thankedAt
+        }
+      }
+    }
+  `;
+
+  const productId = 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d';
+
+  const createAwardTransaction = (
+    overrides: Partial<UserTransaction> = {},
+  ): Promise<UserTransaction> =>
+    con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: '1',
+      senderId: '2',
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId,
+      status: UserTransactionStatus.Success,
+      ...overrides,
+    });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Product, [
+      {
+        id: productId,
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () => {
+    const transaction = await createAwardTransaction();
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'UNAUTHENTICATED',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should not allow a non-receiver to thank', async () => {
+    loggedUser = '3';
+    const transaction = await createAwardTransaction();
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should mark the transaction as thanked and emit a notification event', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction();
+
+    const res = await client.mutate(MUTATION, {
+      variables: { transactionId: transaction.id },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sayThanksForAward.id).toEqual(transaction.id);
+    expect(res.data.sayThanksForAward.flags.thankedAt).toEqual(
+      expect.any(String),
+    );
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thankedAt).toEqual(expect.any(String));
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.user-award-thanked',
+      { transactionId: transaction.id },
+    );
+  });
+
+  it('should not allow thanking twice', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      flags: { thankedAt: new Date().toISOString() },
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'CONFLICT',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should not allow thanking a non-Njord transaction', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      processor: UserTransactionProcessor.Paddle,
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should not allow thanking a transaction without a product', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({ productId: null });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should not allow thanking when the sender is a special user', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      senderId: ghostUser.id,
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });

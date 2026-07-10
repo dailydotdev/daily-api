@@ -24,7 +24,12 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../entity/user/UserTransaction';
-import { isSpecialUser, parseBigInt, systemUser } from './utils';
+import {
+  isSpecialUser,
+  parseBigInt,
+  systemUser,
+  updateFlagsStatement,
+} from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import {
   checkCoresAccess,
@@ -38,7 +43,13 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
-import { ConflictError, NjordErrorMessages, TransferError } from '../errors';
+import {
+  ConflictError,
+  NjordErrorMessages,
+  NotFoundError,
+  TransferError,
+} from '../errors';
+import { triggerTypedEvent } from './typedPubsub';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
@@ -1026,6 +1037,54 @@ export const awardComment = async (
 
     throw error;
   }
+};
+
+export const sayThanksForAward = async (
+  { transactionId }: { transactionId: string },
+  ctx: AuthContext,
+): Promise<void> => {
+  const transaction = await ctx.con.getRepository(UserTransaction).findOne({
+    select: ['id', 'receiverId', 'senderId', 'processor', 'productId'],
+    where: { id: transactionId },
+  });
+
+  if (!transaction) {
+    throw new NotFoundError('Transaction not found');
+  }
+
+  if (transaction.receiverId !== ctx.userId) {
+    throw new ForbiddenError('You can not thank for this Award');
+  }
+
+  if (
+    transaction.processor !== UserTransactionProcessor.Njord ||
+    !transaction.productId ||
+    !transaction.senderId ||
+    isSpecialUser({ userId: transaction.senderId })
+  ) {
+    throw new ForbiddenError('You can not thank for this Award');
+  }
+
+  const { affected } = await ctx.con
+    .getRepository(UserTransaction)
+    .createQueryBuilder()
+    .update()
+    .set({
+      flags: updateFlagsStatement<UserTransaction>({
+        thankedAt: new Date().toISOString(),
+      }),
+    })
+    .where('id = :id', { id: transactionId })
+    .andWhere(`flags->>'thankedAt' IS NULL`)
+    .execute();
+
+  if (!affected) {
+    throw new ConflictError('Award already thanked');
+  }
+
+  await triggerTypedEvent(logger, 'api.v1.user-award-thanked', {
+    transactionId,
+  });
 };
 
 const userTransactionErrorMessageMap: Partial<

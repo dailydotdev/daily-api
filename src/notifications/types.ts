@@ -103,6 +103,13 @@ export type NotificationAwardContext = NotificationBaseContext & {
   source?: Reference<Source>;
 };
 
+export type NotificationAwardThankedContext = NotificationBaseContext & {
+  transaction: Reference<UserTransaction>;
+  sender: Reference<User>;
+  receiver: Reference<User>;
+  targetUrl: string;
+};
+
 export type NotificationCommenterContext = NotificationCommentContext & {
   commenter: Reference<User>;
 };
