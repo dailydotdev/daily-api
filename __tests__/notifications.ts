@@ -557,6 +557,94 @@ describe('query notifications', () => {
       new Date(notificationV2Fixture.createdAt).getTime(),
     );
   });
+
+  const CATEGORY_QUERY = `
+  query Notifications($category: String) {
+    notifications(category: $category) {
+      edges { node { type title createdAt } }
+    }
+  }`;
+
+  const seedTypedNotifications = async (types: NotificationType[]) => {
+    const notifs = await con.getRepository(NotificationV2).save(
+      types.map((type, index) => ({
+        ...notificationV2Fixture,
+        uniqueKey: `cat-${index}`,
+        type,
+      })),
+    );
+    await con.getRepository(UserNotification).insert(
+      notifs.map((n) => ({
+        userId: '1',
+        notificationId: n.id,
+        createdAt: notificationV2Fixture.createdAt,
+        type: n.type,
+      })),
+    );
+  };
+
+  it('should filter notifications by category to its mapped types', async () => {
+    loggedUser = '1';
+    await seedTypedNotifications([
+      NotificationType.ArticleUpvoteMilestone,
+      NotificationType.CommentUpvoteMilestone,
+      NotificationType.UserFollow,
+      NotificationType.CommentMention,
+    ]);
+
+    const res = await client.query(CATEGORY_QUERY, {
+      variables: { category: 'upvotes' },
+    });
+    const returned = res.data.notifications.edges
+      .map(({ node }) => node.type)
+      .sort();
+    expect(returned).toEqual(
+      [
+        NotificationType.ArticleUpvoteMilestone,
+        NotificationType.CommentUpvoteMilestone,
+      ].sort(),
+    );
+  });
+
+  it('should treat updates as the complement of the explicit categories', async () => {
+    loggedUser = '1';
+    await seedTypedNotifications([
+      NotificationType.ArticleUpvoteMilestone, // upvotes -> excluded
+      NotificationType.UserFollow, // followers -> excluded
+      NotificationType.BriefingReady, // uncategorized -> updates
+      NotificationType.DigestReady, // uncategorized -> updates
+    ]);
+
+    const res = await client.query(CATEGORY_QUERY, {
+      variables: { category: 'updates' },
+    });
+    const returned = res.data.notifications.edges
+      .map(({ node }) => node.type)
+      .sort();
+    expect(returned).toEqual(
+      [NotificationType.BriefingReady, NotificationType.DigestReady].sort(),
+    );
+  });
+
+  it('should return all notifications when category is omitted', async () => {
+    loggedUser = '1';
+    await seedTypedNotifications([
+      NotificationType.UserFollow,
+      NotificationType.CommentMention,
+    ]);
+
+    const res = await client.query(CATEGORY_QUERY);
+    expect(res.data.notifications.edges).toHaveLength(2);
+  });
+
+  it('should reject an unknown category', () => {
+    loggedUser = '1';
+    return testQueryErrorCode(
+      client,
+      { query: CATEGORY_QUERY, variables: { category: 'bogus' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 });
 
 const prepareNotificationPreferences = async ({

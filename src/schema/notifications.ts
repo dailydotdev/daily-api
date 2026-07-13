@@ -29,6 +29,7 @@ import {
   notificationPreferenceMap,
   getUnreadNotificationsCount,
   commentReplyNotificationTypes,
+  getNotificationCategoryFilter,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
 import { mapCloudinaryUrl } from '../common';
@@ -109,6 +110,11 @@ export const typeDefs = /* GraphQL */ `
     Notification type
     """
     type: String!
+    """
+    Filter bucket the notification belongs to (upvotes, mentions, comments,
+    followers, squads, updates), derived from its type
+    """
+    category: String!
     """
     Referenced entity's id of the notification
     """
@@ -267,6 +273,12 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Only return notifications in this category (upvotes, mentions, comments,
+      followers, squads, updates). Omit for all activity.
+      """
+      category: String
     ): NotificationConnection! @auth
 
     notificationPreferences(
@@ -359,11 +371,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         .getOne(),
     notifications: async (
       source,
-      args: ConnectionArguments,
+      args: ConnectionArguments & { category?: string },
       ctx: AuthContext,
       info,
     ): Promise<ConnectionRelay<NotificationV2>> => {
       const page = notificationsPageGenerator.connArgsToPage(args);
+      const { category } = args;
+      const categoryFilter = category
+        ? getNotificationCategoryFilter(category)
+        : null;
+      if (category && !categoryFilter) {
+        throw new ValidationError(`unknown notification category: ${category}`);
+      }
       return graphorm.queryPaginated(
         ctx,
         info,
@@ -378,6 +397,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .andWhere(`un."public" = true`)
             .andWhere(`(un."showAt" IS NULL OR un."showAt" <= NOW())`)
             .addOrderBy(`COALESCE(un."showAt", un."createdAt")`, 'DESC');
+
+          // Filter on the denormalized un."type" (not notification_v2) so the
+          // (userId, type, date) index can drive the query for heavy users.
+          if (categoryFilter && 'include' in categoryFilter) {
+            builder.queryBuilder.andWhere(`un."type" = ANY(:types)`, {
+              types: categoryFilter.include,
+            });
+          } else if (categoryFilter) {
+            builder.queryBuilder.andWhere(`un."type" <> ALL(:types)`, {
+              types: categoryFilter.exclude,
+            });
+          }
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {

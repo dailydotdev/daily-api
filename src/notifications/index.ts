@@ -168,6 +168,7 @@ export async function storeNotificationBundleV2(
       .addSelect(':createdAt', 'createdAt')
       .addSelect(':uniqueKey', 'uniqueKey')
       .addSelect(':showAt', 'showAt')
+      .addSelect(':notificationType', 'type')
       .from(User, 'u')
       .where('u.id IN (:...userIds)', { userIds: userChunk })
       .setParameters({
@@ -196,7 +197,7 @@ export async function storeNotificationBundleV2(
     const [query, params] = selectQuery.getQueryAndParameters();
 
     await entityManager.query(
-      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "showAt", "public")
+      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "showAt", "type", "public")
        ${query}
        ON CONFLICT ("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING`,
       params,
