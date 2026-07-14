@@ -1,6 +1,7 @@
 import { PostType } from '../../../entity';
 import type { ProcessPostProps, ProcessedPost } from '../types';
 import { resolveCommonDeps, buildCommonPostFields } from '../common';
+import { mapCommunitySentimentPayload } from '../../../common/communitySentiment';
 
 export const processArticle = async ({
   logger,
@@ -35,6 +36,14 @@ export const processArticle = async ({
     contentMeta,
     contentType,
   });
+
+  const communitySentiment = mapCommunitySentimentPayload({
+    communitySentiment: data?.extra?.community_sentiment,
+    discussions: data?.extra?.discussions,
+  });
+  if (communitySentiment) {
+    fixedData.communitySentiment = communitySentiment;
+  }
 
   return {
     contentType,

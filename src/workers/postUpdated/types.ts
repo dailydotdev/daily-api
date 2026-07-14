@@ -50,6 +50,8 @@ export type Data = {
     author_username?: string;
     author_name?: string;
     author_avatar?: string;
+    community_sentiment?: unknown;
+    discussions?: unknown;
   };
   meta?: {
     scraped_html?: string;
