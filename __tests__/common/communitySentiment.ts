@@ -108,6 +108,31 @@ describe('mapCommunitySentimentPayload', () => {
     expect(result?.discussions).toEqual([]);
   });
 
+  it('should accept a minimal payload with omitempty-omitted fields', () => {
+    const result = mapCommunitySentimentPayload({
+      communitySentiment: {
+        breakdown: { positive: 60, mixed: 25, critical: 15 },
+        tldr: 'Early take from a small thread.',
+        post_count: 12,
+      },
+      discussions: undefined,
+    });
+
+    expect(result).toMatchObject({
+      breakdown: { positive: 60, mixed: 25, critical: 15 },
+      tldr: 'Early take from a small thread.',
+      postCount: 12,
+      sources: [],
+      pros: [],
+      cons: [],
+      bySource: [],
+      hottestDebate: undefined,
+      openQuestions: [],
+      highlights: [],
+      discussions: [],
+    });
+  });
+
   it('should throw when the breakdown does not sum to 100', () => {
     expect(() =>
       mapCommunitySentimentPayload({

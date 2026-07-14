@@ -25,7 +25,7 @@ export const communitySentimentBreakdownSchema = z
 export const communitySentimentSourceSchema = z.object({
   source: z.string(),
   lean: communitySentimentLeanSchema,
-  note: z.string(),
+  note: z.string().nullish(),
   url: z.string().nullish(),
 });
 
@@ -37,9 +37,9 @@ export const communitySentimentHighlightMetricsSchema = z.object({
 
 export const communitySentimentHighlightSchema = z.object({
   quote: z.string(),
-  author: z.string(),
+  author: z.string().nullish(),
   source: z.string(),
-  url: z.string(),
+  url: z.string().nullish(),
   metrics: communitySentimentHighlightMetricsSchema.nullish(),
 });
 
@@ -47,13 +47,13 @@ export const communitySentimentPayloadSchema = z.object({
   breakdown: communitySentimentBreakdownSchema,
   tldr: z.string(),
   post_count: z.number(),
-  sources: z.array(z.string()),
-  pros: z.array(z.string()),
-  cons: z.array(z.string()),
-  by_source: z.array(communitySentimentSourceSchema),
+  sources: z.array(z.string()).nullish(),
+  pros: z.array(z.string()).nullish(),
+  cons: z.array(z.string()).nullish(),
+  by_source: z.array(communitySentimentSourceSchema).nullish(),
   hottest_debate: z.string().nullish(),
-  open_questions: z.array(z.string()),
-  highlights: z.array(communitySentimentHighlightSchema),
+  open_questions: z.array(z.string()).nullish(),
+  highlights: z.array(communitySentimentHighlightSchema).nullish(),
 });
 
 export const communitySentimentDiscussionSchema = z.object({

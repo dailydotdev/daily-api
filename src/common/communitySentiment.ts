@@ -43,23 +43,23 @@ export const mapCommunitySentimentPayload = ({
     breakdown: take.breakdown,
     tldr: take.tldr,
     postCount: take.post_count,
-    sources: take.sources,
-    pros: take.pros,
-    cons: take.cons,
-    bySource: take.by_source.map(({ source, lean, note, url }) => ({
+    sources: take.sources ?? [],
+    pros: take.pros ?? [],
+    cons: take.cons ?? [],
+    bySource: (take.by_source ?? []).map(({ source, lean, note, url }) => ({
       source,
       lean,
-      note,
+      note: note ?? '',
       url: url ?? undefined,
     })),
     hottestDebate: take.hottest_debate ?? undefined,
-    openQuestions: take.open_questions,
-    highlights: take.highlights.map(
+    openQuestions: take.open_questions ?? [],
+    highlights: (take.highlights ?? []).map(
       ({ quote, author, source, url, metrics }) => ({
         quote,
-        author,
+        author: author ?? '',
         source,
-        url,
+        url: url ?? '',
         metrics: metrics
           ? {
               points: metrics.points ?? undefined,
