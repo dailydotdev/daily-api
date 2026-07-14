@@ -36,15 +36,6 @@ import {
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
 import { CoresRole } from '../src/types';
-import { triggerTypedEvent } from '../src/common/typedPubsub';
-
-jest.mock('../src/common/typedPubsub', () => ({
-  ...(jest.requireActual('../src/common/typedPubsub') as Record<
-    string,
-    unknown
-  >),
-  triggerTypedEvent: jest.fn(),
-}));
 
 const mockTransport = createMockNjordTransport();
 
@@ -1864,10 +1855,7 @@ describe('sayThanksForAward mutation', () => {
   const MUTATION = `
     mutation sayThanksForAward($transactionId: ID!) {
       sayThanksForAward(transactionId: $transactionId) {
-        id
-        flags {
-          thankedAt
-        }
+        _
       }
     }
   `;
@@ -1914,8 +1902,6 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'UNAUTHENTICATED',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should not allow a non-receiver to thank', async () => {
@@ -1927,11 +1913,9 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'FORBIDDEN',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
-  it('should mark the transaction as thanked and emit a notification event', async () => {
+  it('should mark the transaction with thanks', async () => {
     loggedUser = '1';
     const transaction = await createAwardTransaction();
 
@@ -1940,28 +1924,18 @@ describe('sayThanksForAward mutation', () => {
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.sayThanksForAward.id).toEqual(transaction.id);
-    expect(res.data.sayThanksForAward.flags.thankedAt).toEqual(
-      expect.any(String),
-    );
+    expect(res.data.sayThanksForAward._).toBe(true);
 
     const updated = await con
       .getRepository(UserTransaction)
       .findOneByOrFail({ id: transaction.id });
-    expect(updated.flags.thankedAt).toEqual(expect.any(String));
-
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(triggerTypedEvent).toHaveBeenCalledWith(
-      expect.anything(),
-      'api.v1.user-award-thanked',
-      { transactionId: transaction.id },
-    );
+    expect(updated.flags.thanksAt).toEqual(expect.any(String));
   });
 
   it('should not allow thanking twice', async () => {
     loggedUser = '1';
     const transaction = await createAwardTransaction({
-      flags: { thankedAt: new Date().toISOString() },
+      flags: { thanksAt: new Date().toISOString() },
     });
 
     await testMutationErrorCode(
@@ -1969,8 +1943,6 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'CONFLICT',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should not allow thanking a non-Njord transaction', async () => {
@@ -1984,8 +1956,6 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'FORBIDDEN',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should not allow thanking a transaction without a product', async () => {
@@ -1997,8 +1967,6 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'FORBIDDEN',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should not allow thanking when the sender is a special user', async () => {
@@ -2012,7 +1980,5 @@ describe('sayThanksForAward mutation', () => {
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'FORBIDDEN',
     );
-
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 });

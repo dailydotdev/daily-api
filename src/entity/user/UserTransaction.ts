@@ -20,12 +20,12 @@ export type UserTransactionFlags = Partial<{
   error: string | null;
   emailSent: boolean;
   sourceId: string;
-  thankedAt: string;
+  thanksAt: string;
 }>;
 
 export type UserTransactionFlagsPublic = Pick<
   UserTransactionFlags,
-  'note' | 'error' | 'sourceId' | 'thankedAt'
+  'note' | 'error' | 'sourceId' | 'thanksAt'
 >;
 
 export type UserTransactionRequest = RequestMeta;

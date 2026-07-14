@@ -8328,6 +8328,45 @@ describe('poll post', () => {
   });
 });
 
+describe('user transaction award thanks event', () => {
+  it('should publish an event when thanksAt is set', async () => {
+    const transactionId = randomUUID();
+    const transaction = {
+      id: transactionId,
+      productId: randomUUID(),
+      referenceId: 'award-reference',
+      referenceType: UserTransactionType.User,
+      status: UserTransactionStatus.Success,
+      receiverId: randomUUID(),
+      senderId: randomUUID(),
+      value: 10,
+      valueIncFees: 10,
+      fee: 0,
+      request: {},
+      processor: UserTransactionProcessor.Njord,
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserTransaction>({
+        before: { ...transaction, flags: '{}' },
+        after: {
+          ...transaction,
+          flags: JSON.stringify({ thanksAt: new Date().toISOString() }),
+        },
+        op: 'u',
+        table: 'user_transaction',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.user-award-thanks',
+      { transactionId },
+    );
+  });
+});
+
 describe('user transaction achievement progress', () => {
   let spentAchievementId: string;
   let senderId: string;
@@ -8433,7 +8472,7 @@ describe('user transaction achievement progress', () => {
           valueIncFees: 70,
           fee: 20,
           request: {},
-          flags: {},
+          flags: '{}',
           processor: UserTransactionProcessor.Njord,
         },
         after: {
@@ -8448,7 +8487,7 @@ describe('user transaction achievement progress', () => {
           valueIncFees: 70,
           fee: 20,
           request: {},
-          flags: {},
+          flags: '{}',
           processor: UserTransactionProcessor.Njord,
         },
         op: 'u',
@@ -8555,7 +8594,7 @@ describe('user transaction award given quest progress', () => {
       valueIncFees: 10,
       fee: 0,
       request: {},
-      flags: {},
+      flags: '{}',
       processor: UserTransactionProcessor.Njord,
     },
     after: {
@@ -8570,7 +8609,7 @@ describe('user transaction award given quest progress', () => {
       valueIncFees: 10,
       fee: 0,
       request: {},
-      flags: {},
+      flags: '{}',
       processor: UserTransactionProcessor.Njord,
     },
     op: 'u' as const,

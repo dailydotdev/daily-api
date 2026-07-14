@@ -63,7 +63,7 @@ export enum NotificationType {
   UserTopReaderBadge = 'user_given_top_reader',
   UserGiftedPlus = 'user_gifted_plus',
   UserReceivedAward = 'user_received_award',
-  UserAwardThanked = 'user_award_thanked',
+  UserAwardThanks = 'user_award_thanks',
   OrganizationMemberJoined = 'organization_member_joined',
   CampaignPostCompleted = 'campaign_post_completed',
   CampaignSquadCompleted = 'campaign_squad_completed',
@@ -163,7 +163,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
-  [NotificationType.UserAwardThanked]: {
+  [NotificationType.UserAwardThanks]: {
     email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

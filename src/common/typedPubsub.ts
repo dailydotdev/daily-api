@@ -173,7 +173,7 @@ export type PubSubSchema = {
   'api.v1.user-transaction': {
     transaction: ChangeObject<UserTransaction>;
   };
-  'api.v1.user-award-thanked': {
+  'api.v1.user-award-thanks': {
     transactionId: UserTransaction['id'];
   };
   'api.v1.organization-user-joined': {

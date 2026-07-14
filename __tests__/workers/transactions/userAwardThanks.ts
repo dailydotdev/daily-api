@@ -1,8 +1,8 @@
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
-import { userAwardThanked as worker } from '../../../src/workers/transactions/userAwardThanked';
+import { userAwardThanks as worker } from '../../../src/workers/transactions/userAwardThanks';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { Source, User } from '../../../src/entity';
+import { User } from '../../../src/entity/user/User';
 import { Product, ProductType } from '../../../src/entity/Product';
 import {
   UserTransaction,
@@ -12,10 +12,9 @@ import {
 import { workers as notificationWorkers } from '../../../src/workers/notifications';
 import { usersFixture } from '../../fixture/user';
 import { NotificationType } from '../../../src/notifications/common';
-import type { NotificationAwardThankedContext } from '../../../src/notifications/types';
-import { sourcesFixture } from '../../fixture/source';
+import type { NotificationAwardThanksContext } from '../../../src/notifications/types';
 import { env } from 'node:process';
-import { ghostUser } from '../../../src/common';
+import { ghostUser } from '../../../src/common/utils';
 
 let con: DataSource;
 
@@ -23,7 +22,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-describe('userAwardThanked worker', () => {
+describe('userAwardThanks worker', () => {
   const productId = '9104b834-6fac-4276-a168-0be1294ab371';
 
   const createAwardTransaction = (
@@ -37,7 +36,7 @@ describe('userAwardThanked worker', () => {
       valueIncFees: 100,
       fee: 0,
       request: {},
-      flags: { thankedAt: new Date().toISOString() },
+      flags: { thanksAt: new Date().toISOString() },
       productId,
       status: UserTransactionStatus.Success,
       ...overrides,
@@ -46,7 +45,6 @@ describe('userAwardThanked worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
-    await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Product, [
       {
         id: productId,
@@ -67,7 +65,7 @@ describe('userAwardThanked worker', () => {
 
   it('should do nothing if transaction not found', async () => {
     const result =
-      await invokeTypedNotificationWorker<'api.v1.user-award-thanked'>(worker, {
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
         transactionId: '87b79108-d258-42d2-b38a-4a02974746cc',
       });
 
@@ -78,7 +76,7 @@ describe('userAwardThanked worker', () => {
     const transaction = await createAwardTransaction({ productId: null });
 
     const result =
-      await invokeTypedNotificationWorker<'api.v1.user-award-thanked'>(worker, {
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
         transactionId: transaction.id,
       });
 
@@ -91,7 +89,7 @@ describe('userAwardThanked worker', () => {
     });
 
     const result =
-      await invokeTypedNotificationWorker<'api.v1.user-award-thanked'>(worker, {
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
         transactionId: transaction.id,
       });
 
@@ -104,7 +102,7 @@ describe('userAwardThanked worker', () => {
     });
 
     const result =
-      await invokeTypedNotificationWorker<'api.v1.user-award-thanked'>(worker, {
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
         transactionId: transaction.id,
       });
 
@@ -115,16 +113,23 @@ describe('userAwardThanked worker', () => {
     const transaction = await createAwardTransaction();
 
     const result =
-      await invokeTypedNotificationWorker<'api.v1.user-award-thanked'>(worker, {
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
         transactionId: transaction.id,
       });
 
-    expect(result).toBeTruthy();
-    expect(result).toHaveLength(1);
-    expect(result![0].type).toEqual(NotificationType.UserAwardThanked);
-    expect(result![0].ctx.userIds).toEqual(['2']);
+    expect(result).toMatchObject([
+      {
+        type: NotificationType.UserAwardThanks,
+        ctx: { userIds: ['2'] },
+      },
+    ]);
 
-    const ctx = result![0].ctx as NotificationAwardThankedContext;
+    const [notification] = result ?? [];
+    if (!notification) {
+      throw new Error('Expected a UserAwardThanks notification');
+    }
+
+    const ctx = notification.ctx as NotificationAwardThanksContext;
     expect(ctx.transaction).toMatchObject(transaction);
     expect((ctx.sender as User).id).toEqual('1');
     expect((ctx.receiver as User).id).toEqual('2');

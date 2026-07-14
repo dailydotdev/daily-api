@@ -4,12 +4,12 @@ import {
   UserTransactionProcessor,
 } from '../../entity/user/UserTransaction';
 import { NotificationType } from '../../notifications/common';
-import { isSpecialUser } from '../../common';
+import { isSpecialUser } from '../../common/utils';
 import { TypedNotificationWorker } from '../worker';
 
-export const userAwardThanked: TypedNotificationWorker<'api.v1.user-award-thanked'> =
+export const userAwardThanks: TypedNotificationWorker<'api.v1.user-award-thanks'> =
   {
-    subscription: 'api.user-award-thanked-notification',
+    subscription: 'api.user-award-thanks-notification',
     handler: async (data, con, logger) => {
       const transaction = await con.getRepository(UserTransaction).findOne({
         where: { id: data.transactionId },
@@ -41,7 +41,7 @@ export const userAwardThanked: TypedNotificationWorker<'api.v1.user-award-thanke
 
       return [
         {
-          type: NotificationType.UserAwardThanked,
+          type: NotificationType.UserAwardThanks,
           ctx: {
             userIds: [transaction.senderId],
             transaction,

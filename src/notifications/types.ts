@@ -103,7 +103,7 @@ export type NotificationAwardContext = NotificationBaseContext & {
   source?: Reference<Source>;
 };
 
-export type NotificationAwardThankedContext = NotificationBaseContext & {
+export type NotificationAwardThanksContext = NotificationBaseContext & {
   transaction: Reference<UserTransaction>;
   sender: Reference<User>;
   receiver: Reference<User>;

@@ -16,7 +16,7 @@ import { getLimit, toGQLEnum } from '../common';
 import { z } from 'zod';
 import { type Product, ProductType } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { offsetPageGenerator } from './common';
+import { type GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import {
   UserTransaction,
@@ -27,6 +27,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { Brackets } from 'typeorm';
 import { checkCoresAccess } from '../common/user';
 import { CoresRole } from '../types';
+import { sayThanksForAwardSchema } from '../common/schema/njord';
 
 export type GQLProduct = Pick<
   Product,
@@ -122,7 +123,7 @@ export const typeDefs = /* GraphQL */ `
     error: String
     sourceId: String
     sourceName: String
-    thankedAt: DateTime
+    thanksAt: DateTime
   }
 
   type UserTransaction {
@@ -291,7 +292,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the award transaction to thank for
       """
       transactionId: ID!
-    ): UserTransaction @auth
+    ): EmptyResponse @auth
   }
 `;
 
@@ -531,33 +532,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     sayThanksForAward: async (
       _: unknown,
-      { transactionId }: { transactionId: string },
+      args: { transactionId: string },
       ctx: AuthContext,
-      info,
-    ): Promise<GQLUserTransaction> => {
-      const validationSchema = z.object({
-        transactionId: z.uuid('Invalid transaction id provided'),
-      });
-      const result = validationSchema.safeParse({ transactionId });
+    ): Promise<GQLEmptyResponse> => {
+      const params = sayThanksForAwardSchema.parse(args);
 
-      if (result.error) {
-        throw new ValidationError(result.error.issues[0].message);
-      }
+      await sayThanksForAward(params, ctx);
 
-      await sayThanksForAward({ transactionId }, ctx);
-
-      return graphorm.queryOneOrFail<GQLUserTransaction>(
-        ctx,
-        info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder
-            .where(`${builder.alias}.id = :id`, { id: transactionId })
-            .andWhere(`${builder.alias}."receiverId" = :receiverId`, {
-              receiverId: ctx.userId,
-            }),
-        }),
-      );
+      return { _: true };
     },
   },
 };

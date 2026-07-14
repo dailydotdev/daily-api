@@ -49,7 +49,6 @@ import {
   NotFoundError,
   TransferError,
 } from '../errors';
-import { triggerTypedEvent } from './typedPubsub';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
@@ -1068,20 +1067,16 @@ export const sayThanksForAward = async (
     .update()
     .set({
       flags: updateFlagsStatement<UserTransaction>({
-        thankedAt: new Date().toISOString(),
+        thanksAt: new Date().toISOString(),
       }),
     })
     .where('id = :id', { id: transactionId })
-    .andWhere(`flags->>'thankedAt' IS NULL`)
+    .andWhere(`flags->>'thanksAt' IS NULL`)
     .execute();
 
   if (!affected) {
-    throw new ConflictError('Award already thanked');
+    throw new ConflictError('Award thanks already sent');
   }
-
-  await triggerTypedEvent(logger, 'api.v1.user-award-thanked', {
-    transactionId,
-  });
 };
 
 const userTransactionErrorMessageMap: Partial<

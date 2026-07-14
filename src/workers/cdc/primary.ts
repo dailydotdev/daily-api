@@ -2028,6 +2028,19 @@ const onUserTransactionChange = async (
     return;
   }
 
+  const beforeFlags = JSON.parse(
+    data.payload.before?.flags || '{}',
+  ) as UserTransaction['flags'];
+  const afterFlags = JSON.parse(
+    data.payload.after?.flags || '{}',
+  ) as UserTransaction['flags'];
+
+  if (!beforeFlags.thanksAt && afterFlags.thanksAt) {
+    await triggerTypedEvent(logger, 'api.v1.user-award-thanks', {
+      transactionId: data.payload.after!.id,
+    });
+  }
+
   if (
     data.payload.before?.status !== UserTransactionStatus.Success &&
     data.payload.after?.status === UserTransactionStatus.Success
