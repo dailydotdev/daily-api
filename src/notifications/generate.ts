@@ -205,6 +205,8 @@ export const notificationTitleMap: Record<
   campaign_post_first_milestone: () => `Your post boost is live!`,
   campaign_squad_first_milestone: () => `Your Squad boost is live!`,
   briefing_ready: () => `<strong>Your presidential briefing is ready</strong>`,
+  interest_content_available: () =>
+    `<strong>New content for your interest is ready</strong>`,
   user_follow: (ctx: NotificationUserContext) => {
     return `<strong>${ctx.user.name || ctx.user.username}</strong> is now following you`;
   },
@@ -599,6 +601,16 @@ export const generateNotificationMap: Record<
     return builder
       .icon(NotificationIcon.Bell)
       .avatarBriefing()
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
+      .uniqueKey(ctx.post.id);
+  },
+  interest_content_available: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);

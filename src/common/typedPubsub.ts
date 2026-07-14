@@ -210,6 +210,14 @@ export type PubSubSchema = {
     postId: string;
     sendAtMs?: number;
   };
+  'api.v1.interest-run-requested': {
+    interestId: string;
+  };
+  'api.v1.interest-content-available': {
+    interestId: string;
+    postId: string;
+    userId: string;
+  };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };

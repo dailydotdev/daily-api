@@ -26,6 +26,7 @@ export enum SourceType {
   Machine = 'machine',
   Squad = 'squad',
   User = 'user',
+  Interest = 'interest',
 }
 
 export interface SourceFlagsPublic {
@@ -199,6 +200,19 @@ export class SourceUser extends Source {
   @JoinColumn({
     name: 'userId',
     foreignKeyConstraintName: 'FK_source_user_id',
+  })
+  user: Promise<User>;
+}
+
+@ChildEntity(SourceType.Interest)
+export class InterestSource extends Source {
+  @Column({ type: 'text', default: null })
+  userId: string | null;
+
+  @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({
+    name: 'userId',
+    foreignKeyConstraintName: 'FK_source_interest_user_id',
   })
   user: Promise<User>;
 }

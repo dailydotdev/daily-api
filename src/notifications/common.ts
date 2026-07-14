@@ -68,6 +68,7 @@ export enum NotificationType {
   CampaignPostCompleted = 'campaign_post_completed',
   CampaignSquadCompleted = 'campaign_squad_completed',
   BriefingReady = 'briefing_ready',
+  InterestContentAvailable = 'interest_content_available',
   UserFollow = 'user_follow',
   Marketing = 'marketing',
   NewUserWelcome = 'new_user_welcome',
@@ -244,6 +245,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.BriefingReady]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.InterestContentAvailable]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

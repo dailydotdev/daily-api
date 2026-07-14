@@ -2,6 +2,7 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  AudienceFitResponse,
   ChatMessage,
   ChatResponse,
   LLMProxy,
@@ -145,6 +146,11 @@ export const getBragiClient = (
         evaluateChannelHighlights: async () =>
           new EvaluateChannelHighlightsResponse({
             highlights: [],
+          }),
+        audienceFit: async () =>
+          new AudienceFitResponse({
+            id: 'mock-id',
+            audienceFit: 0.9,
           }),
         classifyRejectionFeedback: async () =>
           new ClassifyRejectionFeedbackResponse({
