@@ -2,6 +2,7 @@ import { env } from 'node:process';
 import {
   UserTransaction,
   UserTransactionProcessor,
+  UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
 import { NotificationType } from '../../notifications/common';
 import { isSpecialUser } from '../../common/utils';
@@ -29,6 +30,7 @@ export const userAwardThanks: TypedNotificationWorker<'api.v1.user-award-thanks'
 
       if (
         !transaction.productId ||
+        transaction.status !== UserTransactionStatus.Success ||
         transaction.processor !== UserTransactionProcessor.Njord ||
         !transaction.senderId ||
         isSpecialUser({ userId: transaction.senderId })

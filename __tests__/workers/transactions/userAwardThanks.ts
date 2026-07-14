@@ -96,6 +96,19 @@ describe('userAwardThanks worker', () => {
     expect(result).toBeUndefined();
   });
 
+  it('should do nothing if transaction is not successful', async () => {
+    const transaction = await createAwardTransaction({
+      status: UserTransactionStatus.Processing,
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-award-thanks'>(worker, {
+        transactionId: transaction.id,
+      });
+
+    expect(result).toBeUndefined();
+  });
+
   it('should do nothing if sender is a special user', async () => {
     const transaction = await createAwardTransaction({
       senderId: ghostUser.id,

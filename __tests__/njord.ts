@@ -1911,8 +1911,26 @@ describe('sayThanksForAward mutation', () => {
     await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should not allow thanks for a transaction that is not successful', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      status: UserTransactionStatus.Processing,
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
       'FORBIDDEN',
     );
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thanksAt).toBeUndefined();
   });
 
   it('should mark the transaction with thanks', async () => {

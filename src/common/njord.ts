@@ -1043,16 +1043,23 @@ export const sayThanksForAward = async (
   ctx: AuthContext,
 ): Promise<void> => {
   const transaction = await ctx.con.getRepository(UserTransaction).findOne({
-    select: ['id', 'receiverId', 'senderId', 'processor', 'productId'],
+    select: [
+      'id',
+      'receiverId',
+      'senderId',
+      'processor',
+      'productId',
+      'status',
+    ],
     where: { id: transactionId },
   });
 
-  if (!transaction) {
+  if (!transaction || transaction.receiverId !== ctx.userId) {
     throw new NotFoundError('Transaction not found');
   }
 
   if (
-    transaction.receiverId !== ctx.userId ||
+    transaction.status !== UserTransactionStatus.Success ||
     transaction.processor !== UserTransactionProcessor.Njord ||
     !transaction.productId ||
     !transaction.senderId ||
