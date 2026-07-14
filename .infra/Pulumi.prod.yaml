@@ -44,7 +44,7 @@ config:
     appleAppStoreServerClientKeyId:
       secure: AAABAOxbRgC+Npj/q0uRCmHXjAnMs8W507CAyKb50ndVgQkx1YKyYPZb
     validLanguagesFeatureKey: valid_languages
-    cdcWorkerMaxMessages: 1
+    cdcWorkerMaxMessages: 5
     cioApiKey:
       secure: AAABAKsjQ79BKL/Msk8ERCFq7TeKGQ6NnzRcQrOoUzQ7hFEDNdq4uxOcG3w5M5aODolHDw==
     cioAppKey:

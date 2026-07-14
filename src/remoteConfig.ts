@@ -63,6 +63,7 @@ export type RemoteConfigValue = {
   postHighlightTtlSeconds: number;
   contributionProgram: ContributionProgramConfig;
   headlineChannelMinPosts: number;
+  excludedMarketingCta: string[];
 };
 
 class RemoteConfig {
