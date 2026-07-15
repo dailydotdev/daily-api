@@ -149,6 +149,10 @@ export const typeDefs = /* GraphQL */ `
     Total number of avatars
     """
     numTotalAvatars: Int
+    """
+    Whether thanks have been sent for an award notification
+    """
+    hasThanks: Boolean!
   }
 
   type NotificationEdge {
@@ -575,6 +579,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   },
   NotificationAvatar: {
     image: (source: NotificationAvatarV2) => mapCloudinaryUrl(source.image),
+  },
+  Notification: {
+    hasThanks: (source: NotificationV2 & { hasThanks?: boolean }) =>
+      source.hasThanks ?? false,
   },
   NotificationAttachment: {
     image: (source: NotificationAttachmentV2) => mapCloudinaryUrl(source.image),

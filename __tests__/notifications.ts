@@ -54,6 +54,11 @@ import { PollPost } from '../src/entity/posts/PollPost';
 import { pollResultNotification } from '../src/workers/notifications/pollResultNotification';
 import { pollResultAuthorNotification } from '../src/workers/notifications/pollResultAuthorNotification';
 import { PollOption } from '../src/entity/polls/PollOption';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -305,6 +310,82 @@ describe('query notifications', () => {
     ]);
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return whether award thanks have already been sent', async () => {
+    loggedUser = '1';
+    const transactions = await con.getRepository(UserTransaction).save([
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: '1',
+        senderId: '2',
+        value: 100,
+        valueIncFees: 100,
+        fee: 0,
+        request: {},
+        flags: { thanksAt: new Date().toISOString() },
+        productId: null,
+        status: UserTransactionStatus.Success,
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: '1',
+        senderId: '2',
+        value: 100,
+        valueIncFees: 100,
+        fee: 0,
+        request: {},
+        flags: {},
+        productId: null,
+        status: UserTransactionStatus.Success,
+      },
+    ]);
+    const notifications = await con.getRepository(NotificationV2).save(
+      transactions.map((transaction, index) => ({
+        ...notificationV2Fixture,
+        type: NotificationType.UserReceivedAward,
+        referenceId: transaction.id,
+        referenceType: 'transaction' as const,
+        uniqueKey: `award-thanks-${index}`,
+      })),
+    );
+    await con.getRepository(UserNotification).insert(
+      notifications.map((notification) => ({
+        userId: '1',
+        notificationId: notification.id,
+        createdAt: notification.createdAt,
+      })),
+    );
+
+    const res = await client.query(`{
+      notifications(first: 10) {
+        edges {
+          node {
+            referenceId
+            createdAt
+            hasThanks
+          }
+        }
+      }
+    }`);
+
+    expect(
+      res.data.notifications.edges.map(({ node }) => ({
+        referenceId: node.referenceId,
+        hasThanks: node.hasThanks,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          referenceId: transactions[0].id,
+          hasThanks: true,
+        },
+        {
+          referenceId: transactions[1].id,
+          hasThanks: false,
+        },
+      ]),
+    );
   });
 
   it('should return the public notifications', async () => {
