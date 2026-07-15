@@ -149,6 +149,10 @@ export const typeDefs = /* GraphQL */ `
     Total number of avatars
     """
     numTotalAvatars: Int
+    """
+    Whether thanks have been sent for an award notification
+    """
+    hasThanks: Boolean!
   }
 
   type NotificationEdge {

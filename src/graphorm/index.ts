@@ -59,6 +59,7 @@ import {
   HighlightSignificance,
   toHighlightSignificanceLabel,
 } from '../common/channelHighlight/significance';
+import { NotificationType } from '../notifications/common';
 import type { PostHeroSignificance } from '../entity/PostHero';
 import {
   POST_HERO_LIFECYCLE_HEADLINES,
@@ -1636,6 +1637,23 @@ const obj = new GraphORM({
       createdAt: {
         rawSelect: true,
         select: () => `COALESCE(un."showAt", un."createdAt")`,
+      },
+      hasThanks: {
+        select: (_, alias) => `
+          CASE
+            WHEN ${alias}.type = '${NotificationType.UserReceivedAward}'
+              AND ${alias}."referenceType" = 'transaction' THEN
+              COALESCE(
+                (
+                  SELECT ut.flags->>'thanksAt' IS NOT NULL
+                  FROM user_transaction ut
+                  WHERE ut.id = ${alias}."referenceId"::uuid
+                ),
+                false
+              )
+            ELSE false
+          END
+        `,
       },
       avatars: {
         relation: {
