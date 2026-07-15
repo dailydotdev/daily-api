@@ -580,10 +580,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   NotificationAvatar: {
     image: (source: NotificationAvatarV2) => mapCloudinaryUrl(source.image),
   },
-  Notification: {
-    hasThanks: (source: NotificationV2 & { hasThanks?: boolean }) =>
-      source.hasThanks ?? false,
-  },
   NotificationAttachment: {
     image: (source: NotificationAttachmentV2) => mapCloudinaryUrl(source.image),
   },

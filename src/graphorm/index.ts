@@ -1641,7 +1641,8 @@ const obj = new GraphORM({
       hasThanks: {
         select: (_, alias) => `
           CASE
-            WHEN ${alias}.type = '${NotificationType.UserReceivedAward}' THEN
+            WHEN ${alias}.type = '${NotificationType.UserReceivedAward}'
+              AND ${alias}."referenceType" = 'transaction' THEN
               COALESCE(
                 (
                   SELECT ut.flags->>'thanksAt' IS NOT NULL
