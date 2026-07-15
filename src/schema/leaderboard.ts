@@ -321,20 +321,22 @@ const getUserLeaderboardForStat = async ({
 }): Promise<GQLUserLeaderboard[]> => {
   const statSelect = typeof stat === 'function' ? stat('us') : `us.${stat}`;
 
-  const users = await con
-    .createQueryBuilder()
-    .from(UserStats, 'us')
-    .select('u.*')
-    .addSelect(statSelect, 'score')
-    .leftJoin(User, 'u', 'u.id = us.id')
-    .where({ id: Not(In(excludedUsers)) })
-    .orderBy('score', 'DESC')
-    .limit(limit)
-    .getRawMany<
-      User & {
-        score: number;
-      }
-    >();
+  const users = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .from(UserStats, 'us')
+      .select('u.*')
+      .addSelect(statSelect, 'score')
+      .leftJoin(User, 'u', 'u.id = us.id')
+      .where({ id: Not(In(excludedUsers)) })
+      .orderBy('score', 'DESC')
+      .limit(limit)
+      .getRawMany<
+        User & {
+          score: number;
+        }
+      >(),
+  );
 
   return users
     .filter((user) => !!user.id)
@@ -353,21 +355,23 @@ const getUserLevelLeaderboard = async ({
   con: DataSource;
   limit: number;
 }): Promise<GQLUserLeaderboard[]> => {
-  const users = await con
-    .createQueryBuilder()
-    .from(UserQuestProfile, 'uqp')
-    .select('u.*')
-    .addSelect('uqp."totalXp"', 'score')
-    .leftJoin(User, 'u', 'u.id = uqp."userId"')
-    .where('u.id IS NOT NULL')
-    .andWhere('u.id NOT IN (:...excludedUsers)', { excludedUsers })
-    .orderBy('score', 'DESC')
-    .limit(limit)
-    .getRawMany<
-      User & {
-        score: number | string;
-      }
-    >();
+  const users = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .from(UserQuestProfile, 'uqp')
+      .select('u.*')
+      .addSelect('uqp."totalXp"', 'score')
+      .leftJoin(User, 'u', 'u.id = uqp."userId"')
+      .where('u.id IS NOT NULL')
+      .andWhere('u.id NOT IN (:...excludedUsers)', { excludedUsers })
+      .orderBy('score', 'DESC')
+      .limit(limit)
+      .getRawMany<
+        User & {
+          score: number | string;
+        }
+      >(),
+  );
 
   return users
     .filter((user) => !!user.id)
@@ -389,27 +393,29 @@ const getMostQuestsCompletedLeaderboard = async ({
   con: DataSource;
   limit: number;
 }): Promise<GQLUserLeaderboard[]> => {
-  const users = await con
-    .createQueryBuilder()
-    .from(UserQuest, 'uq')
-    .innerJoin(User, 'u', 'u.id = uq."userId"')
-    .select('u.*')
-    .addSelect('COUNT(*)', 'score')
-    .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
-    .where('uq.status IN (:...completedStatuses)', {
-      completedStatuses: completedQuestStatuses,
-    })
-    .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
-    .groupBy('u.id')
-    .orderBy('score', 'DESC')
-    .addOrderBy('"lastCompletedAt"', 'ASC')
-    .addOrderBy('u.id', 'ASC')
-    .limit(limit)
-    .getRawMany<
-      User & {
-        score: number | string;
-      }
-    >();
+  const users = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .createQueryBuilder()
+      .from(UserQuest, 'uq')
+      .innerJoin(User, 'u', 'u.id = uq."userId"')
+      .select('u.*')
+      .addSelect('COUNT(*)', 'score')
+      .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
+      .where('uq.status IN (:...completedStatuses)', {
+        completedStatuses: completedQuestStatuses,
+      })
+      .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+      .groupBy('u.id')
+      .orderBy('score', 'DESC')
+      .addOrderBy('"lastCompletedAt"', 'ASC')
+      .addOrderBy('u.id', 'ASC')
+      .limit(limit)
+      .getRawMany<
+        User & {
+          score: number | string;
+        }
+      >(),
+  );
 
   return users
     .filter((user) => !!user.id)
@@ -425,57 +431,61 @@ const getTopCompletedQuest = async ({
 }: {
   con: DataSource;
   completedAfter?: Date;
-}): Promise<GQLQuestCompletionLeader | null> => {
-  const query = con
-    .createQueryBuilder()
-    .from(UserQuest, 'uq')
-    .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
-    .innerJoin(Quest, 'q', 'q.id = qr."questId"')
-    .select('q.id', 'questId')
-    .addSelect('q.name', 'questName')
-    .addSelect('q.description', 'questDescription')
-    .addSelect('COUNT(*)', 'count')
-    .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
-    .where('uq.status IN (:...completedStatuses)', {
-      completedStatuses: completedQuestStatuses,
-    })
-    .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
-    .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
-      communityPulseQuestTypes,
-    })
-    .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
-    .groupBy('q.id')
-    .addGroupBy('q.name')
-    .addGroupBy('q.description')
-    .orderBy('count', 'DESC')
-    .addOrderBy('"lastCompletedAt"', 'ASC')
-    .addOrderBy('q.name', 'ASC')
-    .limit(1);
+}): Promise<GQLQuestCompletionLeader | null> =>
+  queryReadReplica(con, async ({ queryRunner }) => {
+    const query = queryRunner.manager
+      .createQueryBuilder()
+      .from(UserQuest, 'uq')
+      .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
+      .innerJoin(Quest, 'q', 'q.id = qr."questId"')
+      .select('q.id', 'questId')
+      .addSelect('q.name', 'questName')
+      .addSelect('q.description', 'questDescription')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect(`MAX(${completedQuestTimestampExpression})`, 'lastCompletedAt')
+      .where('uq.status IN (:...completedStatuses)', {
+        completedStatuses: completedQuestStatuses,
+      })
+      .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+      .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
+        communityPulseQuestTypes,
+      })
+      .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
+      .groupBy('q.id')
+      .addGroupBy('q.name')
+      .addGroupBy('q.description')
+      .orderBy('count', 'DESC')
+      .addOrderBy('"lastCompletedAt"', 'ASC')
+      .addOrderBy('q.name', 'ASC')
+      .limit(1);
 
-  if (completedAfter) {
-    query.andWhere(`${completedQuestTimestampExpression} >= :completedAfter`, {
-      completedAfter,
-    });
-  }
+    if (completedAfter) {
+      query.andWhere(
+        `${completedQuestTimestampExpression} >= :completedAfter`,
+        {
+          completedAfter,
+        },
+      );
+    }
 
-  const leader = await query.getRawOne<{
-    questId: string;
-    questName: string;
-    questDescription: string;
-    count: number | string;
-  }>();
+    const leader = await query.getRawOne<{
+      questId: string;
+      questName: string;
+      questDescription: string;
+      count: number | string;
+    }>();
 
-  if (!leader?.questId) {
-    return null;
-  }
+    if (!leader?.questId) {
+      return null;
+    }
 
-  return {
-    questId: leader.questId,
-    questName: leader.questName,
-    questDescription: leader.questDescription,
-    count: Number(leader.count) || 0,
-  };
-};
+    return {
+      questId: leader.questId,
+      questName: leader.questName,
+      questDescription: leader.questDescription,
+      count: Number(leader.count) || 0,
+    };
+  });
 
 const getQuestCompletionStats = async ({
   con,
@@ -486,20 +496,22 @@ const getQuestCompletionStats = async ({
 }): Promise<GQLQuestCompletionStats> => {
   const { periodStart } = getQuestWindow(QuestType.Weekly, now);
   const [totalRow, allTimeLeader, weeklyLeader] = await Promise.all([
-    con
-      .createQueryBuilder()
-      .from(UserQuest, 'uq')
-      .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
-      .select('COUNT(*)', 'count')
-      .where('uq.status IN (:...completedStatuses)', {
-        completedStatuses: completedQuestStatuses,
-      })
-      .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
-      .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
-        communityPulseQuestTypes,
-      })
-      .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
-      .getRawOne<{ count: number | string }>(),
+    queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager
+        .createQueryBuilder()
+        .from(UserQuest, 'uq')
+        .innerJoin(QuestRotation, 'qr', 'qr.id = uq."rotationId"')
+        .select('COUNT(*)', 'count')
+        .where('uq.status IN (:...completedStatuses)', {
+          completedStatuses: completedQuestStatuses,
+        })
+        .andWhere('uq."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+        .andWhere('qr.type IN (:...communityPulseQuestTypes)', {
+          communityPulseQuestTypes,
+        })
+        .andWhere(`${completedQuestTimestampExpression} IS NOT NULL`)
+        .getRawOne<{ count: number | string }>(),
+    ),
     getTopCompletedQuest({ con }),
     getTopCompletedQuest({
       con,
@@ -517,27 +529,31 @@ const getQuestCompletionStats = async ({
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      const users = await ctx.con.getRepository(User).find({
-        where: {
-          id: Not(In(excludedUsers)),
-        },
-        order: { reputation: 'DESC' },
-        take: getLimit(args),
-      });
+      const users = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(User).find({
+          where: {
+            id: Not(In(excludedUsers)),
+          },
+          order: { reputation: 'DESC' },
+          take: getLimit(args),
+        }),
+      );
 
       return users.map((user) => ({ score: user.reputation, user }));
     },
     longestStreak: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      const users = await ctx.con.getRepository(UserStreak).find({
-        where: {
-          user: {
-            id: Not(In(excludedUsers)),
+      const users = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(UserStreak).find({
+          where: {
+            user: {
+              id: Not(In(excludedUsers)),
+            },
           },
-        },
-        order: { currentStreak: 'DESC' },
-        take: getLimit(args),
-        relations: ['user'],
-      });
+          order: { currentStreak: 'DESC' },
+          take: getLimit(args),
+          relations: ['user'],
+        }),
+      );
 
       return users.map((user) => ({
         score: user.currentStreak,
@@ -566,16 +582,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
     },
     mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      const users = await ctx.con.getRepository(UserStreak).find({
-        where: {
-          user: {
-            id: Not(In(excludedUsers)),
+      const users = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(UserStreak).find({
+          where: {
+            user: {
+              id: Not(In(excludedUsers)),
+            },
           },
-        },
-        order: { totalStreak: 'DESC' },
-        take: getLimit(args),
-        relations: ['user'],
-      });
+          order: { totalStreak: 'DESC' },
+          take: getLimit(args),
+          relations: ['user'],
+        }),
+      );
 
       return users.map((user) => ({
         score: user.totalStreak,
@@ -592,12 +610,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         name: string;
         image: string;
         count: number;
-      }[] = await ctx.con
-        .getRepository(UserCompany)
-        .query(
-          `SELECT "companyId", "company"."name", "company"."image", count("company"."id") from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != '' AND "companyId" != 'dailydev'  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
-          [getLimit(args)],
-        );
+      }[] = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(UserCompany)
+          .query(
+            `SELECT "companyId", "company"."name", "company"."image", count("company"."id") from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != '' AND "companyId" != 'dailydev'  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
+            [getLimit(args)],
+          ),
+      );
       return companies.map((company) => ({
         score: company.count,
         company: { name: company.name, image: company.image },
@@ -624,22 +644,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx,
     ): Promise<GQLUserLeaderboard[]> => {
       const limit = getLimit(args);
-      const users = await ctx.con
-        .createQueryBuilder()
-        .from(UserAchievement, 'ua')
-        .innerJoin(Achievement, 'a', 'a.id = ua."achievementId"')
-        .innerJoin(User, 'u', 'u.id = ua."userId"')
-        .select('u.*')
-        .addSelect('SUM(a.points)', 'score')
-        .addSelect('MAX(ua."unlockedAt")', 'lastUnlockedAt')
-        .where('ua."unlockedAt" IS NOT NULL')
-        .andWhere('ua."userId" NOT IN (:...excludedUsers)', { excludedUsers })
-        .groupBy('u.id')
-        .orderBy('score', 'DESC')
-        .addOrderBy('"lastUnlockedAt"', 'ASC')
-        .addOrderBy('u.id', 'ASC')
-        .limit(limit)
-        .getRawMany();
+      const users = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .createQueryBuilder()
+          .from(UserAchievement, 'ua')
+          .innerJoin(Achievement, 'a', 'a.id = ua."achievementId"')
+          .innerJoin(User, 'u', 'u.id = ua."userId"')
+          .select('u.*')
+          .addSelect('SUM(a.points)', 'score')
+          .addSelect('MAX(ua."unlockedAt")', 'lastUnlockedAt')
+          .where('ua."unlockedAt" IS NOT NULL')
+          .andWhere('ua."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+          .groupBy('u.id')
+          .orderBy('score', 'DESC')
+          .addOrderBy('"lastUnlockedAt"', 'ASC')
+          .addOrderBy('u.id', 'ASC')
+          .limit(limit)
+          .getRawMany(),
+      );
 
       return (
         users

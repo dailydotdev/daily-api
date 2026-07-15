@@ -36,6 +36,7 @@ export const notificationFlagsSchema = z.object({
   [NotificationType.SourcePostSubmitted]: notificationPreferenceSchema,
   [NotificationType.ArticlePicked]: notificationPreferenceSchema,
   [NotificationType.UserReceivedAward]: notificationPreferenceSchema,
+  [NotificationType.UserAwardThanks]: notificationPreferenceSchema,
   [NotificationType.BriefingReady]: notificationPreferenceSchema,
   [NotificationType.SquadNewComment]: notificationPreferenceSchema,
   [NotificationType.ArticleAnalytics]: notificationPreferenceSchema,

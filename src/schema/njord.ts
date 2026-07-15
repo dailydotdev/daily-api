@@ -8,6 +8,7 @@ import {
   AwardType,
   awardUser,
   type GetBalanceResult,
+  sayThanksForAward,
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -15,7 +16,7 @@ import { getLimit, toGQLEnum } from '../common';
 import { z } from 'zod';
 import { type Product, ProductType } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
-import { offsetPageGenerator } from './common';
+import { type GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import {
   UserTransaction,
@@ -26,6 +27,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { Brackets } from 'typeorm';
 import { checkCoresAccess } from '../common/user';
 import { CoresRole } from '../types';
+import { sayThanksForAwardSchema } from '../common/schema/njord';
 
 export type GQLProduct = Pick<
   Product,
@@ -121,6 +123,7 @@ export const typeDefs = /* GraphQL */ `
     error: String
     sourceId: String
     sourceName: String
+    thanksAt: DateTime
   }
 
   type UserTransaction {
@@ -280,6 +283,16 @@ export const typeDefs = /* GraphQL */ `
       """
       note: String
     ): TransactionCreated @auth
+
+    """
+    Say thanks to the sender of a received Cores Award
+    """
+    sayThanksForAward(
+      """
+      Id of the award transaction to thank for
+      """
+      transactionId: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -516,6 +529,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         default:
           throw new ForbiddenError('Can not award this entity');
       }
+    },
+    sayThanksForAward: async (
+      _: unknown,
+      args: { transactionId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const params = sayThanksForAwardSchema.parse(args);
+
+      await sayThanksForAward(params, ctx);
+
+      return { _: true };
     },
   },
 };
