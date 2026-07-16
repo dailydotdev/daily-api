@@ -93,6 +93,7 @@ export const typeDefs = /* GraphQL */ `
   type ProductFlagsPublic {
     description: String
     imageGlow: String
+    quantity: Int
   }
 
   type Product {

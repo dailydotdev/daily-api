@@ -3,6 +3,7 @@ import type { User } from './User';
 
 export enum UserStreakActionType {
   Recover = 'recover',
+  Freeze = 'freeze',
 }
 
 @Entity()

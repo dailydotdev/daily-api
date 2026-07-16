@@ -11,15 +11,17 @@ export type ProductFlags = Partial<{
   description: string;
   imageGlow: string;
   restricted: boolean;
+  quantity: number;
 }>;
 
 export type ProductFlagsPublic = Pick<
   ProductFlags,
-  'description' | 'imageGlow'
+  'description' | 'imageGlow' | 'quantity'
 >;
 
 export enum ProductType {
   Award = 'award',
+  StreakFreeze = 'streak_freeze',
 }
 
 @Entity()

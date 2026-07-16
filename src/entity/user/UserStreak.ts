@@ -31,6 +31,9 @@ export class UserStreak {
   @Column({ type: 'integer', default: 0 })
   maxStreak: number;
 
+  @Column({ type: 'integer', default: 0 })
+  freezesAvailable: number;
+
   @Column({ type: 'timestamptz', default: null })
   lastViewAt: Date | null;
 

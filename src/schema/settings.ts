@@ -32,6 +32,7 @@ interface GQLSettings {
   autoDismissNotifications: boolean;
   updatedAt: Date;
   optOutReadingStreak: boolean;
+  optOutStreakFreeze: boolean;
   optOutLevelSystem: boolean;
   optOutQuestSystem: boolean;
   optOutAchievements: boolean;
@@ -59,6 +60,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
   optOutReadingStreak?: boolean;
+  optOutStreakFreeze?: boolean;
   optOutLevelSystem?: boolean;
   optOutQuestSystem?: boolean;
   optOutAchievements?: boolean;
@@ -198,6 +200,11 @@ export const typeDefs = /* GraphQL */ `
     optOutReadingStreak: Boolean!
 
     """
+    Whether the user opted out from automated streak freeze
+    """
+    optOutStreakFreeze: Boolean!
+
+    """
     Whether the user opted out from the level system
     """
     optOutLevelSystem: Boolean!
@@ -329,6 +336,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from reading streak
     """
     optOutReadingStreak: Boolean
+
+    """
+    Whether the user opted out from automated streak freeze
+    """
+    optOutStreakFreeze: Boolean
 
     """
     Whether the user opted out from the level system
