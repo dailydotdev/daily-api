@@ -6347,20 +6347,110 @@ describe('query feedTagsList', () => {
     });
   });
 
-  it('should cache empty and return empty when feed service fails', async () => {
+  it('should cache empty and return empty when all sources are empty', async () => {
     loggedUser = '1';
     nock('http://localhost:6000')
       .post('/api/user_tags')
       .replyWithError('feed service down');
+    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
 
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([]);
-    expect(recommendTagsMock).not.toHaveBeenCalled();
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
     expect(user?.flags?.feedTagsList?.tags).toEqual([]);
     expect(user?.flags?.feedTagsList?.updatedAt).toEqual(expect.any(String));
+  });
+
+  it('should fall back to onboarding-selected tags when feed and recswipe return nothing', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, Keyword, [
+      { value: 'onboarding-1', status: 'allow' },
+      { value: 'onboarding-2', status: 'allow' },
+      { value: 'onboarding-blocked', status: 'allow' },
+    ]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'onboarding-1',
+        referenceId: 'onboarding-1',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'onboarding-2',
+        referenceId: 'onboarding-2',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'onboarding-blocked',
+        referenceId: 'onboarding-blocked',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, { data: [] });
+    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(recommendTagsMock).toHaveBeenCalled();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'onboarding-1', label: 'onboarding-1' },
+      { value: 'onboarding-2', label: 'onboarding-2' },
+    ]);
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([
+      { value: 'onboarding-1', label: 'onboarding-1' },
+      { value: 'onboarding-2', label: 'onboarding-2' },
+    ]);
+  });
+
+  it('should not use onboarding fallback when feed service returns tags', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, Keyword, [
+      { value: 'onboarding-1', status: 'allow' },
+    ]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'onboarding-1',
+        referenceId: 'onboarding-1',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: ['ai-coding', 'llm', 'claude-code', 'ai-agents', 'anthropic'],
+      });
+
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(recommendTagsMock).not.toHaveBeenCalled();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'ai-coding', label: 'ai-coding' },
+      { value: 'llm', label: 'llm' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
+    ]);
   });
 
   it('should dedupe overlap between feed and recswipe results', async () => {
