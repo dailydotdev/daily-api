@@ -7,7 +7,10 @@ import { Keyword } from '../../src/entity/Keyword';
 import { Feed, FeedOrigin } from '../../src/entity/Feed';
 import { FeedTag } from '../../src/entity/FeedTag';
 import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
-import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../src/entity/contentPreference/types';
 import { feedClient } from '../../src/integrations/feed/generators';
 import { recswipeClient } from '../../src/integrations/recswipe/clients';
 import { seedTagChipFeedsIfNeeded } from '../../src/common/seedTagChipFeeds';
@@ -154,13 +157,53 @@ describe('seedTagChipFeedsIfNeeded', () => {
     });
   });
 
-  it('seeds nothing when feedClient and recswipe both return empty', async () => {
+  it('seeds nothing when feedClient, recswipe and onboarding follows are all empty', async () => {
     getUserTagsMock.mockResolvedValue([]);
     recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
 
     await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 5 });
 
     expect(await getChipFeeds('1')).toHaveLength(0);
+  });
+
+  it('falls back to onboarding follows when feedClient and recswipe return nothing', async () => {
+    getUserTagsMock.mockResolvedValue([]);
+    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'nodejs',
+        referenceId: 'nodejs',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 5 });
+
+    const feeds = await getChipFeeds('1');
+    expect(feeds.map((f) => f.flags.name).sort()).toEqual([
+      'JavaScript',
+      'Node.js',
+    ]);
+    expect(recommendTagsMock).toHaveBeenCalled();
   });
 
   it("caps the seed count at the user's remaining feed headroom", async () => {
