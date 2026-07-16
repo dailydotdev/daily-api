@@ -10,7 +10,6 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { feedClient } from '../integrations/feed/generators';
-import { recswipeClient } from '../integrations/recswipe/clients';
 import { queryReadReplica } from './queryReadReplica';
 import { generateShortId } from '../ids';
 import { logger } from '../logger';
@@ -101,24 +100,8 @@ const getSeedTagValues = async ({
   } catch (err) {
     logger.error(
       { err, userId },
-      'feedClient.getUserTags failed; tag-chip seeding will fall back to recswipe',
+      'feedClient.getUserTags failed; tag-chip seeding will fall back to onboarding follows',
     );
-  }
-
-  if (values.length < limit) {
-    try {
-      const supplement = await recswipeClient.recommendTags(userId, {
-        selectedTags: values,
-        n: limit - values.length,
-      });
-      const recommended = (supplement.recommended_tags ?? []).map((t) => t.tag);
-      values = dedupeKeepOrder([...values, ...recommended]).slice(0, limit);
-    } catch (err) {
-      logger.error(
-        { err, userId },
-        'recswipeClient.recommendTags failed; seeding tag-chip feeds with feedClient tags only',
-      );
-    }
   }
 
   if (!values.length) {
@@ -141,8 +124,9 @@ const getSeedTagValues = async ({
 };
 
 /**
- * Lazily seeds one custom feed per tag (feedClient.getUserTags + recswipe backfill)
- * the first time the caller opts in via `includeTagChipFeeds`. Gated by
+ * Lazily seeds one custom feed per tag (feedClient.getUserTags, falling back to
+ * the user's onboarding follows) the first time the caller opts in via
+ * `includeTagChipFeeds`. Gated by
  * `User.flags.tagChipFeedsSeededAt`: set atomically before any seed work
  * happens, so a second call is a guaranteed no-op even if the first failed
  * mid-flight. Skipped if the user is at the `maxFeedsPerUser` cap (no chip
