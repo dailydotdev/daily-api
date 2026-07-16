@@ -463,7 +463,7 @@ export const applyFeedWhere = (
   if (removeNonPublicThresholdSquads) {
     newBuilder = newBuilder.andWhere(
       `(source.type NOT IN (:...types) OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
-      { types: [SourceType.Squad, SourceType.User] },
+      { types: [SourceType.Squad, SourceType.User, SourceType.Agent] },
     );
   }
 

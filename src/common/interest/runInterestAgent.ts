@@ -25,9 +25,11 @@ import {
   InterestFinding,
   InterestFindingStatus,
 } from '../../entity/InterestFinding';
+import { InterestFeedback } from '../../entity/InterestFeedback';
 import type { UserInterest } from '../../entity/UserInterest';
 import { insertFreeformPost } from '../post';
 import { markdown } from '../markdown';
+import { updateFlagsStatement } from '../utils';
 import { generateShortId } from '../../ids';
 
 const DEFAULT_SEARCH_LIMIT = 10;
@@ -40,19 +42,45 @@ export type InterestAgentRunResult = {
   summary: string;
 };
 
-const buildSystemPrompt = (interest: UserInterest): string =>
-  [
+const buildSystemPrompt = (
+  interest: UserInterest,
+  feedback: string[],
+): string => {
+  const { post = true, notification = true } = interest.outputModes ?? {};
+  const steps = [
+    '1. Call search_daily_dev with a focused query derived from the interest.',
+    '2. For each promising result, call score_finding to get a relevance/quality score.',
+    '3. Call add_to_feed for the results worth surfacing.',
+  ];
+  if (post) {
+    steps.push(
+      `${steps.length + 1}. Call write_post once with a short markdown digest of what you found and why it matters.`,
+    );
+  }
+  if (notification) {
+    steps.push(
+      `${steps.length + 1}. Call notify_user once so the user knows new content is ready.`,
+    );
+  }
+
+  return [
     'You are the daily.dev Interest Agent. You hunt for content matching a single user interest, score it, and deliver it.',
     `The interest is: "${interest.query}".`,
     'Work only with daily.dev content in this run — do not invent URLs or reference external sources.',
+    `FOMO threshold is ${interest.fomoThreshold ?? 0.5} (0 = surface everything, 1 = only the very best). Only add_to_feed items scoring at or above this threshold.`,
+    interest.lastRunSummary
+      ? `Recap of your last run: ${interest.lastRunSummary}`
+      : null,
+    feedback.length
+      ? `Recent user feedback to apply:\n${feedback.map((text) => `- ${text}`).join('\n')}`
+      : null,
     'Run this loop once and then stop:',
-    '1. Call search_daily_dev with a focused query derived from the interest.',
-    '2. For each promising result, call score_finding to get a relevance/quality score.',
-    '3. Call add_to_feed for the results worth surfacing (higher score = more worth surfacing).',
-    '4. Call write_post once with a short markdown digest of what you found and why it matters.',
-    '5. Call notify_user once so the user knows new content is ready.',
+    ...steps,
     'Keep tool usage efficient. When the delivery is done, reply with a one-sentence recap of the run.',
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
+};
 
 export const runInterestAgent = async ({
   con,
@@ -122,13 +150,17 @@ export const runInterestAgent = async ({
         const posts = postIds.length
           ? await con.getRepository(Post).find({
               select: ['id', 'title'],
-              where: { id: In(postIds) },
+              where: {
+                id: In(postIds),
+                private: false,
+                deleted: false,
+                showOnFeed: true,
+              },
             })
           : [];
-        const titleById = new Map(posts.map((post) => [post.id, post.title]));
-        const candidates = postIds.map((postId) => ({
-          postId,
-          title: titleById.get(postId) ?? null,
+        const candidates = posts.map((post) => ({
+          postId: post.id,
+          title: post.title,
         }));
         return {
           content: [{ type: 'text', text: JSON.stringify({ candidates }) }],
@@ -251,6 +283,13 @@ export const runInterestAgent = async ({
             sourceId: interest.sourceId as string,
           },
         });
+        await con.getRepository(Post).update(
+          { id: saved.id },
+          {
+            showOnFeed: false,
+            flags: updateFlagsStatement<Post>({ showOnFeed: false }),
+          },
+        );
         state.summaryPostId = saved.id;
         return {
           content: [
@@ -277,10 +316,26 @@ export const runInterestAgent = async ({
     });
   };
 
+  const feedbackRows = await con.getRepository(InterestFeedback).find({
+    select: ['text'],
+    where: { interestId: interest.id },
+    order: { createdAt: 'DESC' },
+    take: 5,
+  });
+  const feedback = feedbackRows.map((row) => row.text).reverse();
+
+  const activeTools = ['search_daily_dev', 'score_finding', 'add_to_feed'];
+  if (interest.outputModes?.post ?? true) {
+    activeTools.push('write_post');
+  }
+  if (interest.outputModes?.notification ?? true) {
+    activeTools.push('notify_user');
+  }
+
   const resourceLoader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
-    systemPromptOverride: () => buildSystemPrompt(interest),
+    systemPromptOverride: () => buildSystemPrompt(interest, feedback),
     appendSystemPromptOverride: () => [],
     extensionFactories: [registerTools],
   });
@@ -295,13 +350,7 @@ export const runInterestAgent = async ({
     thinkingLevel: 'low',
     resourceLoader,
     sessionManager: SessionManager.inMemory(agentDir),
-    tools: [
-      'search_daily_dev',
-      'score_finding',
-      'add_to_feed',
-      'write_post',
-      'notify_user',
-    ],
+    tools: activeTools,
   });
 
   try {

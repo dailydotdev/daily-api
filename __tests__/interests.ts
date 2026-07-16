@@ -12,15 +12,13 @@ import {
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
 import { Feed } from '../src/entity/Feed';
-import { InterestSource, SourceType } from '../src/entity/Source';
-import {
-  UserInterest,
-  UserInterestStatus,
-} from '../src/entity/UserInterest';
+import { AgentSource, SourceType } from '../src/entity/Source';
+import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
 import {
   InterestFinding,
   InterestFindingStatus,
 } from '../src/entity/InterestFinding';
+import { InterestFeedback } from '../src/entity/InterestFeedback';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture';
@@ -134,10 +132,10 @@ describe('mutation createInterest', () => {
     expect(interest.userId).toEqual('1');
 
     const source = await con
-      .getRepository(InterestSource)
+      .getRepository(AgentSource)
       .findOneByOrFail({ id: interest.sourceId as string });
     expect(source.private).toBe(true);
-    expect(source.type).toEqual(SourceType.Interest);
+    expect(source.type).toEqual(SourceType.Agent);
 
     const feed = await con
       .getRepository(Feed)
@@ -180,11 +178,7 @@ describe('query interests', () => {
   });
 
   it('should not allow unauthenticated user', () =>
-    testQueryErrorCode(
-      client,
-      { query: INTERESTS_QUERY },
-      'UNAUTHENTICATED',
-    ));
+    testQueryErrorCode(client, { query: INTERESTS_QUERY }, 'UNAUTHENTICATED'));
 
   it('should return only the current user interests', async () => {
     loggedUser = '1';
@@ -261,10 +255,9 @@ describe('query interestFindings', () => {
       variables: { id: 'uir-1' },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.interestFindings.map((f: { postId: string }) => f.postId)).toEqual([
-      'p2',
-      'p1',
-    ]);
+    expect(
+      res.data.interestFindings.map((f: { postId: string }) => f.postId),
+    ).toEqual(['p2', 'p1']);
   });
 
   it('should reject findings for a non-owner', async () => {
@@ -297,6 +290,12 @@ describe('mutation sendInterestCommand', () => {
       (call) => call[1] === 'api.v1.interest-run-requested',
     );
     expect(runCall?.[2]).toEqual({ interestId: 'uir-1' });
+
+    const feedback = await con
+      .getRepository(InterestFeedback)
+      .findBy({ interestId: 'uir-1' });
+    expect(feedback).toHaveLength(1);
+    expect(feedback[0].text).toEqual('explore more');
   });
 
   it('should reject an unknown interest', async () => {
@@ -304,6 +303,185 @@ describe('mutation sendInterestCommand', () => {
     return testMutationErrorCode(
       client,
       { mutation: SEND_COMMAND, variables: { id: 'nope', text: 'hi' } },
+      'NOT_FOUND',
+    );
+  });
+});
+
+const UPDATE_INTEREST = `
+  mutation UpdateInterest($id: ID!, $data: UpdateInterestInput!) {
+    updateInterest(id: $id, data: $data) {
+      id
+      status
+      fomoThreshold
+      sources
+      outputModes
+    }
+  }
+`;
+
+const DELETE_INTEREST = `
+  mutation DeleteInterest($id: ID!) {
+    deleteInterest(id: $id) {
+      _
+    }
+  }
+`;
+
+const INTEREST_POSTS = `
+  query InterestPosts($id: ID!) {
+    interestPosts(id: $id) {
+      id
+      title
+    }
+  }
+`;
+
+describe('mutation updateInterest', () => {
+  beforeEach(async () => {
+    await con.getRepository(UserInterest).save({
+      id: 'uir-1',
+      userId: '1',
+      query: 'cool zig projects',
+      status: UserInterestStatus.Active,
+      fomoThreshold: 0.5,
+      sources: { dailyDev: true, web: false, github: false },
+      outputModes: {
+        feed: true,
+        post: true,
+        digest: false,
+        notification: true,
+      },
+    });
+  });
+
+  it('should update status, fomoThreshold and merge jsonb fields', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(UPDATE_INTEREST, {
+      variables: {
+        id: 'uir-1',
+        data: {
+          status: UserInterestStatus.Paused,
+          fomoThreshold: 0.8,
+          outputModes: { notification: false },
+        },
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateInterest).toMatchObject({
+      status: UserInterestStatus.Paused,
+      fomoThreshold: 0.8,
+    });
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.outputModes).toMatchObject({
+      feed: true,
+      post: true,
+      notification: false,
+    });
+  });
+
+  it('should not update another user interest', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: UPDATE_INTEREST,
+        variables: { id: 'uir-1', data: { fomoThreshold: 0.1 } },
+      },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('mutation deleteInterest', () => {
+  beforeEach(async () => {
+    await con.getRepository(UserInterest).save({
+      id: 'uir-1',
+      userId: '1',
+      query: 'cool zig projects',
+      status: UserInterestStatus.Active,
+    });
+    await con.getRepository(InterestFinding).save({
+      id: 'if-1',
+      interestId: 'uir-1',
+      postId: 'p1',
+      score: 0.5,
+      status: InterestFindingStatus.Surfaced,
+    });
+  });
+
+  it('should delete the interest and cascade its findings', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(DELETE_INTEREST, {
+      variables: { id: 'uir-1' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneBy({ id: 'uir-1' });
+    expect(interest).toBeNull();
+    const findings = await con
+      .getRepository(InterestFinding)
+      .findBy({ interestId: 'uir-1' });
+    expect(findings).toHaveLength(0);
+  });
+
+  it('should reject an unknown interest', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: DELETE_INTEREST, variables: { id: 'nope' } },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('query interestPosts', () => {
+  beforeEach(async () => {
+    await con.getRepository(AgentSource).save({
+      id: 'isrc-1',
+      name: 'agent source',
+      handle: 'agent-isrc-1',
+      private: true,
+      userId: '1',
+    });
+    await con.getRepository(UserInterest).save({
+      id: 'uir-1',
+      userId: '1',
+      query: 'cool zig projects',
+      status: UserInterestStatus.Active,
+      sourceId: 'isrc-1',
+    });
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'ipost-1',
+        shortId: 'ipost-1',
+        title: 'Interest summary',
+        url: 'http://interest.com/1',
+        sourceId: 'isrc-1',
+      },
+    ]);
+  });
+
+  it('should return posts hosted in the interest source for the owner', async () => {
+    loggedUser = '1';
+    const res = await client.query(INTEREST_POSTS, {
+      variables: { id: 'uir-1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.interestPosts).toHaveLength(1);
+    expect(res.data.interestPosts[0]).toMatchObject({ id: 'ipost-1' });
+  });
+
+  it('should reject posts for a non-owner', async () => {
+    loggedUser = '2';
+    return testQueryErrorCode(
+      client,
+      { query: INTEREST_POSTS, variables: { id: 'uir-1' } },
       'NOT_FOUND',
     );
   });
