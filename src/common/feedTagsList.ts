@@ -5,7 +5,6 @@ import { Keyword } from '../entity/Keyword';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { feedClient } from '../integrations/feed/generators';
-import { recswipeClient } from '../integrations/recswipe/clients';
 import { queryReadReplica } from './queryReadReplica';
 import { updateFlagsStatement } from './utils';
 import { ONE_DAY_IN_SECONDS } from './constants';
@@ -109,27 +108,12 @@ export const getFeedTagsList = async ({
 
   let values: string[] = [];
   try {
-    values = dedupeKeepOrder(await feedClient.getUserTags(userId, limit));
+    values = dedupeKeepOrder(await feedClient.getUserTags(userId, limit)).slice(
+      0,
+      limit,
+    );
   } catch (err) {
     logger.error({ err, userId }, 'feedClient.getUserTags failed');
-  }
-
-  if (values.length < limit) {
-    try {
-      const supplement = await recswipeClient.recommendTags(userId, {
-        selectedTags: values,
-        n: limit - values.length,
-      });
-      const supplementTags = (supplement.recommended_tags ?? []).map(
-        (t) => t.tag,
-      );
-      values = dedupeKeepOrder([...values, ...supplementTags]).slice(0, limit);
-    } catch (err) {
-      logger.error(
-        { err, userId },
-        'recswipeClient.recommendTags failed; using feedClient tags only',
-      );
-    }
   }
 
   if (!values.length) {
