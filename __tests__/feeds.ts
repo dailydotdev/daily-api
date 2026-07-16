@@ -4922,6 +4922,14 @@ describe('query feedList', () => {
     });
 
     it('returns existing tag-chip feeds and is idempotent when true', async () => {
+      await con.getRepository(User).update(
+        { id: '1' },
+        {
+          flags: updateFlagsStatement<User>({
+            tagChipFeedsSeededAt: new Date().toISOString(),
+          }),
+        },
+      );
       await con.getRepository(Feed).save({
         id: 'tcfL2',
         userId: '1',
@@ -4944,6 +4952,7 @@ describe('query feedList', () => {
         })
         .getMany();
       expect(chipFeeds).toHaveLength(1);
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
     });
   });
 });

@@ -84,9 +84,11 @@ const reserveSeedSlot = async ({
 };
 
 const getSeedTagValues = async ({
+  con,
   userId,
   limit,
 }: {
+  con: DataSource;
   userId: string;
   limit: number;
 }): Promise<string[]> => {
@@ -117,6 +119,22 @@ const getSeedTagValues = async ({
         'recswipeClient.recommendTags failed; seeding tag-chip feeds with feedClient tags only',
       );
     }
+  }
+
+  if (!values.length) {
+    const followed = await con.getRepository(ContentPreferenceKeyword).find({
+      select: ['keywordId'],
+      where: {
+        userId,
+        feedId: userId,
+        status: ContentPreferenceStatus.Follow,
+      },
+      take: limit,
+    });
+    values = dedupeKeepOrder(followed.map((pref) => pref.keywordId)).slice(
+      0,
+      limit,
+    );
   }
 
   return values;
@@ -153,7 +171,11 @@ export const seedTagChipFeedsIfNeeded = async ({
     return false;
   }
 
-  const values = await getSeedTagValues({ userId, limit: effectiveLimit });
+  const values = await getSeedTagValues({
+    con,
+    userId,
+    limit: effectiveLimit,
+  });
   if (!values.length) {
     return false;
   }
