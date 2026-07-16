@@ -33,6 +33,7 @@ import {
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
+  type NotificationStreakFreezeContext,
   type NotificationParsedCVProfileContext,
   type NotificationRecruiterNewCandidateContext,
   type NotificationRecruiterOpportunityLiveContext,
@@ -148,6 +149,10 @@ export const notificationTitleMap: Record<
   squad_public_submitted: systemTitle,
   streak_reset_restore: (ctx: NotificationStreakRestoreContext) =>
     `<b>Your ${ctx.restore.amount}-day streak was broken</b>`,
+  streak_freeze_used: (ctx: NotificationStreakFreezeContext) =>
+    `<b>Your streak freeze saved your ${ctx.streak.currentStreak}-day streak</b> — ${ctx.freeze.remainingFreezes} freeze${ctx.freeze.remainingFreezes === 1 ? '' : 's'} left`,
+  streak_freeze_depleted: () =>
+    `<b>That was your last streak freeze</b> — restock to keep your streak safe`,
   user_post_added: (ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;
 
@@ -337,6 +342,20 @@ export const generateNotificationMap: Record<
       .setTargetUrlParameter([
         ['streak_restore', ctx.restore.amount.toString()],
       ]),
+  streak_freeze_used: (builder, ctx: NotificationStreakFreezeContext) =>
+    builder
+      .icon(NotificationIcon.Streak)
+      .description('A streak freeze was used to protect your progress')
+      .uniqueKey(ctx.freeze.date)
+      .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak),
+  streak_freeze_depleted: (builder, ctx: NotificationStreakFreezeContext) =>
+    builder
+      .icon(NotificationIcon.Streak)
+      .description('Restock your streak freezes to keep your streak safe')
+      .uniqueKey(ctx.freeze.date)
+      .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak),
   article_upvote_milestone: (
     builder,
     ctx: NotificationPostContext & NotificationUpvotersContext,

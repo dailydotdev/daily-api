@@ -308,6 +308,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-streak-reset-notification',
   },
   {
+    topic: 'api.v1.user-streak-updated',
+    subscription: 'api.streak-freeze-used-notification',
+  },
+  {
     topic: 'api.v1.squad-featured-updated',
     subscription: 'api.squad-featured-updated-notification',
   },

@@ -92,6 +92,8 @@ export enum NotificationType {
   DigestReady = 'digest_ready',
   LiveRoomStarted = 'live_room_started',
   LiveRoomStartingSoon = 'live_room_starting_soon',
+  StreakFreezeUsed = 'streak_freeze_used',
+  StreakFreezeDepleted = 'streak_freeze_depleted',
 }
 
 export enum NotificationPreferenceType {
@@ -177,6 +179,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.StreakResetRestore]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.StreakFreezeUsed]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.StreakFreezeDepleted]: {
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   ['streak_reminder']: {

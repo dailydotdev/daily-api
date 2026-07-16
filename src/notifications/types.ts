@@ -88,6 +88,13 @@ export interface NotificationStreakRestoreContext extends NotificationStreakCont
   };
 }
 
+export interface NotificationStreakFreezeContext extends NotificationStreakContext {
+  freeze: {
+    date: string;
+    remainingFreezes: number;
+  };
+}
+
 export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;
   recipient: Reference<User>;

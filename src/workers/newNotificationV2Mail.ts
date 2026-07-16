@@ -144,6 +144,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   achievement_unlocked: '', // No email for achievement unlocks
   live_room_started: '',
   live_room_starting_soon: '',
+  streak_freeze_used: '',
+  streak_freeze_depleted: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -286,6 +288,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   post_bookmark_reminder: async () => null,
   scheduled_post_published: async () => null,
   streak_reset_restore: async () => null,
+  streak_freeze_used: async () => null,
+  streak_freeze_depleted: async () => null,
   community_picks_failed: async (con, user, notification) => {
     const submission = await con
       .getRepository(Submission)
