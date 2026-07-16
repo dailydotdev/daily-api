@@ -1733,7 +1733,7 @@ describe('query post', () => {
       });
     });
 
-    it('should hide impressions and reputation for non-author users', async () => {
+    it('should expose impressions but hide reputation and upvotes for non-author users', async () => {
       loggedUser = '2';
 
       await con.getRepository(PostAnalytics).save({
@@ -1755,7 +1755,36 @@ describe('query post', () => {
         id: 'p1',
         analytics: {
           bookmarks: 11,
-          impressions: null,
+          impressions: 420,
+          reputation: null,
+          upvotes: null,
+        },
+      });
+    });
+
+    it('should expose impressions to anonymous users', async () => {
+      loggedUser = null;
+
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        bookmarks: 11,
+        impressions: 110,
+        impressionsAds: 310,
+        reputation: 13,
+        upvotes: 31,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: {
+          bookmarks: 11,
+          impressions: 420,
           reputation: null,
           upvotes: null,
         },

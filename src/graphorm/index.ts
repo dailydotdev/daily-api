@@ -1202,6 +1202,7 @@ const obj = new GraphORM({
           return {
             id: value.id,
             bookmarks: value.bookmarks,
+            impressions: value.impressions,
           };
         },
       },
