@@ -127,6 +127,14 @@ export type PubSubSchema = {
   };
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
+    /**
+     * Present only when this event was published because a streak freeze was
+     * consumed to avoid a reset (see src/common/users.ts#tryConsumeStreakFreeze).
+     */
+    freeze?: {
+      date: string; // ISO 8601 str, the missed day that was frozen
+      remainingFreezes: number;
+    };
   };
   'api.v1.source-post-moderation-approved': {
     post: ChangeObject<SourcePostModeration>;

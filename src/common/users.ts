@@ -7,21 +7,33 @@ import {
   UserStreakActionType,
   type Organization,
 } from '../entity';
-import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
+import {
+  differenceInDays,
+  isSameDay,
+  max,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
-import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import {
+  getTimezonedStartOfISOWeek,
+  getTimezonedEndOfISOWeek,
+  toChangeObject,
+} from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from './date';
-import { ChangeObject, ContentLanguage } from '../types';
+import { ChangeObject, ContentLanguage, CoresRole } from '../types';
 import { checkRestoreValidity } from './streak';
 import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
 import { UserExperienceType } from '../entity/user/experiences/types';
+import { checkUserCoresAccess } from './user';
+import { triggerTypedEvent } from './typedPubsub';
 
 /**
  * Reputation at or below this value is treated as "thin" and triggers
@@ -53,6 +65,7 @@ export interface GQLUserStreak {
   lastViewAtTz?: Date;
   userId: string;
   weekStart: DayOfWeek;
+  freezesAvailable?: number;
 }
 
 export interface GQLCompany {
@@ -81,6 +94,8 @@ export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
   optOutReadingStreak?: boolean;
+  optOutStreakFreeze?: boolean;
+  coresRole?: number | null;
 }
 
 export const fetchUser = async (
@@ -510,14 +525,12 @@ export const clearUserStreak = async (
   return result.affected || 0;
 };
 
-// Computes whether we should reset user streak
-// Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
-// Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-export const shouldResetStreak = (
+// Number of grace days allowed before a streak reset is triggered for a given
+// day of the week (weekends grant extra tolerance, see shouldResetStreak)
+export const getStreakGraceDays = (
   day: number,
-  difference: number,
   startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
-) => {
+): number => {
   const firstDayOfWeek =
     startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
 
@@ -525,27 +538,41 @@ export const shouldResetStreak = (
     startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
   if (day === lastDayOfWeek) {
-    return difference > FREEZE_DAYS_IN_A_WEEK;
+    return FREEZE_DAYS_IN_A_WEEK;
   }
 
   if (day === firstDayOfWeek) {
-    return difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT;
+    return FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT;
   }
 
-  return day > firstDayOfWeek && difference > MISSED_LIMIT;
+  return MISSED_LIMIT;
 };
 
-export const checkUserStreak = (
+// Computes whether we should reset user streak
+// Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
+// Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
+export const shouldResetStreak = (
+  day: number,
+  difference: number,
+  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
+) => difference > getStreakGraceDays(day, startOfWeek);
+
+const getStreakResetContext = (
   streak: GQLUserStreakTz,
-  lastRecoveredTime?: Date,
-): boolean => {
+  lastActionTime?: Date,
+): {
+  shouldReset: boolean;
+  today: Date | null;
+  day: number;
+  difference: number;
+} => {
   const { lastViewAtTz: lastViewAt, timezone, current } = streak;
-  const lastStreakUpdate = lastRecoveredTime
-    ? max([lastViewAt, lastRecoveredTime])
+  const lastStreakUpdate = lastActionTime
+    ? max([lastViewAt, lastActionTime])
     : lastViewAt;
 
   if (!lastViewAt || current === 0) {
-    return false;
+    return { shouldReset: false, today: null, day: 0, difference: 0 };
   }
 
   const today = utcToZonedTime(new Date(), timezone);
@@ -554,7 +581,48 @@ export const checkUserStreak = (
   const day = today.getDay();
   const difference = differenceInDays(today, lastStreakUpdate);
 
-  return shouldResetStreak(day, difference, streak.weekStart);
+  return {
+    shouldReset: shouldResetStreak(day, difference, streak.weekStart),
+    today,
+    day,
+    difference,
+  };
+};
+
+export const checkUserStreak = (
+  streak: GQLUserStreakTz,
+  lastActionTime?: Date,
+): boolean => getStreakResetContext(streak, lastActionTime).shouldReset;
+
+// The calendar days (in the user's timezone) that were missed and caused a
+// reset to be triggered, i.e. the days beyond the free grace period. Returns
+// an empty array when no reset would be triggered.
+export const getMissedStreakDays = (
+  streak: GQLUserStreakTz,
+  lastActionTime?: Date,
+): Date[] => {
+  const { shouldReset, today, day, difference } = getStreakResetContext(
+    streak,
+    lastActionTime,
+  );
+
+  if (!shouldReset || !today) {
+    return [];
+  }
+
+  const missedCount = difference - getStreakGraceDays(day, streak.weekStart);
+
+  return Array.from({ length: missedCount }, (_, index) =>
+    subDays(today, missedCount - index),
+  );
+};
+
+export const combineLastActionDates = (
+  dates: Array<Date | null | undefined>,
+): Date | undefined => {
+  const validDates = dates.filter((date): date is Date => !!date);
+
+  return validDates.length ? max(validDates) : undefined;
 };
 
 export const getLastStreakRecoverDate = async (
@@ -576,15 +644,129 @@ export const getLastStreakRecoverDate = async (
   return lastRecoverAction?.createdAt;
 };
 
+// Unlike recover actions, a freeze action's createdAt is set to the exact
+// missed calendar day it covers, so no timezone shifting is needed when
+// reading it back.
+export const getLastStreakFreezeDate = async (
+  con: DataSource | EntityManager,
+  userId: string,
+) => {
+  const lastFreezeAction = await con
+    .getRepository(UserStreakAction)
+    .createQueryBuilder('usa')
+    .select(`MAX(usa."createdAt")`, 'createdAt')
+    .where(`usa."userId" = :userId`, { userId })
+    .andWhere(`usa.type = :type`, { type: UserStreakActionType.Freeze })
+    .getRawOne<UserStreakAction>();
+
+  return lastFreezeAction?.createdAt;
+};
+
+export const MAX_STREAK_FREEZES = 5;
+
+export type StreakFreezeCandidate = {
+  userId: string;
+  currentStreak: number;
+  freezesAvailable: number;
+  optOutStreakFreeze?: boolean;
+  coresRole?: number | null;
+  missedDays: Date[];
+};
+
+// Attempts to consume one streak freeze per missed day. Returns true when the
+// streak was frozen (and therefore should NOT be reset), false otherwise (the
+// caller is expected to fall back to resetting the streak).
+export const tryConsumeStreakFreeze = async (
+  con: DataSource | EntityManager,
+  candidate: StreakFreezeCandidate,
+): Promise<boolean> => {
+  const {
+    userId,
+    missedDays,
+    freezesAvailable,
+    optOutStreakFreeze,
+    coresRole,
+  } = candidate;
+
+  if (!missedDays.length || optOutStreakFreeze) {
+    return false;
+  }
+
+  if (
+    !checkUserCoresAccess({
+      user: { id: userId, coresRole: coresRole ?? CoresRole.None },
+      requiredRole: CoresRole.User,
+    })
+  ) {
+    return false;
+  }
+
+  if (freezesAvailable < missedDays.length) {
+    return false;
+  }
+
+  const remainingFreezes = freezesAvailable - missedDays.length;
+
+  const updatedStreak = await con.transaction(async (entityManager) => {
+    await entityManager.getRepository(UserStreakAction).save(
+      missedDays.map((createdAt) => ({
+        userId,
+        type: UserStreakActionType.Freeze,
+        createdAt,
+      })),
+    );
+
+    await entityManager.getRepository(UserStreak).update(
+      { userId },
+      {
+        freezesAvailable: remainingFreezes,
+        updatedAt: new Date(),
+      },
+    );
+
+    return entityManager.getRepository(UserStreak).findOneByOrFail({ userId });
+  });
+
+  for (const [index, date] of missedDays.entries()) {
+    await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
+      streak: toChangeObject(updatedStreak),
+      freeze: {
+        date: date.toISOString(),
+        remainingFreezes: freezesAvailable - (index + 1),
+      },
+    });
+  }
+
+  return true;
+};
+
 export const checkAndClearUserStreak = async (
   con: DataSource | EntityManager,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const lastStreak = await getLastStreakRecoverDate(con, streak.userId);
-  const shouldClear = checkUserStreak(streak, lastStreak);
+  const [lastRecoverAt, lastFreezeAt] = await Promise.all([
+    getLastStreakRecoverDate(con, streak.userId),
+    getLastStreakFreezeDate(con, streak.userId),
+  ]);
+  const lastActionTime = combineLastActionDates([lastRecoverAt, lastFreezeAt]);
+  const shouldClear = checkUserStreak(streak, lastActionTime);
 
   if (!shouldClear) {
+    return false;
+  }
+
+  const missedDays = getMissedStreakDays(streak, lastActionTime);
+  const frozen = await tryConsumeStreakFreeze(con, {
+    userId: streak.userId,
+    currentStreak: streak.current,
+    freezesAvailable: streak.freezesAvailable ?? 0,
+    optOutStreakFreeze: streak.optOutStreakFreeze,
+    coresRole: streak.coresRole,
+    missedDays,
+  });
+
+  if (frozen) {
     return false;
   }
 
