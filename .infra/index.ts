@@ -440,9 +440,6 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
-      backendConfig: {
-        customRequestHeaders: ['X-Client-Region:{client_region}'],
-      },
       podAnnotations: podAnnotations,
       ...vols,
     },

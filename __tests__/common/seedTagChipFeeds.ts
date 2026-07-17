@@ -12,7 +12,6 @@ import {
   ContentPreferenceType,
 } from '../../src/entity/contentPreference/types';
 import { feedClient } from '../../src/integrations/feed/generators';
-import { recswipeClient } from '../../src/integrations/recswipe/clients';
 import { seedTagChipFeedsIfNeeded } from '../../src/common/seedTagChipFeeds';
 
 jest.mock('../../src/integrations/feed/generators', () => ({
@@ -22,18 +21,8 @@ jest.mock('../../src/integrations/feed/generators', () => ({
   },
 }));
 
-jest.mock('../../src/integrations/recswipe/clients', () => ({
-  ...jest.requireActual('../../src/integrations/recswipe/clients'),
-  recswipeClient: {
-    recommendTags: jest.fn(),
-  },
-}));
-
 const getUserTagsMock = feedClient.getUserTags as jest.MockedFunction<
   typeof feedClient.getUserTags
->;
-const recommendTagsMock = recswipeClient.recommendTags as jest.MockedFunction<
-  typeof recswipeClient.recommendTags
 >;
 
 let con: DataSource;
@@ -44,7 +33,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   getUserTagsMock.mockReset();
-  recommendTagsMock.mockReset();
   await saveFixtures(con, User, usersFixture);
   // main feed (id === userId) — ContentPreferenceKeyword.feedId FKs to feed.id
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
@@ -88,7 +76,6 @@ describe('seedTagChipFeedsIfNeeded', () => {
       const tags = await con.getRepository(FeedTag).findBy({ feedId: feed.id });
       expect(tags).toHaveLength(1);
     }
-    expect(recommendTagsMock).not.toHaveBeenCalled();
   });
 
   it('falls back to the keyword value when no title exists', async () => {
@@ -119,56 +106,29 @@ describe('seedTagChipFeedsIfNeeded', () => {
 
   it('does not retry even when the previous attempt yielded zero feeds', async () => {
     getUserTagsMock.mockResolvedValue([]);
-    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
 
     await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 5 });
     expect(await getChipFeeds('1')).toHaveLength(0);
 
     // a second call must NOT call upstream again — flag is set
     getUserTagsMock.mockClear();
-    recommendTagsMock.mockClear();
     getUserTagsMock.mockResolvedValue(['javascript']);
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [{ tag: 'nodejs', score: 0.9 }],
-    });
 
     await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 5 });
     expect(await getChipFeeds('1')).toHaveLength(0);
     expect(getUserTagsMock).not.toHaveBeenCalled();
-    expect(recommendTagsMock).not.toHaveBeenCalled();
   });
 
-  it('backfills with recswipe when feedClient returns fewer than limit', async () => {
-    getUserTagsMock.mockResolvedValue(['javascript']);
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [
-        { tag: 'nodejs', score: 0.9 },
-        { tag: 'webdev', score: 0.8 },
-      ],
-    });
-
-    await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 3 });
-
-    const feeds = await getChipFeeds('1');
-    expect(feeds).toHaveLength(3);
-    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
-      selectedTags: ['javascript'],
-      n: 2,
-    });
-  });
-
-  it('seeds nothing when feedClient, recswipe and onboarding follows are all empty', async () => {
+  it('seeds nothing when feedClient and onboarding follows are both empty', async () => {
     getUserTagsMock.mockResolvedValue([]);
-    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
 
     await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 5 });
 
     expect(await getChipFeeds('1')).toHaveLength(0);
   });
 
-  it('falls back to onboarding follows when feedClient and recswipe return nothing', async () => {
+  it('falls back to onboarding follows when feedClient returns nothing', async () => {
     getUserTagsMock.mockResolvedValue([]);
-    recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
     await saveFixtures(con, ContentPreferenceKeyword, [
       {
         feedId: '1',
@@ -203,7 +163,6 @@ describe('seedTagChipFeedsIfNeeded', () => {
       'JavaScript',
       'Node.js',
     ]);
-    expect(recommendTagsMock).toHaveBeenCalled();
   });
 
   it("caps the seed count at the user's remaining feed headroom", async () => {
@@ -246,26 +205,28 @@ describe('seedTagChipFeedsIfNeeded', () => {
 
     expect(await getChipFeeds('1')).toHaveLength(0);
     expect(getUserTagsMock).not.toHaveBeenCalled();
-    expect(recommendTagsMock).not.toHaveBeenCalled();
 
     // flag is still set — bootstrap won't retry on next call.
     const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
     expect(user.flags?.tagChipFeedsSeededAt).toEqual(expect.any(String));
   });
 
-  it('falls back to recswipe only when feedClient fails', async () => {
+  it('falls back to onboarding follows when feedClient fails', async () => {
     getUserTagsMock.mockRejectedValue(new Error('boom'));
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [{ tag: 'nodejs', score: 0.9 }],
-    });
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'nodejs',
+        referenceId: 'nodejs',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
 
     await seedTagChipFeedsIfNeeded({ con, userId: '1', limit: 2 });
 
     const feeds = await getChipFeeds('1');
     expect(feeds.map((f) => f.flags.name)).toEqual(['Node.js']);
-    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
-      selectedTags: [],
-      n: 2,
-    });
   });
 });
