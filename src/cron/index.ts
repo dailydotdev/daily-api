@@ -1,4 +1,5 @@
 import { Cron } from './cron';
+import interestScheduledRun from './interestScheduledRun';
 import updateViews from './updateViews';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import updateTrending from './updateTrending';
@@ -45,6 +46,7 @@ import cleanOldNotifications from './cleanOldNotifications';
 import { subscriptionAnniversaryAchievementsCron } from './subscriptionAnniversaryAchievements';
 
 export const crons: Cron[] = [
+  interestScheduledRun,
   updateViews,
   checkAnalyticsReport,
   updateTrending,

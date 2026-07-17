@@ -68,6 +68,7 @@ import { organizationUserRemoved } from './organization/organizationUserRemoved'
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userInterestRunWorker } from './interest/userInterestRun';
 import { postVisibleInterestMatchWorker } from './interest/postVisibleInterestMatch';
+import { postUpvotedInterestSignalWorker } from './interest/postUpvotedInterestSignal';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 import campaignUpdatedAction from './campaignUpdatedAction';
@@ -162,6 +163,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userGenerateBriefWorker,
   userInterestRunWorker,
   postVisibleInterestMatchWorker,
+  postUpvotedInterestSignalWorker,
   userUpdatedPlusSubscriptionBriefWorker,
   postAddedSlackChannelSendBriefWorker,
   postAnalyticsUpdate,

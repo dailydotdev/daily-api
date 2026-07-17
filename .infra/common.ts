@@ -420,6 +420,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-visible-interest-match',
   },
   {
+    topic: 'post-upvoted',
+    subscription: 'api.post-upvoted-interest-signal',
+  },
+  {
     topic: 'api.v1.interest-content-available',
     subscription: 'api.interest-content-available-notification',
   },

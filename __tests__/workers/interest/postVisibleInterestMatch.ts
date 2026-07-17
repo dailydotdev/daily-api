@@ -8,7 +8,10 @@ import { Feed } from '../../../src/entity/Feed';
 import { FeedTag } from '../../../src/entity/FeedTag';
 import { PostKeyword } from '../../../src/entity/PostKeyword';
 import { Keyword, KeywordStatus } from '../../../src/entity/Keyword';
-import { UserInterest, UserInterestStatus } from '../../../src/entity/UserInterest';
+import {
+  UserInterest,
+  UserInterestStatus,
+} from '../../../src/entity/UserInterest';
 import { InterestFinding } from '../../../src/entity/InterestFinding';
 import { usersFixture } from '../../fixture/user';
 import { postsFixture } from '../../fixture/post';
