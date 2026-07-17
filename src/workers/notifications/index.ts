@@ -27,6 +27,7 @@ import sourcePostModerationRejectedNotification from './sourcePostModerationReje
 import { postAddedUserNotification } from './postAddedUserNotification';
 import { userTopReaderAdded } from './userTopReaderAdded';
 import { userReceivedAward } from '../transactions/userReceivedAward';
+import { userAwardThanks } from '../transactions/userAwardThanks';
 import { organizationUserJoined } from '../organization/organizationUserJoined';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
@@ -120,6 +121,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   userTopReaderAdded,
   userGiftedPlusNotification,
   userReceivedAward,
+  userAwardThanks,
   organizationUserJoined,
   campaignUpdatedAction,
   userBriefReadyNotification,

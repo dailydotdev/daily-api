@@ -26,6 +26,7 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
+  type NotificationAwardThanksContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
@@ -191,6 +192,8 @@ export const notificationTitleMap: Record<
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
     return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores${suffix}`;
   },
+  user_award_thanks: (ctx: NotificationAwardThanksContext) =>
+    `<b>${ctx.sender.username}</b> said thanks for your Award`,
   organization_member_joined: ({
     user,
     organization,
@@ -566,6 +569,12 @@ export const generateNotificationMap: Record<
       .referenceSource(ctx.squad)
       .targetSource(ctx.squad),
   user_received_award: (builder, ctx: NotificationAwardContext) =>
+    builder
+      .icon(NotificationIcon.Core)
+      .avatarUser(ctx.sender)
+      .targetUrl(ctx.targetUrl)
+      .referenceTransaction(ctx.transaction),
+  user_award_thanks: (builder, ctx: NotificationAwardThanksContext) =>
     builder
       .icon(NotificationIcon.Core)
       .avatarUser(ctx.sender)
