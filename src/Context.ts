@@ -12,6 +12,7 @@ import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
 import { ContentLanguage } from './types';
 import { remoteConfig } from './remoteConfig';
+import { getGeo } from './common/geo';
 
 export class Context {
   req: FastifyRequest;
@@ -19,6 +20,7 @@ export class Context {
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
   contentLanguage: ContentLanguage | null;
+  private _region?: string;
 
   constructor(req: FastifyRequest, con: DataSource) {
     this.req = req;
@@ -69,7 +71,10 @@ export class Context {
   }
 
   get region(): string {
-    return (this.req.headers['x-client-region'] as string) ?? '';
+    if (typeof this._region === 'undefined') {
+      this._region = getGeo({ ip: this.req.ip }).country ?? '';
+    }
+    return this._region;
   }
 
   getRepository<Entity extends ObjectLiteral>(
