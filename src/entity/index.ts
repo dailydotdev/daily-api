@@ -4,6 +4,7 @@ export * from './Alerts';
 export * from './Banner';
 export * from './Bookmark';
 export * from './BookmarkList';
+export * from './DebeziumHeartbeat';
 export * from './DevCard';
 export * from './Feed';
 export * from './FeedAdvancedSettings';
