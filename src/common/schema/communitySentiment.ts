@@ -57,10 +57,10 @@ export const communitySentimentPayloadSchema = z.object({
 });
 
 export const communitySentimentDiscussionSchema = z.object({
-  provider: z.string(),
-  url: z.string(),
-  points: z.number(),
-  comments_count: z.number(),
+  provider: z.string().nullish(),
+  url: z.string().nullish(),
+  points: z.number().nullish(),
+  comments_count: z.number().nullish(),
 });
 
 export const communitySentimentDiscussionsSchema = z.array(

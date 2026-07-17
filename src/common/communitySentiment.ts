@@ -1,4 +1,5 @@
 import { ValidationError } from 'apollo-server-errors';
+import type { FastifyBaseLogger } from 'fastify';
 import type { PostCommunitySentiment } from '../entity/posts/Post';
 import {
   communitySentimentDiscussionsSchema,
@@ -69,14 +70,39 @@ export const mapCommunitySentimentPayload = ({
           : undefined,
       }),
     ),
-    discussions: discussionsResult.data.map(
-      ({ provider, url, points, comments_count }) => ({
-        provider,
-        url,
-        points,
-        commentsCount: comments_count,
-      }),
+    discussions: discussionsResult.data.flatMap(
+      ({ provider, url, points, comments_count }) =>
+        provider && url
+          ? [
+              {
+                provider,
+                url,
+                points: points ?? 0,
+                commentsCount: comments_count ?? 0,
+              },
+            ]
+          : [],
     ),
     updatedAt: new Date().toISOString(),
   };
+};
+
+export const tryMapCommunitySentimentPayload = ({
+  logger,
+  communitySentiment,
+  discussions,
+}: {
+  logger: FastifyBaseLogger;
+  communitySentiment?: unknown;
+  discussions?: unknown;
+}): PostCommunitySentiment | undefined => {
+  try {
+    return mapCommunitySentimentPayload({ communitySentiment, discussions });
+  } catch (err) {
+    logger.warn(
+      { err },
+      'invalid community sentiment payload, skipping sentiment update',
+    );
+    return undefined;
+  }
 };

@@ -3924,8 +3924,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       mapCloudinaryUrl(post.contentHtml),
     creatorTwitterImage: (post: GQLPost): GQLPost['creatorTwitterImage'] =>
       mapCloudinaryUrl(post.creatorTwitterImage),
-    communitySentiment: (post: GQLPost): GQLPost['communitySentiment'] =>
-      post.communitySentiment ?? null,
     image: (post: GQLPost): string | undefined => {
       const image = mapCloudinaryUrl(post.image);
       if (nullableImageType.includes(post.type)) return image;

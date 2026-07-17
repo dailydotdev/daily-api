@@ -8,14 +8,14 @@ export class AddCommunitySentimentToPost1784035940370
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "post"
-        ADD "communitySentiment" jsonb
+        ADD COLUMN IF NOT EXISTS "communitySentiment" jsonb
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "post"
-        DROP COLUMN "communitySentiment"
+        DROP COLUMN IF EXISTS "communitySentiment"
     `);
   }
 }

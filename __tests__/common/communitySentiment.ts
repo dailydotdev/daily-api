@@ -1,4 +1,8 @@
-import { mapCommunitySentimentPayload } from '../../src/common/communitySentiment';
+import type { FastifyBaseLogger } from 'fastify';
+import {
+  mapCommunitySentimentPayload,
+  tryMapCommunitySentimentPayload,
+} from '../../src/common/communitySentiment';
 
 jest.setTimeout(30000);
 
@@ -159,12 +163,60 @@ describe('mapCommunitySentimentPayload', () => {
     ).toThrow();
   });
 
+  it('should drop discussion entries missing provider or url', () => {
+    const result = mapCommunitySentimentPayload({
+      communitySentiment: validPayload,
+      discussions: [
+        ...validDiscussions,
+        { provider: 'lobsters', points: 12 },
+        { url: 'https://lobste.rs/s/abc', comments_count: 3 },
+      ],
+    });
+
+    expect(result?.discussions).toEqual([
+      {
+        provider: 'hackernews',
+        url: 'https://news.ycombinator.com/item?id=1',
+        points: 329,
+        commentsCount: 172,
+      },
+    ]);
+  });
+
   it('should throw when discussions are malformed', () => {
     expect(() =>
       mapCommunitySentimentPayload({
         communitySentiment: validPayload,
-        discussions: [{ provider: 'hackernews', points: 329 }],
+        discussions: 'not-an-array',
       }),
     ).toThrow();
+  });
+});
+
+describe('tryMapCommunitySentimentPayload', () => {
+  const logger = { warn: jest.fn() } as unknown as FastifyBaseLogger;
+
+  it('should return the mapped take for a valid payload', () => {
+    const result = tryMapCommunitySentimentPayload({
+      logger,
+      communitySentiment: validPayload,
+      discussions: validDiscussions,
+    });
+
+    expect(result?.postCount).toEqual(410);
+  });
+
+  it('should swallow validation errors and return undefined', () => {
+    const result = tryMapCommunitySentimentPayload({
+      logger,
+      communitySentiment: {
+        ...validPayload,
+        breakdown: { positive: 50, mixed: 20, critical: 20 },
+      },
+      discussions: validDiscussions,
+    });
+
+    expect(result).toBeUndefined();
+    expect(logger.warn).toHaveBeenCalled();
   });
 });

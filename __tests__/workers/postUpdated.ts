@@ -2811,7 +2811,7 @@ describe('community sentiment', () => {
     expect(post.title).toEqual('Another title update');
   });
 
-  it('should not create a post when the breakdown does not sum to 100', async () => {
+  it('should create the post without sentiment when the breakdown does not sum to 100', async () => {
     const yggdrasilId = randomUUID();
 
     await expectSuccessfulBackground(worker, {
@@ -2826,11 +2826,12 @@ describe('community sentiment', () => {
       },
     });
 
-    const post = await con.getRepository(Post).findOneBy({ yggdrasilId });
-    expect(post).toBeNull();
+    const post = await con.getRepository(Post).findOneByOrFail({ yggdrasilId });
+    expect(post.title).toEqual('New title');
+    expect(post.communitySentiment).toBeNull();
   });
 
-  it('should not update the post when the breakdown does not sum to 100', async () => {
+  it('should keep the previous sentiment but apply the update when the breakdown does not sum to 100', async () => {
     await expectSuccessfulBackground(worker, {
       id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       post_id: 'p1',
@@ -2842,9 +2843,9 @@ describe('community sentiment', () => {
     });
 
     await expectSuccessfulBackground(worker, {
-      id: randomUUID(),
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       post_id: 'p1',
-      title: 'Rejected title update',
+      title: 'Title update with bad take',
       extra: {
         community_sentiment: communitySentimentPayload({
           breakdown: { positive: 50, mixed: 20, critical: 20 },
@@ -2854,7 +2855,7 @@ describe('community sentiment', () => {
 
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.communitySentiment?.postCount).toEqual(410);
-    expect(post.title).toEqual('New title');
+    expect(post.title).toEqual('Title update with bad take');
   });
 });
 
