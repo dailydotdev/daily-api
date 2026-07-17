@@ -1,7 +1,7 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import { Feed } from '../entity/Feed';
+import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
 import { InterestFeedback } from '../entity/InterestFeedback';
 import {
@@ -289,7 +289,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         await manager.getRepository(Feed).save({
           id: feedId,
           userId,
-          flags: { name: query.slice(0, 100) },
+          flags: { name: query.slice(0, 100), origin: FeedOrigin.Agent },
         });
 
         await manager.getRepository(UserInterest).save({

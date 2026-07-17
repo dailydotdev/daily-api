@@ -11,7 +11,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
-import { Feed } from '../src/entity/Feed';
+import { Feed, FeedOrigin } from '../src/entity/Feed';
 import { AgentSource, SourceType } from '../src/entity/Source';
 import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
 import {
@@ -141,6 +141,7 @@ describe('mutation createInterest', () => {
       .getRepository(Feed)
       .findOneByOrFail({ id: interest.feedId as string });
     expect(feed.userId).toEqual('1');
+    expect(feed.flags.origin).toEqual(FeedOrigin.Agent);
 
     const runCall = (triggerTypedEvent as jest.Mock).mock.calls.find(
       (call) => call[1] === 'api.v1.interest-run-requested',

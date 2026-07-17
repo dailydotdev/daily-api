@@ -2553,6 +2553,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             );
           }
 
+          builder.queryBuilder.andWhere(
+            `(${builder.alias}.flags->>'origin' IS DISTINCT FROM :agentOrigin)`,
+            { agentOrigin: FeedOrigin.Agent },
+          );
+
           builder.queryBuilder
             .addOrderBy(`${builder.alias}."createdAt"`, 'ASC')
             .limit(page.limit);
