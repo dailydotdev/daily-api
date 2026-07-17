@@ -13,6 +13,7 @@ import { PostType } from '../../entity/posts/Post';
 import { getBragiClient } from '../../integrations/bragi/clients';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import { generateShortId } from '../../ids';
+import { remoteConfig } from '../../remoteConfig';
 
 const skippedTypes = new Set<string>([
   PostType.Brief,
@@ -20,7 +21,7 @@ const skippedTypes = new Set<string>([
   PostType.Freeform,
 ]);
 
-const maxInterestsPerPost = 50;
+const defaultMaxInterestsPerPost = 50;
 
 export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> =
   {
@@ -64,6 +65,9 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
         return;
       }
 
+      const maxInterestsPerPost =
+        remoteConfig.vars.interestAgentMaxInterestsPerPost ??
+        defaultMaxInterestsPerPost;
       const limited = matches.slice(0, maxInterestsPerPost);
       if (matches.length > maxInterestsPerPost) {
         logger.warn(

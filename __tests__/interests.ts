@@ -36,17 +36,19 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
+let isTeamMember = true;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser, [], undefined, isTeamMember),
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = null;
+  isTeamMember = true;
   jest.resetAllMocks();
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
@@ -104,6 +106,16 @@ describe('mutation createInterest', () => {
       { mutation: CREATE_INTEREST, variables: { query: 'cool zig projects' } },
       'UNAUTHENTICATED',
     ));
+
+  it('should reject a non-team-member', async () => {
+    loggedUser = '1';
+    isTeamMember = false;
+    return testMutationErrorCode(
+      client,
+      { mutation: CREATE_INTEREST, variables: { query: 'cool zig projects' } },
+      'FORBIDDEN',
+    );
+  });
 
   it('should reject an empty query', async () => {
     loggedUser = '1';

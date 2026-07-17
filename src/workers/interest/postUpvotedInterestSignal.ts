@@ -3,6 +3,11 @@ import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import { PostKeyword } from '../../entity/PostKeyword';
 import { KeywordStatus } from '../../entity/Keyword';
 import { FeedTag } from '../../entity/FeedTag';
+import { remoteConfig } from '../../remoteConfig';
+import {
+  addFeedTagsWithinCap,
+  DEFAULT_INTEREST_MAX_TAGS,
+} from '../../common/interest/feedTags';
 
 export const postUpvotedInterestSignalWorker: TypedWorker<'post-upvoted'> = {
   subscription: 'api.post-upvoted-interest-signal',
@@ -36,20 +41,19 @@ export const postUpvotedInterestSignalWorker: TypedWorker<'post-upvoted'> = {
       return;
     }
 
-    const values = interests.flatMap((interest) =>
-      interest.feedId
-        ? keywords.map((tag) => ({ feedId: interest.feedId as string, tag }))
-        : [],
-    );
+    const maxTags =
+      remoteConfig.vars.interestAgentMaxTags ?? DEFAULT_INTEREST_MAX_TAGS;
 
-    if (values.length) {
-      await con
-        .getRepository(FeedTag)
-        .createQueryBuilder()
-        .insert()
-        .values(values)
-        .orIgnore()
-        .execute();
+    for (const interest of interests) {
+      if (!interest.feedId) {
+        continue;
+      }
+      await addFeedTagsWithinCap({
+        con,
+        feedId: interest.feedId,
+        tags: keywords,
+        maxTags,
+      });
     }
   },
 };

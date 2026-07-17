@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import { ForbiddenError } from 'apollo-server-errors';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
@@ -150,6 +151,12 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const ensureTeamMember = (ctx: AuthContext): void => {
+  if (!ctx.isTeamMember) {
+    throw new ForbiddenError('Interest agent is not available');
+  }
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     interests: async (
@@ -158,6 +165,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest[]> => {
+      ensureTeamMember(ctx);
       return graphorm.query<GQLUserInterest>(
         ctx,
         info,
@@ -178,6 +186,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest | null> => {
+      ensureTeamMember(ctx);
       const { id } = interestIdSchema.parse(args);
 
       return graphorm.queryOne<GQLUserInterest>(
@@ -199,6 +208,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLInterestFinding[]> => {
+      ensureTeamMember(ctx);
       const { id } = interestIdSchema.parse(args);
 
       const interest = await queryReadReplica(ctx.con, ({ queryRunner }) =>
@@ -230,6 +240,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLPost[]> => {
+      ensureTeamMember(ctx);
       const { id } = interestIdSchema.parse(args);
 
       const interest = await queryReadReplica(ctx.con, ({ queryRunner }) =>
@@ -270,6 +281,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
+      ensureTeamMember(ctx);
       const { query } = createInterestSchema.parse(args);
       const { userId } = ctx;
 
@@ -325,6 +337,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
+      ensureTeamMember(ctx);
       const { id } = interestIdSchema.parse({ id: args.id });
       const data = updateInterestSchema.parse(args.data);
       const { userId } = ctx;
@@ -374,6 +387,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       args: { id: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      ensureTeamMember(ctx);
       const { id } = interestIdSchema.parse(args);
       const { userId } = ctx;
 
@@ -405,6 +419,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
+      ensureTeamMember(ctx);
       const { id, text } = sendInterestCommandSchema.parse(args);
       const { userId } = ctx;
 

@@ -34,6 +34,12 @@ import { insertFreeformPost } from '../post';
 import { markdown } from '../markdown';
 import { updateFlagsStatement } from '../utils';
 import { generateShortId } from '../../ids';
+import { remoteConfig } from '../../remoteConfig';
+import {
+  addFeedTagsWithinCap,
+  replaceFeedTags,
+  DEFAULT_INTEREST_MAX_TAGS,
+} from './feedTags';
 
 const DEFAULT_SEARCH_LIMIT = 10;
 const MODEL_PROVIDER = 'anthropic';
@@ -48,10 +54,12 @@ export type InterestAgentRunResult = {
 const buildSystemPrompt = (
   interest: UserInterest,
   feedback: string[],
+  currentTags: string[],
+  maxTags: number,
 ): string => {
   const { post = true, notification = true } = interest.outputModes ?? {};
   const steps = [
-    '1. Call set_interest_tags with the daily.dev tag slugs that represent this interest, so future matching posts are caught automatically.',
+    `1. Call set_interest_tags with the full set of daily.dev tag slugs that represent this interest (max ${maxTags}); it replaces the current set, so include the ones worth keeping and drop the rest.`,
     '2. Call search_daily_dev with a focused query derived from the interest.',
     '3. For each promising result, call score_finding to get a relevance/quality score.',
     '4. Call add_to_feed for the results worth surfacing.',
@@ -72,6 +80,9 @@ const buildSystemPrompt = (
     `The interest is: "${interest.query}".`,
     'Work only with daily.dev content in this run — do not invent URLs or reference external sources.',
     `FOMO threshold is ${interest.fomoThreshold ?? 0.5} (0 = surface everything, 1 = only the very best). Only add_to_feed items scoring at or above this threshold.`,
+    currentTags.length
+      ? `Current tags for this interest: ${currentTags.join(', ')}.`
+      : null,
     interest.lastRunSummary
       ? `Recap of your last run: ${interest.lastRunSummary}`
       : null,
@@ -343,16 +354,10 @@ export const runInterestAgent = async ({
           select: ['value'],
           where: { value: In(params.tags), status: KeywordStatus.Allow },
         });
-        const validTags = valid.map((keyword) => keyword.value);
-        if (validTags.length) {
-          await con
-            .getRepository(FeedTag)
-            .createQueryBuilder()
-            .insert()
-            .values(validTags.map((tag) => ({ feedId, tag })))
-            .orIgnore()
-            .execute();
-        }
+        const validTags = valid
+          .map((keyword) => keyword.value)
+          .slice(0, maxTags);
+        await replaceFeedTags({ con, feedId, tags: validTags, maxTags });
         return {
           content: [
             { type: 'text', text: JSON.stringify({ savedTags: validTags }) },
@@ -371,6 +376,16 @@ export const runInterestAgent = async ({
   });
   const feedback = feedbackRows.map((row) => row.text).reverse();
 
+  const maxTags =
+    remoteConfig.vars.interestAgentMaxTags ?? DEFAULT_INTEREST_MAX_TAGS;
+  const currentTagRows = interest.feedId
+    ? await con.getRepository(FeedTag).find({
+        select: ['tag'],
+        where: { feedId: interest.feedId },
+      })
+    : [];
+  const currentTags = currentTagRows.map((row) => row.tag);
+
   const activeTools = [
     'set_interest_tags',
     'search_daily_dev',
@@ -387,7 +402,8 @@ export const runInterestAgent = async ({
   const resourceLoader = new DefaultResourceLoader({
     cwd: agentDir,
     agentDir,
-    systemPromptOverride: () => buildSystemPrompt(interest, feedback),
+    systemPromptOverride: () =>
+      buildSystemPrompt(interest, feedback, currentTags, maxTags),
     appendSystemPromptOverride: () => [],
     extensionFactories: [registerTools],
   });
@@ -419,16 +435,12 @@ export const runInterestAgent = async ({
       select: ['keyword'],
       where: { postId: In([...addedPostIds]), status: KeywordStatus.Allow },
     });
-    const tags = [...new Set(keywords.map((row) => row.keyword))];
-    if (tags.length) {
-      await con
-        .getRepository(FeedTag)
-        .createQueryBuilder()
-        .insert()
-        .values(tags.map((tag) => ({ feedId, tag })))
-        .orIgnore()
-        .execute();
-    }
+    await addFeedTagsWithinCap({
+      con,
+      feedId,
+      tags: keywords.map((row) => row.keyword),
+      maxTags,
+    });
   }
 
   state.summary = `Added ${state.findingsAdded} finding(s)${
