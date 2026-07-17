@@ -361,6 +361,23 @@ The migration generator compares entities against the local database schema. Ens
   const result = await executeGraphql(fastify.con, query);
   ```
 
+**Prefer `typeof` for undefined checks:**
+
+- **Use `typeof value === 'undefined'`** instead of `value === undefined` when checking whether a value is undefined.
+- **Example pattern**:
+
+  ```typescript
+  // BAD: direct comparison to undefined
+  if (this._region === undefined) {
+    this._region = getGeo({ ip: this.req.ip }).country ?? '';
+  }
+
+  // GOOD: typeof check
+  if (typeof this._region === 'undefined') {
+    this._region = getGeo({ ip: this.req.ip }).country ?? '';
+  }
+  ```
+
 **Zod patterns:**
 
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
