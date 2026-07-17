@@ -21,6 +21,9 @@ import { In } from 'typeorm';
 import { mimirClient } from '../../integrations/mimir/clients';
 import { getBragiClient } from '../../integrations/bragi/clients';
 import { Post } from '../../entity/posts/Post';
+import { PostKeyword } from '../../entity/PostKeyword';
+import { Keyword, KeywordStatus } from '../../entity/Keyword';
+import { FeedTag } from '../../entity/FeedTag';
 import {
   InterestFinding,
   InterestFindingStatus,
@@ -48,9 +51,10 @@ const buildSystemPrompt = (
 ): string => {
   const { post = true, notification = true } = interest.outputModes ?? {};
   const steps = [
-    '1. Call search_daily_dev with a focused query derived from the interest.',
-    '2. For each promising result, call score_finding to get a relevance/quality score.',
-    '3. Call add_to_feed for the results worth surfacing.',
+    '1. Call set_interest_tags with the daily.dev tag slugs that represent this interest, so future matching posts are caught automatically.',
+    '2. Call search_daily_dev with a focused query derived from the interest.',
+    '3. For each promising result, call score_finding to get a relevance/quality score.',
+    '4. Call add_to_feed for the results worth surfacing.',
   ];
   if (post) {
     steps.push(
@@ -126,6 +130,7 @@ export const runInterestAgent = async ({
   };
 
   const scores = new Map<string, number>();
+  const addedPostIds = new Set<string>();
 
   const registerTools = (pi: ExtensionAPI) => {
     pi.registerTool({
@@ -248,6 +253,7 @@ export const runInterestAgent = async ({
           })
           .orUpdate(['score', 'rationale', 'status'], ['interestId', 'postId'])
           .execute();
+        addedPostIds.add(params.postId);
         state.findingsAdded += 1;
         return {
           content: [
@@ -314,6 +320,47 @@ export const runInterestAgent = async ({
         };
       },
     });
+
+    pi.registerTool({
+      name: 'set_interest_tags',
+      label: 'Set interest tags',
+      description:
+        'Set the daily.dev tags that best represent this interest so future matching posts are caught automatically. Use real daily.dev tag slugs (lowercase, hyphenated).',
+      parameters: Type.Object({
+        tags: Type.Array(Type.String()),
+      }),
+      execute: async (_id, params) => {
+        const feedId = interest.feedId;
+        if (!feedId) {
+          return {
+            content: [
+              { type: 'text', text: JSON.stringify({ savedTags: [] }) },
+            ],
+            details: {},
+          };
+        }
+        const valid = await con.getRepository(Keyword).find({
+          select: ['value'],
+          where: { value: In(params.tags), status: KeywordStatus.Allow },
+        });
+        const validTags = valid.map((keyword) => keyword.value);
+        if (validTags.length) {
+          await con
+            .getRepository(FeedTag)
+            .createQueryBuilder()
+            .insert()
+            .values(validTags.map((tag) => ({ feedId, tag })))
+            .orIgnore()
+            .execute();
+        }
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify({ savedTags: validTags }) },
+          ],
+          details: {},
+        };
+      },
+    });
   };
 
   const feedbackRows = await con.getRepository(InterestFeedback).find({
@@ -324,7 +371,12 @@ export const runInterestAgent = async ({
   });
   const feedback = feedbackRows.map((row) => row.text).reverse();
 
-  const activeTools = ['search_daily_dev', 'score_finding', 'add_to_feed'];
+  const activeTools = [
+    'set_interest_tags',
+    'search_daily_dev',
+    'score_finding',
+    'add_to_feed',
+  ];
   if (interest.outputModes?.post ?? true) {
     activeTools.push('write_post');
   }
@@ -359,6 +411,24 @@ export const runInterestAgent = async ({
     );
   } finally {
     session.dispose();
+  }
+
+  const feedId = interest.feedId;
+  if (feedId && addedPostIds.size) {
+    const keywords = await con.getRepository(PostKeyword).find({
+      select: ['keyword'],
+      where: { postId: In([...addedPostIds]), status: KeywordStatus.Allow },
+    });
+    const tags = [...new Set(keywords.map((row) => row.keyword))];
+    if (tags.length) {
+      await con
+        .getRepository(FeedTag)
+        .createQueryBuilder()
+        .insert()
+        .values(tags.map((tag) => ({ feedId, tag })))
+        .orIgnore()
+        .execute();
+    }
   }
 
   state.summary = `Added ${state.findingsAdded} finding(s)${

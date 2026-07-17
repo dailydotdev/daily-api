@@ -416,6 +416,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-interest-run',
   },
   {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-visible-interest-match',
+  },
+  {
     topic: 'api.v1.interest-content-available',
     subscription: 'api.interest-content-available-notification',
   },
