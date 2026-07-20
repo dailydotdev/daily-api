@@ -324,6 +324,126 @@ describe('slug field', () => {
   });
 });
 
+describe('communitySentiment field', () => {
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        communitySentiment {
+          breakdown {
+            positive
+            mixed
+            critical
+          }
+          tldr
+          postCount
+          sources
+          pros
+          cons
+          bySource {
+            source
+            lean
+            note
+            url
+          }
+          hottestDebate
+          openQuestions
+          highlights {
+            quote
+            author
+            source
+            url
+            metrics {
+              points
+              replies
+              likes
+            }
+          }
+          discussions {
+            provider
+            url
+            points
+            commentsCount
+          }
+          updatedAt
+        }
+      }
+    }
+  `;
+
+  it('should return null when the post has no community take', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.communitySentiment).toBeNull();
+  });
+
+  it('should return the community take when present', async () => {
+    const communitySentiment = {
+      breakdown: { positive: 57, mixed: 27, critical: 16 },
+      tldr: 'Developers like the idea but worry about scale.',
+      postCount: 410,
+      sources: ['Hacker News', 'Lobsters'],
+      pros: ['One database to run'],
+      cons: ['Purpose-built tools still win at scale'],
+      bySource: [
+        {
+          source: 'Hacker News',
+          lean: 'heated',
+          note: 'Classic flame war',
+          url: 'https://news.ycombinator.com/item?id=1',
+        },
+      ],
+      hottestDebate: 'Is consolidating a smart simplification?',
+      openQuestions: ['At what scale does it break down?'],
+      highlights: [
+        {
+          quote: 'Every service I replace is one less thing paging me at 3am.',
+          author: 'throwaway_42',
+          source: 'Hacker News',
+          url: 'https://news.ycombinator.com/item?id=1',
+          metrics: { points: 214, replies: 96 },
+        },
+      ],
+      discussions: [
+        {
+          provider: 'hackernews',
+          url: 'https://news.ycombinator.com/item?id=1',
+          points: 329,
+          commentsCount: 172,
+        },
+      ],
+      updatedAt: new Date().toISOString(),
+    };
+
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { communitySentiment });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.communitySentiment).toMatchObject({
+      breakdown: { positive: 57, mixed: 27, critical: 16 },
+      tldr: communitySentiment.tldr,
+      postCount: 410,
+      sources: ['Hacker News', 'Lobsters'],
+      pros: communitySentiment.pros,
+      cons: communitySentiment.cons,
+      bySource: communitySentiment.bySource,
+      hottestDebate: communitySentiment.hottestDebate,
+      openQuestions: communitySentiment.openQuestions,
+      highlights: [
+        {
+          quote: communitySentiment.highlights[0].quote,
+          author: 'throwaway_42',
+          source: 'Hacker News',
+          url: 'https://news.ycombinator.com/item?id=1',
+          metrics: { points: 214, replies: 96, likes: null },
+        },
+      ],
+      discussions: communitySentiment.discussions,
+    });
+  });
+});
+
 describe('image fields', () => {
   const QUERY = /* GraphQL */ `
     {

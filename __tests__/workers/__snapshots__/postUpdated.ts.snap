@@ -7,6 +7,7 @@ Object {
   "banned": false,
   "canonicalUrl": "https://post.com",
   "comments": 0,
+  "communitySentiment": null,
   "contentCuration": Any<Array>,
   "contentMeta": Any<Object>,
   "contentQuality": Any<Object>,

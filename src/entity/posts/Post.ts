@@ -110,6 +110,67 @@ export type PostTranslation = {
   [key in TranslateablePostField]?: string;
 };
 
+export type PostCommunitySentimentLean =
+  | 'positive'
+  | 'mixed'
+  | 'skeptical'
+  | 'heated';
+
+export type PostCommunitySentimentBreakdown = {
+  positive: number;
+  mixed: number;
+  critical: number;
+};
+
+export type PostCommunitySentimentSource = {
+  source: string;
+  lean: PostCommunitySentimentLean;
+  note: string;
+  url?: string | null;
+};
+
+export type PostCommunitySentimentHighlightMetrics = Partial<{
+  points: number;
+  replies: number;
+  likes: number;
+}>;
+
+export type PostCommunitySentimentHighlight = {
+  quote: string;
+  author: string;
+  source: string;
+  url: string;
+  metrics?: PostCommunitySentimentHighlightMetrics;
+};
+
+export type PostCommunitySentimentDiscussion = {
+  provider: string;
+  url: string;
+  points: number;
+  commentsCount: number;
+};
+
+/**
+ * Community take: what the developer community outside daily.dev thinks
+ * about a post, aggregated from external discussions (Hacker News, Lobsters).
+ * Mirrors the frontend `CommunitySentimentData` contract, plus the
+ * discussion links the take was generated from and when it was last updated.
+ */
+export type PostCommunitySentiment = {
+  breakdown: PostCommunitySentimentBreakdown;
+  tldr: string;
+  postCount: number;
+  sources: string[];
+  pros: string[];
+  cons: string[];
+  bySource: PostCommunitySentimentSource[];
+  hottestDebate?: string;
+  openQuestions: string[];
+  highlights: PostCommunitySentimentHighlight[];
+  discussions: PostCommunitySentimentDiscussion[];
+  updatedAt: string;
+};
+
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])
 @Index('IDX_post_deleted_visible_type_views', [
@@ -359,4 +420,7 @@ export class Post {
 
   @Column({ nullable: true })
   readTime?: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  communitySentiment?: PostCommunitySentiment | null;
 }

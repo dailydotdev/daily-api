@@ -2690,6 +2690,175 @@ describe('on post update', () => {
   });
 });
 
+describe('community sentiment', () => {
+  const communitySentimentPayload = (
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    breakdown: { positive: 57, mixed: 27, critical: 16 },
+    tldr: 'Developers like the idea but worry about scale.',
+    post_count: 410,
+    sources: ['Hacker News', 'Lobsters'],
+    pros: ['One database to run'],
+    cons: ['Purpose-built tools still win at scale'],
+    by_source: [
+      {
+        source: 'Hacker News',
+        lean: 'heated',
+        note: 'Classic flame war',
+        url: 'https://news.ycombinator.com/item?id=1',
+      },
+    ],
+    hottest_debate: 'Is consolidating a smart simplification?',
+    open_questions: ['At what scale does it break down?'],
+    highlights: [
+      {
+        quote: 'Every service I replace is one less thing paging me at 3am.',
+        author: 'throwaway_42',
+        source: 'Hacker News',
+        url: 'https://news.ycombinator.com/item?id=1',
+        metrics: { points: 214, replies: 96 },
+      },
+    ],
+    ...overrides,
+  });
+
+  const discussionsPayload = [
+    {
+      provider: 'hackernews',
+      url: 'https://news.ycombinator.com/item?id=1',
+      points: 329,
+      comments_count: 172,
+    },
+  ];
+
+  it('should set communitySentiment when creating a new post', async () => {
+    const yggdrasilId = randomUUID();
+
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      title: 'New title',
+      url: 'https://post-with-take.com',
+      source_id: 'a',
+      extra: {
+        community_sentiment: communitySentimentPayload(),
+        discussions: discussionsPayload,
+      },
+    });
+
+    const post = await con.getRepository(Post).findOneByOrFail({ yggdrasilId });
+    expect(post.communitySentiment).toMatchObject({
+      breakdown: { positive: 57, mixed: 27, critical: 16 },
+      tldr: communitySentimentPayload().tldr,
+      postCount: 410,
+      discussions: [
+        {
+          provider: 'hackernews',
+          url: 'https://news.ycombinator.com/item?id=1',
+          points: 329,
+          commentsCount: 172,
+        },
+      ],
+    });
+  });
+
+  it('should overwrite communitySentiment when updating an existing post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: 'p1',
+      title: 'New title',
+      extra: {
+        community_sentiment: communitySentimentPayload(),
+        discussions: discussionsPayload,
+      },
+    });
+
+    let post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.communitySentiment?.postCount).toEqual(410);
+
+    await expectSuccessfulBackground(worker, {
+      id: randomUUID(),
+      post_id: 'p1',
+      title: 'New title',
+      extra: {
+        community_sentiment: communitySentimentPayload({ post_count: 512 }),
+        discussions: discussionsPayload,
+      },
+    });
+
+    post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.communitySentiment?.postCount).toEqual(512);
+  });
+
+  it('should leave communitySentiment untouched when an update carries no take', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: 'p1',
+      title: 'New title',
+      extra: {
+        community_sentiment: communitySentimentPayload(),
+        discussions: discussionsPayload,
+      },
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: randomUUID(),
+      post_id: 'p1',
+      title: 'Another title update',
+    });
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.communitySentiment?.postCount).toEqual(410);
+    expect(post.title).toEqual('Another title update');
+  });
+
+  it('should create the post without sentiment when the breakdown does not sum to 100', async () => {
+    const yggdrasilId = randomUUID();
+
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      title: 'New title',
+      url: 'https://post-with-bad-take.com',
+      source_id: 'a',
+      extra: {
+        community_sentiment: communitySentimentPayload({
+          breakdown: { positive: 50, mixed: 20, critical: 20 },
+        }),
+      },
+    });
+
+    const post = await con.getRepository(Post).findOneByOrFail({ yggdrasilId });
+    expect(post.title).toEqual('New title');
+    expect(post.communitySentiment).toBeNull();
+  });
+
+  it('should keep the previous sentiment but apply the update when the breakdown does not sum to 100', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: 'p1',
+      title: 'New title',
+      extra: {
+        community_sentiment: communitySentimentPayload(),
+        discussions: discussionsPayload,
+      },
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: 'p1',
+      title: 'Title update with bad take',
+      extra: {
+        community_sentiment: communitySentimentPayload({
+          breakdown: { positive: 50, mixed: 20, critical: 20 },
+        }),
+      },
+    });
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.communitySentiment?.postCount).toEqual(410);
+    expect(post.title).toEqual('Title update with bad take');
+  });
+});
+
 describe('on youtube post', () => {
   beforeEach(async () => {
     await saveFixtures(con, Source, [
@@ -3071,6 +3240,50 @@ describe('on collection post', () => {
       description: 'New description',
       summary: 'New summary',
       contentHtml: '<h2>New heading</h2>\n<p>New content</p>\n',
+    });
+  });
+
+  it('should set communitySentiment when creating a new collection post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+      source_id: 'collections',
+      extra: {
+        community_sentiment: {
+          breakdown: { positive: 57, mixed: 27, critical: 16 },
+          tldr: 'Developers like the idea but worry about scale.',
+          post_count: 410,
+          sources: ['Hacker News', 'Lobsters'],
+          pros: ['One database to run'],
+          cons: ['Purpose-built tools still win at scale'],
+          by_source: [],
+          open_questions: [],
+          highlights: [],
+        },
+        discussions: [
+          {
+            provider: 'hackernews',
+            url: 'https://news.ycombinator.com/item?id=1',
+            points: 329,
+            comments_count: 172,
+          },
+        ],
+      },
+    });
+
+    const collection = await con.getRepository(CollectionPost).findOneByOrFail({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+    expect(collection.communitySentiment).toMatchObject({
+      postCount: 410,
+      discussions: [
+        {
+          provider: 'hackernews',
+          commentsCount: 172,
+        },
+      ],
     });
   });
 
