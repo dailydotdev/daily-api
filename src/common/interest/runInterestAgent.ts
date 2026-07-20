@@ -196,7 +196,12 @@ export const runInterestAgent = async ({
       execute: async (_id, params) => {
         const post = await con.getRepository(Post).findOne({
           select: ['id', 'title', 'summary', 'type'],
-          where: { id: params.postId },
+          where: {
+            id: params.postId,
+            private: false,
+            deleted: false,
+            showOnFeed: true,
+          },
         });
         if (!post) {
           return {
@@ -249,6 +254,30 @@ export const runInterestAgent = async ({
         rationale: Type.String(),
       }),
       execute: async (_id, params) => {
+        const post = await con.getRepository(Post).findOne({
+          select: ['id'],
+          where: {
+            id: params.postId,
+            private: false,
+            deleted: false,
+            showOnFeed: true,
+          },
+        });
+        if (!post) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  postId: params.postId,
+                  added: false,
+                  error: 'not_public',
+                }),
+              },
+            ],
+            details: {},
+          };
+        }
         const score = params.score ?? scores.get(params.postId) ?? 0;
         await con
           .getRepository(InterestFinding)
