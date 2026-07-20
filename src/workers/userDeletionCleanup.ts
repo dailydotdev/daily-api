@@ -1,6 +1,9 @@
 import type { DataSource } from 'typeorm';
+import { In } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
 import { TypedWorker } from './worker';
+import { UserInterest } from '../entity/UserInterest';
+import { Source } from '../entity/Source';
 import {
   Alerts,
   Bookmark,
@@ -309,6 +312,18 @@ const worker: TypedWorker<'api.v1.user-deletion-requested'> = {
     await con.getRepository(UserPersonalizedDigest).delete({ userId });
     await con.getRepository(UserMarketingCta).delete({ userId });
     await con.getRepository(SourceUser).delete({ userId });
+    const agentSourceIds = (
+      await con
+        .getRepository(UserInterest)
+        .createQueryBuilder('ui')
+        .select('ui."sourceId"', 'sourceId')
+        .where('ui."userId" = :userId', { userId })
+        .andWhere('ui."sourceId" IS NOT NULL')
+        .getRawMany<{ sourceId: string }>()
+    ).map((row) => row.sourceId);
+    if (agentSourceIds.length) {
+      await con.getRepository(Source).delete({ id: In(agentSourceIds) });
+    }
     await con.getRepository(SourceMember).delete({ userId });
     await con.getRepository(UserAchievement).delete({ userId });
     await con.getRepository(UserExperience).delete({ userId });

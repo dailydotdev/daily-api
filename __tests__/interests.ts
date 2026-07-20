@@ -12,7 +12,7 @@ import {
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
 import { Feed, FeedOrigin } from '../src/entity/Feed';
-import { AgentSource, SourceType } from '../src/entity/Source';
+import { AgentSource, SourceType, SourceUser } from '../src/entity/Source';
 import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
 import {
   InterestFinding,
@@ -159,6 +159,23 @@ describe('mutation createInterest', () => {
       (call) => call[1] === 'api.v1.interest-run-requested',
     );
     expect(runCall?.[2]).toEqual({ interestId });
+  });
+
+  it('should succeed when the user already has a user source', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceUser).save({
+      id: 'su-1',
+      name: 'user source',
+      handle: 'su-1',
+      private: true,
+      userId: '1',
+    });
+
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createInterest.id).toBeTruthy();
   });
 });
 
@@ -460,7 +477,6 @@ describe('query interestPosts', () => {
       name: 'agent source',
       handle: 'agent-isrc-1',
       private: true,
-      userId: '1',
     });
     await con.getRepository(UserInterest).save({
       id: 'uir-1',
