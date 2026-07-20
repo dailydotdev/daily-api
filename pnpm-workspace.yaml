@@ -5,4 +5,5 @@ minimumReleaseAgeExclude:
 blockExoticSubdeps: true
 
 patchedDependencies:
+  '@earendil-works/pi-coding-agent@0.79.1': patches/@earendil-works__pi-coding-agent.patch
   mercurius-upload: patches/mercurius-upload.patch

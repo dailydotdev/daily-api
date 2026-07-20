@@ -17,6 +17,7 @@ import * as alerts from './schema/alerts';
 import * as actions from './schema/actions';
 import * as search from './schema/search';
 import * as keywords from './schema/keywords';
+import * as interests from './schema/interests';
 import * as devcards from './schema/devcards';
 import * as urlShortener from './schema/urlShortener';
 import * as authDirective from './directive/auth';
@@ -85,6 +86,7 @@ export const schema = urlDirective.transformer(
                 tags.typeDefs,
                 users.typeDefs,
                 keywords.typeDefs,
+                interests.typeDefs,
                 alerts.typeDefs,
                 submissions.typeDefs,
                 actions.typeDefs,
@@ -134,6 +136,7 @@ export const schema = urlDirective.transformer(
                   tags.resolvers,
                   users.resolvers,
                   keywords.resolvers,
+                  interests.resolvers,
                   alerts.resolvers,
                   submissions.resolvers,
                   actions.resolvers,

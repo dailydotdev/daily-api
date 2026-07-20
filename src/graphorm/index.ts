@@ -945,6 +945,9 @@ const obj = new GraphORM({
       toc: {
         jsonType: true,
       },
+      communitySentiment: {
+        jsonType: true,
+      },
       sharedPost: {
         relation: {
           isMany: false,
@@ -1202,6 +1205,7 @@ const obj = new GraphORM({
           return {
             id: value.id,
             bookmarks: value.bookmarks,
+            impressions: value.impressions,
           };
         },
       },

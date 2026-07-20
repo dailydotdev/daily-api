@@ -8,6 +8,7 @@ import {
 import type { EntityManager } from 'typeorm';
 import type { Data, ProcessPostProps, ProcessedPost } from '../types';
 import { resolveCommonDeps, buildCommonPostFields } from '../common';
+import { tryMapCommunitySentimentPayload } from '../../../common/communitySentiment';
 
 export const processCollection = async ({
   logger,
@@ -40,6 +41,15 @@ export const processCollection = async ({
     contentMeta,
     contentType: PostType.Collection,
   });
+
+  const communitySentiment = tryMapCommunitySentimentPayload({
+    logger,
+    communitySentiment: data?.extra?.community_sentiment,
+    discussions: data?.extra?.discussions,
+  });
+  if (communitySentiment) {
+    fixedData.communitySentiment = communitySentiment;
+  }
 
   return {
     contentType: PostType.Collection,

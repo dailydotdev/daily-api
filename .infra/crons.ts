@@ -13,6 +13,10 @@ interface Cron {
 
 export const crons: Cron[] = [
   {
+    name: 'interest-scheduled-run',
+    schedule: '15 * * * *',
+  },
+  {
     name: 'check-analytics-report',
     schedule: '0 */1 * * *',
   },

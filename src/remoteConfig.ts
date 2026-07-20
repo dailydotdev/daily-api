@@ -54,6 +54,8 @@ export type RemoteConfigValue = {
     onboarding_funnel_id: string;
   }>;
   dailyBriefLimit: number;
+  interestAgentMaxInterestsPerPost: number;
+  interestAgentMaxTags: number;
   dailyFeedCacheKey: string;
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;

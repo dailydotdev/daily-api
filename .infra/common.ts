@@ -416,6 +416,22 @@ export const workers: Worker[] = [
     subscription: 'api.user-brief-ready-notification',
   },
   {
+    topic: 'api.v1.interest-run-requested',
+    subscription: 'api.user-interest-run',
+  },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-visible-interest-match',
+  },
+  {
+    topic: 'post-upvoted',
+    subscription: 'api.post-upvoted-interest-signal',
+  },
+  {
+    topic: 'api.v1.interest-content-available',
+    subscription: 'api.interest-content-available-notification',
+  },
+  {
     topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-brief',
   },
