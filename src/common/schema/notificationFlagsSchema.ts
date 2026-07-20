@@ -17,6 +17,8 @@ export const notificationFlagsSchema = z.object({
   [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
   [NotificationType.UserFollow]: notificationPreferenceSchema,
   [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
+  [NotificationType.StreakFreezeUsed]: notificationPreferenceSchema,
+  [NotificationType.StreakFreezeDepleted]: notificationPreferenceSchema,
   [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
   [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
   [NotificationType.DevCardUnlocked]: notificationPreferenceSchema,
