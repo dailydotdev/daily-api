@@ -51,6 +51,8 @@ database.allowPublicKeyRetrieval: "true"
 snapshot.mode: "no_data"
 
 slot.name: "clickhouse_sync"
+publication.name: "clickhouse_sync"
+publication.autocreate.mode: "disabled"
 
 # offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
 offset.flush.timeout.ms: 10000

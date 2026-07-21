@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  common: dailydotdev/common@0.0.19
+  common: dailydotdev/common@0.0.20
 
 jobs:
   build-app:
