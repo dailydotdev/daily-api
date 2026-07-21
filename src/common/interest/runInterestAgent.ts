@@ -1,11 +1,6 @@
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
-  AuthStorage,
   createAgentSession,
   DefaultResourceLoader,
-  ModelRegistry,
   SessionManager,
   type ExtensionAPI,
 } from '@earendil-works/pi-coding-agent';
@@ -19,6 +14,7 @@ import type { DataSource } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
 import { In } from 'typeorm';
 import { mimirClient } from '../../integrations/mimir/clients';
+import { mimirFilterBuilder } from '../../integrations/mimir/filters';
 import { getBragiClient } from '../../integrations/bragi/clients';
 import { Post } from '../../entity/posts/Post';
 import { PostKeyword } from '../../entity/PostKeyword';
@@ -40,15 +36,28 @@ import {
   replaceFeedTags,
   DEFAULT_INTEREST_MAX_TAGS,
 } from './feedTags';
+import { createInterestAgentModel } from './agentModel';
 
 const DEFAULT_SEARCH_LIMIT = 10;
-const MODEL_PROVIDER = 'anthropic';
+const SEARCH_VERSION = 3;
 
 export type InterestAgentRunResult = {
   findingsAdded: number;
   summaryPostId: string | null;
-  notifyRequested: boolean;
   summary: string;
+};
+
+export const getInterestAgentTools = (
+  outputModes?: UserInterest['outputModes'],
+): string[] => {
+  const tools = ['set_interest_tags', 'search_daily_dev'];
+  if (outputModes?.feed ?? true) {
+    tools.push('score_finding', 'add_to_feed');
+  }
+  if (outputModes?.post ?? true) {
+    tools.push('write_post');
+  }
+  return tools;
 };
 
 const buildSystemPrompt = (
@@ -57,21 +66,20 @@ const buildSystemPrompt = (
   currentTags: string[],
   maxTags: number,
 ): string => {
-  const { post = true, notification = true } = interest.outputModes ?? {};
+  const { feed = true, post = true } = interest.outputModes ?? {};
   const steps = [
     `1. Call set_interest_tags with the full set of daily.dev tag slugs that represent this interest (max ${maxTags}); it replaces the current set, so include the ones worth keeping and drop the rest.`,
     '2. Call search_daily_dev with a focused query derived from the interest.',
-    '3. For each promising result, call score_finding to get a relevance/quality score.',
-    '4. Call add_to_feed for the results worth surfacing.',
   ];
+  if (feed) {
+    steps.push(
+      `${steps.length + 1}. For each promising result, call score_finding — it returns an audienceFit quality signal (0-1) that reflects general daily.dev content quality, NOT topical relevance to this interest.`,
+      `${steps.length + 2}. Judge topical relevance yourself from the title and summary. Call add_to_feed only for results that genuinely match the interest, passing a relevance score (0-1) for how well the post matches the interest, plus a short rationale.`,
+    );
+  }
   if (post) {
     steps.push(
       `${steps.length + 1}. Call write_post once with a short markdown digest of what you found and why it matters.`,
-    );
-  }
-  if (notification) {
-    steps.push(
-      `${steps.length + 1}. Call notify_user once so the user knows new content is ready.`,
     );
   }
 
@@ -79,7 +87,8 @@ const buildSystemPrompt = (
     'You are the daily.dev Interest Agent. You hunt for content matching a single user interest, score it, and deliver it.',
     `The interest is: "${interest.query}".`,
     'Work only with daily.dev content in this run — do not invent URLs or reference external sources.',
-    `FOMO threshold is ${interest.fomoThreshold ?? 0.5} (0 = surface everything, 1 = only the very best). Only add_to_feed items scoring at or above this threshold.`,
+    'Be strict about topical relevance: a well-written post about a different topic must NOT be surfaced. Only add_to_feed posts that are genuinely about the interest.',
+    `FOMO threshold is ${interest.fomoThreshold ?? 0.5} (0 = surface everything, 1 = only the very best). Only add_to_feed items whose relevance score is at or above this threshold.`,
     currentTags.length
       ? `Current tags for this interest: ${currentTags.join(', ')}.`
       : null,
@@ -106,37 +115,18 @@ export const runInterestAgent = async ({
   logger: FastifyBaseLogger;
   interest: UserInterest;
 }): Promise<InterestAgentRunResult> => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'ANTHROPIC_API_KEY is not configured for the interest agent',
-    );
-  }
   if (!interest.sourceId) {
     throw new Error('interest is missing a provisioned source');
   }
 
-  const modelId = process.env.INTEREST_AGENT_MODEL || 'claude-opus-4-8';
-  const agentDir = await mkdtemp(join(tmpdir(), 'interest-agent-'));
+  const { agentDir, authStorage, modelRegistry, model } =
+    await createInterestAgentModel();
 
-  const authStorage = AuthStorage.create(join(agentDir, 'auth.json'));
-  authStorage.setRuntimeApiKey(MODEL_PROVIDER, apiKey);
-  const modelRegistry = ModelRegistry.inMemory(authStorage);
-  const model =
-    modelRegistry.find(MODEL_PROVIDER, modelId) ??
-    (await modelRegistry.getAvailable()).find(
-      (candidate) => candidate.provider === MODEL_PROVIDER,
-    );
-  if (!model) {
-    throw new Error(
-      `interest agent model not found: ${MODEL_PROVIDER}/${modelId}`,
-    );
-  }
+  const log = logger.child({ provider: 'interest agent' });
 
   const state: InterestAgentRunResult = {
     findingsAdded: 0,
     summaryPostId: null,
-    notifyRequested: false,
     summary: '',
   };
 
@@ -157,7 +147,10 @@ export const runInterestAgent = async ({
         const response: SearchResponse = await mimirClient.search(
           new SearchRequest({
             query: params.query,
+            version: SEARCH_VERSION,
+            offset: 0,
             limit: params.limit ?? DEFAULT_SEARCH_LIMIT,
+            filters: mimirFilterBuilder({}),
           }),
         );
         const postIds = response.result
@@ -178,6 +171,16 @@ export const runInterestAgent = async ({
           postId: post.id,
           title: post.title,
         }));
+        log.info(
+          {
+            interestId: interest.id,
+            query: params.query,
+            mimirCount: response.result.length,
+            candidateCount: candidates.length,
+            candidates,
+          },
+          'interest agent search_daily_dev',
+        );
         return {
           content: [{ type: 'text', text: JSON.stringify({ candidates }) }],
           details: {},
@@ -189,7 +192,7 @@ export const runInterestAgent = async ({
       name: 'score_finding',
       label: 'Score finding',
       description:
-        'Score a single daily.dev post for relevance and quality. Returns a score between 0 and 1.',
+        'Return the audienceFit quality signal (0-1) for a daily.dev post. This measures general content quality for the daily.dev audience, NOT topical relevance to the interest — judge relevance yourself before surfacing.',
       parameters: Type.Object({
         postId: Type.String(),
       }),
@@ -228,6 +231,15 @@ export const runInterestAgent = async ({
           ),
         );
         scores.set(post.id, response.audienceFit);
+        log.info(
+          {
+            interestId: interest.id,
+            postId: post.id,
+            title: post.title,
+            score: response.audienceFit,
+          },
+          'interest agent score_finding',
+        );
         return {
           content: [
             {
@@ -247,7 +259,7 @@ export const runInterestAgent = async ({
       name: 'add_to_feed',
       label: 'Add to interest feed',
       description:
-        "Add a scored post to the interest's feed as a finding. Provide a short rationale.",
+        "Add a topically-relevant post to the interest's feed as a finding. Pass score as your relevance judgment (0-1) for how well the post matches the interest, plus a short rationale. Only call this for posts genuinely about the interest.",
       parameters: Type.Object({
         postId: Type.String(),
         score: Type.Optional(Type.Number()),
@@ -289,12 +301,21 @@ export const runInterestAgent = async ({
             postId: params.postId,
             score,
             rationale: params.rationale,
-            status: InterestFindingStatus.Surfaced,
+            status: InterestFindingStatus.New,
           })
           .orUpdate(['score', 'rationale', 'status'], ['interestId', 'postId'])
           .execute();
         addedPostIds.add(params.postId);
         state.findingsAdded += 1;
+        log.info(
+          {
+            interestId: interest.id,
+            postId: params.postId,
+            score,
+            rationale: params.rationale,
+          },
+          'interest agent add_to_feed',
+        );
         return {
           content: [
             {
@@ -341,21 +362,6 @@ export const runInterestAgent = async ({
           content: [
             { type: 'text', text: JSON.stringify({ postId: saved.id }) },
           ],
-          details: {},
-        };
-      },
-    });
-
-    pi.registerTool({
-      name: 'notify_user',
-      label: 'Notify user',
-      description:
-        'Signal that new content is available for this interest. Call after write_post.',
-      parameters: Type.Object({}),
-      execute: async () => {
-        state.notifyRequested = true;
-        return {
-          content: [{ type: 'text', text: JSON.stringify({ queued: true }) }],
           details: {},
         };
       },
@@ -415,18 +421,7 @@ export const runInterestAgent = async ({
     : [];
   const currentTags = currentTagRows.map((row) => row.tag);
 
-  const activeTools = [
-    'set_interest_tags',
-    'search_daily_dev',
-    'score_finding',
-    'add_to_feed',
-  ];
-  if (interest.outputModes?.post ?? true) {
-    activeTools.push('write_post');
-  }
-  if (interest.outputModes?.notification ?? true) {
-    activeTools.push('notify_user');
-  }
+  const activeTools = getInterestAgentTools(interest.outputModes);
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: agentDir,
@@ -450,11 +445,37 @@ export const runInterestAgent = async ({
     tools: activeTools,
   });
 
+  const unsubscribe = session.subscribe((event) => {
+    if (event.type === 'message_end') {
+      const message = event.message as {
+        role?: string;
+        content?: { type?: string; text?: string }[];
+      };
+      if (message.role !== 'assistant' || !Array.isArray(message.content)) {
+        return;
+      }
+      const text = message.content
+        .map((part) => (typeof part?.text === 'string' ? part.text : ''))
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+      if (text) {
+        log.info({ interestId: interest.id, text }, 'interest agent message');
+      }
+    } else if (event.type === 'tool_execution_end' && event.isError) {
+      log.warn(
+        { interestId: interest.id, tool: event.toolName },
+        'interest agent tool error',
+      );
+    }
+  });
+
   try {
     await session.prompt(
       `Hunt daily.dev for content matching the interest "${interest.query}" and deliver it now.`,
     );
   } finally {
+    unsubscribe();
     session.dispose();
   }
 
@@ -472,11 +493,11 @@ export const runInterestAgent = async ({
     });
   }
 
-  state.summary = `Added ${state.findingsAdded} finding(s)${
+  state.summary = `Added ${state.findingsAdded} finding(s) this run${
     state.summaryPostId ? ', wrote a summary post' : ''
-  }${state.notifyRequested ? ', notified the user' : ''}.`;
+  }.`;
 
-  logger.info(
+  log.info(
     { interestId: interest.id, ...state },
     'interest agent run complete',
   );

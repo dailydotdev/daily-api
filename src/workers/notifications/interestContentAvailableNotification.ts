@@ -1,37 +1,30 @@
-import { User } from '../../entity';
+import { UserInterest } from '../../entity/UserInterest';
 import { NotificationType } from '../../notifications/common';
-import { buildPostContext } from './utils';
 import { TypedNotificationWorker } from '../worker';
 
 export const interestContentAvailableNotification: TypedNotificationWorker<'api.v1.interest-content-available'> =
   {
     subscription: 'api.interest-content-available-notification',
     handler: async (data, con) => {
-      const { postId, userId } = data;
+      const { interestId, userId, count, runAt } = data;
 
-      const postCtx = await buildPostContext(con, postId);
+      const interest = await con.getRepository(UserInterest).findOne({
+        select: ['id', 'query'],
+        where: { id: interestId, userId },
+      });
 
-      if (!postCtx) {
-        return;
-      }
-
-      const user: Pick<User, 'id'> | null = await con
-        .getRepository(User)
-        .findOne({
-          select: ['id'],
-          where: { id: userId },
-        });
-
-      if (!user) {
+      if (!interest) {
         return;
       }
 
       return [
         {
-          type: NotificationType.InterestContentAvailable,
+          type: NotificationType.InterestContentBatch,
           ctx: {
-            ...postCtx,
-            userIds: [user.id],
+            interest: { id: interest.id, query: interest.query },
+            count,
+            userIds: [userId],
+            dedupKey: `${interestId}:${runAt}`,
           },
         },
       ];

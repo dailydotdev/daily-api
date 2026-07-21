@@ -26,8 +26,14 @@ import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { CampaignUpdateEvent } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { UserExperienceType } from '../entity/user/experiences/types';
+import type { UserInterest } from '../entity/UserInterest';
 
 export type Reference<T> = ChangeObject<T> | T;
+
+export type NotificationInterestBatchContext = NotificationBaseContext & {
+  interest: Pick<UserInterest, 'id' | 'query'>;
+  count: number;
+};
 
 export type NotificationBundleV2 = {
   notification: DeepPartial<NotificationV2>;

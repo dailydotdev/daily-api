@@ -12,7 +12,7 @@ import {
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
 import { Feed, FeedOrigin } from '../src/entity/Feed';
-import { AgentSource, SourceType } from '../src/entity/Source';
+import { AgentSource, SourceType, SourceUser } from '../src/entity/Source';
 import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
 import {
   InterestFinding,
@@ -159,6 +159,23 @@ describe('mutation createInterest', () => {
       (call) => call[1] === 'api.v1.interest-run-requested',
     );
     expect(runCall?.[2]).toEqual({ interestId });
+  });
+
+  it('should succeed when the user already has a user source', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceUser).save({
+      id: 'su-1',
+      name: 'user source',
+      handle: 'su-1',
+      private: true,
+      userId: '1',
+    });
+
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createInterest.id).toBeTruthy();
   });
 });
 
@@ -453,6 +470,61 @@ describe('mutation deleteInterest', () => {
   });
 });
 
+const POST_QUERY = `
+  query Post($id: ID!) {
+    post(id: $id) {
+      id
+    }
+  }
+`;
+
+describe('agent source post access', () => {
+  beforeEach(async () => {
+    await con.getRepository(AgentSource).save({
+      id: 'asrc-1',
+      name: 'agent source',
+      handle: 'agent-asrc-1',
+      private: true,
+    });
+    await con.getRepository(UserInterest).save({
+      id: 'uir-acc',
+      userId: '1',
+      query: 'cool zig projects',
+      status: UserInterestStatus.Active,
+      sourceId: 'asrc-1',
+    });
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'apost-acc',
+        shortId: 'apost-acc',
+        title: 'Agent summary',
+        url: 'http://agent.com/1',
+        sourceId: 'asrc-1',
+        private: true,
+        visible: true,
+      },
+    ]);
+  });
+
+  it('lets the interest owner view an agent-source post', async () => {
+    loggedUser = '1';
+    const res = await client.query(POST_QUERY, {
+      variables: { id: 'apost-acc' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post).toMatchObject({ id: 'apost-acc' });
+  });
+
+  it('denies a non-owner from viewing an agent-source post', async () => {
+    loggedUser = '2';
+    return testQueryErrorCode(
+      client,
+      { query: POST_QUERY, variables: { id: 'apost-acc' } },
+      'FORBIDDEN',
+    );
+  });
+});
+
 describe('query interestPosts', () => {
   beforeEach(async () => {
     await con.getRepository(AgentSource).save({
@@ -460,7 +532,6 @@ describe('query interestPosts', () => {
       name: 'agent source',
       handle: 'agent-isrc-1',
       private: true,
-      userId: '1',
     });
     await con.getRepository(UserInterest).save({
       id: 'uir-1',
@@ -476,11 +547,13 @@ describe('query interestPosts', () => {
         title: 'Interest summary',
         url: 'http://interest.com/1',
         sourceId: 'isrc-1',
+        private: true,
+        showOnFeed: false,
       },
     ]);
   });
 
-  it('should return posts hosted in the interest source for the owner', async () => {
+  it('should return summary posts hosted in the interest source for the owner', async () => {
     loggedUser = '1';
     const res = await client.query(INTEREST_POSTS, {
       variables: { id: 'uir-1' },

@@ -16,6 +16,7 @@ import {
   User,
 } from '../entity';
 import { SourceType, SourceUser } from '../entity/Source';
+import { UserInterest } from '../entity/UserInterest';
 import { SourceStack } from '../entity/sources/SourceStack';
 import {
   Roles,
@@ -1128,6 +1129,20 @@ export const canAccessSource = async (
   const isSystemModerator = ctx.roles?.includes(Roles.Moderator);
   if (isSystemModerator) {
     return true;
+  }
+
+  if (
+    permission === SourcePermissions.View &&
+    source.type === SourceType.Agent
+  ) {
+    if (!ctx.userId) {
+      return false;
+    }
+    const ownsInterest = await ctx.con.getRepository(UserInterest).findOne({
+      select: ['id'],
+      where: { sourceId: source.id, userId: ctx.userId },
+    });
+    return !!ownsInterest;
   }
 
   if (permission === SourcePermissions.View && !source.private) {

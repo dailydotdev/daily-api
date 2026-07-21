@@ -205,14 +205,4 @@ export class SourceUser extends Source {
 }
 
 @ChildEntity(SourceType.Agent)
-export class AgentSource extends Source {
-  @Column({ type: 'text', default: null })
-  userId: string | null;
-
-  @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({
-    name: 'userId',
-    foreignKeyConstraintName: 'FK_source_agent_user_id',
-  })
-  user: Promise<User>;
-}
+export class AgentSource extends Source {}

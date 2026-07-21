@@ -146,6 +146,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceInterest(interest: { id: string }): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: interest.id,
+      referenceType: 'interest',
+    });
+  }
+
   referenceSystem(): NotificationBuilder {
     return this.enrichNotification({
       referenceId: 'system',

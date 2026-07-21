@@ -295,7 +295,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           name: query.slice(0, 100),
           handle: `agent-${sourceId}`,
           private: true,
-          userId,
         });
 
         await manager.getRepository(Feed).save({

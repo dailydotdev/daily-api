@@ -223,8 +223,9 @@ export type PubSubSchema = {
   };
   'api.v1.interest-content-available': {
     interestId: string;
-    postId: string;
     userId: string;
+    count: number;
+    runAt: number;
   };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;

@@ -1256,13 +1256,13 @@ describe('feed', () => {
     expect(userAchievement!.unlockedAt).not.toBeNull();
   });
 
-  it('should not progress the achievement for tag-chip seeded feeds', async () => {
+  it('should not progress the achievement for feeds with an origin', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
         after: {
           ...baseFeed,
-          flags: JSON.stringify({ origin: FeedOrigin.TagChip }),
+          flags: JSON.stringify({ origin: FeedOrigin.Agent }),
         },
         table: 'feed',
         op: 'c',

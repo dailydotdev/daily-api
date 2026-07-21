@@ -1062,8 +1062,7 @@ export const sayThanksForAward = async (
     transaction.status !== UserTransactionStatus.Success ||
     transaction.processor !== UserTransactionProcessor.Njord ||
     !transaction.productId ||
-    !transaction.senderId ||
-    isSpecialUser({ userId: transaction.senderId })
+    !transaction.senderId
   ) {
     throw new ForbiddenError('You can not thank for this Award');
   }

@@ -147,6 +147,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   streak_freeze_used: '',
   streak_freeze_depleted: '',
   interest_content_available: '',
+  interest_content_batch: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1327,6 +1328,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   interest_content_available: async () => {
+    return null;
+  },
+  interest_content_batch: async () => {
     return null;
   },
 };

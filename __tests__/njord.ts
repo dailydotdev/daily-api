@@ -1987,16 +1987,22 @@ describe('sayThanksForAward mutation', () => {
     );
   });
 
-  it('should not allow thanking when the sender is a special user', async () => {
+  it('should silently mark thanks when the sender is a special user', async () => {
     loggedUser = '1';
     const transaction = await createAwardTransaction({
       senderId: ghostUser.id,
     });
 
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { transactionId: transaction.id } },
-      'FORBIDDEN',
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { transactionId: transaction.id },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sayThanksForAward._).toBe(true);
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thanksAt).toEqual(expect.any(String));
   });
 });
