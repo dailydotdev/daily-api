@@ -10,22 +10,7 @@ export class CreateClickHousePublication1784621038147 implements MigrationInterf
 
     await queryRunner.query(/* sql */ `
       CREATE PUBLICATION "clickhouse_sync"
-        FOR TABLE
-          "public"."post",
-          "public"."source",
-          "public"."keyword",
-          "public"."niche",
-          "public"."keyword_niche",
-          "public"."user",
-          "public"."content_preference",
-          "public"."post_keyword",
-          "public"."post_niche",
-          "public"."comment",
-          "public"."campaign",
-          "public"."post_relation",
-          "public"."user_personalized_digest",
-          "public"."user_company",
-          "public"."highlights_canonical"
+        FOR ALL TABLES
         WITH (publish_generated_columns = stored)
     `);
   }
