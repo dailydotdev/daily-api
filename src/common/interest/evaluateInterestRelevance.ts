@@ -31,7 +31,7 @@ export const evaluateInterestRelevance = async ({
   con: DataSource;
   logger: FastifyBaseLogger;
   interest: Pick<UserInterest, 'id' | 'query' | 'feedId' | 'lastRunSummary'>;
-  post: { title?: string | null; summary?: string | null };
+  post: { id?: string; title?: string | null; summary?: string | null };
 }): Promise<InterestRelevanceResult> => {
   const log = logger.child({ provider: 'interest agent' });
 
@@ -133,11 +133,14 @@ export const evaluateInterestRelevance = async ({
       score: typeof parsed.score === 'number' ? parsed.score : 0,
       rationale: parsed.rationale,
     };
-    log.info({ interestId: interest.id, ...result }, 'interest relevance eval');
+    log.info(
+      { interestId: interest.id, postId: post.id, ...result },
+      'interest relevance eval',
+    );
     return result;
   } catch (err) {
-    log.warn(
-      { interestId: interest.id, err },
+    log.error(
+      { interestId: interest.id, postId: post.id, err },
       'interest relevance eval failed',
     );
     return { relevant: false, score: 0 };

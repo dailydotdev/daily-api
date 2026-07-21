@@ -46,7 +46,11 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
         return;
       }
 
-      const matches = await con
+      const maxInterestsPerPost =
+        remoteConfig.vars.interestAgentMaxInterestsPerPost ??
+        defaultMaxInterestsPerPost;
+
+      const limited = await con
         .getRepository(UserInterest)
         .createQueryBuilder('ui')
         .select([
@@ -58,28 +62,23 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
           'ui.fomoThreshold',
           'ui.outputModes',
         ])
-        .innerJoin(
-          FeedTag,
-          'ft',
-          'ft."feedId" = ui."feedId" AND ft.blocked = false',
-        )
         .where('ui.status = :status', { status: UserInterestStatus.Active })
-        .andWhere('ft.tag IN (:...keywords)', { keywords })
+        .andWhere(
+          (qb) =>
+            `EXISTS ${qb
+              .subQuery()
+              .select('1')
+              .from(FeedTag, 'ft')
+              .where('ft."feedId" = ui."feedId"')
+              .andWhere('ft.blocked = false')
+              .andWhere('ft.tag IN (:...keywords)', { keywords })
+              .getQuery()}`,
+        )
+        .limit(maxInterestsPerPost)
         .getMany();
 
-      if (!matches.length) {
+      if (!limited.length) {
         return;
-      }
-
-      const maxInterestsPerPost =
-        remoteConfig.vars.interestAgentMaxInterestsPerPost ??
-        defaultMaxInterestsPerPost;
-      const limited = matches.slice(0, maxInterestsPerPost);
-      if (matches.length > maxInterestsPerPost) {
-        logger.warn(
-          { postId: post.id, matched: matches.length },
-          'post-visible interest match capped',
-        );
       }
 
       const existing = await con.getRepository(InterestFinding).find({
@@ -91,6 +90,8 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
       });
       const alreadyFound = new Set(existing.map((row) => row.interestId));
 
+      const log = logger.child({ provider: 'interest agent' });
+
       for (const interest of limited) {
         if (alreadyFound.has(interest.id)) {
           continue;
@@ -100,33 +101,61 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
           con,
           logger,
           interest,
-          post: { title: post.title, summary: post.summary },
+          post: { id: post.id, title: post.title, summary: post.summary },
         });
 
-        if (
-          !relevance.relevant ||
-          relevance.score < (interest.fomoThreshold ?? 0.5)
-        ) {
+        const threshold = interest.fomoThreshold ?? 0.5;
+        if (!relevance.relevant || relevance.score < threshold) {
+          log.info(
+            {
+              postId: post.id,
+              interestId: interest.id,
+              relevant: relevance.relevant,
+              score: relevance.score,
+              threshold,
+              rationale: relevance.rationale,
+            },
+            'interest match rejected',
+          );
           continue;
         }
 
-        if (interest.outputModes?.feed ?? true) {
-          await con
-            .getRepository(InterestFinding)
-            .createQueryBuilder()
-            .insert()
-            .values({
-              id: await generateShortId(),
-              interestId: interest.id,
+        if (!(interest.outputModes?.feed ?? true)) {
+          log.info(
+            {
               postId: post.id,
+              interestId: interest.id,
               score: relevance.score,
-              rationale:
-                relevance.rationale ?? 'Matched a newly published post',
-              status: InterestFindingStatus.New,
-            })
-            .orIgnore()
-            .execute();
+            },
+            'interest match not added (feed output off)',
+          );
+          continue;
         }
+
+        await con
+          .getRepository(InterestFinding)
+          .createQueryBuilder()
+          .insert()
+          .values({
+            id: await generateShortId(),
+            interestId: interest.id,
+            postId: post.id,
+            score: relevance.score,
+            rationale: relevance.rationale ?? 'Matched a newly published post',
+            status: InterestFindingStatus.New,
+          })
+          .orIgnore()
+          .execute();
+
+        log.info(
+          {
+            postId: post.id,
+            interestId: interest.id,
+            score: relevance.score,
+            rationale: relevance.rationale,
+          },
+          'interest match added',
+        );
       }
     },
   };
