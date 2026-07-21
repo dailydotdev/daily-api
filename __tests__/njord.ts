@@ -814,6 +814,16 @@ describe('query products', () => {
           restricted: true,
         },
       },
+      {
+        id: 'e1c2a9d0-5b4f-4f8a-8c3d-7f6e9a0b1c2d',
+        name: 'Streak freeze 3-pack',
+        image: 'https://daily.dev/freeze.jpg',
+        type: ProductType.StreakFreeze,
+        value: 80,
+        flags: {
+          quantity: 3,
+        },
+      },
     ]);
   });
 
@@ -828,6 +838,19 @@ describe('query products', () => {
         ({ node }: { node: { id: string } }) => node.id,
       ),
     ).not.toContain('b3d9d8b1-1f2e-4c3a-9d6f-2a5e7c1b0f4d');
+  });
+
+  it('should exclude non-award products from the catalog', async () => {
+    loggedUser = 't-awpm-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.products.edges.map(
+        ({ node }: { node: { id: string } }) => node.id,
+      ),
+    ).not.toContain('e1c2a9d0-5b4f-4f8a-8c3d-7f6e9a0b1c2d');
   });
 
   it('should return products sorted by value', async () => {

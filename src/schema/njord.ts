@@ -321,6 +321,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
+            .andWhere(`${builder.alias}.type = :type`, {
+              type: ProductType.Award,
+            })
             .andWhere(
               `(${builder.alias}.flags->>'restricted') IS DISTINCT FROM 'true'`,
             )
