@@ -27,7 +27,8 @@ plugin.name: "pgoutput"
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
 table.include.list: "public.post,public.source,public.keyword,public.niche,public.keyword_niche,public.user,public.content_preference,public.post_keyword,public.post_niche,public.comment,public.campaign,public.post_relation,public.user_personalized_digest,public.user_company,public.highlights_canonical"
 
-column.exclude.list: "public\\.user\\.(email|name)"
+column.exclude.list: "public\\.user\\.(email|name),public\\.post\\.views"
+skip.messages.without.change: "true"
 
 # clickhouse.server.url: Specify only the hostname of the Clickhouse Server.
 clickhouse.server.url: "%clickhouse_host%"
