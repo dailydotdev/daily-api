@@ -673,13 +673,20 @@ export type StreakFreezeCandidate = {
   missedDays: Date[];
 };
 
-// Attempts to consume one streak freeze per missed day. Returns true when the
-// streak was frozen (and therefore should NOT be reset), false otherwise (the
-// caller is expected to fall back to resetting the streak).
+export type StreakFreezeEvent = {
+  streak: ChangeObject<UserStreak>;
+  freeze: { date: string; remainingFreezes: number };
+};
+
+// Attempts to consume one streak freeze per missed day. Returns the freeze
+// events to publish when the streak was frozen (and therefore should NOT be
+// reset), null otherwise (the caller is expected to fall back to resetting
+// the streak). Events are returned instead of published so callers running
+// inside a transaction can publish them after commit.
 export const tryConsumeStreakFreeze = async (
   con: DataSource | EntityManager,
   candidate: StreakFreezeCandidate,
-): Promise<boolean> => {
+): Promise<StreakFreezeEvent[] | null> => {
   const {
     userId,
     missedDays,
@@ -689,7 +696,7 @@ export const tryConsumeStreakFreeze = async (
   } = candidate;
 
   if (!missedDays.length || optOutStreakFreeze) {
-    return false;
+    return null;
   }
 
   if (
@@ -698,16 +705,33 @@ export const tryConsumeStreakFreeze = async (
       requiredRole: CoresRole.User,
     })
   ) {
-    return false;
+    return null;
   }
 
   if (freezesAvailable < missedDays.length) {
-    return false;
+    return null;
   }
 
-  const remainingFreezes = freezesAvailable - missedDays.length;
-
   const updatedStreak = await con.transaction(async (entityManager) => {
+    // Guarded atomic decrement: a concurrent purchase or consumption between
+    // the caller's snapshot and this write must not be clobbered.
+    const decrement = await entityManager
+      .getRepository(UserStreak)
+      .createQueryBuilder()
+      .update()
+      .set({
+        freezesAvailable: () => '"freezesAvailable" - :count',
+        updatedAt: new Date(),
+      })
+      .where('"userId" = :userId', { userId })
+      .andWhere('"freezesAvailable" >= :count')
+      .setParameter('count', missedDays.length)
+      .execute();
+
+    if (!decrement.affected) {
+      return null;
+    }
+
     await entityManager.getRepository(UserStreakAction).save(
       missedDays.map((createdAt) => ({
         userId,
@@ -716,28 +740,29 @@ export const tryConsumeStreakFreeze = async (
       })),
     );
 
-    await entityManager.getRepository(UserStreak).update(
-      { userId },
-      {
-        freezesAvailable: remainingFreezes,
-        updatedAt: new Date(),
-      },
-    );
-
     return entityManager.getRepository(UserStreak).findOneByOrFail({ userId });
   });
 
-  for (const [index, date] of missedDays.entries()) {
-    await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
-      streak: toChangeObject(updatedStreak),
-      freeze: {
-        date: date.toISOString(),
-        remainingFreezes: freezesAvailable - (index + 1),
-      },
-    });
+  if (!updatedStreak) {
+    return null;
   }
 
-  return true;
+  return missedDays.map((date, index) => ({
+    streak: toChangeObject(updatedStreak),
+    freeze: {
+      date: date.toISOString(),
+      remainingFreezes:
+        updatedStreak.freezesAvailable + missedDays.length - (index + 1),
+    },
+  }));
+};
+
+export const publishStreakFreezeEvents = async (
+  events: StreakFreezeEvent[],
+): Promise<void> => {
+  for (const event of events) {
+    await triggerTypedEvent(logger, 'api.v1.user-streak-updated', event);
+  }
 };
 
 export const checkAndClearUserStreak = async (
@@ -757,7 +782,7 @@ export const checkAndClearUserStreak = async (
   }
 
   const missedDays = getMissedStreakDays(streak, lastActionTime);
-  const frozen = await tryConsumeStreakFreeze(con, {
+  const freezeEvents = await tryConsumeStreakFreeze(con, {
     userId: streak.userId,
     currentStreak: streak.current,
     freezesAvailable: streak.freezesAvailable ?? 0,
@@ -766,7 +791,8 @@ export const checkAndClearUserStreak = async (
     missedDays,
   });
 
-  if (frozen) {
+  if (freezeEvents) {
+    await publishStreakFreezeEvents(freezeEvents);
     return false;
   }
 

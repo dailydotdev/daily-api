@@ -1923,6 +1923,20 @@ describe('purchaseStreakFreeze mutation', () => {
     );
   });
 
+  it('should throw when the product is restricted', async () => {
+    loggedUser = '1-psf';
+
+    await con
+      .getRepository(Product)
+      .update({ id: productId }, { flags: { quantity: 3, restricted: true } });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should throw when the user does not have enough Cores', async () => {
     loggedUser = '1-psf';
 

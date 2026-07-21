@@ -4344,7 +4344,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         getBalance(ctx),
       ]);
 
-      if (!product || product.type !== ProductType.StreakFreeze) {
+      if (
+        !product ||
+        product.type !== ProductType.StreakFreeze ||
+        product.flags?.restricted
+      ) {
         throw new ValidationError('Invalid streak freeze product');
       }
 
@@ -4361,7 +4365,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new ConflictError('Not enough Cores to purchase streak freeze');
       }
 
-      const quantity = product.flags?.quantity || 1;
+      const quantity = product.flags?.quantity ?? 1;
 
       const { transaction, transfer, freezesAvailable } =
         await ctx.con.transaction(async (entityManager) => {

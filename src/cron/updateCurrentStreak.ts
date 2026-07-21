@@ -11,8 +11,10 @@ import {
   clearUserStreak,
   combineLastActionDates,
   getMissedStreakDays,
+  publishStreakFreezeEvents,
   tryConsumeStreakFreeze,
 } from '../common/users';
+import type { StreakFreezeEvent } from '../common/users';
 import { counters } from '../telemetry';
 
 const cron: Cron = {
@@ -20,6 +22,10 @@ const cron: Cron = {
   handler: async (con, logger) => {
     try {
       const streakCounter = counters?.cron?.streakUpdate;
+      // Freeze events are published after the transaction commits, so a
+      // rollback cannot leave users with notifications for freezes that
+      // were never consumed.
+      const freezeEvents: StreakFreezeEvent[] = [];
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
           .createQueryBuilder()
@@ -112,7 +118,7 @@ const cron: Cron = {
           }
 
           const missedDays = getMissedStreakDays(userStreak, lastActionTime);
-          const frozen = await tryConsumeStreakFreeze(entityManager, {
+          const userFreezeEvents = await tryConsumeStreakFreeze(entityManager, {
             userId: userStreak.userId,
             currentStreak: userStreak.currentStreak,
             freezesAvailable: userStreak.freezesAvailable,
@@ -121,7 +127,9 @@ const cron: Cron = {
             missedDays,
           });
 
-          if (!frozen) {
+          if (userFreezeEvents) {
+            freezeEvents.push(...userFreezeEvents);
+          } else {
             userIdsToReset.push(userStreak.userId);
           }
         }
@@ -140,6 +148,7 @@ const cron: Cron = {
         });
         streakCounter?.add(clearedStreaks, { type: 'users_updated' });
       });
+      await publishStreakFreezeEvents(freezeEvents);
       logger.info('updated current streak cron');
     } catch (err) {
       logger.error({ err }, 'failed to update current streak cron');
