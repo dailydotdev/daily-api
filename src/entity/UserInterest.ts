@@ -34,7 +34,7 @@ export type UserInterestOutputModes = {
 
 export const defaultUserInterestSources: UserInterestSources = {
   dailyDev: true,
-  web: false,
+  web: true,
   github: false,
 };
 

@@ -376,7 +376,7 @@ describe('mutation updateInterest', () => {
       query: 'cool zig projects',
       status: UserInterestStatus.Active,
       fomoThreshold: 0.5,
-      sources: { dailyDev: true, web: false, github: false },
+      sources: { dailyDev: true, web: true, github: false },
       outputModes: {
         feed: true,
         post: true,
