@@ -290,7 +290,7 @@ export type GeoRecord = Partial<{
 
 export enum StreakRestoreCoresPrice {
   First = 0,
-  Regular = 100,
+  Regular = 150,
 }
 
 /**
