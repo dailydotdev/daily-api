@@ -649,7 +649,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .referenceInterest(ctx.interest)
       .targetUrl(`${process.env.COMMENTS_PREFIX}/agent/${ctx.interest.id}`)
-      .uniqueKey(ctx.interest.id);
+      .uniqueKey(ctx.dedupKey ?? ctx.interest.id);
   },
   user_follow: (builder, ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;

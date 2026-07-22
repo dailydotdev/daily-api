@@ -12,7 +12,7 @@ import {
 } from '@dailydotdev/schema';
 import type { DataSource } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
-import { In } from 'typeorm';
+import { In, MoreThanOrEqual } from 'typeorm';
 import { mimirClient } from '../../integrations/mimir/clients';
 import { mimirFilterBuilder } from '../../integrations/mimir/filters';
 import { getBragiClient } from '../../integrations/bragi/clients';
@@ -23,10 +23,12 @@ import { FeedTag } from '../../entity/FeedTag';
 import {
   InterestFinding,
   InterestFindingStatus,
+  InterestFindingOrigin,
 } from '../../entity/InterestFinding';
 import { InterestFeedback } from '../../entity/InterestFeedback';
 import type { UserInterest } from '../../entity/UserInterest';
-import { insertFreeformPost } from '../post';
+import { insertFreeformPost, getExistingPost } from '../post';
+import { createExternalLink } from '../../entity/posts/utils';
 import { getDiscussionLink } from '../links';
 import { markdown } from '../markdown';
 import { updateFlagsStatement } from '../utils';
@@ -38,9 +40,13 @@ import {
   DEFAULT_INTEREST_MAX_TAGS,
 } from './feedTags';
 import { createInterestAgentModel } from './agentModel';
+import { discoverExternalUrls } from './discoverExternalUrls';
+import { ONE_DAY_IN_SECONDS } from '../constants';
 
 const DEFAULT_SEARCH_LIMIT = 10;
 const SEARCH_VERSION = 3;
+const DEFAULT_MAX_WEB_SEARCHES_PER_RUN = 3;
+const DEFAULT_MAX_DISCOVERIES_PER_DAY = 30;
 
 export type InterestAgentRunResult = {
   findingsAdded: number;
@@ -50,10 +56,15 @@ export type InterestAgentRunResult = {
 
 export const getInterestAgentTools = (
   outputModes?: UserInterest['outputModes'],
+  sources?: UserInterest['sources'],
 ): string[] => {
+  const feed = outputModes?.feed ?? true;
   const tools = ['set_interest_tags', 'search_daily_dev'];
-  if (outputModes?.feed ?? true) {
+  if (feed) {
     tools.push('score_finding', 'add_to_feed');
+    if (sources?.web) {
+      tools.push('discover_external');
+    }
   }
   if (outputModes?.post ?? true) {
     tools.push('write_post');
@@ -68,6 +79,7 @@ const buildSystemPrompt = (
   maxTags: number,
 ): string => {
   const { feed = true, post = true } = interest.outputModes ?? {};
+  const externalEnabled = feed && !!interest.sources?.web;
   const steps = [
     `1. Call set_interest_tags with the full set of daily.dev tag slugs that represent this interest (max ${maxTags}); it replaces the current set, so include the ones worth keeping and drop the rest.`,
     '2. Call search_daily_dev with a focused query derived from the interest.',
@@ -77,6 +89,11 @@ const buildSystemPrompt = (
       `${steps.length + 1}. For each promising result, call score_finding — it returns an audienceFit quality signal (0-1) that reflects general daily.dev content quality, NOT topical relevance to this interest.`,
       `${steps.length + 2}. Judge topical relevance yourself from the title and summary. Call add_to_feed only for results that genuinely match the interest, passing a relevance score (0-1) for how well the post matches the interest, plus a short rationale.`,
     );
+    if (externalEnabled) {
+      steps.push(
+        `${steps.length + 1}. If daily.dev doesn't have enough strong matches, call discover_external with a focused search query to pull in external web content — it is ingested into daily.dev and added to the feed automatically.`,
+      );
+    }
   }
   if (post) {
     steps.push(
@@ -87,7 +104,9 @@ const buildSystemPrompt = (
   return [
     'You are the daily.dev Interest Agent. You hunt for content matching a single user interest, score it, and deliver it.',
     `The interest is: "${interest.query}".`,
-    'Work only with daily.dev content in this run — do not invent URLs or reference external sources.',
+    externalEnabled
+      ? 'Prefer daily.dev content; use discover_external only to fill gaps. Never invent URLs — only use urls returned by search_daily_dev or discover_external.'
+      : 'Work only with daily.dev content in this run — do not invent URLs or reference external sources.',
     'Be strict about topical relevance: a well-written post about a different topic must NOT be surfaced. Only add_to_feed posts that are genuinely about the interest.',
     `FOMO threshold is ${interest.fomoThreshold ?? 0.5} (0 = surface everything, 1 = only the very best). Only add_to_feed items whose relevance score is at or above this threshold.`,
     currentTags.length
@@ -133,6 +152,7 @@ export const runInterestAgent = async ({
 
   const scores = new Map<string, number>();
   const addedPostIds = new Set<string>();
+  let discoverCalls = 0;
 
   const registerTools = (pi: ExtensionAPI) => {
     pi.registerTool({
@@ -304,6 +324,7 @@ export const runInterestAgent = async ({
             score,
             rationale: params.rationale,
             status: InterestFindingStatus.New,
+            origin: InterestFindingOrigin.Search,
           })
           .orUpdate(['score', 'rationale', 'status'], ['interestId', 'postId'])
           .execute();
@@ -403,6 +424,109 @@ export const runInterestAgent = async ({
         };
       },
     });
+
+    pi.registerTool({
+      name: 'discover_external',
+      label: 'Discover external content',
+      description:
+        "Search the web for content matching the interest that is NOT already on daily.dev. Pass a focused search query. Matching pages are ingested into daily.dev and added to the interest's feed as findings. Use this to broaden beyond daily.dev's existing content.",
+      parameters: Type.Object({
+        query: Type.String(),
+        limit: Type.Optional(Type.Number()),
+      }),
+      execute: async (_id, params) => {
+        const respond = (payload: Record<string, unknown>) => ({
+          content: [{ type: 'text', text: JSON.stringify(payload) }],
+          details: {},
+        });
+
+        const maxCalls =
+          remoteConfig.vars.interestAgentMaxWebSearchesPerRun ??
+          DEFAULT_MAX_WEB_SEARCHES_PER_RUN;
+        discoverCalls += 1;
+        if (discoverCalls > maxCalls) {
+          return respond({ error: 'web_search_budget_exhausted', maxCalls });
+        }
+
+        const maxPerDay =
+          remoteConfig.vars.interestAgentMaxDiscoveriesPerDay ??
+          DEFAULT_MAX_DISCOVERIES_PER_DAY;
+        const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
+        const discoveredToday = await con.getRepository(InterestFinding).count({
+          where: {
+            interestId: interest.id,
+            origin: InterestFindingOrigin.Discovery,
+            createdAt: MoreThanOrEqual(since),
+          },
+        });
+        const remaining = maxPerDay - discoveredToday;
+        if (remaining <= 0) {
+          return respond({ error: 'daily_discovery_cap_reached', maxPerDay });
+        }
+
+        const candidates = await discoverExternalUrls({
+          interest,
+          query: params.query,
+          limit: Math.min(params.limit ?? remaining, remaining),
+          logger,
+        });
+        const threshold = interest.fomoThreshold ?? 0.5;
+        let added = 0;
+        for (const candidate of candidates) {
+          if (added >= remaining) {
+            break;
+          }
+          if (candidate.score < threshold) {
+            continue;
+          }
+          const existing = await getExistingPost(con, {
+            url: candidate.url,
+            canonicalUrl: candidate.url,
+          });
+          if (existing?.deleted) {
+            continue;
+          }
+          let postId = existing?.id;
+          if (!postId) {
+            postId = await generateShortId();
+            await createExternalLink({
+              con,
+              args: {
+                id: postId,
+                title: candidate.title || undefined,
+                url: candidate.url,
+                canonicalUrl: candidate.url,
+                authorId: interest.userId,
+                originalUrl: candidate.url,
+              },
+            });
+          }
+          await con
+            .getRepository(InterestFinding)
+            .createQueryBuilder()
+            .insert()
+            .values({
+              id: await generateShortId(),
+              interestId: interest.id,
+              postId,
+              score: candidate.score,
+              rationale: candidate.rationale,
+              status: InterestFindingStatus.New,
+              origin: InterestFindingOrigin.Discovery,
+            })
+            .orIgnore()
+            .execute();
+          addedPostIds.add(postId);
+          state.findingsAdded += 1;
+          added += 1;
+        }
+        log.info(
+          { interestId: interest.id, query: params.query, added },
+          'interest agent discover_external',
+        );
+        return respond({ discovered: candidates.length, added });
+      },
+    });
   };
 
   const feedbackRows = await con.getRepository(InterestFeedback).find({
@@ -423,7 +547,10 @@ export const runInterestAgent = async ({
     : [];
   const currentTags = currentTagRows.map((row) => row.tag);
 
-  const activeTools = getInterestAgentTools(interest.outputModes);
+  const activeTools = getInterestAgentTools(
+    interest.outputModes,
+    interest.sources,
+  );
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: agentDir,

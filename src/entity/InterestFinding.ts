@@ -17,6 +17,12 @@ export enum InterestFindingStatus {
   Dismissed = 'dismissed',
 }
 
+export enum InterestFindingOrigin {
+  Search = 'search',
+  Live = 'live',
+  Discovery = 'discovery',
+}
+
 @Entity()
 @Index('IDX_interest_finding_interest_id_post_id', ['interestId', 'postId'], {
   unique: true,
@@ -40,6 +46,9 @@ export class InterestFinding {
 
   @Column({ type: 'text', default: InterestFindingStatus.New })
   status: InterestFindingStatus;
+
+  @Column({ type: 'text', default: InterestFindingOrigin.Search })
+  origin: InterestFindingOrigin;
 
   @CreateDateColumn()
   createdAt: Date;

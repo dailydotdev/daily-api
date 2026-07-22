@@ -33,4 +33,40 @@ describe('getInterestAgentTools', () => {
     expect(tools).toContain('add_to_feed');
     expect(tools).not.toContain('write_post');
   });
+
+  it('omits discover_external when the web source is off', () => {
+    const tools = getInterestAgentTools(undefined, {
+      dailyDev: true,
+      web: false,
+      github: false,
+    });
+    expect(tools).not.toContain('discover_external');
+  });
+
+  it('includes discover_external when the web source is on', () => {
+    expect(
+      getInterestAgentTools(undefined, {
+        dailyDev: true,
+        web: true,
+        github: false,
+      }),
+    ).toContain('discover_external');
+  });
+
+  it('does not enable discover_external for the github source alone (reserved for a future github tool)', () => {
+    const tools = getInterestAgentTools(undefined, {
+      dailyDev: true,
+      web: false,
+      github: true,
+    });
+    expect(tools).not.toContain('discover_external');
+  });
+
+  it('omits discover_external when feed output is off even with web source on', () => {
+    const tools = getInterestAgentTools(
+      { feed: false, post: true, digest: false, notification: true },
+      { dailyDev: true, web: true, github: false },
+    );
+    expect(tools).not.toContain('discover_external');
+  });
 });

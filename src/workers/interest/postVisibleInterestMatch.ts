@@ -4,6 +4,7 @@ import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import {
   InterestFinding,
   InterestFindingStatus,
+  InterestFindingOrigin,
 } from '../../entity/InterestFinding';
 import { PostKeyword } from '../../entity/PostKeyword';
 import { KeywordStatus } from '../../entity/Keyword';
@@ -143,6 +144,7 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
             score: relevance.score,
             rationale: relevance.rationale ?? 'Matched a newly published post',
             status: InterestFindingStatus.New,
+            origin: InterestFindingOrigin.Live,
           })
           .orIgnore()
           .execute();
