@@ -61,6 +61,12 @@ export const DIGEST_SOURCE = 'digest';
 
 export const AGENTS_DIGEST_SOURCE = 'agents_digest';
 
+export const X_TRENDS_SOURCE = 'x-trends';
+
+// Aggregation-only sources: they stay public (so their posts remain
+// accessible/linkable) but individual posts must never surface in feeds.
+export const FEED_HIDDEN_SOURCES = new Set<string>([X_TRENDS_SOURCE]);
+
 @Entity()
 @Index('IDX_source_activ_priva_img_name_handl_type', [
   'active',

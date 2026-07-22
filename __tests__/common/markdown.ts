@@ -116,6 +116,48 @@ Some text here
     });
   });
 
+  describe('video rendering', () => {
+    it('should render video markdown as a video element', () => {
+      const content =
+        '![Bar chart race](https://daily-now-res.cloudinary.com/video/upload/v1/race.webm)';
+      const result = markdown.render(content);
+
+      expect(result).toContain('<video');
+      expect(result).not.toContain('<img');
+      expect(result).toContain('controls');
+      expect(result).toContain('preload="metadata"');
+      expect(result).toContain('type="video/webm"');
+      expect(result).toContain('aria-label="Bar chart race"');
+    });
+
+    it('should not proxy video URLs through the image proxy', () => {
+      const content =
+        '![clip](https://daily-now-res.cloudinary.com/video/upload/v1/race.webm)';
+      const result = markdown.render(content);
+
+      expect(result).toContain(
+        'https://daily-now-res.cloudinary.com/video/upload/v1/race.webm',
+      );
+      expect(result).not.toContain('/image/fetch/');
+    });
+
+    it('should render valid external videos as-is', () => {
+      const content = '![clip](https://example.com/clip.mp4)';
+      const result = markdown.render(content);
+
+      expect(result).toContain('src="https://example.com/clip.mp4"');
+      expect(result).toContain('type="video/mp4"');
+    });
+
+    it('should block videos from private IPs', () => {
+      const content = '![clip](http://127.0.0.1/clip.mp4)';
+      const result = markdown.render(content);
+
+      expect(result).not.toContain('<video');
+      expect(result).not.toContain('127.0.0.1');
+    });
+  });
+
   describe('without Cloudinary configured', () => {
     beforeEach(() => {
       delete process.env.CLOUDINARY_URL;

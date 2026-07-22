@@ -5,754 +5,140 @@ This file provides guidance to coding agents when working with code in this repo
 ## Prerequisites
 
 - **Node.js**: 24.18.0 (managed via Volta)
-- **Package Manager**: pnpm 10.33.4 (activate via `corepack enable && corepack prepare pnpm@10.33.4 --activate`)
+- **Package Manager**: pnpm 10.33.4 (`corepack enable && corepack prepare pnpm@10.33.4 --activate`)
 
 ## Essential Commands
 
 **Development:**
 
-- `pnpm run dev` - Start API server with hot reload on port 3000
-- `pnpm run dev:background` - Start background processor
-- `pnpm run dev:worker-job` - Start worker-job processor (dedicated process for jobExecuteWorker)
-- `pnpm run dev:temporal-worker` - Start Temporal worker
-- `pnpm run dev:temporal-server` - Start Temporal server for local development
+- `pnpm run dev` - API server with hot reload on port 3000
+- `pnpm run dev:background` / `dev:worker-job` / `dev:temporal-worker` / `dev:temporal-server` - other processes
 
 **Database:**
 
-- `pnpm run db:migrate:latest` - Apply latest migrations
+- `pnpm run db:migrate:latest` - Apply migrations
 - `pnpm run db:migrate:reset` - Drop schema and rerun migrations
-- `pnpm run db:seed:import` - Import seed data for local development
-- `pnpm run db:migrate:make src/migration/MigrationName` - Generate new migration based on entity changes
-- `pnpm run db:migrate:create src/migration/MigrationName` - Create empty migration file
-- **Never use raw SQL queries** (`con.query()`) - always use TypeORM repository methods or query builder
-- If raw SQL is absolutely necessary, explain the reason and ask for permission before implementing
-
-**Migration Generation:**
-When adding or modifying entity columns, **always generate a migration** using:
-
-```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 24.18)
-cd /path/to/daily-api
-nvm use
-pnpm run db:migrate:make src/migration/DescriptiveMigrationName
-```
-
-The migration generator compares entities against the local database schema. Ensure your local DB is up to date with `pnpm run db:migrate:latest` before generating new migrations.
-
-**IMPORTANT: Review generated migrations for schema drift.** The generator may include unrelated changes from local schema differences. Always review and clean up migrations to include only the intended changes.
-
-**After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
-
-**Migration SQL best practices:**
-- **Never use `CONCURRENTLY`** in migrations — TypeORM runs migrations inside a transaction, and `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONCURRENTLY` cannot run inside a transaction.
-- **Always use `IF NOT EXISTS`** for `CREATE INDEX` and **`IF EXISTS`** for `DROP INDEX` to make migrations idempotent and safe to re-run.
+- `pnpm run db:seed:import` - Import seed data
+- `pnpm run db:migrate:make src/migration/MigrationName` - Generate migration from entity changes
+- `pnpm run db:migrate:create src/migration/MigrationName` - Create empty migration
 
 **Building & Testing:**
 
-- `pnpm run build` - Compile TypeScript to build directory
-- `pnpm run lint` - Run ESLint (max 0 warnings)
-- `pnpm run test` - Run full test suite with database reset
-- `pnpm run cli` - Run CLI commands (e.g., `pnpm run cli api`)
+- `pnpm run build` - TypeScript compilation
+- `pnpm run lint` - ESLint (max 0 warnings)
+- `pnpm run test` - Full test suite with database reset
+- `pnpm run cli` - CLI commands (e.g., `pnpm run cli cron <name>`)
+- Individual tests (faster): `NODE_ENV=test npx jest __tests__/specific-test.ts --testEnvironment=node --runInBand`
 
-**Individual Test Execution:**
+## Migrations
 
-- Remember to run only individual tests when possible for faster feedback
-- `NODE_ENV=test npx jest __tests__/specific-test.ts --testEnvironment=node --runInBand`
-- Use `--testEnvironment=node --runInBand` flags for database-dependent tests
+- **Never use raw SQL queries** (`con.query()`) in application code — use TypeORM repository methods or query builder. If raw SQL is truly necessary, ask for permission first.
+- To generate a migration, run `nvm use` inside daily-api first (uses `.nvmrc`), ensure the local DB is up to date (`db:migrate:latest`), then `db:migrate:make`. **Review the generated migration for schema drift** — the generator diffs against your local DB and may include unrelated changes; keep only the intended ones.
+- After generating, use the `/format-migration` skill to format the SQL.
+- **Never use `CONCURRENTLY`** — TypeORM runs migrations inside a transaction, where `CREATE/DROP INDEX CONCURRENTLY` fails.
+- **Always use `IF NOT EXISTS` / `IF EXISTS`** on index creation/drops so migrations are idempotent.
 
 ## High-Level Architecture
 
-**Core Framework Stack:**
-
-- **Fastify** - Web framework with plugins for CORS, helmet, cookies, rate limiting
-- **Mercurius** - GraphQL server with caching, upload support, and subscriptions
-- **TypeORM** - Database ORM with entity-based modeling and migrations
-- **PostgreSQL** - Primary database with master/slave replication setup. **Prefer read replica for queries** when eventual consistency is acceptable (most read operations). Use primary only for writes and reads that must be immediately consistent after a write.
-- **Redis** - Caching and pub/sub via `@dailydotdev/ts-ioredis-pool`
-- **Temporal** - Workflow orchestration for background jobs
-- **ClickHouse** - Analytics and metrics storage
-
-**Application Entry Points:**
-
-- `src/index.ts` - Main Fastify server setup with GraphQL, auth, and middleware
-- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest, worker-job modes
-- `src/background.ts` - Pub/Sub message handlers and background processing
-- `src/cron.ts` - Scheduled task execution
-- `src/temporal/` - Temporal workflow definitions and workers
-- `src/commands/` - Standalone command implementations (e.g., personalized digest, worker-job)
-- `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency. See `src/workers/job/AGENTS.md` for the full WorkerJob system (entity, RPCs, parent-child batches, adding new job types).
-
-**GraphQL Schema Organization:**
-
-- `src/graphql.ts` - Combines all schema modules with transformers and directives
-- `src/schema/` - GraphQL resolvers organized by domain (posts, users, feeds, etc.)
-- `src/directive/` - Custom GraphQL directives for auth, rate limiting, URL processing
-- **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
-- **GraphORM mappings**: Only add entries in `src/graphorm/index.ts` when you need custom mapping/fields/transforms or GraphQL type names differ from TypeORM entity names. For straightforward reads, keep GraphQL type names aligned with entities and use GraphORM without extra config.
-- **One GraphQL type per entity**: Before adding a new GraphQL type (and its GraphORM mapping) for an entity, check whether a type already maps `from` that entity. If so, reuse or extend that single type instead of introducing a parallel type with the same relations — duplicate types backed by the same entity (e.g. a `FooConfiguration` and a `Foo` both `from: 'Foo'`) should be consolidated. Prefer the entity-aligned name and point any nested field at it.
-- For GraphQL query resolvers, prefer `graphorm.query`, `graphorm.queryOne`, or `graphorm.queryPaginated` over custom TypeORM fetch/pagination code whenever GraphORM can express the query. Reach for manual TypeORM reads only when GraphORM genuinely cannot support the access pattern.
-- When adding subscriptions for GraphORM-backed types, prefer publishing a payload that already matches the existing GraphQL object shape instead of adding fallback field resolvers that override the normal GraphORM query path. If you must add a field resolver, preserve already-hydrated fields from query results.
-- When a GraphQL field must be nulled based on viewer permissions, define the rule in `src/graphorm/index.ts` as a shared transform/helper (for example `nullIfNotLoggedIn`). If a resolver cannot use GraphORM for the full query, reuse that GraphORM field mapping from the manual path instead of re-implementing the permission rule in a schema field resolver.
-- For offset-paginated GraphQL reads that only need `pageInfo.hasNextPage`, prefer overfetching one extra row and slicing it in the page generator. Avoid separate `COUNT(*)`/`COUNT(DISTINCT ...)` queries unless the client explicitly needs a total.
-- For sitemap pagination, prefer oldest-first ordering with a deterministic tie-breaker so lower-numbered sitemap files stay as static as possible and pages do not skip or duplicate rows.
-- For post-based sitemaps, keep ordering consistent across sitemap types: use oldest-first ordering with a deterministic tie-breaker (`createdAt`, then `id`) unless there is a documented reason not to.
-- To verify a `typeDefs`/SDL change assembles into a valid schema, run the relevant domain integration test (e.g. `__tests__/feeds.ts`, `__tests__/search.ts`) — it builds the full schema through the app's normal import path. Do NOT cold-`require` `build/src/graphql.js` (or import `src/graphql` via ts-node) to check it: the `src/entity` barrel has circular-import ordering that throws (`Cannot read properties of undefined`) outside the app's entry sequence, which looks like a real error but is not.
-
-**Data Layer:**
-
-- `src/entity/` - TypeORM entities defining database schema
-- `src/migration/` - Database migrations for schema evolution
-- `src/data-source.ts` - Database connection with replication configuration
-
-**Core Services:**
-
-- `src/Context.ts` - Request context with user, permissions, and data loaders
-- `src/auth.ts` - Authentication middleware and user context resolution
-- `src/dataLoaderService.ts` - Efficient batch loading for related entities
-- `src/workers/` - Use workers for async, non-critical operations (notifications, reputation, external syncs). Prefer `TypedWorker` for type safety. Architecture uses Google Pub/Sub + CDC (Debezium) for reactive processing. See `src/workers/AGENTS.md` for more.
-- `src/integrations/` - External service integrations (Slack, SendGrid, etc.)
-- `src/cron/` - Scheduled cron jobs for maintenance and periodic tasks. One file per cron, registered in `index.ts`, deployed via `.infra/crons.ts` Pulumi config. Each cron exports a `Cron` object with `name` and `handler(DataSource, logger, pubsub)`. Run locally with `pnpm run cli cron <name>`. See `src/cron/AGENTS.md` for more.
-
-**Type Safety & Validation:**
-
-- We favor type safety throughout the codebase. **Prefer `type` over `interface`** for type declarations.
-- **Zod schemas** are preferred for runtime validation, especially for input validation, API boundaries, and data parsing. Zod provides both type inference and runtime validation, making it ideal for verifying user input, API payloads, and external data sources.
-- **This project uses Zod 4.x** (currently 4.3.5). Be aware of API differences from Zod 3.x:
-  - **Primitive types are now top-level**: Use `z.email()` instead of `z.string().email()`, `z.uuid()` instead of `z.string().uuid()`, `z.url()` instead of `z.string().url()`
-  - `z.literal([...])` in Zod 4.x supports arrays and validates that the value matches one of the array elements
-  - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
-  - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
-- For TypeScript string enums used in Zod schemas, derive the tuple from the shared helper in `src/common/schema/utils.ts` instead of duplicating arrays or hand-written type guards. Keep the enum as the single source of truth.
-- When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
-- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
-- **Never create wrapper types around `@dailydotdev/schema` classes** (e.g., `UserBriefingRequest & { extraField }`) — if a field exists in the proto, use it directly. If it doesn't exist yet, update the schema package first.
-
-  ```typescript
-  // BAD: plain object
-  return {
-    jobId: job.id,
-    status: job.status,
-  };
-
-  // GOOD: typed proto message
-  return new GetJobStatusResponse({
-    jobId: job.id,
-    status: job.status,
-  });
-
-  // BAD: mock with raw object
-  parseFeedback: async () => ({
-    classification: { platform: FeedbackPlatform.RECRUITER },
-  }),
-
-  // GOOD: mock with proto message classes
-  parseFeedback: async () =>
-    new ParseFeedbackResponse({
-      classification: new FeedbackClassification({
-        platform: FeedbackPlatform.RECRUITER,
-      }),
-    }),
-  ```
-
-**Business Domains:**
-
-- **Content**: Posts, comments, bookmarks, feeds, sources
-- **Users**: Authentication, preferences, profiles, user experience, streaks
-- **Squads**: Squad management, member roles, public requests
-- **Organizations**: Organization management, campaigns
-- **Notifications**: Push notifications, email digests, alerts
-- **Monetization**: Paddle subscription management, premium features, cores/transactions
-- **Opportunities**: Job matching, recruiter features, candidate profiles
-
-**Roles & Permissions:**
-
-- **System Moderator**: Users with `Roles.Moderator` in their roles array (`ctx.roles.includes(Roles.Moderator)`). System moderators have elevated privileges across the platform including:
-  - Banning/unbanning posts
-  - Deleting any post or comment
-  - Promoting/demoting squad members in any squad (without needing to be a squad member)
-- **Squad Roles** (`SourceMemberRoles`): Admin, Moderator, Member, Blocked - these are per-squad roles stored in `SourceMember.role`
-- The `@auth(requires: [MODERATOR])` GraphQL directive restricts mutations to system moderators only
-
-**Testing Strategy:**
-
-- **Prefer integration tests over unit tests** - Integration tests provide more value by testing the full stack (GraphQL/API endpoints, validation, database interactions)
-- **Unit tests should be rare** - Only create unit tests for complex utility functions with significant business logic. Simple validation or formatting functions are better tested through integration tests
-- **Avoid test duplication** - Don't create both unit and integration tests for the same functionality. If integration tests cover the behavior, unit tests are redundant
-- **CRITICAL: Avoid redundant unit tests that test the same logic multiple times**:
-  - When multiple functions use the same underlying logic, don't test that logic separately for each function
-  - Example: If `functionA()`, `functionB()`, and `functionC()` all call the same `isAllowedDomain()` helper, test the domain matching logic ONCE in the `isAllowedDomain` test, then just verify each function correctly uses it (one simple test per function)
-  - **Don't test the same input variations across multiple functions** - if you've already verified that domain matching supports subdomains in one function, you don't need to test subdomain support again in other functions that use the same logic
-  - Each test should verify ONE distinct behavior. If two tests exercise the exact same code path with the same logic, one is redundant
-  - Testing costs money and processing time - minimize test count while maintaining confidence
-- Jest with supertest for integration testing
-- Database reset before each test run via pretest hook
-- Fixtures in `__tests__/fixture/` for test data
-- Mercurius integration testing for GraphQL endpoints
-- Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
-- When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
-- **Prefer strict schema assertions over `expect.objectContaining`** — when verifying proto message payloads (e.g., `UserBriefingRequest`), use `new SchemaClass({...})` to assert exact structure. `expect.objectContaining` weakens validation by ignoring extra fields, which defeats schema correctness checks.
-- Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
-- When adding/removing persisted entity fields, update affected Jest snapshots in worker/integration tests (for example `toMatchSnapshot` payloads) as part of the same change to avoid CI drift.
-- **Typed worker tests**: Always use the generic type parameter with `expectSuccessfulTypedBackground<'topic-name'>()` for type safety. Use `toChangeObject()` to convert entities to the expected message payload format:
-  ```typescript
-  await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-    feedback: toChangeObject(feedback),
-  });
-  ```
-- **RPC/Connect error testing**: Create **separate transport mocks** for error scenarios instead of parameterizing existing transport mocks. Keep the happy-path transport unchanged and add a dedicated error transport (e.g., `createMockBragiPipelinesNotFoundTransport`). In the test, `jest.restoreAllMocks()` then re-spy with the error transport:
-
-  ```typescript
-  // In __tests__/helpers.ts - separate transport for error scenario
-  export const createMockBragiPipelinesNotFoundTransport = () =>
-    createRouterTransport(({ service }) => {
-      service(Pipelines, {
-        findJobVacancies: () => {
-          throw new ConnectError('not found', ConnectCode.NotFound);
-        },
-      });
-    });
-
-  // In test file
-  it('should handle NotFound from Bragi', async () => {
-    jest.restoreAllMocks();
-    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
-      (): ServiceClient<typeof Pipelines> => ({
-        instance: createClient(
-          Pipelines,
-          createMockBragiPipelinesNotFoundTransport(),
-        ),
-        garmr: createGarmrMock(),
-      }),
-    );
-    // ... test assertions
-  });
-  ```
-
-**Infrastructure Concerns:**
-
-- OpenTelemetry for distributed tracing and metrics
-- GrowthBook for feature flags and A/B testing
-- OneSignal for push notifications
-- Temporal workflows for async job processing
-- Rate limiting and caching at multiple layers
-
-**Infrastructure as Code:**
-
-- `.infra/` - Pulumi configuration for deployment
-- `.infra/crons.ts` - Cron job schedules and resource limits
-- `.infra/common.ts` - Worker subscription definitions
-- `.infra/index.ts` - Main Pulumi deployment configuration
-
-## Code Style Preferences
-
-**Keep implementations concise:**
-
-- Prefer short, readable implementations over verbose ones
-- Avoid excessive logging - errors will propagate naturally
-- **Never use logger.info for successful operations** - successful database updates, API calls, or data processing don't need logging. Results are visible in the database and errors will propagate naturally with automatic retry notifications.
-- For service-only private routes, do not add extra end-user authentication or role checks unless the request explicitly requires them.
-- Use early returns instead of nested conditionals
-- Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
-- Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
-- **Prefer switch statements over nested ternary operators** for mapping multiple cases - switch statements are more readable and maintainable when handling 3+ conditional branches:
-
-  ```typescript
-  // BAD: Nested ternary chain - hard to read and extend
-  const result =
-    value?.case === 'optionA'
-      ? { optionA: value.data }
-      : value?.case === 'optionB'
-        ? { optionB: value.data }
-        : value?.case === 'optionC'
-          ? { optionC: value.data }
-          : {};
-
-  // GOOD: Switch statement - clear and maintainable
-  let result = {};
-  if (value?.case) {
-    switch (value.case) {
-      case 'optionA':
-        result = { optionA: value.data };
-        break;
-      case 'optionB':
-        result = { optionB: value.data };
-        break;
-      case 'optionC':
-        result = { optionC: value.data };
-        break;
-    }
-  }
-  ```
-
-**Comments:**
-
-- **Do not add unnecessary comments** - code should be self-documenting through clear naming
-- If you feel a comment is needed, ask first before adding it
-- Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
-
-**GraphQL resolver errors:**
-
-- Do not throw `ApolloError` directly inside schema resolvers.
-- Prefer `AuthenticationError` / `ForbiddenError` / `ValidationError` from `apollo-server-errors`, or shared typed errors from `src/errors.ts` (for example `NotFoundError`, `ConflictError`).
-
-**Function style:**
-
-- Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
-- Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`
-- Don't extract single-use code into separate functions - keep logic inline where it's used
-- Only extract functions when the same logic is needed in multiple places
-
-**PubSub topics should be general-purpose:**
-
-- Topics should contain only essential identifiers (e.g., `{ opportunityId, userId }`)
-- Subscribers fetch their own data - don't optimize topic payloads for specific consumers
-- This allows multiple subscribers with different data needs
-
-**Avoid magic numbers for time durations:**
-
-- Use time constants from `src/common/constants.ts` instead of inline calculations
-- Available constants: `ONE_MINUTE_IN_SECONDS`, `ONE_HOUR_IN_SECONDS`, `ONE_DAY_IN_SECONDS`, `ONE_WEEK_IN_SECONDS`, `ONE_MONTH_IN_SECONDS`, `ONE_YEAR_IN_SECONDS`, `ONE_HOUR_IN_MINUTES`, `ONE_DAY_IN_MINUTES`
-- Example: Use `2 * ONE_DAY_IN_MINUTES` instead of `2 * 24 * 60`
-- Add new constants to `src/common/constants.ts` if needed (they are re-exported from `src/common/index.ts`)
-
-**Type declarations:**
-
-- **Prefer `type` over `interface`** - Use `type` for all type declarations unless you specifically need interface features (declaration merging, extends)
-- Only create separate exported types if they are used in multiple places
-- For single-use types, define them inline within the parent type
-- Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
-
-**Imports:**
-
-- **Never use `require()`** - Always use `import` statements at the top of the file. If you believe a lazy/dynamic import or `require()` is truly necessary, explicitly ask for permission before using it.
-- **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
-- Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
-- This improves build times, makes dependencies clearer, and avoids circular dependency issues
-- **Never use inline type imports** - Always use regular `import type` statements at the top of the file instead of `import('module').Type` syntax.
-
-  ```typescript
-  // BAD: Inline type import
-  type FastifyInstance = {
-    con?: import('typeorm').DataSource;
-  };
-
-  // GOOD: Import type at top of file
-  import type { DataSource } from 'typeorm';
-
-  type FastifyInstance = {
-    con?: DataSource;
-  };
-  ```
-
-**Avoid non-null assertion operator (`!`):**
-
-- **Never use the `!` operator** to assert that a value is not null/undefined. Instead, explicitly check and throw an error if the value is missing.
-- This provides better runtime safety and clearer error messages when something goes wrong.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: Using non-null assertion
-  const result = await executeGraphql(fastify.con!, query);
-
-  // GOOD: Explicit check with thrown error
-  if (!fastify.con) {
-    throw new Error('Database connection not initialized');
-  }
-  const result = await executeGraphql(fastify.con, query);
-  ```
-
-**Prefer `typeof` for undefined checks:**
-
-- **Use `typeof value === 'undefined'`** instead of `value === undefined` when checking whether a value is undefined.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: direct comparison to undefined
-  if (this._region === undefined) {
-    this._region = getGeo({ ip: this.req.ip }).country ?? '';
-  }
-
-  // GOOD: typeof check
-  if (typeof this._region === 'undefined') {
-    this._region = getGeo({ ip: this.req.ip }).country ?? '';
-  }
-  ```
-
-**Zod patterns:**
-
-- Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
-- **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
-- **IMPORTANT - Zod Type Inference:**
-  - **ALWAYS use `z.infer<typeof schema>` to derive TypeScript types from Zod schemas** at the point of use
-  - **NEVER manually define or re-export types that duplicate Zod schema structure**
-  - Export only the schemas themselves, not the inferred types
-  - Example:
-
-    ```typescript
-    // GOOD: Export only the schema
-    export const userSchema = z.object({ name: z.string(), age: z.number() });
-
-    // BAD: Re-exporting inferred type
-    export type User = z.infer<typeof userSchema>;
-
-    // GOOD: Use z.infer at point of use
-    import type { userSchema } from './schema';
-    type User = z.infer<typeof userSchema>;
-
-    // GOOD: Inline in function parameters
-    const processUser = (user: z.infer<typeof userSchema>) => { ... };
-    ```
-
-- **Schema exports must use a `Schema` suffix** (e.g., `paginationSchema`, `urlParseSchema`, `fileUploadSchema`). This makes schema variables clearly distinguishable from regular values and types.
-
-## Best Practices & Lessons Learned
-
-**Avoiding Code Duplication:**
-
-- **Always check for existing implementations** before creating new helper functions. Use Grep or Glob tools to search for similar function names or logic patterns across the codebase.
-- **Prefer extracting to common utilities** when logic needs to be shared. Place shared helpers in appropriate `src/common/` subdirectories (e.g., `src/common/opportunity/` for opportunity-related helpers).
-- **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
-- **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
-
-**Typed Integration Mapping:**
-
-- When an external payload is already represented by explicit TypeScript types, prefer direct field mapping over dynamic key-picking helpers.
-- Keep transformations straightforward (e.g. `avatar_url -> avatarUrl`) and avoid runtime key probing unless the integration schema is genuinely unknown.
-
-**Feed resolver filtering ownership:**
-
-- Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
-- Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
-- `applyFeedWhere` does not handle blocked-user actor filtering; for actor-based lists (for example reposts/upvotes), explicitly add `whereNotUserBlocked(...)` with the correct column.
-- For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
-- When introducing query-specific defaults (for example `supportedTypes` for one resolver), do not add schema-level defaults to shared feed queries like `anonymousFeed`; keep defaults scoped to the intended resolver wrapper.
-
-**Avoiding N+1 Queries with Lazy Relations:**
-
-- **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
-- **Batch fetch related entities** using TypeORM's `In()` operator to fetch all related records in a single query, then create a Map for O(1) lookups.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: N+1 queries - each iteration awaits a lazy relation
-  const results = await Promise.all(
-    items.map(async (item) => {
-      const related = await item.lazyRelation; // Triggers a query per item!
-      return { ...related, itemId: item.id };
-    }),
-  );
-
-  // GOOD: Batch fetch with single query + Map lookup
-  const relatedIds = items.map((item) => item.relatedId);
-  const relatedItems = await repository.findBy({ id: In(relatedIds) });
-  const relatedMap = new Map(relatedItems.map((r) => [r.id, r]));
-  const results = items.map((item) => {
-    const related = relatedMap.get(item.relatedId);
-    return { ...related, itemId: item.id };
-  });
-  ```
-
-- **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
-
-**Using Eager Loading with TypeORM Relations:**
-
-- **Prefer eager loading over separate queries** when you need to access entity relations. Instead of fetching an entity and then querying for related records separately, use TypeORM's query builder with `leftJoinAndSelect()` to fetch everything in a single query.
-- **This is more efficient than both**: (1) awaiting lazy relations, which triggers separate queries, and (2) extracting IDs and fetching with `In()`, which requires two queries.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: Separate query for related entities
-  const entities = await repo.find({ where: { ... } });
-  const relatedIds = entities.map((e) => e.relatedId);
-  const related = await relatedRepo.find({ where: { id: In(relatedIds) } });
-  // Two queries total
-
-  // BAD: Awaiting lazy relations (even worse - N queries)
-  const entities = await repo.find({ where: { ... } });
-  const related = await Promise.all(entities.map((e) => e.lazyRelation));
-  // N+1 queries total
-
-  // GOOD: Eager load with query builder - single query with JOIN
-  const entities = await repo
-    .createQueryBuilder('entity')
-    .leftJoinAndSelect('entity.relation', 'relation')
-    .where('entity.someField = :value', { value })
-    .getMany();
-  // Now entities[0].relation is already loaded, no await needed
-  // Single query with JOIN
-  ```
-
-**Selecting Only Necessary Fields:**
-
-- **Always use `.select()` to fetch only the fields you need** when using query builder. This reduces data transfer, improves query performance, and makes the code more maintainable by explicitly documenting which fields are used.
-- **Specify fields for both the main entity and joined relations** - don't let TypeORM fetch all columns by default.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: Fetches ALL columns from both tables
-  const entities = await repo
-    .createQueryBuilder('entity')
-    .leftJoinAndSelect('entity.user', 'user')
-    .where('entity.id = :id', { id })
-    .getMany();
-  // User entity has 20+ columns but we only need 3
-
-  // GOOD: Select only the fields you actually use
-  const entities = await repo
-    .createQueryBuilder('entity')
-    .leftJoinAndSelect('entity.user', 'user')
-    .select([
-      'entity.id',
-      'entity.someField',
-      'user.id',
-      'user.name',
-      'user.email',
-    ])
-    .where('entity.id = :id', { id })
-    .getMany();
-  // Now only fetches the 5 columns we actually need
-  ```
-
-- **Important TypeORM quirk**: When using `leftJoinAndSelect` with explicit `.select()`, TypeORM maps joined relations to `__relationName__` (double underscore prefix) instead of the normal property name. Access via type assertion:
-  ```typescript
-  // With explicit .select(), relation is NOT on entity.user
-  // It's mapped to entity.__user__ instead
-  const user = (entity as unknown as { __user__: User }).__user__;
-  const name = user?.name || 'Unknown';
-  ```
-
-**Updating JSONB Flag Fields:**
-
-- **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
-- Available utilities: `updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, `updateRecruiterSubscriptionFlags`
-- **Example pattern**:
-
-  ```typescript
-  // BAD: Manual spread - requires reading entity first, non-atomic
-  const entity = await repo.findOneBy({ id });
-  const existingFlags = entity.flags || {};
-  await repo.update(id, {
-    flags: { ...existingFlags, newField: value },
-  });
-
-  // GOOD: Use utility - atomic PostgreSQL JSONB merge
-  await repo.update(id, {
-    flags: updateFlagsStatement<Entity>({ newField: value }),
-  });
-  ```
-
-- The utilities generate SQL like `flags || '{"newField": "value"}'` which atomically merges without needing to read first (unless you need to reference existing values).
-- **For nested JSONB values** (arrays, objects with special characters), use query builder with `setParameter` to properly escape:
-
-  ```typescript
-  // BAD: Inline JSON string - can have escape issues with nested data
-  await repo.update(id, {
-    history: () => `history || '${JSON.stringify(entry)}'`,
-  });
-
-  // GOOD: Use query builder with setParameter
-  await repo
-    .createQueryBuilder()
-    .update()
-    .set({ history: () => `history || :historyJson` })
-    .where({ id })
-    .setParameter('historyJson', JSON.stringify(entry))
-    .execute();
-  ```
-
-**Using Transactions for Multiple Sequential Updates:**
-
-- **Wrap multiple sequential database updates in a transaction** to ensure atomicity - if any operation fails, all changes are rolled back.
-- Use `con.transaction(async (manager) => { ... })` pattern where `manager` is an `EntityManager` for all operations within the transaction.
-- **When to use transactions**: Any time you have 2+ sequential write operations that should succeed or fail together.
-- **For reusable functions**: Accept `DataSource | EntityManager` as the connection parameter so the function can participate in a caller's transaction.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: Multiple sequential updates without transaction
-  await orgRepo.update(orgId, { status: 'active' });
-  await alertsRepo.upsert({ userId, showAlert: true }, { conflictPaths: ['userId'] });
-  await opportunityRepo.update(oppId, { state: 'IN_REVIEW' });
-  // If the third update fails, the first two are already committed!
-
-  // GOOD: Wrap in transaction for atomicity
-  await con.transaction(async (manager) => {
-    await manager.getRepository(Organization).update(orgId, { status: 'active' });
-    await manager.getRepository(Alerts).upsert({ userId, showAlert: true }, { conflictPaths: ['userId'] });
-    await manager.getRepository(OpportunityJob).update(oppId, { state: 'IN_REVIEW' });
-  });
-  // All updates succeed together or none are committed
-
-  // GOOD: Reusable function that accepts either DataSource or EntityManager
-  type DataSourceOrManager = DataSource | EntityManager;
-
-  const updateEntity = async ({ con }: { con: DataSourceOrManager }) => {
-    await con.getRepository(Entity).update(...);
-  };
-
-  // Can be called standalone
-  await updateEntity({ con: dataSource });
-
-  // Or within a transaction
-  await dataSource.transaction(async (manager) => {
-    await updateEntity({ con: manager });
-    await anotherUpdate({ con: manager });
-  });
-  ```
-
-- **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
-- For materialization/backfill jobs, make the cron rerunnable and idempotent. Prefer a deterministic unique key plus an atomic per-scope write step so retries can safely continue after partial progress without leaving half-written rows.
-
-**Using queryReadReplica Helper:**
-
-- Use `queryReadReplica` helper from `src/common/queryReadReplica.ts` for read-only queries in common functions and cron jobs.
-- **Example pattern**:
-
-  ```typescript
-  import { queryReadReplica } from '../common/queryReadReplica';
-
-  const result = await queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Entity).find({ where: {...} })
-  );
-  ```
-
-- **Exception**: Queries during write operations that need immediate consistency should use primary.
-- For GraphQL resolvers, default to read replica for pure reads (`Query` fields) either via `queryReadReplica(...)` or GraphORM read-replica mode (4th arg `true`). If the resolver can write or depends on read-after-write consistency, use primary.
-
-**Materialized View Tests:**
-
-- For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
-- In tests, refresh the materialized view before assertions; do not recreate the materialized view definition inside test files.
-
-**Immutable Materialized Tables:**
-
-- For immutable or period-closed materialized data, prefer the smallest persisted schema that supports lookup and joins. Avoid `updatedAt`, `generatedAt`, counters, or snapshot columns unless there is a concrete read-path need for them.
-- For archive/materialization tables keyed by business dimensions, keep a surrogate `id` for relations but also enforce the real unique business key in the database.
-
-**State Checking Patterns:**
-
-- **Prefer negative checks over listing states** when checking for "non-draft" or similar conditions.
-- Use `state: Not(OpportunityState.DRAFT)` instead of `state: In([IN_REVIEW, LIVE, CLOSED])`.
-- This is more maintainable as new states are added.
-
-**JSONB Key Removal with null vs undefined:**
-
-- **Use `null` to remove JSONB keys** - `undefined` will not be sent to PostgreSQL.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: undefined won't remove the key
-  const flags = { ...existingFlags, keyToRemove: undefined };
-
-  // GOOD: null removes the key from JSONB
-  const flags = { ...existingFlags, keyToRemove: null };
-  ```
-
-- **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
-
-**Boolean Coercion Bug with `||` Operator:**
-
-- **Never use `||` to provide default values for boolean parameters** - it incorrectly converts `false` to the default value.
-- Use nullish coalescing (`??`) or explicit conditionals instead.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: false || null = null (loses the false value!)
-  const variables = {
-    unreadOnly: unreadOnly || null, // When unreadOnly is false, this becomes null
-  };
-
-  // GOOD: Explicit conditional preserves boolean semantics
-  const variables = {
-    unreadOnly: unreadOnly ? true : null, // Only send true when explicitly true
-  };
-
-  // GOOD: Use ?? for optional string/number parameters
-  const variables = {
-    cursor: cursor ?? null, // Empty string is preserved, only undefined/null becomes null
-    listId: listId ?? null,
-  };
-  ```
-
-- **Rule of thumb**: Use `??` for optional parameters where empty string or `0` are valid values. Use explicit conditionals for boolean flags where you only want to send `true`.
-
-**Fastify Async Handlers Must Return `reply.send()`:**
-
-- **Always `return` the `reply.send()` call** in async Fastify route handlers. Without `return`, the async function resolves with `undefined`, and Fastify may attempt to handle the response a second time — causing `ERR_HTTP_HEADERS_SENT` / "Reply was already sent" errors.
-- This also applies when delegating to a helper function that sends the reply — the caller must `return` the helper's result.
-- **Example pattern**:
-
-  ```typescript
-  // BAD: sends reply but doesn't return — implicit return undefined
-  handler: async (req, res) => {
-    // ... processing ...
-    res.send('done');
-  };
-
-  // GOOD: return the reply
-  handler: async (req, res) => {
-    // ... processing ...
-    return res.send('done');
-  };
-
-  // BAD: helper sends reply but caller doesn't return
-  handler: async (req, res) => {
-    await handleRequest(req, res);
-  };
-
-  // GOOD: return the helper's result
-  handler: async (req, res) => {
-    return handleRequest(req, res);
-  };
-  ```
-
-- **Example lesson**: The Paddle webhook handler had `res.send('Processed webhook event')` without `return`. This was a latent bug that became visible when a custom OpenTelemetry Fastify plugin added an `onSend` hook, changing response lifecycle timing enough to trigger the double-send detection.
-
-**Public API Development:**
-
-- The public REST API (`src/routes/public/`) has its own development patterns documented in `src/routes/public/AGENTS.md`.
-- Key patterns include:
-  - Use `executeGraphql()` from `./graphqlExecutor` for direct GraphQL execution
-  - Import shared constants and utilities from `./common.ts` (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`)
-  - Update `skill.md` when adding/changing endpoints (versioned with semver)
-  - Fastify route type parameters should be defined inline for single-use types
+**Stack:** Fastify + Mercurius (GraphQL) + TypeORM + PostgreSQL (master/replica) + Redis + Temporal + ClickHouse. OpenTelemetry tracing, GrowthBook feature flags, OneSignal push.
+
+**Prefer the read replica** for queries where eventual consistency is acceptable (most reads). Use primary only for writes and reads that must be immediately consistent after a write.
+
+**Entry points:**
+
+- `src/index.ts` - Main Fastify server (GraphQL, auth, middleware)
+- `bin/cli.ts` - CLI dispatcher: api, background, temporal, cron, personalized-digest, worker-job
+- `src/background.ts` - Pub/Sub workers; `src/cron.ts` - scheduled tasks; `src/temporal/` - Temporal workflows; `src/commands/` - standalone commands
+
+**Key directories & sub-docs:**
+
+- `src/schema/` - GraphQL resolvers by domain; `src/graphql.ts` combines them; `src/directive/` - custom directives
+- `src/graphorm/AGENTS.md` - **GraphORM is the default for all GraphQL query resolvers** (N+1 prevention)
+- `src/workers/AGENTS.md` - Pub/Sub + CDC (Debezium) background workers; `src/workers/job/AGENTS.md` - WorkerJob system
+- `src/cron/AGENTS.md` - cron jobs; `src/routes/public/AGENTS.md` - public REST API
+- `src/entity/` - TypeORM entities; `src/migration/`; `src/data-source.ts` - replication config
+- `src/Context.ts` - request context; `src/auth.ts`; `src/integrations/` - external services
+- `.infra/` - Pulumi IaC: `.infra/crons.ts` (cron schedules), `.infra/common.ts` (worker subscriptions), `.infra/index.ts`
+
+**Roles:** System moderators have `Roles.Moderator` in `ctx.roles` (ban posts, delete any post/comment, manage squad members in any squad); the `@auth(requires: [MODERATOR])` directive restricts mutations to them. Squad-level roles (`SourceMemberRoles`: Admin/Moderator/Member/Blocked) are per-squad, stored in `SourceMember.role` — a different concept.
+
+## GraphQL Rules
+
+- Use `graphorm.query` / `queryOne` / `queryPaginated` for query resolvers; manual TypeORM reads only when GraphORM can't express the pattern. Default pure `Query` reads to the read replica (via `queryReadReplica(...)` or GraphORM's read-replica flag).
+- **One GraphQL type per entity** — before adding a type, check whether one already maps `from` that entity; extend it instead of creating a parallel type.
+- Only add GraphORM mappings in `src/graphorm/index.ts` when you need custom mapping/transforms or diverging names — straightforward reads need no config.
+- Viewer-permission field nulling belongs in `src/graphorm/index.ts` as a shared transform (e.g. `nullIfNotLoggedIn`); reuse it from manual paths rather than re-implementing in schema field resolvers.
+- Subscriptions on GraphORM-backed types: publish payloads already matching the GraphQL shape; avoid fallback field resolvers that override the GraphORM path (and if unavoidable, preserve already-hydrated fields).
+- For offset pagination needing only `pageInfo.hasNextPage`, overfetch one extra row and slice — no separate `COUNT(*)` unless the client needs a total.
+- Errors: never throw `ApolloError` directly in resolvers — use `AuthenticationError`/`ForbiddenError`/`ValidationError` from `apollo-server-errors` or typed errors from `src/errors.ts` (`NotFoundError`, `ConflictError`).
+- Feed resolvers: use `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard visibility filtering; keep builders focused on feed-specific constraints. `applyFeedWhere` does **not** handle blocked-user actor filtering — add `whereNotUserBlocked(...)` explicitly for actor-based lists. Keep query-specific defaults in the resolver wrapper, not on shared queries like `anonymousFeed`.
+- **To verify a `typeDefs`/SDL change assembles into a valid schema, run a domain integration test** (e.g. `__tests__/feeds.ts`) — it builds the schema through the normal import path. Do NOT cold-`require` `build/src/graphql.js` or import `src/graphql` via ts-node: the `src/entity` barrel has circular-import ordering that throws (`Cannot read properties of undefined`) outside the app's entry sequence — it looks like a real error but is not.
+
+## Type Safety & Validation
+
+- **Prefer `type` over `interface`**; single-use types stay inline, export only if used in multiple places.
+- **Zod 4.x** (not 3.x): top-level primitives (`z.email()`, `z.uuid()`, `z.url()` — not `z.string().email()`); `z.literal([...])` accepts arrays. Use `.nullish()` over `.nullable().optional()`. Consult [zod.dev](https://zod.dev) when unsure.
+- Zod schemas live in `src/common/schema/` (one file per domain), named with a `Schema` suffix. Export only the schema; derive types with `z.infer<typeof schema>` at the point of use — never re-export inferred types or hand-write duplicates. For TS string enums in schemas, derive the tuple via the helper in `src/common/schema/utils.ts`.
+- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema` (`new ResponseType({...})`), never plain objects — **including mock/`isMockEnabled` returns**. Never create wrapper types around schema classes (`SomeProto & { extra }`) — if the field belongs in the proto, add it to the schema package first.
+
+## Code Style
+
+- Keep implementations concise: early returns, combined checks, small inline helpers. Don't extract single-use logic into separate functions.
+- **Never use `logger.info` for successful operations** — results are visible in the database; errors propagate with automatic retry notifications.
+- No unnecessary comments — code should be self-documenting; ask before adding one.
+- Const arrow functions (`const foo = () => {}`), single props-style argument (`const foo = ({ a, b }) => {}`).
+- Prefer switch statements over nested ternary chains for 3+ branches.
+- **Never use the non-null assertion `!`** — explicitly check and throw with a clear message.
+- **Never use `require()`** or inline type imports (`import('module').Type`) — regular `import` / `import type` at the top. Avoid barrel imports: `import { User } from './entity/user/User'`, not from `./entity`.
+- Time durations: use constants from `src/common/constants.ts` (`ONE_DAY_IN_SECONDS`, etc.), never inline math like `24 * 60 * 60`.
+- For service-only private routes, don't add end-user auth/role checks unless explicitly required.
+- PubSub topics stay general-purpose: essential identifiers only (`{ opportunityId, userId }`); subscribers fetch their own data.
+- When an external payload has explicit TS types, map fields directly (`avatar_url -> avatarUrl`); avoid dynamic key-picking helpers unless the schema is genuinely unknown.
+
+## Recurring Bug Patterns (learned from failures)
+
+- **Boolean `||` coercion**: never `unreadOnly || null` — it turns `false` into `null`. Use explicit conditionals for booleans (`unreadOnly ? true : null`) and `??` for optionals where `''`/`0` are valid.
+- **Fastify async handlers must `return reply.send(...)`** (including when delegating to a helper that sends). Without `return`, Fastify may handle the response twice → `ERR_HTTP_HEADERS_SENT`. This was a latent bug that only surfaced when an onSend hook changed response timing.
+- **JSONB key removal**: `undefined` is not sent to PostgreSQL — use `null` to remove a key. Hard-code keys for removal rather than iterating `Object.keys()`.
+- **N+1 via lazy relations**: never await lazy relations inside loops/maps. Batch-fetch with `In(ids)` + a Map, or better, eager-load in one query with `leftJoinAndSelect`.
+- **TypeORM quirk**: `leftJoinAndSelect` combined with an explicit `.select([...])` maps the relation to `entity.__relationName__` (double underscores), not `entity.relationName`. Access via `(entity as unknown as { __user__: User }).__user__`.
+- **Code duplication**: before writing a helper, Grep for an existing implementation. When logic is needed in two places, export from the original location and import — never copy.
+
+## Database Patterns
+
+- **Select only needed fields** with `.select([...])` on query builders — for both the main entity and joined relations.
+- **JSONB flags**: use the utilities in `src/common/utils.ts` (`updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, ...) — they emit an atomic `flags || '{...}'` merge, no read-then-spread. For nested JSONB values (arrays, objects), use query builder with `.setParameter('json', JSON.stringify(v))` and `column || :json` to avoid escaping bugs.
+- **Transactions**: wrap 2+ sequential writes in `con.transaction(async (manager) => {...})`. Reusable write functions should accept `DataSource | EntityManager` so they can join a caller's transaction. In crons/batch jobs, keep reads outside and writes inside; for many independent scopes, prefer atomic per-scope writes over one giant transaction.
+- **Read replica helper**: `queryReadReplica(con, ({ queryRunner }) => ...)` from `src/common/queryReadReplica.ts` for read-only queries in common functions and crons.
+- Prefer negative state checks: `state: Not(OpportunityState.DRAFT)` over listing every non-draft state.
+- Materialized/archive tables: persist the smallest schema that supports lookups/joins (no `updatedAt`/counters without a read-path need); keep a surrogate `id` but enforce the real business unique key in the DB.
+
+## Testing Strategy
+
+- **Prefer integration tests over unit tests** — unit tests only for complex utility logic; never both for the same behavior.
+- **Avoid redundant tests**: when multiple functions share a helper, test the helper's logic once, then one simple test per caller. Don't repeat input variations across callers. One test per key scenario; each test verifies one distinct behavior.
+- Prefer `toEqual`/`toMatchObject` over stacked `expect().toBe()` lines; skip assertions logically implied by others.
+- **Prefer strict proto assertions**: `new SchemaClass({...})` over `expect.objectContaining` — the latter ignores extra fields and defeats schema checks.
+- Typed worker tests: always pass the generic — `expectSuccessfulTypedBackground<'topic-name'>(worker, { feedback: toChangeObject(feedback) })`.
+- **RPC error testing**: create a separate mock transport per error scenario (a dedicated `createMock...ErrorTransport` throwing `ConnectError`) instead of parameterizing the happy-path transport; in the test, `jest.restoreAllMocks()` then re-spy with the error transport.
+- When adding/removing persisted entity fields, update affected snapshots (`toMatchSnapshot` payloads) in the same change.
+- Materialized-view tests: schema comes from migrations; refresh the view before assertions, never recreate its definition in test files.
+- Fixtures in `__tests__/fixture/`; DB resets via pretest hook.
 
 ## Pre-Commit Checks
 
-Before creating any commit, ensure the following pass:
-
-- `pnpm run build` - TypeScript compilation must succeed with no errors
-- `pnpm run lint` - ESLint must pass with 0 warnings
-
-Do not commit code that fails either check.
+`pnpm run build` and `pnpm run lint` must both pass before any commit.
 
 ## Pull Requests
 
-Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
+Keep PR descriptions concise.
 
-## Claude Code Hooks
+## Claude Code Hooks (`.claude/settings.json`)
 
-Hooks are configured in `.claude/settings.json`:
-
-- **File Protection** (PreToolUse): Blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
-- **Prevent Force Push** (PreToolUse): Blocks `git push --force` and `git push -f`
-- **Auto-Lint** (PostToolUse): Runs `eslint --fix` on TypeScript files after edits
+- **File Protection** (PreToolUse): blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
+- **Prevent Force Push** (PreToolUse): blocks `git push --force` / `-f`
+- **Auto-Lint** (PostToolUse): `eslint --fix` on edited TypeScript files
 
 ## Node.js Version Upgrade Checklist
 
-When upgrading Node.js version, update these files:
-
-- `.nvmrc`
-- `package.json` (volta section + `@types/node` in devDependencies)
-- `Dockerfile`
-- `Dockerfile.dev`
-- `.circleci/config.yml` (2 places: executor tag and docker image)
-- `.infra/.nvmrc`
-- `.infra/package.json` (volta section + `@types/node` in devDependencies)
-- This file (`AGENTS.md` - Prerequisites section)
-
-After updating, run `pnpm install` in **both** the root directory and `.infra/` directory to regenerate their respective lock files, and commit any changes.
-
-## Sentiment API Contract Notes
-
-- For sentiment time-window selection, use `resolution` consistently across GraphQL args, integration client params, and yggdrasil query-string mapping (`15m`, `1h`, `1d`). Avoid introducing parallel names like `bucket`.
+Update: `.nvmrc`, `package.json` (volta + `@types/node`), `Dockerfile`, `Dockerfile.dev`, `.circleci/config.yml` (executor tag + docker image), `.infra/.nvmrc`, `.infra/package.json` (volta + `@types/node`), and this file's Prerequisites. Then `pnpm install` in **both** root and `.infra/` to regenerate lock files.

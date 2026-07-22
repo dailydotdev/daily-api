@@ -8,7 +8,11 @@ import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
 import { isValidHttpUrl } from './links';
-import { getProxiedImageUrl } from './imageProxy';
+import {
+  getProxiedImageUrl,
+  isExternalImageUrl,
+  validateImageUrl,
+} from './imageProxy';
 
 const underscoreMarker = 0x5f;
 const alphaNumericRegex = /[\p{L}\p{N}]/u;
@@ -315,10 +319,56 @@ const defaultImageRender =
     return self.renderToken(tokens, idx, options);
   };
 
+const videoMimeTypes: Record<string, string> = {
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  ogg: 'video/ogg',
+  ogv: 'video/ogg',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+};
+
+const getVideoExtension = (url: string): string => {
+  const path = url.split(/[?#]/, 1)[0];
+  const lastDot = path.lastIndexOf('.');
+  return lastDot === -1 ? '' : path.slice(lastDot + 1).toLowerCase();
+};
+
+export const isVideoUrl = (url: string): boolean =>
+  !!url && getVideoExtension(url) in videoMimeTypes;
+
+/**
+ * External videos can't be proxied through the Cloudinary image fetch (it would
+ * corrupt the file), so we only render them when they pass the same SSRF/URL
+ * validation used for images. Our own hosted media and allowed domains render
+ * as-is.
+ */
+const getSafeVideoSrc = (url: string): string => {
+  if (!isExternalImageUrl(url)) {
+    return url;
+  }
+
+  return validateImageUrl(url) ? '' : url;
+};
+
+const renderVideo = (src: string, alt: string): string => {
+  const escapedAlt = markdown.utils.escapeHtml(alt);
+  const type = videoMimeTypes[getVideoExtension(src)];
+
+  if (!src) {
+    return '';
+  }
+
+  const escapedSrc = markdown.utils.escapeHtml(src);
+  const source = `<source src="${escapedSrc}"${type ? ` type="${type}"` : ''}>`;
+
+  return `<video src="${escapedSrc}" controls preload="metadata" aria-label="${escapedAlt}">${source}</video>`;
+};
+
 /**
  * Custom image renderer that proxies external images through Cloudinary
  * to prevent IP address exposure when users view markdown content with
- * external images.
+ * external images. Video URLs render as a `<video>` element instead.
  */
 markdown.renderer.rules.image = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
@@ -326,6 +376,11 @@ markdown.renderer.rules.image = function (tokens, idx, options, env, self) {
 
   if (srcIndex >= 0 && token.attrs) {
     const originalSrc = token.attrs[srcIndex][1];
+
+    if (isVideoUrl(originalSrc)) {
+      return renderVideo(getSafeVideoSrc(originalSrc), token.content);
+    }
+
     const proxiedSrc = getProxiedImageUrl(originalSrc);
 
     if (proxiedSrc) {
