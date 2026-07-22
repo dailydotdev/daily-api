@@ -1624,7 +1624,7 @@ describe('streak recovery mutation', () => {
     expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
-  it('should recover streak with 100 points on the second time', async () => {
+  it('should recover streak with 150 points on the second time', async () => {
     loggedUser = '1-srm';
     const yesterday = subDays(new Date(), 1);
     await con.getRepository(UserStreakAction).save([
@@ -1650,7 +1650,7 @@ describe('streak recovery mutation', () => {
         {
           sender: { id: systemUser.id, type: EntityType.SYSTEM },
           receiver: { id: loggedUser, type: EntityType.USER },
-          amount: 100,
+          amount: 150,
         },
       ],
     });
