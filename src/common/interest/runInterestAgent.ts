@@ -28,7 +28,8 @@ import {
 import { InterestFeedback } from '../../entity/InterestFeedback';
 import type { UserInterest } from '../../entity/UserInterest';
 import { insertFreeformPost, getExistingPost } from '../post';
-import { createExternalLink } from '../../entity/posts/utils';
+import { createExternalLink, createSharePost } from '../../entity/posts/utils';
+import { SharePost } from '../../entity/posts/SharePost';
 import { getDiscussionLink, standardizeURL } from '../links';
 import { blockingBatchRunner } from '../async';
 import { markdown } from '../markdown';
@@ -41,7 +42,10 @@ import {
   DEFAULT_INTEREST_MAX_TAGS,
 } from './feedTags';
 import { createInterestAgentModel } from './agentModel';
-import { discoverExternalUrls } from './discoverExternalUrls';
+import {
+  discoverExternalUrls,
+  type DiscoveredUrl,
+} from './discoverExternalUrls';
 import { ONE_DAY_IN_SECONDS } from '../constants';
 
 const DEFAULT_SEARCH_LIMIT = 10;
@@ -126,6 +130,148 @@ const buildSystemPrompt = (
   ]
     .filter(Boolean)
     .join('\n');
+};
+
+export const discoverAndIngestExternal = async ({
+  con,
+  logger,
+  interest,
+  query,
+  limit,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  interest: Pick<
+    UserInterest,
+    'id' | 'query' | 'userId' | 'sourceId' | 'fomoThreshold'
+  >;
+  query: string;
+  limit?: number;
+}): Promise<{ discovered: number; added: number; postIds: string[] }> => {
+  if (!interest.sourceId) {
+    return { discovered: 0, added: 0, postIds: [] };
+  }
+  const sourceId = interest.sourceId;
+
+  const maxPerDay =
+    remoteConfig.vars.interestAgentMaxDiscoveriesPerDay ??
+    DEFAULT_MAX_DISCOVERIES_PER_DAY;
+  const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
+  const discoveredToday = await con.getRepository(InterestFinding).count({
+    where: {
+      interestId: interest.id,
+      origin: InterestFindingOrigin.Discovery,
+      createdAt: MoreThanOrEqual(since),
+    },
+  });
+  const remaining = maxPerDay - discoveredToday;
+  if (remaining <= 0) {
+    return { discovered: 0, added: 0, postIds: [] };
+  }
+
+  const candidates = await discoverExternalUrls({
+    interest,
+    query,
+    limit: Math.min(limit ?? remaining, remaining),
+    logger,
+  });
+
+  const threshold = interest.fomoThreshold ?? 0.5;
+  const seenCanonical = new Set<string>();
+  const eligible = candidates.reduce<
+    { candidate: DiscoveredUrl; url: string; canonicalUrl: string }[]
+  >((acc, candidate) => {
+    if (candidate.score < threshold) {
+      return acc;
+    }
+    const { url, canonicalUrl } = standardizeURL(candidate.url);
+    if (seenCanonical.has(canonicalUrl)) {
+      return acc;
+    }
+    seenCanonical.add(canonicalUrl);
+    acc.push({ candidate, url, canonicalUrl });
+    return acc;
+  }, []);
+
+  const postIds: string[] = [];
+  await blockingBatchRunner({
+    data: eligible,
+    batchLimit: DISCOVERY_BATCH_SIZE,
+    runner: async (batch) => {
+      const results = await Promise.all(
+        batch.map(async ({ candidate, url, canonicalUrl }) => {
+          const existing = await getExistingPost(con, { url, canonicalUrl });
+          if (existing?.deleted) {
+            return null;
+          }
+          let articleId = existing?.id;
+          if (!articleId) {
+            articleId = await generateShortId();
+            await createExternalLink({
+              con,
+              args: {
+                id: articleId,
+                title: candidate.title || undefined,
+                url,
+                canonicalUrl,
+                authorId: interest.userId,
+                originalUrl: candidate.url,
+              },
+            });
+          }
+
+          const existingShare = await con.getRepository(SharePost).findOne({
+            select: ['id'],
+            where: { sourceId, sharedPostId: articleId, deleted: false },
+          });
+          const shareId =
+            existingShare?.id ??
+            (
+              await createSharePost({
+                con,
+                args: {
+                  authorId: interest.userId,
+                  sourceId,
+                  postId: articleId,
+                  visible: true,
+                },
+              })
+            ).id;
+
+          const insertResult = await con
+            .getRepository(InterestFinding)
+            .createQueryBuilder()
+            .insert()
+            .values({
+              id: await generateShortId(),
+              interestId: interest.id,
+              postId: shareId,
+              score: candidate.score,
+              rationale: candidate.rationale,
+              status: InterestFindingStatus.New,
+              origin: InterestFindingOrigin.Discovery,
+            })
+            .orIgnore()
+            .execute();
+          return (insertResult.raw as unknown[])?.length ? shareId : null;
+        }),
+      );
+      for (const shareId of results) {
+        if (shareId) {
+          postIds.push(shareId);
+        }
+      }
+    },
+  });
+
+  logger
+    .child({ provider: 'interest agent' })
+    .info(
+      { interestId: interest.id, query, added: postIds.length },
+      'interest agent discover_external',
+    );
+
+  return { discovered: candidates.length, added: postIds.length, postIds };
 };
 
 export const runInterestAgent = async ({
@@ -450,109 +596,16 @@ export const runInterestAgent = async ({
           return respond({ error: 'web_search_budget_exhausted', maxCalls });
         }
 
-        const maxPerDay =
-          remoteConfig.vars.interestAgentMaxDiscoveriesPerDay ??
-          DEFAULT_MAX_DISCOVERIES_PER_DAY;
-        const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
-        const discoveredToday = await con.getRepository(InterestFinding).count({
-          where: {
-            interestId: interest.id,
-            origin: InterestFindingOrigin.Discovery,
-            createdAt: MoreThanOrEqual(since),
-          },
-        });
-        const remaining = maxPerDay - discoveredToday;
-        if (remaining <= 0) {
-          return respond({ error: 'daily_discovery_cap_reached', maxPerDay });
-        }
-
-        const candidates = await discoverExternalUrls({
+        const result = await discoverAndIngestExternal({
+          con,
+          logger,
           interest,
           query: params.query,
-          limit: Math.min(params.limit ?? remaining, remaining),
-          logger,
+          limit: params.limit,
         });
-        const threshold = interest.fomoThreshold ?? 0.5;
-        const seenCanonical = new Set<string>();
-        const eligible = candidates.reduce<
-          {
-            candidate: (typeof candidates)[number];
-            url: string;
-            canonicalUrl: string;
-          }[]
-        >((acc, candidate) => {
-          if (candidate.score < threshold) {
-            return acc;
-          }
-          const { url, canonicalUrl } = standardizeURL(candidate.url);
-          if (seenCanonical.has(canonicalUrl)) {
-            return acc;
-          }
-          seenCanonical.add(canonicalUrl);
-          acc.push({ candidate, url, canonicalUrl });
-          return acc;
-        }, []);
-
-        let added = 0;
-        await blockingBatchRunner({
-          data: eligible,
-          batchLimit: DISCOVERY_BATCH_SIZE,
-          runner: async (batch) => {
-            const inserted = await Promise.all(
-              batch.map(async ({ candidate, url, canonicalUrl }) => {
-                const existing = await getExistingPost(con, {
-                  url,
-                  canonicalUrl,
-                });
-                if (existing?.deleted) {
-                  return false;
-                }
-                let postId = existing?.id;
-                if (!postId) {
-                  postId = await generateShortId();
-                  await createExternalLink({
-                    con,
-                    args: {
-                      id: postId,
-                      title: candidate.title || undefined,
-                      url,
-                      canonicalUrl,
-                      authorId: interest.userId,
-                      originalUrl: candidate.url,
-                    },
-                  });
-                }
-                const insertResult = await con
-                  .getRepository(InterestFinding)
-                  .createQueryBuilder()
-                  .insert()
-                  .values({
-                    id: await generateShortId(),
-                    interestId: interest.id,
-                    postId,
-                    score: candidate.score,
-                    rationale: candidate.rationale,
-                    status: InterestFindingStatus.New,
-                    origin: InterestFindingOrigin.Discovery,
-                  })
-                  .orIgnore()
-                  .execute();
-                if (!(insertResult.raw as unknown[])?.length) {
-                  return false;
-                }
-                addedPostIds.add(postId);
-                state.findingsAdded += 1;
-                return true;
-              }),
-            );
-            added += inserted.filter(Boolean).length;
-          },
-        });
-        log.info(
-          { interestId: interest.id, query: params.query, added },
-          'interest agent discover_external',
-        );
-        return respond({ discovered: candidates.length, added });
+        result.postIds.forEach((postId) => addedPostIds.add(postId));
+        state.findingsAdded += result.added;
+        return respond({ discovered: result.discovered, added: result.added });
       },
     });
   };

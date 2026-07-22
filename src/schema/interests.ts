@@ -19,6 +19,7 @@ import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { GQLEmptyResponse } from './common';
 import type { GQLPost } from './posts';
+import { PostType } from '../entity/posts/Post';
 import {
   createInterestSchema,
   interestIdSchema,
@@ -265,6 +266,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           builder.queryBuilder = builder.queryBuilder
             .where(`${builder.alias}."sourceId" = :sourceId`, {
               sourceId: interest.sourceId,
+            })
+            .andWhere(`${builder.alias}.type = :type`, {
+              type: PostType.Freeform,
             })
             .andWhere(`${builder.alias}.deleted = false`)
             .orderBy(`${builder.alias}."createdAt"`, 'DESC');

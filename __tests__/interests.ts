@@ -11,6 +11,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
+import { FreeformPost } from '../src/entity/posts/FreeformPost';
 import { Feed, FeedOrigin } from '../src/entity/Feed';
 import { AgentSource, SourceType, SourceUser } from '../src/entity/Source';
 import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
@@ -540,12 +541,12 @@ describe('query interestPosts', () => {
       status: UserInterestStatus.Active,
       sourceId: 'isrc-1',
     });
-    await saveFixtures(con, ArticlePost, [
+    await saveFixtures(con, FreeformPost, [
       {
         id: 'ipost-1',
         shortId: 'ipost-1',
         title: 'Interest summary',
-        url: 'http://interest.com/1',
+        content: 'Interest summary content',
         sourceId: 'isrc-1',
         private: true,
         showOnFeed: false,
