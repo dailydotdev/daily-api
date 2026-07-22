@@ -52,6 +52,37 @@ describe('discoverExternalUrls', () => {
     expect(result.map((r) => r.url)).toEqual(['https://a.com']);
   });
 
+  it('drops daily.dev urls so the agent cannot ingest our own content', async () => {
+    mockContent(
+      JSON.stringify([
+        {
+          url: 'https://daily.dev/posts/x',
+          title: 'own',
+          rationale: 'r',
+          score: 0.9,
+        },
+        {
+          url: 'https://app.daily.dev/posts/y',
+          title: 'own2',
+          rationale: 'r',
+          score: 0.9,
+        },
+        {
+          url: 'https://external.com/a',
+          title: 'ext',
+          rationale: 'r',
+          score: 0.9,
+        },
+      ]),
+    );
+    const result = await discoverExternalUrls({
+      interest,
+      query: 'zig',
+      logger,
+    });
+    expect(result.map((r) => r.url)).toEqual(['https://external.com/a']);
+  });
+
   it('returns an empty array when the reply is not a JSON array', async () => {
     mockContent('I could not find anything relevant.');
     const result = await discoverExternalUrls({

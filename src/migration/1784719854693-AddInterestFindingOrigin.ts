@@ -5,13 +5,13 @@ export class AddInterestFindingOrigin1784719854693 implements MigrationInterface
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "interest_finding" ADD "origin" text NOT NULL DEFAULT 'search'`,
+      `ALTER TABLE "interest_finding" ADD COLUMN IF NOT EXISTS "origin" text NOT NULL DEFAULT 'search'`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "interest_finding" DROP COLUMN "origin"`,
+      `ALTER TABLE "interest_finding" DROP COLUMN IF EXISTS "origin"`,
     );
   }
 }

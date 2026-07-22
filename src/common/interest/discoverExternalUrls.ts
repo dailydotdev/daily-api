@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { anthropicClient } from '../../integrations/anthropic/client';
+import type { AnthropicResponse } from '../../integrations/anthropic/types';
 import type { UserInterest } from '../../entity/UserInterest';
 
 export type DiscoveredUrl = {
@@ -21,6 +22,15 @@ const extractJsonArray = (text: string): string => {
 
 const isHttpUrl = (value: unknown): value is string =>
   typeof value === 'string' && /^https?:\/\//i.test(value);
+
+const isDailyDevUrl = (value: string): boolean => {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'daily.dev' || host.endsWith('.daily.dev');
+  } catch {
+    return false;
+  }
+};
 
 export const discoverExternalUrls = async ({
   interest,
@@ -53,7 +63,7 @@ export const discoverExternalUrls = async ({
     'If nothing good is found, reply with [].',
   ].join('\n');
 
-  let response;
+  let response: AnthropicResponse;
   try {
     response = await anthropicClient.createMessage({
       model: process.env.INTEREST_AGENT_MODEL || 'claude-opus-4-8',
@@ -99,7 +109,11 @@ export const discoverExternalUrls = async ({
   const seen = new Set<string>();
   const results: DiscoveredUrl[] = [];
   for (const item of parsed as Array<Record<string, unknown>>) {
-    if (!isHttpUrl(item?.url) || seen.has(item.url)) {
+    if (
+      !isHttpUrl(item?.url) ||
+      seen.has(item.url) ||
+      isDailyDevUrl(item.url)
+    ) {
       continue;
     }
     seen.add(item.url);
