@@ -25,7 +25,7 @@ import {
   YouTubePost,
 } from '../../src/entity';
 import { PostRelationType } from '../../src/entity/posts/PostRelation';
-import { sourcesFixture } from '../fixture/source';
+import { createSource, sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { randomUUID } from 'crypto';
@@ -1146,6 +1146,50 @@ it('should set social twitter showOnFeed based on order field', async () => {
     });
     expect(post.showOnFeed).toEqual(expectedShowOnFeed);
     expect(post.flags.showOnFeed).toEqual(expectedShowOnFeed);
+  }
+});
+
+it('should force showOnFeed false for aggregation-only sources regardless of order', async () => {
+  await con
+    .getRepository(Source)
+    .save(
+      createSource('x-trends', 'Trending on X', 'http://image.com/x-trends'),
+    );
+
+  const cases = [
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/2001',
+      content: 'x-trends tweet without order',
+    },
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/2002',
+      content: 'x-trends tweet with order',
+      order: 1,
+    },
+  ];
+
+  for (const { yggdrasilId, url, content, order } of cases) {
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      content_type: PostType.SocialTwitter,
+      url,
+      source_id: 'x-trends',
+      ...(order ? { order } : {}),
+      extra: {
+        subtype: 'tweet',
+        content,
+      },
+    });
+  }
+
+  for (const { yggdrasilId } of cases) {
+    const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
+      yggdrasilId,
+    });
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
   }
 });
 

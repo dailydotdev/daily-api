@@ -1,5 +1,6 @@
 import * as he from 'he';
 import {
+  FEED_HIDDEN_SOURCES,
   findAuthor,
   mergeKeywords,
   parseReadTime,
@@ -110,6 +111,11 @@ export const buildCommonPostFields = ({
     ? data?.extra?.duration / 60
     : undefined;
 
+  // Aggregation-only sources are public but must never show posts on feed,
+  // regardless of the per-post order/showOnFeed hint from ingestion.
+  const resolvedShowOnFeed =
+    sourceId && FEED_HIDDEN_SOURCES.has(sourceId) ? false : showOnFeed;
+
   return {
     origin: data?.origin as PostOrigin,
     authorId,
@@ -130,10 +136,10 @@ export const buildCommonPostFields = ({
     siteTwitter: data?.extra?.site_twitter,
     toc: data?.extra?.toc,
     contentCuration: data?.extra?.content_curation,
-    showOnFeed,
+    showOnFeed: resolvedShowOnFeed,
     flags: {
       private: privacy,
-      showOnFeed,
+      showOnFeed: resolvedShowOnFeed,
       sentAnalyticsReport: privacy || !authorId,
     },
     yggdrasilId: data?.id,
