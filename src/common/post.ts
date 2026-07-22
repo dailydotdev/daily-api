@@ -313,7 +313,7 @@ export const createPollPost = async ({
   const scheduledAt = validatePostScheduledAt(rawScheduledAt);
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: restArgs.sourceId,
-    type: In([SourceType.Squad, SourceType.User]),
+    type: In([SourceType.Squad, SourceType.User, SourceType.Agent]),
   });
   const startsAt = scheduledAt ?? new Date();
 
@@ -380,7 +380,7 @@ export const insertFreeformPost = async ({
 }: CreateFreeformPostArgs) => {
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: args.sourceId,
-    type: In([SourceType.Squad, SourceType.User]),
+    type: In([SourceType.Squad, SourceType.User, SourceType.Agent]),
   });
 
   let createdPost = con.getRepository(FreeformPost).create({

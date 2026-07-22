@@ -1047,8 +1047,8 @@ export const typeDefs = /* GraphQL */ `
       last: Int
       """
       When true, lazily seed one custom feed per main-feed followed keyword
-      (with recswipe backfill) for the caller if they have none yet. The client
-      decides when to opt in (e.g. behind a GrowthBook rollout flag).
+      for the caller if they have none yet. The client decides when to opt in
+      (e.g. behind a GrowthBook rollout flag).
       """
       includeTagChipFeeds: Boolean = false
     ): FeedConnection! @auth
@@ -2552,6 +2552,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               { tagChipOrigin: FeedOrigin.TagChip },
             );
           }
+
+          builder.queryBuilder.andWhere(
+            `(${builder.alias}.flags->>'origin' IS DISTINCT FROM :agentOrigin)`,
+            { agentOrigin: FeedOrigin.Agent },
+          );
 
           builder.queryBuilder
             .addOrderBy(`${builder.alias}."createdAt"`, 'ASC')

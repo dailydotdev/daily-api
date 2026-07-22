@@ -114,6 +114,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
   user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
+  user_award_thanks: '',
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   briefing_ready: '81',
@@ -143,6 +144,10 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   achievement_unlocked: '', // No email for achievement unlocks
   live_room_started: '',
   live_room_starting_soon: '',
+  streak_freeze_used: '',
+  streak_freeze_depleted: '',
+  interest_content_available: '',
+  interest_content_batch: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -285,6 +290,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   post_bookmark_reminder: async () => null,
   scheduled_post_published: async () => null,
   streak_reset_restore: async () => null,
+  streak_freeze_used: async () => null,
+  streak_freeze_depleted: async () => null,
   community_picks_failed: async (con, user, notification) => {
     const submission = await con
       .getRepository(Submission)
@@ -1077,6 +1084,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   user_follow: async () => {
     return null;
   },
+  user_award_thanks: async () => {
+    return null;
+  },
   marketing: async () => {
     return null;
   },
@@ -1315,6 +1325,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   live_room_starting_soon: async () => {
+    return null;
+  },
+  interest_content_available: async () => {
+    return null;
+  },
+  interest_content_batch: async () => {
     return null;
   },
 };

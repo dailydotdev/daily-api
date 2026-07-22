@@ -85,7 +85,7 @@ import { maxFeedsPerUser, type CoresRole, type TLocation } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
-import { Continent, countryCodeToContinent } from '../common/geo';
+import { Continent, countryCodeToContinent, getGeo } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
 import { checkQuestProgress } from '../common/quest/progress';
@@ -322,11 +322,11 @@ const updateLastExtensionUse = async ({
 };
 
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
-  const region = req.headers['x-client-region'] as string;
+  const region = getGeo({ ip: req.ip }).country;
 
   return {
     region,
-    continent: countryCodeToContinent[region],
+    continent: region ? countryCodeToContinent[region] : undefined,
   };
 };
 

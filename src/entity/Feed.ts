@@ -11,6 +11,7 @@ export enum FeedOrderBy {
 
 export enum FeedOrigin {
   TagChip = 'TAG_CHIP',
+  Agent = 'agent',
 }
 
 export type FeedFlags = Partial<{

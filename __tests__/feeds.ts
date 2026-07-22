@@ -74,7 +74,6 @@ import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import { feedClient } from '../src/integrations/feed/generators';
-import { recswipeClient } from '../src/integrations/recswipe/clients';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -84,17 +83,6 @@ import { ContentPreferenceKeyword } from '../src/entity/contentPreference/Conten
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { SubscriptionCycles } from '../src/paddle';
-
-jest.mock('../src/integrations/recswipe/clients', () => ({
-  ...jest.requireActual('../src/integrations/recswipe/clients'),
-  recswipeClient: {
-    recommendTags: jest.fn(),
-  },
-}));
-
-const recommendTagsMock = recswipeClient.recommendTags as jest.MockedFunction<
-  typeof recswipeClient.recommendTags
->;
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -4864,8 +4852,6 @@ describe('query feedList', () => {
     let getUserTagsSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      recommendTagsMock.mockReset();
-      recommendTagsMock.mockResolvedValue({ recommended_tags: [] });
       getUserTagsSpy = jest
         .spyOn(feedClient, 'getUserTags')
         .mockResolvedValue([]);
@@ -4890,7 +4876,6 @@ describe('query feedList', () => {
         .getMany();
       expect(chipFeeds).toHaveLength(0);
       expect(getUserTagsSpy).not.toHaveBeenCalled();
-      expect(recommendTagsMock).not.toHaveBeenCalled();
     });
 
     it('excludes existing tag-chip feeds from the response when omitted', async () => {
@@ -4922,6 +4907,14 @@ describe('query feedList', () => {
     });
 
     it('returns existing tag-chip feeds and is idempotent when true', async () => {
+      await con.getRepository(User).update(
+        { id: '1' },
+        {
+          flags: updateFlagsStatement<User>({
+            tagChipFeedsSeededAt: new Date().toISOString(),
+          }),
+        },
+      );
       await con.getRepository(Feed).save({
         id: 'tcfL2',
         userId: '1',
@@ -4944,6 +4937,7 @@ describe('query feedList', () => {
         })
         .getMany();
       expect(chipFeeds).toHaveLength(1);
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
     });
   });
 });
@@ -6168,10 +6162,6 @@ describe('query feedTagsList', () => {
     }
   `;
 
-  beforeEach(() => {
-    recommendTagsMock.mockReset();
-  });
-
   it('should require auth', async () => {
     return testQueryErrorCode(
       client,
@@ -6202,7 +6192,6 @@ describe('query feedTagsList', () => {
       { value: 'anthropic', label: 'anthropic' },
     ]);
     expect(capturedBody).toEqual({ user_id: '1', limit: 5 });
-    expect(recommendTagsMock).not.toHaveBeenCalled();
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
     expect(user?.flags?.feedTagsList?.tags).toEqual([
@@ -6318,36 +6307,7 @@ describe('query feedTagsList', () => {
     expect(nock.pendingMocks()).toEqual([]);
   });
 
-  it('should backfill with recswipe when feed returns fewer than limit', async () => {
-    loggedUser = '1';
-    nock('http://localhost:6000')
-      .post('/api/user_tags')
-      .reply(200, { data: ['ai-coding', 'llm'] });
-
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [
-        { tag: 'machine-learning', score: 0.9 },
-        { tag: 'pytorch', score: 0.8 },
-        { tag: 'tensorflow', score: 0.7 },
-      ],
-    });
-
-    const res = await client.query(QUERY, { variables: { limit: 5 } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.feedTagsList.tags).toEqual([
-      { value: 'ai-coding', label: 'ai-coding' },
-      { value: 'llm', label: 'llm' },
-      { value: 'machine-learning', label: 'machine-learning' },
-      { value: 'pytorch', label: 'pytorch' },
-      { value: 'tensorflow', label: 'tensorflow' },
-    ]);
-    expect(recommendTagsMock).toHaveBeenCalledWith('1', {
-      selectedTags: ['ai-coding', 'llm'],
-      n: 3,
-    });
-  });
-
-  it('should cache empty and return empty when feed service fails', async () => {
+  it('should cache empty and return empty when all sources are empty', async () => {
     loggedUser = '1';
     nock('http://localhost:6000')
       .post('/api/user_tags')
@@ -6356,36 +6316,96 @@ describe('query feedTagsList', () => {
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([]);
-    expect(recommendTagsMock).not.toHaveBeenCalled();
 
     const user = await con.getRepository(User).findOneBy({ id: '1' });
     expect(user?.flags?.feedTagsList?.tags).toEqual([]);
     expect(user?.flags?.feedTagsList?.updatedAt).toEqual(expect.any(String));
   });
 
-  it('should dedupe overlap between feed and recswipe results', async () => {
+  it('should fall back to onboarding-selected tags when feed service returns nothing', async () => {
     loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, Keyword, [
+      { value: 'onboarding-1', status: 'allow' },
+      { value: 'onboarding-2', status: 'allow' },
+      { value: 'onboarding-blocked', status: 'allow' },
+    ]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'onboarding-1',
+        referenceId: 'onboarding-1',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'onboarding-2',
+        referenceId: 'onboarding-2',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'onboarding-blocked',
+        referenceId: 'onboarding-blocked',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
     nock('http://localhost:6000')
       .post('/api/user_tags')
-      .reply(200, { data: ['ai-coding', 'llm'] });
+      .reply(200, { data: [] });
 
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [
-        { tag: 'llm', score: 0.95 },
-        { tag: 'machine-learning', score: 0.9 },
-        { tag: 'pytorch', score: 0.8 },
-        { tag: 'tensorflow', score: 0.7 },
-      ],
-    });
+    const res = await client.query(QUERY, { variables: { limit: 5 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedTagsList.tags).toEqual([
+      { value: 'onboarding-1', label: 'onboarding-1' },
+      { value: 'onboarding-2', label: 'onboarding-2' },
+    ]);
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user?.flags?.feedTagsList?.tags).toEqual([
+      { value: 'onboarding-1', label: 'onboarding-1' },
+      { value: 'onboarding-2', label: 'onboarding-2' },
+    ]);
+  });
+
+  it('should not use onboarding fallback when feed service returns tags', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, Keyword, [
+      { value: 'onboarding-1', status: 'allow' },
+    ]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'onboarding-1',
+        referenceId: 'onboarding-1',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    nock('http://localhost:6000')
+      .post('/api/user_tags')
+      .reply(200, {
+        data: ['ai-coding', 'llm', 'claude-code', 'ai-agents', 'anthropic'],
+      });
 
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
       { value: 'ai-coding', label: 'ai-coding' },
       { value: 'llm', label: 'llm' },
-      { value: 'machine-learning', label: 'machine-learning' },
-      { value: 'pytorch', label: 'pytorch' },
-      { value: 'tensorflow', label: 'tensorflow' },
+      { value: 'claude-code', label: 'claude-code' },
+      { value: 'ai-agents', label: 'ai-agents' },
+      { value: 'anthropic', label: 'anthropic' },
     ]);
   });
 
@@ -6395,22 +6415,11 @@ describe('query feedTagsList', () => {
       .post('/api/user_tags')
       .reply(200, { data: ['rust', 'rust', 'golang', 'rust'] });
 
-    recommendTagsMock.mockResolvedValue({
-      recommended_tags: [
-        { tag: 'docker', score: 0.9 },
-        { tag: 'kubernetes', score: 0.8 },
-        { tag: 'python', score: 0.7 },
-      ],
-    });
-
     const res = await client.query(QUERY, { variables: { limit: 5 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedTagsList.tags).toEqual([
       { value: 'rust', label: 'rust' },
       { value: 'golang', label: 'golang' },
-      { value: 'docker', label: 'docker' },
-      { value: 'kubernetes', label: 'kubernetes' },
-      { value: 'python', label: 'python' },
     ]);
   });
 

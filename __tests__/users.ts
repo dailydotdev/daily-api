@@ -63,6 +63,7 @@ import {
   PostType,
   UNKNOWN_SOURCE,
 } from '../src/entity';
+import { Product, ProductType } from '../src/entity/Product';
 import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
 import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
 import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
@@ -74,6 +75,7 @@ import {
   getTimezonedStartOfISOWeek,
   ghostUser,
   type GQLUserTopReader,
+  MAX_STREAK_FREEZES,
   portfolioLimit,
   sendEmail,
   systemUser,
@@ -1745,6 +1747,269 @@ describe('streak recovery mutation', () => {
       { mutation: MUTATION_NON_CORES },
       'FORBIDDEN',
     );
+  });
+});
+
+describe('streakFreezeProducts query', () => {
+  const QUERY = `
+    query {
+      streakFreezeProducts {
+        id
+        name
+        value
+        flags {
+          quantity
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '11111111-1111-1111-1111-111111111111',
+        name: 'Streak freeze 3-pack',
+        image: 'https://daily.dev/freeze.jpg',
+        type: ProductType.StreakFreeze,
+        value: 80,
+        flags: { quantity: 3 },
+      },
+      {
+        id: '22222222-2222-2222-2222-222222222222',
+        name: 'Streak freeze',
+        image: 'https://daily.dev/freeze.jpg',
+        type: ProductType.StreakFreeze,
+        value: 30,
+        flags: { quantity: 1 },
+      },
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        name: 'Some award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+    ]);
+  });
+
+  it('should return only streak freeze products ordered by value ascending', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.streakFreezeProducts).toMatchObject([
+      {
+        id: '22222222-2222-2222-2222-222222222222',
+        name: 'Streak freeze',
+        value: 30,
+        flags: { quantity: 1 },
+      },
+      {
+        id: '11111111-1111-1111-1111-111111111111',
+        name: 'Streak freeze 3-pack',
+        value: 80,
+        flags: { quantity: 3 },
+      },
+    ]);
+  });
+});
+
+describe('userStreakFreezeDates query', () => {
+  const QUERY = `
+    query UserStreakFreezeDates($limit: Int) {
+      userStreakFreezeDates(limit: $limit)
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: '1',
+        type: UserStreakActionType.Freeze,
+        createdAt: new Date('2024-06-24'),
+      },
+      {
+        userId: '1',
+        type: UserStreakActionType.Freeze,
+        createdAt: new Date('2024-06-25'),
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () =>
+    await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return the dates of consumed freezes, newest first', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userStreakFreezeDates).toEqual([
+      new Date('2024-06-25').toISOString(),
+      new Date('2024-06-24').toISOString(),
+    ]);
+  });
+});
+
+describe('purchaseStreakFreeze mutation', () => {
+  const MUTATION = `
+    mutation PurchaseStreakFreeze($productId: ID!) {
+      purchaseStreakFreeze(productId: $productId) {
+        freezesAvailable
+        transactionId
+        balance {
+          amount
+        }
+      }
+    }
+  `;
+
+  const productId = '44444444-4444-4444-4444-444444444444';
+  const awardProductId = '55555555-5555-5555-5555-555555555555';
+
+  beforeEach(async () => {
+    const mockTransport = createMockNjordTransport();
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+
+    await ioRedisPool.execute((client) => client.flushall());
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-psf`,
+        username: `${item.username}-psf`,
+        coresRole: CoresRole.User,
+      })),
+    );
+
+    await saveFixtures(con, Product, [
+      {
+        id: productId,
+        name: 'Streak freeze 3-pack',
+        image: 'https://daily.dev/freeze.jpg',
+        type: ProductType.StreakFreeze,
+        value: 80,
+        flags: { quantity: 3 },
+      },
+      {
+        id: awardProductId,
+        name: 'Some award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 80,
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () =>
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when the product is not a streak freeze product', async () => {
+    loggedUser = '1-psf';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId: awardProductId } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw when the product is restricted', async () => {
+    loggedUser = '1-psf';
+
+    await con
+      .getRepository(Product)
+      .update({ id: productId }, { flags: { quantity: 3, restricted: true } });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw when the user does not have enough Cores', async () => {
+    loggedUser = '1-psf';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId } },
+      'CONFLICT',
+    );
+  });
+
+  it('should throw when the purchase would exceed the freeze cap', async () => {
+    loggedUser = '1-psf';
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 1000,
+        },
+      ],
+    });
+
+    await con
+      .getRepository(UserStreak)
+      .save({ userId: loggedUser, freezesAvailable: MAX_STREAK_FREEZES - 1 });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { productId } },
+      'CONFLICT',
+    );
+  });
+
+  it('should purchase a streak freeze pack', async () => {
+    loggedUser = '1-psf';
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
+
+    const res = await client.mutate(MUTATION, { variables: { productId } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.purchaseStreakFreeze).toMatchObject({
+      freezesAvailable: 3,
+      transactionId: expect.any(String),
+      balance: { amount: 20 },
+    });
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOneByOrFail({ userId: loggedUser });
+    expect(streak.freezesAvailable).toBe(3);
+
+    const { transactionId } = res.data.purchaseStreakFreeze;
+    const transaction = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transactionId });
+    expect(transaction.senderId).toEqual(loggedUser);
+    expect(transaction.receiverId).toEqual(systemUser.id);
+    expect(transaction.productId).toEqual(productId);
+    expect(transaction.value).toEqual(80);
   });
 });
 

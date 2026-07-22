@@ -26,6 +26,7 @@ export enum SourceType {
   Machine = 'machine',
   Squad = 'squad',
   User = 'user',
+  Agent = 'agent',
 }
 
 export interface SourceFlagsPublic {
@@ -202,3 +203,6 @@ export class SourceUser extends Source {
   })
   user: Promise<User>;
 }
+
+@ChildEntity(SourceType.Agent)
+export class AgentSource extends Source {}

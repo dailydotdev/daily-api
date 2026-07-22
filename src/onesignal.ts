@@ -202,6 +202,7 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.PostBookmarkReminder]: 'Reading reminder',
   [NotificationType.UserTopReaderBadge]: 'Top Reader badge',
   [NotificationType.UserReceivedAward]: 'Award received',
+  [NotificationType.UserAwardThanks]: 'You got thanks',
   [NotificationType.OrganizationMemberJoined]: 'New team member',
   [NotificationType.CampaignPostCompleted]: 'Boost ended',
   [NotificationType.CampaignSquadCompleted]: 'Boost ended',

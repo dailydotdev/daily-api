@@ -26,8 +26,14 @@ import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { CampaignUpdateEvent } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { UserExperienceType } from '../entity/user/experiences/types';
+import type { UserInterest } from '../entity/UserInterest';
 
 export type Reference<T> = ChangeObject<T> | T;
+
+export type NotificationInterestBatchContext = NotificationBaseContext & {
+  interest: Pick<UserInterest, 'id' | 'query'>;
+  count: number;
+};
 
 export type NotificationBundleV2 = {
   notification: DeepPartial<NotificationV2>;
@@ -88,6 +94,13 @@ export interface NotificationStreakRestoreContext extends NotificationStreakCont
   };
 }
 
+export interface NotificationStreakFreezeContext extends NotificationStreakContext {
+  freeze: {
+    date: string;
+    remainingFreezes: number;
+  };
+}
+
 export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;
   recipient: Reference<User>;
@@ -101,6 +114,13 @@ export type NotificationAwardContext = NotificationBaseContext & {
   targetUrl: string;
   targetType: 'user' | 'post' | 'comment';
   source?: Reference<Source>;
+};
+
+export type NotificationAwardThanksContext = NotificationBaseContext & {
+  transaction: Reference<UserTransaction>;
+  sender: Reference<User>;
+  receiver: Reference<User>;
+  targetUrl: string;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {

@@ -27,9 +27,11 @@ import sourcePostModerationRejectedNotification from './sourcePostModerationReje
 import { postAddedUserNotification } from './postAddedUserNotification';
 import { userTopReaderAdded } from './userTopReaderAdded';
 import { userReceivedAward } from '../transactions/userReceivedAward';
+import { userAwardThanks } from '../transactions/userAwardThanks';
 import { organizationUserJoined } from '../organization/organizationUserJoined';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
+import { interestContentAvailableNotification } from './interestContentAvailableNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
@@ -46,6 +48,7 @@ import { reMatchedOpportunityNotification } from './reMatchedOpportunityNotifica
 import { achievementUnlockedNotification } from './achievementUnlockedNotification';
 import { liveRoomStartingSoonNotification } from './liveRoomStartingSoonNotification';
 import { scheduledPostPublishedNotification } from './scheduledPostPublishedNotification';
+import streakFreezeNotification from './streakFreezeNotification';
 
 export function notificationWorkerToWorker(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,9 +123,11 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   userTopReaderAdded,
   userGiftedPlusNotification,
   userReceivedAward,
+  userAwardThanks,
   organizationUserJoined,
   campaignUpdatedAction,
   userBriefReadyNotification,
+  interestContentAvailableNotification,
   userFollowNotification,
   candidateOpportunityMatchNotification,
   campaignPostAnalyticsNotification,
@@ -138,6 +143,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   achievementUnlockedNotification,
   liveRoomStartingSoonNotification,
   scheduledPostPublishedNotification,
+  streakFreezeNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

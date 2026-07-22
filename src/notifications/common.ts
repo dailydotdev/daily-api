@@ -63,10 +63,13 @@ export enum NotificationType {
   UserTopReaderBadge = 'user_given_top_reader',
   UserGiftedPlus = 'user_gifted_plus',
   UserReceivedAward = 'user_received_award',
+  UserAwardThanks = 'user_award_thanks',
   OrganizationMemberJoined = 'organization_member_joined',
   CampaignPostCompleted = 'campaign_post_completed',
   CampaignSquadCompleted = 'campaign_squad_completed',
   BriefingReady = 'briefing_ready',
+  InterestContentAvailable = 'interest_content_available',
+  InterestContentBatch = 'interest_content_batch',
   UserFollow = 'user_follow',
   Marketing = 'marketing',
   NewUserWelcome = 'new_user_welcome',
@@ -91,6 +94,8 @@ export enum NotificationType {
   DigestReady = 'digest_ready',
   LiveRoomStarted = 'live_room_started',
   LiveRoomStartingSoon = 'live_room_starting_soon',
+  StreakFreezeUsed = 'streak_freeze_used',
+  StreakFreezeDepleted = 'streak_freeze_depleted',
 }
 
 export enum NotificationPreferenceType {
@@ -162,6 +167,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
+  [NotificationType.UserAwardThanks]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
   [NotificationType.ArticleReportApproved]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
@@ -172,6 +181,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.StreakResetRestore]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.StreakFreezeUsed]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.StreakFreezeDepleted]: {
+    email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   ['streak_reminder']: {
@@ -239,6 +256,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.BriefingReady]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.InterestContentAvailable]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.InterestContentBatch]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
@@ -542,6 +567,7 @@ enum UserNotificationUniqueKey {
   PostAdded = 'post_added',
   DigestReady = 'digest_ready',
   ScheduledPostPublished = 'scheduled_post_published',
+  InterestContentBatch = 'interest_content_batch',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -553,6 +579,8 @@ const notificationTypeToUniqueKey: Partial<
   [NotificationType.DigestReady]: UserNotificationUniqueKey.DigestReady,
   [NotificationType.ScheduledPostPublished]:
     UserNotificationUniqueKey.ScheduledPostPublished,
+  [NotificationType.InterestContentBatch]:
+    UserNotificationUniqueKey.InterestContentBatch,
 };
 
 const fixedUniqueKeyTypes = new Set<NotificationType>([

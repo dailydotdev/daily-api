@@ -1,12 +1,13 @@
 import { crons } from '../../src/cron/index';
 import cron from '../../src/cron/updateCurrentStreak';
 import { usersFixture } from '../fixture';
-import { User, UserStreak } from '../../src/entity';
+import { Settings, User, UserStreak } from '../../src/entity';
 import { doNotFake, expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import nock from 'nock';
 import { UserStreakAction, UserStreakActionType } from '../../src/entity';
+import { CoresRole } from '../../src/types';
 
 let con: DataSource;
 
@@ -242,6 +243,142 @@ describe('updateCurrentStreak cron', () => {
         .getRepository(UserStreak)
         .findOneBy({ userId: '2' });
       expect(streak.currentStreak).toBe(0);
+    });
+  });
+
+  describe('incorporating streak freeze', () => {
+    beforeEach(async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      await con
+        .getRepository(User)
+        .update({ id: '1' }, { coresRole: CoresRole.User });
+    });
+
+    it('should consume a single streak freeze instead of resetting when one day was missed', async () => {
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { freezesAvailable: 3 });
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+      expect(streak.freezesAvailable).toBe(2);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      expect(freezeActions).toHaveLength(1);
+      expect(freezeActions[0].createdAt).toEqual(new Date('2024-06-25'));
+    });
+
+    it('should consume one freeze per missed day when the gap spans multiple days', async () => {
+      await con.getRepository(UserStreak).update(
+        { userId: '1' },
+        {
+          lastViewAt: new Date('2024-06-23'), // Sunday
+          freezesAvailable: 2,
+        },
+      );
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+      expect(streak.freezesAvailable).toBe(0);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      expect(freezeActions).toHaveLength(2);
+      const sortedTimes = freezeActions
+        .map(({ createdAt }) => createdAt.getTime())
+        .sort((a, b) => a - b);
+      expect(sortedTimes).toEqual([
+        new Date('2024-06-24').getTime(),
+        new Date('2024-06-25').getTime(),
+      ]);
+    });
+
+    it('should reset the streak when the freeze balance cannot cover the whole gap', async () => {
+      await con.getRepository(UserStreak).update(
+        { userId: '1' },
+        {
+          lastViewAt: new Date('2024-06-23'), // Sunday
+          freezesAvailable: 1,
+        },
+      );
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(0);
+      expect(streak.freezesAvailable).toBe(1);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      expect(freezeActions).toHaveLength(0);
+    });
+
+    it('should reset the streak when the user opted out of automated streak freeze', async () => {
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { freezesAvailable: 3 });
+      await con
+        .getRepository(Settings)
+        .save({ userId: '1', optOutStreakFreeze: true });
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(0);
+      expect(streak.freezesAvailable).toBe(3);
+    });
+
+    it('should reset the streak when the user has no Cores access, even with freezes available', async () => {
+      await con
+        .getRepository(User)
+        .update({ id: '1' }, { coresRole: CoresRole.None });
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { freezesAvailable: 3 });
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(0);
+      expect(streak.freezesAvailable).toBe(3);
+    });
+
+    it('should not consume a freeze twice for the same missed day across consecutive cron runs', async () => {
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { freezesAvailable: 3 });
+
+      await expectSuccessfulCron(cron);
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+      expect(streak.freezesAvailable).toBe(2);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      expect(freezeActions).toHaveLength(1);
     });
   });
 });

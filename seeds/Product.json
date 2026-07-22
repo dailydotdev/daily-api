@@ -155,5 +155,41 @@
       "imageGlow": "https://media.daily.dev/image/upload/s--9SAk6IKY--/f_auto,q_auto/v1783344582/public/Color%3Dglow",
       "restricted": true
     }
+  },
+  {
+    "id": "6f1e1a2f-3f3a-4f2f-9c1e-8b1f6ef34a01",
+    "type": "streak_freeze",
+    "image": "https://media.daily.dev/image/upload/s--pS3eG3vC--/f_auto/v1784211327/public/streakFreeze1",
+    "name": "Streak freeze",
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z",
+    "value": 30,
+    "flags": {
+      "quantity": 1
+    }
+  },
+  {
+    "id": "6f1e1a2f-3f3a-4f2f-9c1e-8b1f6ef34a02",
+    "type": "streak_freeze",
+    "image": "https://media.daily.dev/image/upload/s--pS3eG3vC--/f_auto/v1784211327/public/streakFreeze3",
+    "name": "Streak freeze 3-pack",
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z",
+    "value": 80,
+    "flags": {
+      "quantity": 3
+    }
+  },
+  {
+    "id": "6f1e1a2f-3f3a-4f2f-9c1e-8b1f6ef34a03",
+    "type": "streak_freeze",
+    "image": "https://media.daily.dev/image/upload/s--pS3eG3vC--/f_auto/v1784211327/public/streakFreeze5",
+    "name": "Streak freeze 5-pack",
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "updatedAt": "2026-07-16T00:00:00.000Z",
+    "value": 120,
+    "flags": {
+      "quantity": 5
+    }
   }
 ]

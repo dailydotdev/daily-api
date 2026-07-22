@@ -69,6 +69,7 @@ import {
   Post,
   PostFlagsPublic,
   PostMention,
+  type PostCommunitySentiment,
   PostQuestion,
   PostRelation,
   PostRelationType,
@@ -235,6 +236,7 @@ export interface GQLPost {
   endsAt?: Date;
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
+  communitySentiment?: PostCommunitySentiment | null;
 }
 
 type ScheduledPostsContext = AuthContext & {
@@ -909,6 +911,13 @@ export const typeDefs = /* GraphQL */ `
     creatorTwitterImage: String
 
     """
+    Community take: what the developer community outside daily.dev thinks
+    about this post, aggregated from external discussions (Hacker News,
+    Lobsters). Null when no take has been generated for this post yet.
+    """
+    communitySentiment: PostCommunitySentiment
+
+    """
     Featured award for the post, currently the most expensive one
     """
     featuredAward: UserPost
@@ -1013,6 +1022,74 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     post: Post!
     question: String!
+  }
+
+  """
+  Sentiment breakdown percentages across the external developer community
+  """
+  type PostCommunitySentimentBreakdown {
+    positive: Int!
+    mixed: Int!
+    critical: Int!
+  }
+
+  """
+  How a specific external community (e.g. Hacker News) leans on the topic
+  """
+  type PostCommunitySentimentSource {
+    source: String!
+    lean: String!
+    note: String!
+    url: String
+  }
+
+  """
+  Engagement metrics for a highlighted quote
+  """
+  type PostCommunitySentimentHighlightMetrics {
+    points: Int
+    replies: Int
+    likes: Int
+  }
+
+  """
+  A verbatim highlight quote from an external discussion
+  """
+  type PostCommunitySentimentHighlight {
+    quote: String!
+    author: String!
+    source: String!
+    url: String!
+    metrics: PostCommunitySentimentHighlightMetrics
+  }
+
+  """
+  A linked external discussion the take is drawn from
+  """
+  type PostCommunitySentimentDiscussion {
+    provider: String!
+    url: String!
+    points: Int!
+    commentsCount: Int!
+  }
+
+  """
+  Community take: what the developer community outside daily.dev thinks
+  about a post
+  """
+  type PostCommunitySentiment {
+    breakdown: PostCommunitySentimentBreakdown!
+    tldr: String!
+    postCount: Int!
+    sources: [String!]!
+    pros: [String!]!
+    cons: [String!]!
+    bySource: [PostCommunitySentimentSource!]!
+    hottestDebate: String
+    openQuestions: [String!]!
+    highlights: [PostCommunitySentimentHighlight!]!
+    discussions: [PostCommunitySentimentDiscussion!]!
+    updatedAt: DateTime
   }
 
   type PollOption {

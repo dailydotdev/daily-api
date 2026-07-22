@@ -108,6 +108,7 @@ describe('mutation updateUserSettings', () => {
     customLinks
     optOutWeeklyGoal
     optOutReadingStreak
+    optOutStreakFreeze
     optOutLevelSystem
     optOutQuestSystem
     optOutCompanion
@@ -431,6 +432,27 @@ describe('mutation updateUserSettings', () => {
     const updated = await repo.findOneByOrFail({ userId: '1' });
     expect(updated.optOutLevelSystem).toBe(true);
     expect(updated.optOutQuestSystem).toBe(true);
+  });
+
+  it('should update optOutStreakFreeze', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        optOutStreakFreeze: false,
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { optOutStreakFreeze: true } },
+    });
+
+    expect(res.data.updateUserSettings.optOutStreakFreeze).toBe(true);
+
+    const updated = await repo.findOneByOrFail({ userId: '1' });
+    expect(updated.optOutStreakFreeze).toBe(true);
   });
 
   it('should update campaignCtaPlacement', async () => {

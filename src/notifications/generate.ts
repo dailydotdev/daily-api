@@ -26,12 +26,14 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
+  type NotificationAwardThanksContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
+  type NotificationStreakFreezeContext,
   type NotificationParsedCVProfileContext,
   type NotificationRecruiterNewCandidateContext,
   type NotificationRecruiterOpportunityLiveContext,
@@ -41,6 +43,7 @@ import {
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
   type NotificationLiveRoomContext,
+  type NotificationInterestBatchContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -147,6 +150,10 @@ export const notificationTitleMap: Record<
   squad_public_submitted: systemTitle,
   streak_reset_restore: (ctx: NotificationStreakRestoreContext) =>
     `<b>Your ${ctx.restore.amount}-day streak was broken</b>`,
+  streak_freeze_used: (ctx: NotificationStreakFreezeContext) =>
+    `<b>Your streak freeze saved your ${ctx.streak.currentStreak}-day streak</b> — ${ctx.freeze.remainingFreezes} freeze${ctx.freeze.remainingFreezes === 1 ? '' : 's'} left`,
+  streak_freeze_depleted: () =>
+    `<b>That was your last streak freeze</b> — restock to keep your streak safe`,
   user_post_added: (ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;
 
@@ -191,6 +198,8 @@ export const notificationTitleMap: Record<
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
     return `<b>${ctx.sender.username}</b> awarded you +${coreAmount} Cores${suffix}`;
   },
+  user_award_thanks: (ctx: NotificationAwardThanksContext) =>
+    `<b>${ctx.sender.username}</b> said thanks for your Award`,
   organization_member_joined: ({
     user,
     organization,
@@ -202,6 +211,14 @@ export const notificationTitleMap: Record<
   campaign_post_first_milestone: () => `Your post boost is live!`,
   campaign_squad_first_milestone: () => `Your Squad boost is live!`,
   briefing_ready: () => `<strong>Your presidential briefing is ready</strong>`,
+  interest_content_available: () =>
+    `<strong>New content for your interest is ready</strong>`,
+  interest_content_batch: (ctx: NotificationInterestBatchContext) =>
+    ctx.count > 0
+      ? `<strong>${ctx.count} new ${
+          ctx.count === 1 ? 'post' : 'posts'
+        } for "${ctx.interest.query}"</strong>`
+      : `<strong>New update for "${ctx.interest.query}" is ready</strong>`,
   user_follow: (ctx: NotificationUserContext) => {
     return `<strong>${ctx.user.name || ctx.user.username}</strong> is now following you`;
   },
@@ -334,6 +351,20 @@ export const generateNotificationMap: Record<
       .setTargetUrlParameter([
         ['streak_restore', ctx.restore.amount.toString()],
       ]),
+  streak_freeze_used: (builder, ctx: NotificationStreakFreezeContext) =>
+    builder
+      .icon(NotificationIcon.Streak)
+      .description('A streak freeze was used to protect your progress')
+      .uniqueKey(ctx.freeze.date)
+      .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak),
+  streak_freeze_depleted: (builder, ctx: NotificationStreakFreezeContext) =>
+    builder
+      .icon(NotificationIcon.Streak)
+      .description('Restock your streak freezes to keep your streak safe')
+      .uniqueKey(ctx.freeze.date)
+      .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak),
   article_upvote_milestone: (
     builder,
     ctx: NotificationPostContext & NotificationUpvotersContext,
@@ -571,6 +602,12 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.sender)
       .targetUrl(ctx.targetUrl)
       .referenceTransaction(ctx.transaction),
+  user_award_thanks: (builder, ctx: NotificationAwardThanksContext) =>
+    builder
+      .icon(NotificationIcon.Core)
+      .avatarUser(ctx.sender)
+      .targetUrl(ctx.targetUrl)
+      .referenceTransaction(ctx.transaction),
   organization_member_joined: (builder, ctx: NotificationOrganizationContext) =>
     builder
       .uniqueKey([ctx.user.id, ctx.organization.id].join('-'))
@@ -593,6 +630,26 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
+  },
+  interest_content_available: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
+      .uniqueKey(ctx.post.id);
+  },
+  interest_content_batch: (
+    builder: NotificationBuilder,
+    ctx: NotificationInterestBatchContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceInterest(ctx.interest)
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/agent/${ctx.interest.id}`)
+      .uniqueKey(ctx.interest.id);
   },
   user_follow: (builder, ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;

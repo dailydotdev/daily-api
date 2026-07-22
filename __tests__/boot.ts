@@ -115,8 +115,8 @@ const BASE_BODY = {
     sessionId: expect.any(String),
     visitId: expect.any(String),
   },
-  exp: { f: 'enc', e: [], a: {} },
-  geo: {},
+  exp: { f: 'enc', e: [], a: { region: 'US' } },
+  geo: { region: 'US', continent: 'NA' },
   engagementCreatives: [],
 };
 
@@ -1811,6 +1811,7 @@ describe('boot experimentation', () => {
     expect(res.body.exp.a).toEqual({
       search: 1,
       squad: 1,
+      region: 'US',
     });
   });
 });

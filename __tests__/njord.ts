@@ -814,6 +814,16 @@ describe('query products', () => {
           restricted: true,
         },
       },
+      {
+        id: 'e1c2a9d0-5b4f-4f8a-8c3d-7f6e9a0b1c2d',
+        name: 'Streak freeze 3-pack',
+        image: 'https://daily.dev/freeze.jpg',
+        type: ProductType.StreakFreeze,
+        value: 80,
+        flags: {
+          quantity: 3,
+        },
+      },
     ]);
   });
 
@@ -828,6 +838,19 @@ describe('query products', () => {
         ({ node }: { node: { id: string } }) => node.id,
       ),
     ).not.toContain('b3d9d8b1-1f2e-4c3a-9d6f-2a5e7c1b0f4d');
+  });
+
+  it('should exclude non-award products from the catalog', async () => {
+    loggedUser = 't-awpm-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.products.edges.map(
+        ({ node }: { node: { id: string } }) => node.id,
+      ),
+    ).not.toContain('e1c2a9d0-5b4f-4f8a-8c3d-7f6e9a0b1c2d');
   });
 
   it('should return products sorted by value', async () => {
@@ -1848,5 +1871,161 @@ describe('query userProductSummary', () => {
         count: 1,
       },
     ]);
+  });
+});
+
+describe('sayThanksForAward mutation', () => {
+  const MUTATION = `
+    mutation sayThanksForAward($transactionId: ID!) {
+      sayThanksForAward(transactionId: $transactionId) {
+        _
+      }
+    }
+  `;
+
+  const productId = 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d';
+
+  const createAwardTransaction = (
+    overrides: Partial<UserTransaction> = {},
+  ): Promise<UserTransaction> =>
+    con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: '1',
+      senderId: '2',
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId,
+      status: UserTransactionStatus.Success,
+      ...overrides,
+    });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Product, [
+      {
+        id: productId,
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () => {
+    const transaction = await createAwardTransaction();
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should not allow a non-receiver to thank', async () => {
+    loggedUser = '3';
+    const transaction = await createAwardTransaction();
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should not allow thanks for a transaction that is not successful', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      status: UserTransactionStatus.Processing,
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thanksAt).toBeUndefined();
+  });
+
+  it('should mark the transaction with thanks', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction();
+
+    const res = await client.mutate(MUTATION, {
+      variables: { transactionId: transaction.id },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sayThanksForAward._).toBe(true);
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thanksAt).toEqual(expect.any(String));
+  });
+
+  it('should not allow thanking twice', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      flags: { thanksAt: new Date().toISOString() },
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'CONFLICT',
+    );
+  });
+
+  it('should not allow thanking a non-Njord transaction', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      processor: UserTransactionProcessor.Paddle,
+    });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not allow thanking a transaction without a product', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({ productId: null });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { transactionId: transaction.id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should silently mark thanks when the sender is a special user', async () => {
+    loggedUser = '1';
+    const transaction = await createAwardTransaction({
+      senderId: ghostUser.id,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { transactionId: transaction.id },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sayThanksForAward._).toBe(true);
+
+    const updated = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({ id: transaction.id });
+    expect(updated.flags.thanksAt).toEqual(expect.any(String));
   });
 });

@@ -139,6 +139,9 @@ export class Settings {
   optOutReadingStreak: boolean;
 
   @Column({ default: false })
+  optOutStreakFreeze: boolean;
+
+  @Column({ default: false })
   optOutLevelSystem: boolean;
 
   @Column({ default: false })
@@ -195,6 +198,7 @@ export const SETTINGS_DEFAULT = {
   optOutCompanion: false,
   optOutWeeklyGoal: false,
   optOutReadingStreak: false,
+  optOutStreakFreeze: false,
   optOutLevelSystem: false,
   optOutQuestSystem: false,
   optOutAchievements: false,

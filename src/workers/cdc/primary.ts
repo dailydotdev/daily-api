@@ -16,7 +16,6 @@ import {
   Feature,
   Feed,
   type FeedFlags,
-  FeedOrigin,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
@@ -195,6 +194,7 @@ import {
   AchievementEventType,
 } from '../../common/achievement';
 import { checkQuestProgress } from '../../common/quest';
+import { TypeOrmError, type TypeORMQueryFailedError } from '../../errors';
 
 const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
   ...user,
@@ -1557,17 +1557,25 @@ const onFeedChange = async (
   data: ChangeMessage<Feed>,
 ) => {
   if (data.payload.op === 'c') {
-    await updateAlerts(con, data.payload.after!.userId, { myFeed: 'created' });
+    const feed = data.payload.after!;
+    try {
+      await updateAlerts(con, feed.userId, { myFeed: 'created' });
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+      if (err.code === TypeOrmError.FOREIGN_KEY) {
+        return;
+      }
+      throw err;
+    }
 
     // feed id differs from userId means custom feed
-    const feed = data.payload.after!;
     // flags arrive as a JSON string from CDC
     const feedFlags = JSON.parse(
       (feed.flags as unknown as string) || '{}',
     ) as FeedFlags;
-    // skip tag-chip feeds seeded during onboarding so they don't auto-complete
-    // the "Create a custom feed" achievement on signup
-    if (feed.id !== feed.userId && feedFlags.origin !== FeedOrigin.TagChip) {
+    // skip system-originated feeds (tag-chip, agent, etc.) so they don't
+    // auto-complete the "Create a custom feed" achievement
+    if (feed.id !== feed.userId && !feedFlags.origin) {
       await checkAchievementProgress(
         con,
         logger,
@@ -2026,6 +2034,19 @@ const onUserTransactionChange = async (
 ) => {
   if (data.payload.op === 'd') {
     return;
+  }
+
+  const beforeFlags = JSON.parse(
+    data.payload.before?.flags || '{}',
+  ) as UserTransaction['flags'];
+  const afterFlags = JSON.parse(
+    data.payload.after?.flags || '{}',
+  ) as UserTransaction['flags'];
+
+  if (!beforeFlags.thanksAt && afterFlags.thanksAt) {
+    await triggerTypedEvent(logger, 'api.v1.user-award-thanks', {
+      transactionId: data.payload.after!.id,
+    });
   }
 
   if (

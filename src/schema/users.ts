@@ -78,6 +78,7 @@ import {
   DayOfWeek,
   getBufferFromStream,
   getInviteLink,
+  getLimit,
   getShortUrl,
   getUserPermalink,
   getUserReadingRank,
@@ -87,6 +88,7 @@ import {
   GQLUserStreakTz,
   type GQLUserTopReader,
   mapCloudinaryUrl,
+  MAX_STREAK_FREEZES,
   parseBigInt,
   resubscribeUser,
   sendEmail,
@@ -179,11 +181,14 @@ import { insertOrIgnoreAction } from './actions';
 import { getGeo } from '../common/geo';
 import { validateVordrWords } from '../common/vordr';
 import {
+  createTransaction,
   getBalance,
   throwUserTransactionError,
   type TransactionCreated,
   transferCores,
 } from '../common/njord';
+import { Product, ProductType } from '../entity/Product';
+import type { GQLProduct } from './njord';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -1087,6 +1092,31 @@ export const typeDefs = /* GraphQL */ `
     weekStart: Int
 
     balance: UserBalance
+
+    """
+    Number of streak freezes the user currently has available
+    """
+    freezesAvailable: Int!
+  }
+
+  """
+  Result of purchasing a streak freeze pack
+  """
+  type PurchaseStreakFreezeResult {
+    """
+    Number of streak freezes the user has available after the purchase
+    """
+    freezesAvailable: Int!
+
+    """
+    Balance of the user after the purchase
+    """
+    balance: UserBalance!
+
+    """
+    Id of the purchase transaction
+    """
+    transactionId: ID!
   }
 
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
@@ -1346,6 +1376,14 @@ export const typeDefs = /* GraphQL */ `
     Get information about the user streak recovery
     """
     streakRecover: StreakRecoverQuery @auth
+    """
+    Get the list of purchasable streak freeze products, ordered by value ascending
+    """
+    streakFreezeProducts: [Product!]!
+    """
+    Get the dates (newest first) the user's streak was protected by a streak freeze
+    """
+    userStreakFreezeDates(limit: Int = 30): [DateTime!]! @auth
     """
     Get top creators for a tag
     """
@@ -1770,6 +1808,16 @@ export const typeDefs = /* GraphQL */ `
     ): UserStreak @auth
 
     """
+    Purchase a streak freeze pack with Cores
+    """
+    purchaseStreakFreeze(
+      """
+      Id of the streak freeze product to purchase
+      """
+      productId: ID!
+    ): PurchaseStreakFreezeResult! @auth
+
+    """
     Request an app account token that is used for StoreKit
     """
     requestAppAccountToken: ID @auth
@@ -2124,10 +2172,16 @@ const getUserStreakQuery = async (
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
       .addSelect('u."weekStart"', 'weekStart')
+      .addSelect('u."coresRole"', 'coresRole')
       .addSelect(
         'COALESCE(s."optOutReadingStreak", false)',
         'optOutReadingStreak',
       )
+      .addSelect(
+        'COALESCE(s."optOutStreakFreeze", false)',
+        'optOutStreakFreeze',
+      )
+      .addSelect(`"${builder.alias}"."freezesAvailable"`, 'freezesAvailable')
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
       .leftJoin(Settings, 's', 's."userId" = u.id')
       .where(`"${builder.alias}"."userId" = :id`, {
@@ -2736,6 +2790,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         cost,
         regularCost: StreakRestoreCoresPrice.Regular,
       };
+    },
+    streakFreezeProducts: async (
+      _,
+      __,
+      ctx: Context,
+      info,
+    ): Promise<GQLProduct[]> => {
+      return graphorm.query<GQLProduct>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.type = :type`, {
+              type: ProductType.StreakFreeze,
+            })
+            .andWhere(
+              `(${builder.alias}.flags->>'restricted') IS DISTINCT FROM 'true'`,
+            )
+            .orderBy(`${builder.alias}."value"`, 'ASC');
+
+          return builder;
+        },
+        true,
+      );
+    },
+    userStreakFreezeDates: async (
+      _,
+      { limit }: { limit: number },
+      ctx: AuthContext,
+    ): Promise<Date[]> => {
+      const take = getLimit({ limit, defaultLimit: 30, max: 100 });
+
+      const actions = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(UserStreakAction).find({
+          select: ['createdAt'],
+          where: {
+            userId: ctx.userId,
+            type: UserStreakActionType.Freeze,
+          },
+          order: { createdAt: 'DESC' },
+          take,
+        }),
+      );
+
+      return actions.map(({ createdAt }) => createdAt);
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
@@ -4226,6 +4325,119 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         balance: {
           amount: parseBigInt(transfer.senderBalance!.newBalance),
         },
+      };
+    },
+    purchaseStreakFreeze: async (
+      _,
+      { productId }: { productId: string },
+      ctx: AuthContext,
+    ): Promise<{
+      freezesAvailable: number;
+      balance: { amount: number };
+      transactionId: string;
+    }> => {
+      const { userId } = ctx;
+
+      const [product, user, userBalance] = await Promise.all([
+        ctx.con.getRepository(Product).findOneBy({ id: productId }),
+        ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
+        getBalance(ctx),
+      ]);
+
+      if (
+        !product ||
+        product.type !== ProductType.StreakFreeze ||
+        product.flags?.restricted
+      ) {
+        throw new ValidationError('Invalid streak freeze product');
+      }
+
+      if (
+        !checkUserCoresAccess({
+          user,
+          requiredRole: CoresRole.User,
+        })
+      ) {
+        throw new ForbiddenError('You do not have access to Cores');
+      }
+
+      if (userBalance.amount < product.value) {
+        throw new ConflictError('Not enough Cores to purchase streak freeze');
+      }
+
+      const quantity = product.flags?.quantity ?? 1;
+
+      const { transaction, transfer, freezesAvailable } =
+        await ctx.con.transaction(async (entityManager) => {
+          await entityManager
+            .createQueryBuilder()
+            .insert()
+            .into(UserStreak)
+            .values({ userId })
+            .orIgnore()
+            .execute();
+
+          const updateResult = await entityManager
+            .createQueryBuilder()
+            .update(UserStreak)
+            .set({
+              freezesAvailable: () => `"freezesAvailable" + :quantity`,
+              updatedAt: new Date(),
+            })
+            .where('"userId" = :userId', { userId })
+            .andWhere('"freezesAvailable" + :quantity <= :max', {
+              quantity,
+              max: MAX_STREAK_FREEZES,
+            })
+            .returning(['freezesAvailable'])
+            .execute();
+
+          if (!updateResult.affected) {
+            throw new ConflictError(
+              `You can hold at most ${MAX_STREAK_FREEZES} streak freezes`,
+            );
+          }
+
+          const transaction = await createTransaction({
+            ctx,
+            entityManager,
+            productId: product.id,
+            receiverId: systemUser.id,
+            note: 'Streak freeze purchase',
+          });
+
+          try {
+            const transfer = await transferCores({
+              ctx,
+              transaction,
+              entityManager,
+            });
+
+            return {
+              transaction,
+              transfer,
+              freezesAvailable: updateResult.raw[0].freezesAvailable as number,
+            };
+          } catch (error) {
+            if (error instanceof TransferError) {
+              await throwUserTransactionError({
+                ctx,
+                entityManager,
+                error,
+                transaction,
+              });
+            }
+
+            throw error;
+          }
+        });
+
+      return {
+        freezesAvailable,
+        balance: {
+          amount: parseBigInt(transfer.senderBalance!.newBalance),
+        },
+        transactionId: transaction.id,
       };
     },
     sendReport: async (

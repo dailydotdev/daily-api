@@ -40,6 +40,9 @@ module.exports = {
   },
   moduleNameMapper: {
     '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^@earendil-works/pi-coding-agent$':
+      '<rootDir>/__mocks__/pi-coding-agent.ts',
+    '^typebox$': '<rootDir>/__mocks__/typebox.ts',
     '^jose$': '<rootDir>/__mocks__/jose.ts',
     '^isomorphic-dompurify$': '<rootDir>/__mocks__/isomorphic-dompurify.ts',
     '^better-auth$': '<rootDir>/__mocks__/better-auth.ts',

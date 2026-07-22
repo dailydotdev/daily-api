@@ -2,8 +2,9 @@ import type { DataSource } from 'typeorm';
 import { In } from 'typeorm';
 import { User } from '../entity/user/User';
 import { Keyword } from '../entity/Keyword';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { feedClient } from '../integrations/feed/generators';
-import { recswipeClient } from '../integrations/recswipe/clients';
 import { queryReadReplica } from './queryReadReplica';
 import { updateFlagsStatement } from './utils';
 import { ONE_DAY_IN_SECONDS } from './constants';
@@ -105,36 +106,32 @@ export const getFeedTagsList = async ({
     return { tags: cached.tags.slice(0, limit) };
   }
 
-  let values: string[];
+  let values: string[] = [];
   try {
-    values = await feedClient.getUserTags(userId, limit);
-  } catch (err) {
-    logger.error(
-      { err, userId },
-      'feedClient.getUserTags failed; caching empty feedTagsList',
+    values = dedupeKeepOrder(await feedClient.getUserTags(userId, limit)).slice(
+      0,
+      limit,
     );
-    await writeCache({ con, userId, tags: [] });
-    return { tags: [] };
+  } catch (err) {
+    logger.error({ err, userId }, 'feedClient.getUserTags failed');
   }
 
-  values = dedupeKeepOrder(values);
-
-  if (values.length < limit) {
-    try {
-      const supplement = await recswipeClient.recommendTags(userId, {
-        selectedTags: values,
-        n: limit - values.length,
-      });
-      const supplementTags = (supplement.recommended_tags ?? []).map(
-        (t) => t.tag,
-      );
-      values = dedupeKeepOrder([...values, ...supplementTags]).slice(0, limit);
-    } catch (err) {
-      logger.error(
-        { err, userId },
-        'recswipeClient.recommendTags failed; using feedClient tags only',
-      );
-    }
+  if (!values.length) {
+    const followed = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager.getRepository(ContentPreferenceKeyword).find({
+        select: ['keywordId'],
+        where: {
+          userId,
+          feedId: userId,
+          status: ContentPreferenceStatus.Follow,
+        },
+        take: limit,
+      }),
+    );
+    values = dedupeKeepOrder(followed.map((pref) => pref.keywordId)).slice(
+      0,
+      limit,
+    );
   }
 
   const tags = await resolveLabels({ con, values });
