@@ -360,9 +360,7 @@ const renderVideo = (src: string, alt: string): string => {
   }
 
   const escapedSrc = markdown.utils.escapeHtml(src);
-  const source = `<source src="${escapedSrc}"${
-    type ? ` type="${type}"` : ''
-  }>`;
+  const source = `<source src="${escapedSrc}"${type ? ` type="${type}"` : ''}>`;
 
   return `<video src="${escapedSrc}" controls preload="metadata" aria-label="${escapedAlt}">${source}</video>`;
 };

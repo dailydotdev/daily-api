@@ -153,7 +153,7 @@ Some text here
       const content = '![clip](http://127.0.0.1/clip.mp4)';
       const result = markdown.render(content);
 
-      expect(result).toContain('<video src=""');
+      expect(result).not.toContain('<video');
       expect(result).not.toContain('127.0.0.1');
     });
   });
