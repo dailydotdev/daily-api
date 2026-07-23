@@ -37,6 +37,7 @@ const interest = {
   userId: '1',
   sourceId: 'asrc-d',
   fomoThreshold: 0.5,
+  sources: { dailyDev: true, web: true, github: false },
 };
 
 const setCandidates = (candidates: unknown[]) =>
@@ -132,6 +133,28 @@ describe('discoverAndIngestExternal', () => {
     expect(
       await con.getRepository(SharePost).countBy({ sourceId: 'asrc-d' }),
     ).toBe(1);
+  });
+
+  it('does nothing and does not search when the web source is off', async () => {
+    setCandidates([
+      { url: 'https://ext.com/x', title: 'X', rationale: 'why', score: 0.9 },
+    ]);
+
+    const result = await discoverAndIngestExternal({
+      con,
+      logger,
+      interest: {
+        ...interest,
+        sources: { dailyDev: true, web: false, github: false },
+      },
+      query: 'zig',
+    });
+
+    expect(result.added).toBe(0);
+    expect(discoverExternalUrls).not.toHaveBeenCalled();
+    expect(
+      await con.getRepository(InterestFinding).countBy({ interestId: 'uir-d' }),
+    ).toBe(0);
   });
 
   it('skips candidates below the fomo threshold', async () => {

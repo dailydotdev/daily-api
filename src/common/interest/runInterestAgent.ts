@@ -143,12 +143,12 @@ export const discoverAndIngestExternal = async ({
   logger: FastifyBaseLogger;
   interest: Pick<
     UserInterest,
-    'id' | 'query' | 'userId' | 'sourceId' | 'fomoThreshold'
+    'id' | 'query' | 'userId' | 'sourceId' | 'fomoThreshold' | 'sources'
   >;
   query: string;
   limit?: number;
 }): Promise<{ discovered: number; added: number; postIds: string[] }> => {
-  if (!interest.sourceId) {
+  if (!interest.sources?.web || !interest.sourceId) {
     return { discovered: 0, added: 0, postIds: [] };
   }
   const sourceId = interest.sourceId;
