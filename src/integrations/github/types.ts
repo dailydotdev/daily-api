@@ -29,9 +29,14 @@ export interface GQLGitHubRepository {
   description: string | null;
 }
 
+export interface GitHubAuthenticatedUser {
+  login: string;
+}
+
 export interface IGitHubClient extends IGarmrClient {
   searchRepositories(
     query: string,
     limit?: number,
   ): Promise<GitHubSearchResponse>;
+  getAuthenticatedUser(token: string): Promise<GitHubAuthenticatedUser>;
 }

@@ -777,6 +777,17 @@ export const getBetterAuthOptions = (pool: Pool): BetterAuthOptions => {
           },
         },
       },
+      account: {
+        create: {
+          after: async (account) => {
+            if (account.providerId === 'github') {
+              await triggerTypedEvent(logger, 'api.v1.github-account-linked', {
+                userId: account.userId,
+              });
+            }
+          },
+        },
+      },
     },
     emailAndPassword: {
       enabled: true,
