@@ -2,7 +2,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
@@ -22,9 +21,8 @@ export enum PersonalContextStatus {
 }
 
 @Entity()
-@Index('IDX_user_personal_context_user_id', ['userId'])
 export class UserPersonalContext {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn({ type: 'varchar', length: 36 })
   userId: string;
 
   @PrimaryColumn({ type: 'text' })
@@ -41,12 +39,6 @@ export class UserPersonalContext {
 
   @Column({ type: 'text', nullable: true })
   profileText: string | null;
-
-  @Column({ type: 'text', array: true, default: () => `'{}'` })
-  boostTags: string[];
-
-  @Column({ type: 'text', array: true, default: () => `'{}'` })
-  muteTags: string[];
 
   @Column({ type: 'jsonb', nullable: true })
   context: Record<string, unknown> | null;

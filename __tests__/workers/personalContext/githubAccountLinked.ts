@@ -73,4 +73,23 @@ describe('githubAccountLinked', () => {
     expect(count).toBe(0);
     expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
+
+  it('marks the source failed and does not publish on a github api error', async () => {
+    await linkGithubAccount();
+    nock('https://api.github.com').get('/user').times(2).reply(401);
+
+    await expectSuccessfulTypedBackground(githubAccountLinkedWorker, {
+      userId: '1',
+    });
+
+    const row = await con
+      .getRepository(UserPersonalContext)
+      .findOneBy({ userId: '1', source: PersonalContextSource.Github });
+    expect(row).toMatchObject({
+      sourceValue: '123',
+      status: PersonalContextStatus.Error,
+    });
+    expect(row?.error).toBeTruthy();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
 });

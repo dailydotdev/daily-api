@@ -27,25 +27,23 @@ export const requestPersonalContext = async ({
 
   const correlationId = await generateShortId();
 
-  await con.transaction(async (manager) => {
-    await manager.getRepository(UserPersonalContext).upsert(
-      {
-        userId,
-        source,
-        sourceValue: value,
-        verified,
-        status: PersonalContextStatus.Pending,
-        correlationId,
-        requestedAt: new Date(),
-      },
-      ['userId', 'source'],
-    );
-
-    await triggerTypedEvent(logger, 'api.v1.generate-personal-context', {
+  await con.getRepository(UserPersonalContext).upsert(
+    {
       userId,
+      source,
+      sourceValue: value,
+      verified,
+      status: PersonalContextStatus.Pending,
       correlationId,
-      sources: [{ kind: source, value }],
-    });
+      requestedAt: new Date(),
+    },
+    ['userId', 'source'],
+  );
+
+  await triggerTypedEvent(logger, 'api.v1.generate-personal-context', {
+    userId,
+    correlationId,
+    sources: [{ kind: source, value }],
   });
 
   return true;

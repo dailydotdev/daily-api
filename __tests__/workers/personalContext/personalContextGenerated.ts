@@ -51,8 +51,6 @@ describe('personalContextGenerated', () => {
     expect(row).toMatchObject({
       status: PersonalContextStatus.Ok,
       profileText: 'A backend engineer who loves Go.',
-      boostTags: ['go', 'rust'],
-      muteTags: ['php'],
     });
     expect(row?.generatedAt).toBeTruthy();
     expect(row?.context).toMatchObject({

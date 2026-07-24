@@ -31,12 +31,8 @@ export const personalContextGeneratedWorker: TypedWorker<'api.v1.personal-contex
         return;
       }
 
-      const rankingSignals = data.context?.ranking_signals;
-
       row.status = PersonalContextStatus.Ok;
       row.profileText = data.profileText ?? null;
-      row.boostTags = rankingSignals?.boost_tags ?? [];
-      row.muteTags = rankingSignals?.mute_tags ?? [];
       row.context = data.context ?? null;
       row.error = null;
 
