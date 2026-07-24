@@ -11,9 +11,14 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
+import { FreeformPost } from '../src/entity/posts/FreeformPost';
 import { Feed, FeedOrigin } from '../src/entity/Feed';
 import { AgentSource, SourceType, SourceUser } from '../src/entity/Source';
-import { UserInterest, UserInterestStatus } from '../src/entity/UserInterest';
+import {
+  UserInterest,
+  UserInterestCadence,
+  UserInterestStatus,
+} from '../src/entity/UserInterest';
 import {
   InterestFinding,
   InterestFindingStatus,
@@ -63,6 +68,7 @@ const CREATE_INTEREST = `
       id
       query
       status
+      cadence
       feedId
       sourceId
     }
@@ -135,6 +141,7 @@ describe('mutation createInterest', () => {
     expect(res.data.createInterest).toMatchObject({
       query: 'cool zig projects',
       status: UserInterestStatus.Active,
+      cadence: UserInterestCadence.Hourly,
     });
 
     const interestId = res.data.createInterest.id;
@@ -343,6 +350,7 @@ const UPDATE_INTEREST = `
     updateInterest(id: $id, data: $data) {
       id
       status
+      cadence
       fomoThreshold
       sources
       outputModes
@@ -375,7 +383,7 @@ describe('mutation updateInterest', () => {
       query: 'cool zig projects',
       status: UserInterestStatus.Active,
       fomoThreshold: 0.5,
-      sources: { dailyDev: true, web: false, github: false },
+      sources: { dailyDev: true, web: true, github: false },
       outputModes: {
         feed: true,
         post: true,
@@ -385,13 +393,14 @@ describe('mutation updateInterest', () => {
     });
   });
 
-  it('should update status, fomoThreshold and merge jsonb fields', async () => {
+  it('should update status, cadence, fomoThreshold and merge jsonb fields', async () => {
     loggedUser = '1';
     const res = await client.mutate(UPDATE_INTEREST, {
       variables: {
         id: 'uir-1',
         data: {
           status: UserInterestStatus.Paused,
+          cadence: UserInterestCadence.Weekly,
           fomoThreshold: 0.8,
           outputModes: { notification: false },
         },
@@ -400,6 +409,7 @@ describe('mutation updateInterest', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.updateInterest).toMatchObject({
       status: UserInterestStatus.Paused,
+      cadence: UserInterestCadence.Weekly,
       fomoThreshold: 0.8,
     });
 
@@ -540,12 +550,12 @@ describe('query interestPosts', () => {
       status: UserInterestStatus.Active,
       sourceId: 'isrc-1',
     });
-    await saveFixtures(con, ArticlePost, [
+    await saveFixtures(con, FreeformPost, [
       {
         id: 'ipost-1',
         shortId: 'ipost-1',
         title: 'Interest summary',
-        url: 'http://interest.com/1',
+        content: 'Interest summary content',
         sourceId: 'isrc-1',
         private: true,
         showOnFeed: false,

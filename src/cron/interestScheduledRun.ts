@@ -13,7 +13,7 @@ const cron: Cron = {
         .select('ui.id', 'id')
         .where('ui.status = :status', { status: UserInterestStatus.Active })
         .andWhere(
-          `(ui."lastRunAt" IS NULL OR ui."lastRunAt" < now() - (CASE COALESCE(ui.cadence, 'daily')
+          `(ui."lastRunAt" IS NULL OR ui."lastRunAt" < now() - (CASE COALESCE(ui.cadence, 'hourly')
             WHEN 'hourly' THEN interval '1 hour'
             WHEN 'weekly' THEN interval '7 days'
             ELSE interval '1 day' END))`,

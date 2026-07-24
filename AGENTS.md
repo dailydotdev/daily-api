@@ -89,6 +89,7 @@ This file provides guidance to coding agents when working with code in this repo
 - Const arrow functions (`const foo = () => {}`), single props-style argument (`const foo = ({ a, b }) => {}`).
 - Prefer switch statements over nested ternary chains for 3+ branches.
 - **Never use the non-null assertion `!`** — explicitly check and throw with a clear message.
+- **Check undefined with `typeof value === 'undefined'`**, not `value === undefined`.
 - **Never use `require()`** or inline type imports (`import('module').Type`) — regular `import` / `import type` at the top. Avoid barrel imports: `import { User } from './entity/user/User'`, not from `./entity`.
 - Time durations: use constants from `src/common/constants.ts` (`ONE_DAY_IN_SECONDS`, etc.), never inline math like `24 * 60 * 60`.
 - For service-only private routes, don't add end-user auth/role checks unless explicitly required.

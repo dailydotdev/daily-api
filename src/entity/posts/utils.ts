@@ -330,6 +330,7 @@ interface CreateExternalLinkArgs {
     sourceId?: string;
     originalUrl: string;
     scheduledAt?: Date | null;
+    showOnFeed?: boolean;
   };
 }
 
@@ -391,6 +392,7 @@ export const createExternalLink = async ({
     commentary,
     originalUrl,
     scheduledAt,
+    showOnFeed,
   } = args;
   validateCommentary(commentary!);
   const isVisible = !!title;
@@ -409,11 +411,13 @@ export const createExternalLink = async ({
       private: true,
       origin: PostOrigin.Squad,
       visible: isVisible,
+      ...(typeof showOnFeed === 'undefined' ? {} : { showOnFeed }),
       flags: {
         sentAnalyticsReport: true,
         private: true,
         visible: isVisible,
         originalUrl: originalUrl,
+        ...(typeof showOnFeed === 'undefined' ? {} : { showOnFeed }),
       },
     };
 

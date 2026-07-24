@@ -19,6 +19,12 @@ export enum UserInterestStatus {
   Stopped = 'stopped',
 }
 
+export enum UserInterestCadence {
+  Hourly = 'hourly',
+  Daily = 'daily',
+  Weekly = 'weekly',
+}
+
 export type UserInterestSources = {
   dailyDev: boolean;
   web: boolean;
@@ -34,7 +40,7 @@ export type UserInterestOutputModes = {
 
 export const defaultUserInterestSources: UserInterestSources = {
   dailyDev: true,
-  web: false,
+  web: true,
   github: false,
 };
 
@@ -76,8 +82,12 @@ export class UserInterest {
   @Column({ type: 'text', nullable: true })
   sourceId: string | null;
 
-  @Column({ type: 'text', nullable: true })
-  cadence: string | null;
+  @Column({
+    type: 'text',
+    nullable: true,
+    default: UserInterestCadence.Hourly,
+  })
+  cadence: UserInterestCadence | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   lastRunAt: Date | null;

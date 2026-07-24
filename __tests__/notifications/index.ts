@@ -1386,6 +1386,63 @@ describe('storeNotificationBundle', () => {
     expect(avatars.length).toEqual(2);
   });
 
+  it('should generate interest_content_batch with a run-scoped uniqueKey', () => {
+    const actual = generateNotificationV2(
+      NotificationType.InterestContentBatch,
+      {
+        userIds: [userId],
+        interest: { id: 'i1', query: 'cool rust projects' },
+        count: 3,
+        dedupKey: 'i1:1700000000000',
+      },
+    );
+
+    expect(actual.notification.type).toEqual(
+      NotificationType.InterestContentBatch,
+    );
+    expect(actual.notification.referenceId).toEqual('i1');
+    expect(actual.notification.uniqueKey).toEqual('i1:1700000000000');
+  });
+
+  it('should fall back to the interest id when interest_content_batch has no dedupKey', () => {
+    const actual = generateNotificationV2(
+      NotificationType.InterestContentBatch,
+      {
+        userIds: [userId],
+        interest: { id: 'i1', query: 'cool rust projects' },
+        count: 3,
+      },
+    );
+
+    expect(actual.notification.uniqueKey).toEqual('i1');
+  });
+
+  it('should deliver one interest_content_batch per run and dedupe within a run', async () => {
+    const build = (dedupKey: string) =>
+      generateNotificationV2(NotificationType.InterestContentBatch, {
+        userIds: [userId],
+        interest: { id: 'i1', query: 'cool rust projects' },
+        count: 3,
+        dedupKey,
+      });
+
+    await con.transaction(async (manager) => {
+      await storeNotificationBundleV2(manager, build('i1:run-1'), 'i1:run-1');
+      await storeNotificationBundleV2(manager, build('i1:run-1'), 'i1:run-1');
+      await storeNotificationBundleV2(manager, build('i1:run-2'), 'i1:run-2');
+    });
+
+    const notifications = await con
+      .getRepository(NotificationV2)
+      .findBy({ type: NotificationType.InterestContentBatch });
+    expect(notifications.length).toEqual(2);
+
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .findBy({ userId });
+    expect(userNotifications.length).toEqual(2);
+  });
+
   it('should generate squad_new_comment notification', () => {
     const type = NotificationType.SquadNewComment;
     const ctx: NotificationCommenterContext = {

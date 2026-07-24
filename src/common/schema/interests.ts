@@ -1,6 +1,9 @@
 import z from 'zod';
 import { enumValues } from './utils';
-import { UserInterestStatus } from '../../entity/UserInterest';
+import {
+  UserInterestCadence,
+  UserInterestStatus,
+} from '../../entity/UserInterest';
 
 export const createInterestSchema = z.object({
   query: z.string().min(1).max(500),
@@ -8,6 +11,7 @@ export const createInterestSchema = z.object({
 
 export const updateInterestSchema = z.object({
   status: z.enum(enumValues(UserInterestStatus)).optional(),
+  cadence: z.enum(enumValues(UserInterestCadence)).optional(),
   fomoThreshold: z.number().min(0).max(1).optional(),
   sources: z
     .object({

@@ -5,6 +5,7 @@ import createOrGetConnection from '../../src/db';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { User } from '../../src/entity';
 import {
+  UserInterestCadence,
   UserInterest,
   UserInterestStatus,
 } from '../../src/entity/UserInterest';
@@ -44,6 +45,22 @@ beforeEach(async () => {
       lastRunAt: new Date(),
     },
     {
+      id: 'due-hourly',
+      userId: '1',
+      query: 'd',
+      status: UserInterestStatus.Active,
+      cadence: UserInterestCadence.Hourly,
+      lastRunAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    },
+    {
+      id: 'not-due-daily',
+      userId: '1',
+      query: 'e',
+      status: UserInterestStatus.Active,
+      cadence: UserInterestCadence.Daily,
+      lastRunAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    },
+    {
       id: 'stopped',
       userId: '1',
       query: 'c',
@@ -66,7 +83,9 @@ describe('interestScheduledRun cron', () => {
       .map((c) => c[2].interestId);
 
     expect(fired).toContain('due-null');
+    expect(fired).toContain('due-hourly');
     expect(fired).not.toContain('not-due');
+    expect(fired).not.toContain('not-due-daily');
     expect(fired).not.toContain('stopped');
   });
 });

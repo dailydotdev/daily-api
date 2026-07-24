@@ -7,6 +7,7 @@ import { AgentSource } from '../entity/Source';
 import { InterestFeedback } from '../entity/InterestFeedback';
 import {
   UserInterest,
+  UserInterestCadence,
   UserInterestStatus,
   type UserInterestOutputModes,
   type UserInterestSources,
@@ -19,6 +20,7 @@ import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { GQLEmptyResponse } from './common';
 import type { GQLPost } from './posts';
+import { PostType } from '../entity/posts/Post';
 import {
   createInterestSchema,
   interestIdSchema,
@@ -31,6 +33,7 @@ export type GQLUserInterest = Pick<
   | 'id'
   | 'query'
   | 'status'
+  | 'cadence'
   | 'fomoThreshold'
   | 'sources'
   | 'outputModes'
@@ -60,6 +63,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     query: String!
     status: String!
+    cadence: String!
     fomoThreshold: Float!
     sources: JSONObject!
     outputModes: JSONObject!
@@ -122,6 +126,7 @@ export const typeDefs = /* GraphQL */ `
 
   input UpdateInterestInput {
     status: String
+    cadence: String
     fomoThreshold: Float
     sources: InterestSourcesInput
     outputModes: InterestOutputModesInput
@@ -134,7 +139,7 @@ export const typeDefs = /* GraphQL */ `
     createInterest(query: String!): UserInterest! @auth
 
     """
-    Update an interest's status, FOMO threshold, sources, or output modes
+    Update an interest's status, cadence, FOMO threshold, sources, or output modes
     """
     updateInterest(id: ID!, data: UpdateInterestInput!): UserInterest! @auth
 
@@ -266,6 +271,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .where(`${builder.alias}."sourceId" = :sourceId`, {
               sourceId: interest.sourceId,
             })
+            .andWhere(`${builder.alias}.type = :type`, {
+              type: PostType.Freeform,
+            })
             .andWhere(`${builder.alias}.deleted = false`)
             .orderBy(`${builder.alias}."createdAt"`, 'DESC');
           return builder;
@@ -308,6 +316,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           userId,
           query,
           status: UserInterestStatus.Active,
+          cadence: UserInterestCadence.Hourly,
           sources: defaultUserInterestSources,
           outputModes: defaultUserInterestOutputModes,
           feedId,
@@ -352,6 +361,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const update: Partial<UserInterest> = {};
       if (data.status !== undefined) {
         update.status = data.status;
+      }
+      if (typeof data.cadence !== 'undefined') {
+        update.cadence = data.cadence;
       }
       if (data.fomoThreshold !== undefined) {
         update.fomoThreshold = data.fomoThreshold;
