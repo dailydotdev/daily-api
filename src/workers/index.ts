@@ -70,6 +70,9 @@ import { userInterestRunWorker } from './interest/userInterestRun';
 import { postVisibleInterestMatchWorker } from './interest/postVisibleInterestMatch';
 import { postUpvotedInterestSignalWorker } from './interest/postUpvotedInterestSignal';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
+import { userUpdatedPersonalContextWorker } from './personalContext/userUpdatedPersonalContext';
+import { githubAccountLinkedWorker } from './personalContext/githubAccountLinked';
+import { personalContextGeneratedWorker } from './personalContext/personalContextGenerated';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import campaignUpdatedSlack from './campaignUpdatedSlack';
@@ -165,6 +168,9 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postVisibleInterestMatchWorker,
   postUpvotedInterestSignalWorker,
   userUpdatedPlusSubscriptionBriefWorker,
+  userUpdatedPersonalContextWorker,
+  githubAccountLinkedWorker,
+  personalContextGeneratedWorker,
   postAddedSlackChannelSendBriefWorker,
   postAnalyticsUpdate,
   postAuthorReputationEvent,

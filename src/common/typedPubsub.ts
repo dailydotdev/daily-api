@@ -57,6 +57,10 @@ import type {
   opportunityFeedbackSchema,
   rejectionFeedbackClassificationSchema,
 } from './schema/opportunityMatch';
+import type {
+  generatePersonalContextSchema,
+  personalContextGeneratedSchema,
+} from './schema/personalContext';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -342,6 +346,15 @@ export type PubSubSchema = {
   'api.v1.generate-channel-digest': {
     digestKey: string;
     scheduledAt: string;
+  };
+  'api.v1.generate-personal-context': z.infer<
+    typeof generatePersonalContextSchema
+  >;
+  'api.v1.personal-context-generated': z.infer<
+    typeof personalContextGeneratedSchema
+  >;
+  'api.v1.github-account-linked': {
+    userId: string;
   };
 };
 

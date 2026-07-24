@@ -1,6 +1,10 @@
 import fetch from 'node-fetch';
 import { GarmrService, IGarmrService, GarmrNoopService } from '../garmr';
-import { IGitHubClient, GitHubSearchResponse } from './types';
+import {
+  IGitHubClient,
+  GitHubSearchResponse,
+  GitHubAuthenticatedUser,
+} from './types';
 
 export class GitHubClient implements IGitHubClient {
   private readonly baseUrl: string;
@@ -44,6 +48,26 @@ export class GitHubClient implements IGitHubClient {
       }
 
       return response.json() as Promise<GitHubSearchResponse>;
+    });
+  }
+
+  async getAuthenticatedUser(token: string): Promise<GitHubAuthenticatedUser> {
+    return this.garmr.execute(async () => {
+      const response = await fetch(`${this.baseUrl}/user`, {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'daily.dev',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `GitHub API error: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      return response.json() as Promise<GitHubAuthenticatedUser>;
     });
   }
 }
