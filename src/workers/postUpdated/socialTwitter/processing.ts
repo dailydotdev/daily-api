@@ -24,9 +24,11 @@ import type {
 } from '../types';
 import { buildCommonPostFields, shouldSkipAuthorMatch } from '../common';
 import { getSourcePrivacy } from '../shared';
+import { tryMapCommunitySentimentPayload } from '../../../common/communitySentiment';
 
 export const twitterAllowedFields = [
   'canonicalUrl',
+  'communitySentiment',
   'content',
   'contentCuration',
   'contentHtml',
@@ -240,6 +242,15 @@ export const processSocialTwitter = async ({
   fixedData.titleHtml = fixedData.title
     ? generateTitleHtml(fixedData.title, [])
     : null;
+
+  const communitySentiment = tryMapCommunitySentimentPayload({
+    logger,
+    communitySentiment: data?.extra?.community_sentiment,
+    discussions: data?.extra?.discussions,
+  });
+  if (communitySentiment) {
+    fixedData.communitySentiment = communitySentiment;
+  }
 
   return {
     contentType: PostType.SocialTwitter,

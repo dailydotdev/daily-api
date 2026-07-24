@@ -2901,6 +2901,167 @@ describe('community sentiment', () => {
     expect(post.communitySentiment?.postCount).toEqual(410);
     expect(post.title).toEqual('Title update with bad take');
   });
+
+  describe('on social twitter posts', () => {
+    it('should set communitySentiment when creating a new social twitter post', async () => {
+      const yggdrasilId = randomUUID();
+
+      await expectSuccessfulBackground(worker, {
+        id: yggdrasilId,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3001',
+        source_id: 'a',
+        extra: {
+          subtype: 'tweet',
+          content: 'Post with a take',
+          community_sentiment: communitySentimentPayload(),
+          discussions: discussionsPayload,
+        },
+      });
+
+      const post = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ yggdrasilId });
+      expect(post.communitySentiment).toMatchObject({
+        breakdown: { positive: 57, mixed: 27, critical: 16 },
+        tldr: communitySentimentPayload().tldr,
+        postCount: 410,
+        discussions: [
+          {
+            provider: 'hackernews',
+            url: 'https://news.ycombinator.com/item?id=1',
+            points: 329,
+            commentsCount: 172,
+          },
+        ],
+      });
+    });
+
+    it('should persist communitySentiment when updating an existing social twitter post', async () => {
+      const yggdrasilId = randomUUID();
+
+      await expectSuccessfulBackground(worker, {
+        id: yggdrasilId,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3002',
+        source_id: 'a',
+        extra: {
+          subtype: 'tweet',
+          content: 'Original tweet',
+        },
+      });
+
+      const created = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ yggdrasilId });
+      expect(created.communitySentiment).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        id: randomUUID(),
+        post_id: created.id,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3002',
+        source_id: 'a',
+        updated_at: new Date('2030-01-01'),
+        extra: {
+          subtype: 'tweet',
+          content: 'Original tweet',
+          community_sentiment: communitySentimentPayload(),
+          discussions: discussionsPayload,
+        },
+      });
+
+      const updated = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ id: created.id });
+      expect(updated.communitySentiment?.postCount).toEqual(410);
+    });
+
+    it('should leave social twitter communitySentiment untouched when an update carries no take', async () => {
+      const yggdrasilId = randomUUID();
+
+      await expectSuccessfulBackground(worker, {
+        id: yggdrasilId,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3003',
+        source_id: 'a',
+        extra: {
+          subtype: 'tweet',
+          content: 'Original tweet',
+          community_sentiment: communitySentimentPayload(),
+          discussions: discussionsPayload,
+        },
+      });
+
+      const created = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ yggdrasilId });
+      expect(created.communitySentiment?.postCount).toEqual(410);
+
+      await expectSuccessfulBackground(worker, {
+        id: randomUUID(),
+        post_id: created.id,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3003',
+        source_id: 'a',
+        updated_at: new Date('2030-01-01'),
+        extra: {
+          subtype: 'tweet',
+          content: 'Updated tweet body',
+        },
+      });
+
+      const updated = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ id: created.id });
+      expect(updated.communitySentiment?.postCount).toEqual(410);
+      expect(updated.title).toEqual('Updated tweet body');
+    });
+
+    it('should ignore a malformed communitySentiment payload on social twitter update', async () => {
+      const yggdrasilId = randomUUID();
+
+      await expectSuccessfulBackground(worker, {
+        id: yggdrasilId,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3004',
+        source_id: 'a',
+        extra: {
+          subtype: 'tweet',
+          content: 'Original tweet',
+          community_sentiment: communitySentimentPayload(),
+          discussions: discussionsPayload,
+        },
+      });
+
+      const created = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ yggdrasilId });
+      expect(created.communitySentiment?.postCount).toEqual(410);
+
+      await expectSuccessfulBackground(worker, {
+        id: randomUUID(),
+        post_id: created.id,
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/dailydotdev/status/3004',
+        source_id: 'a',
+        updated_at: new Date('2030-01-01'),
+        extra: {
+          subtype: 'tweet',
+          content: 'Updated tweet with a bad take',
+          community_sentiment: communitySentimentPayload({
+            breakdown: { positive: 50, mixed: 20, critical: 20 },
+          }),
+        },
+      });
+
+      const updated = await con
+        .getRepository(SocialTwitterPost)
+        .findOneByOrFail({ id: created.id });
+      expect(updated.communitySentiment?.postCount).toEqual(410);
+      expect(updated.title).toEqual('Updated tweet with a bad take');
+    });
+  });
 });
 
 describe('on youtube post', () => {
