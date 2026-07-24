@@ -221,6 +221,7 @@ export const discoverAndIngestExternal = async ({
                 canonicalUrl,
                 authorId: interest.userId,
                 originalUrl: candidate.url,
+                showOnFeed: false,
               },
             });
           }
