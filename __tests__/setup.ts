@@ -30,6 +30,7 @@ jest.mock('../src/remoteConfig', () => ({
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
       rateLimitReputationThreshold: 1,
       headlineChannelMinPosts: 3,
+      personalContextEnabled: true,
       pricingIds: { pricingGift: 'yearly' },
       fees: {
         transfer: 5,

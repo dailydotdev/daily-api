@@ -68,6 +68,7 @@ export type RemoteConfigValue = {
   contributionProgram: ContributionProgramConfig;
   headlineChannelMinPosts: number;
   excludedMarketingCta: string[];
+  personalContextEnabled: boolean;
 };
 
 class RemoteConfig {

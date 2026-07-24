@@ -39,6 +39,14 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
+    subscription: 'api.user-updated-personal-context',
+  },
+  {
+    topic: 'api.v1.github-account-linked',
+    subscription: 'api.github-account-linked-personal-context',
+  },
+  {
+    topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-custom-feed',
   },
   {
@@ -426,6 +434,10 @@ export const workers: Worker[] = [
   {
     topic: 'post-upvoted',
     subscription: 'api.post-upvoted-interest-signal',
+  },
+  {
+    topic: 'api.v1.personal-context-generated',
+    subscription: 'api.personal-context-generated',
   },
   {
     topic: 'api.v1.interest-content-available',
