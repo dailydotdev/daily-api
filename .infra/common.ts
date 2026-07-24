@@ -436,7 +436,7 @@ export const workers: Worker[] = [
     subscription: 'api.post-upvoted-interest-signal',
   },
   {
-    topic: 'api.v1.personal-context-generated',
+    topic: 'pce.v1.personal-context-generated',
     subscription: 'api.personal-context-generated',
   },
   {

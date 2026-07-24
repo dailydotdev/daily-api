@@ -40,7 +40,7 @@ export const requestPersonalContext = async ({
     ['userId', 'source'],
   );
 
-  await triggerTypedEvent(logger, 'api.v1.generate-personal-context', {
+  await triggerTypedEvent(logger, 'pce.v1.generate-personal-context', {
     userId,
     correlationId,
     sources: [{ kind: source, value }],

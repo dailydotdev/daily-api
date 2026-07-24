@@ -347,10 +347,10 @@ export type PubSubSchema = {
     digestKey: string;
     scheduledAt: string;
   };
-  'api.v1.generate-personal-context': z.infer<
+  'pce.v1.generate-personal-context': z.infer<
     typeof generatePersonalContextSchema
   >;
-  'api.v1.personal-context-generated': z.infer<
+  'pce.v1.personal-context-generated': z.infer<
     typeof personalContextGeneratedSchema
   >;
   'api.v1.github-account-linked': {

@@ -56,7 +56,7 @@ describe('githubAccountLinked', () => {
     });
     expect(triggerTypedEvent).toHaveBeenCalledWith(
       expect.anything(),
-      'api.v1.generate-personal-context',
+      'pce.v1.generate-personal-context',
       expect.objectContaining({
         userId: '1',
         sources: [{ kind: PersonalContextSource.Github, value: 'octocat' }],

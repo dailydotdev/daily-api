@@ -4,7 +4,7 @@ import {
   UserPersonalContext,
 } from '../../entity/user/UserPersonalContext';
 
-export const personalContextGeneratedWorker: TypedWorker<'api.v1.personal-context-generated'> =
+export const personalContextGeneratedWorker: TypedWorker<'pce.v1.personal-context-generated'> =
   {
     subscription: 'api.personal-context-generated',
     handler: async (message, con) => {
