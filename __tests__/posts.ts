@@ -4617,11 +4617,11 @@ describe('mutation viewPost', () => {
     expect(notifyView).toBeCalledTimes(1);
   });
 
-  it('should should not submit view event for articles', async () => {
+  it('should submit view event for articles', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
-    expect(notifyView).toBeCalledTimes(0);
+    expect(notifyView).toBeCalledTimes(1);
   });
 });
 
