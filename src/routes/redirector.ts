@@ -35,7 +35,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(302).redirect(getDiscussionLink(post.slug));
       }
       const url = new URL(post.url);
-      url.searchParams.append('r', 'dailydev');
+      url.searchParams.append('via', 'dailydev');
       const encodedUri = encodeUrl(url.href);
       if (req.isBot) {
         return res.status(302).redirect(encodedUri);

@@ -42,14 +42,14 @@ describe('GET /r/:postId', () => {
     return request(app.server)
       .get('/r/p1')
       .expect(302)
-      .expect('Location', 'http://p1.com/?r=dailydev');
+      .expect('Location', 'http://p1.com/?via=dailydev');
   });
 
   it('should redirect to youtube post url', () => {
     return request(app.server)
       .get('/r/yt1')
       .expect(302)
-      .expect('Location', 'https://youtu.be/T_AbQGe7fuU?r=dailydev');
+      .expect('Location', 'https://youtu.be/T_AbQGe7fuU?via=dailydev');
   });
 
   it('should render redirect html and notify view event', async () => {
@@ -61,9 +61,9 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com/?r=dailydev>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?via=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?r=dailydev"></head></html>',
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?via=dailydev"></head></html>',
       );
     expect(notifyView).toBeCalledWith(
       expect.anything(),
@@ -82,9 +82,9 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com/?r=dailydev>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?via=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?r=dailydev#id"></head></html>',
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?via=dailydev#id"></head></html>',
       );
   });
 
@@ -95,7 +95,7 @@ describe('GET /r/:postId', () => {
     return request(app.server)
       .get('/r/p1')
       .expect(302)
-      .expect('Location', 'http://p1.com/?a=b&r=dailydev');
+      .expect('Location', 'http://p1.com/?a=b&via=dailydev');
   });
 
   it('should redirect to post page when url is not available', async () => {
@@ -118,7 +118,7 @@ describe('GET /r/:postId', () => {
       .expect(302)
       .expect(
         'Location',
-        'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?r=dailydev',
+        'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?via=dailydev',
       );
   });
 });
