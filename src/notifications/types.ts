@@ -31,7 +31,7 @@ import type { UserInterest } from '../entity/UserInterest';
 export type Reference<T> = ChangeObject<T> | T;
 
 export type NotificationInterestBatchContext = NotificationBaseContext & {
-  interest: Pick<UserInterest, 'id' | 'query'>;
+  interest: Pick<UserInterest, 'id' | 'query' | 'lastRunSummary'>;
   count: number;
 };
 

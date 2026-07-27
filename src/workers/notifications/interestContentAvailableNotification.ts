@@ -9,7 +9,7 @@ export const interestContentAvailableNotification: TypedNotificationWorker<'api.
       const { interestId, userId, count, runAt } = data;
 
       const interest = await con.getRepository(UserInterest).findOne({
-        select: ['id', 'query'],
+        select: ['id', 'query', 'lastRunSummary'],
         where: { id: interestId, userId },
       });
 
@@ -21,7 +21,11 @@ export const interestContentAvailableNotification: TypedNotificationWorker<'api.
         {
           type: NotificationType.InterestContentBatch,
           ctx: {
-            interest: { id: interest.id, query: interest.query },
+            interest: {
+              id: interest.id,
+              query: interest.query,
+              lastRunSummary: interest.lastRunSummary,
+            },
             count,
             userIds: [userId],
             dedupKey: `${interestId}:${runAt}`,

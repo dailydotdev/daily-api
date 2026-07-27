@@ -1404,6 +1404,46 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.uniqueKey).toEqual('i1:1700000000000');
   });
 
+  it('should use the agent run summary as the interest_content_batch title', () => {
+    const actual = generateNotificationV2(
+      NotificationType.InterestContentBatch,
+      {
+        userIds: [userId],
+        interest: {
+          id: 'i1',
+          query: 'cool rust projects',
+          lastRunSummary: 'A new Bevy release lands with faster ECS queries.',
+        },
+        count: 3,
+        dedupKey: 'i1:1700000000000',
+      },
+    );
+
+    expect(actual.notification.title).toEqual(
+      '<strong>A new Bevy release lands with faster ECS queries.</strong>',
+    );
+  });
+
+  it('should fall back to a count title when there is no run summary', () => {
+    const actual = generateNotificationV2(
+      NotificationType.InterestContentBatch,
+      {
+        userIds: [userId],
+        interest: {
+          id: 'i1',
+          query: 'cool rust projects',
+          lastRunSummary: null,
+        },
+        count: 3,
+        dedupKey: 'i1:1700000000000',
+      },
+    );
+
+    expect(actual.notification.title).toEqual(
+      '<strong>3 new posts for "cool rust projects"</strong>',
+    );
+  });
+
   it('should fall back to the interest id when interest_content_batch has no dedupKey', () => {
     const actual = generateNotificationV2(
       NotificationType.InterestContentBatch,

@@ -213,12 +213,17 @@ export const notificationTitleMap: Record<
   briefing_ready: () => `<strong>Your presidential briefing is ready</strong>`,
   interest_content_available: () =>
     `<strong>New content for your interest is ready</strong>`,
-  interest_content_batch: (ctx: NotificationInterestBatchContext) =>
-    ctx.count > 0
+  interest_content_batch: (ctx: NotificationInterestBatchContext) => {
+    if (ctx.interest.lastRunSummary) {
+      return `<strong>${ctx.interest.lastRunSummary}</strong>`;
+    }
+
+    return ctx.count > 0
       ? `<strong>${ctx.count} new ${
           ctx.count === 1 ? 'post' : 'posts'
         } for "${ctx.interest.query}"</strong>`
-      : `<strong>New update for "${ctx.interest.query}" is ready</strong>`,
+      : `<strong>New update for "${ctx.interest.query}" is ready</strong>`;
+  },
   user_follow: (ctx: NotificationUserContext) => {
     return `<strong>${ctx.user.name || ctx.user.username}</strong> is now following you`;
   },

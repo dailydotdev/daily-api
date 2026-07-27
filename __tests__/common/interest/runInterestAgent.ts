@@ -5,13 +5,14 @@ describe('getInterestAgentTools', () => {
     expect(getInterestAgentTools(undefined)).toEqual([
       'set_interest_tags',
       'search_daily_dev',
+      'set_run_summary',
       'score_finding',
-      'add_to_feed',
+      'add_finding',
       'write_post',
     ]);
   });
 
-  it('omits scoring and add_to_feed when feed output is off', () => {
+  it('omits scoring and add_finding when feed output is off', () => {
     const tools = getInterestAgentTools({
       feed: false,
       post: true,
@@ -19,7 +20,7 @@ describe('getInterestAgentTools', () => {
       notification: true,
     });
     expect(tools).not.toContain('score_finding');
-    expect(tools).not.toContain('add_to_feed');
+    expect(tools).not.toContain('add_finding');
     expect(tools).toContain('write_post');
   });
 
@@ -30,7 +31,7 @@ describe('getInterestAgentTools', () => {
       digest: false,
       notification: true,
     });
-    expect(tools).toContain('add_to_feed');
+    expect(tools).toContain('add_finding');
     expect(tools).not.toContain('write_post');
   });
 

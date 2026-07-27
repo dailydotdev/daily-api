@@ -89,9 +89,11 @@ const getTimeRangeForSearchTime = (time: SearchTime) => {
 export const mimirFilterBuilder = ({
   contentCuration = [],
   time,
+  publishedAfter,
 }: {
   contentCuration?: string[];
   time?: SearchTime;
+  publishedAfter?: Date;
 }): Filter[] => {
   const output: Filter[] = [
     new Filter({
@@ -117,6 +119,23 @@ export const mimirFilterBuilder = ({
         },
       }),
     );
+  }
+
+  if (publishedAfter) {
+    output.push(
+      new Filter({
+        field: 'time',
+        condition: {
+          value: new TimeRangeFilter({
+            startTimestamp: BigInt(Math.floor(publishedAfter.getTime() / 1000)),
+            endTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+          }),
+          case: MimirFilterCases.TimeRangeFilter,
+        },
+      }),
+    );
+
+    return output;
   }
 
   const timeRange =
