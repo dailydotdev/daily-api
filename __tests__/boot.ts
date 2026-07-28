@@ -2395,13 +2395,52 @@ describe('engagement creatives', () => {
     nock(process.env.SKADI_ORIGIN)
       .post('/private', {
         placement: 'default_engagement',
-        metadata: { USERID: '1' },
+        metadata: { USERID: '1', GDPR: '0' },
       })
       .reply(200, skadiResponse);
 
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([expectedCreative]);
+  });
+
+  it('should forward a valid x-gdpr-consent header to skadi', async () => {
+    const tcString =
+      'CQAbcDEfGhIjKlMnOpQrStUvWxYz.II7Nd_X__bX9n-_7_6ft0eY1f9_r37uQzDhfNs-8F3L_W_LwX32E7NF36tq4KmR4ku1bBIQNtHMnUDUmxaolVrzHsak2cpyNKJ_JkknsZe2dYGF9Pn9lD-YKZ7_5_9_f52T_9_9_-39z3_9f___dv_-__-vjf_599n_v9fV_78_Kf9______-____________8A';
+
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private', {
+        placement: 'default_engagement',
+        metadata: { USERID: '1', GDPR: '0', GDPR_CONSENT: tcString },
+      })
+      .reply(200, skadiResponse);
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('x-gdpr-consent', tcString)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.engagementCreatives).toEqual([expectedCreative]);
+  });
+
+  it('should silently drop an invalid x-gdpr-consent header', async () => {
+    nock(process.env.SKADI_ORIGIN)
+      .post('/private', {
+        placement: 'default_engagement',
+        metadata: { USERID: '1', GDPR: '0' },
+      })
+      .reply(200, skadiResponse);
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('x-gdpr-consent', 'not a valid tc string!{}')
       .set('Cookie', await mockLoggedInCookie())
       .expect(200);
 
