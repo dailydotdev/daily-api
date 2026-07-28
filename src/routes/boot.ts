@@ -104,7 +104,9 @@ import { asyncRetry } from '../integrations/retry';
 import {
   skadiEngagementClient,
   type EngagementCreative,
+  type SkadiConsentMetadata,
 } from '../integrations/skadi';
+import { tcfConsentHeaderSchema } from '../common/schema/consent';
 import { isMockEnabled } from '../mocks/common';
 import { mockSkadiEngagementResponse } from '../mocks/skadi/engagement';
 import { LiveRoom } from '../entity/LiveRoom';
@@ -327,6 +329,28 @@ const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
   return {
     region,
     continent: region ? countryCodeToContinent[region] : undefined,
+  };
+};
+
+// Regions the webapp treats as outside GDPR coverage (mirrors `outsideGdpr`
+// in the apps repo) — keep both lists in sync.
+const gdprExemptRegions = ['US', 'IL'];
+
+const consentSection = (
+  req: FastifyRequest,
+  geo: BaseBoot['geo'],
+): SkadiConsentMetadata => {
+  const gdprApplies =
+    geo.continent === Continent.Europe ||
+    !gdprExemptRegions.includes(geo.region ?? '');
+
+  const header = tcfConsentHeaderSchema.safeParse(
+    req.headers['x-gdpr-consent'],
+  );
+
+  return {
+    GDPR: gdprApplies ? '1' : '0',
+    ...(header.success && { GDPR_CONSENT: header.data }),
   };
 };
 
@@ -713,6 +737,7 @@ const getLocation = async (
 const getEngagementCreatives = async (
   userId: string,
   cid?: string,
+  consent?: SkadiConsentMetadata,
 ): Promise<EngagementCreative[]> => {
   const mocked = isMockEnabled();
 
@@ -725,7 +750,7 @@ const getEngagementCreatives = async (
       ? mockSkadiEngagementResponse
       : await skadiEngagementClient.getAd(
           'default_engagement',
-          { USERID: userId },
+          { USERID: userId, ...consent },
           { cid },
         );
 
@@ -850,6 +875,7 @@ const loggedInBoot = async ({
       getEngagementCreatives(
         userId,
         getReferralFromCookie({ req })?.referralOrigin,
+        consentSection(req, geo),
       ),
       getLiveRoomsBoot(con),
       getDailyBoot({ userId }),
@@ -1058,6 +1084,7 @@ const anonymousBoot = async (
     getEngagementCreatives(
       req.trackingId ?? '',
       getReferralFromCookie({ req })?.referralOrigin,
+      consentSection(req, geo),
     ),
     getLiveRoomsBoot(con),
   ]);

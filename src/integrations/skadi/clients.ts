@@ -4,6 +4,7 @@ import {
   SkadiResponse,
   type EngagementCreative,
   type SkadiAd,
+  type SkadiConsentMetadata,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
@@ -34,7 +35,7 @@ export class SkadiClient<TValue> implements ISkadiClient<TValue> {
     placement: string,
     metadata: {
       USERID: string;
-    },
+    } & SkadiConsentMetadata,
     options?: {
       cid?: string;
     },
