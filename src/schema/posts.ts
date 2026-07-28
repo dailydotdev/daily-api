@@ -3408,16 +3408,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
-      if (post.type !== PostType.Article) {
-        await notifyView(
-          ctx.log,
-          post.id,
-          ctx.userId,
-          ctx.req.headers['referer'],
-          new Date(),
-          post.tagsStr?.split?.(',') ?? [],
-        );
-      }
+      await notifyView(
+        ctx.log,
+        post.id,
+        ctx.userId,
+        ctx.req.headers['referer'],
+        new Date(),
+        post.tagsStr?.split?.(',') ?? [],
+      );
       return { _: true };
     },
     dismissPostFeedback: async (
