@@ -3518,6 +3518,63 @@ describe('mutation sharePost', () => {
       }
     });
 
+    it.each([SourceMemberRoles.Moderator, SourceMemberRoles.Admin])(
+      'should bypass rate limit for squad %s',
+      async (role) => {
+        loggedUser = '1';
+
+        await con
+          .getRepository(SourceMember)
+          .update({ sourceId: 's1', userId: '1' }, { role });
+
+        for (let i = 0; i < 3; i++) {
+          const res = await client.mutate(MUTATION, {
+            variables: variables,
+          });
+          expect(res.errors).toBeFalsy();
+        }
+        expect(await getRedisObject(redisKey)).toBeFalsy();
+      },
+    );
+
+    it('should still rate limit privileged members posting to other squads', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(SquadSource).save({
+        id: 's2',
+        handle: 's2',
+        name: 'Other Squad',
+        private: false,
+        memberPostingRank: 0,
+      });
+      await con.getRepository(SourceMember).save([
+        {
+          sourceId: 's1',
+          userId: '1',
+          referralToken: 'rt',
+          role: SourceMemberRoles.Admin,
+        },
+        {
+          sourceId: 's2',
+          userId: '1',
+          referralToken: 'rt2',
+          role: SourceMemberRoles.Member,
+        },
+      ]);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceId: 's2' },
+      });
+      expect(res.errors).toBeFalsy();
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: { ...variables, sourceId: 's2' } },
+        'RATE_LIMITED',
+        'Take a break. You already posted enough in the last 30 seconds',
+      );
+    });
+
     describe('high rate squads', () => {
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({

@@ -1,5 +1,7 @@
 import { DataSource, EntityManager, MoreThan } from 'typeorm';
 import { Comment, Post, User } from '../entity';
+import { SourceMember } from '../entity/SourceMember';
+import { sourceRoleRank } from '../roles';
 import { remoteConfig } from '../remoteConfig';
 import { subDays } from 'date-fns';
 import { GraphQLError } from 'graphql/index';
@@ -58,10 +60,31 @@ const ensureReputationBasedRateLimit = async (
   }
 };
 
+export const isPrivilegedSquadMember = async (
+  con: DataSource | EntityManager,
+  { userId, sourceId }: { userId?: string; sourceId?: string },
+): Promise<boolean> => {
+  if (!userId || !sourceId) {
+    return false;
+  }
+
+  const member = await con.getRepository(SourceMember).findOne({
+    select: ['role'],
+    where: { userId, sourceId },
+  });
+
+  return !!member && sourceRoleRank[member.role] >= sourceRoleRank.moderator;
+};
+
 export const ensurePostRateLimit = async (
   con: DataSource | EntityManager,
   userId: string,
+  sourceId?: string,
 ): Promise<void> => {
+  if (await isPrivilegedSquadMember(con, { userId, sourceId })) {
+    return;
+  }
+
   return ensureReputationBasedRateLimit(
     con,
     userId,

@@ -17,7 +17,7 @@ import { Context } from '../Context';
 import { logger } from '../logger';
 import { WATERCOOLER_ID } from '../common';
 import { counters } from '../telemetry';
-import { RateLimitError } from '../common/rateLimit';
+import { isPrivilegedSquadMember, RateLimitError } from '../common/rateLimit';
 
 export const highRateLimitedSquads = [WATERCOOLER_ID];
 
@@ -131,10 +131,32 @@ const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
     storeClient: singleRedisClient,
   },
   limiterClass: CustomRateLimiterRedis,
-  pointsCalculator: (directiveArgs, source, args, context, info) => {
+  pointsCalculator: async (directiveArgs, source, args, context, info) => {
     switch (info.fieldName) {
       case 'parseOpportunity':
         return context.isTeamMember ? 0 : 1;
+      case 'createFreeformPost':
+      case 'createPollPost':
+      case 'submitExternalLink':
+      case 'sharePost':
+      case 'createSourcePostModeration': {
+        const isPrivileged = await isPrivilegedSquadMember(context.con, {
+          userId: context.userId,
+          sourceId: args.sourceId as string,
+        });
+
+        if (isPrivileged) {
+          return 0;
+        }
+
+        return defaultPointsCalculator(
+          directiveArgs,
+          source,
+          args,
+          context,
+          info,
+        );
+      }
       default:
         return defaultPointsCalculator(
           directiveArgs,
