@@ -6,6 +6,8 @@ import { getBootData } from './boot';
 import createOrGetConnection from '../db';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { User } from '../entity';
+import { Post } from '../entity/posts/Post';
+import { getDiscussionLink } from '../common/links';
 import { fallbackImages } from '../config';
 
 const sendRedirectAnalytics = async (
@@ -39,6 +41,76 @@ const sendRedirectAnalytics = async (
     req.log.error({ err }, 'failed to send analytics event');
   }
 };
+
+const clickSurfaces = ['claude-code'];
+
+const sendPostClickAnalytics = async ({
+  req,
+  postId,
+  userId,
+}: {
+  req: FastifyRequest;
+  postId: string;
+  userId: string;
+}): Promise<void> => {
+  try {
+    const query = req.query as Record<string, string>;
+    const queryStr = JSON.stringify(query);
+    await sendAnalyticsEvent([
+      {
+        event_timestamp: new Date(),
+        event_name: 'click',
+        event_page: '/c',
+        app_platform: clickSurfaces.includes(query?.utm_source)
+          ? query.utm_source
+          : undefined,
+        target_type: 'post',
+        target_id: postId,
+        user_id: userId,
+        query_params: queryStr.length > 2 ? queryStr : undefined,
+        utm_campaign: query?.utm_campaign,
+        utm_content: query?.utm_content,
+        utm_medium: query?.utm_medium,
+        utm_source: query?.utm_source,
+        utm_term: query?.utm_term,
+        page_referrer: req.headers.referer,
+      },
+    ]);
+  } catch (err) {
+    req.log.error({ err }, 'failed to send post click analytics event');
+  }
+};
+
+const redirectPostClick =
+  (con: DataSource) =>
+  async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
+    const { id } = req.params as { id: string };
+    const post = await con
+      .createQueryBuilder()
+      .select(['post.id AS id', 'post.slug AS slug'])
+      .from(Post, 'post')
+      .where('post.id = :id OR post.shortId = :id', { id })
+      .getRawOne<Pick<Post, 'id' | 'slug'>>();
+
+    if (!post) {
+      return res.status(404).send();
+    }
+
+    const query = req.query as Record<string, string>;
+    const target = new URL(getDiscussionLink(post.slug));
+    Object.entries(query).forEach(([key, value]) => {
+      if (key.startsWith('utm_')) {
+        target.searchParams.set(key, value);
+      }
+    });
+
+    const userId = req.userId || req.trackingId;
+    if (!req.isBot && userId) {
+      sendPostClickAnalytics({ req, postId: post.id, userId });
+    }
+
+    return res.status(302).redirect(target.toString());
+  };
 
 export const redirectToAndroid = ({
   req,
@@ -201,6 +273,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/privacy', (req, res) =>
     res.redirect('https://daily.dev/privacy'),
   );
+  fastify.get('/c/:id', redirectPostClick(con));
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
   fastify.get('/get-extension', redirectToExtensionStore);

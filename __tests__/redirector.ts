@@ -6,6 +6,7 @@ import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture, videoPostsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
+import { sendAnalyticsEvent } from '../src/integrations/analytics';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { fallbackImages } from '../src/config';
@@ -13,6 +14,14 @@ import { fallbackImages } from '../src/config';
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
   notifyView: jest.fn(),
+}));
+
+jest.mock('../src/integrations/analytics', () => ({
+  ...(jest.requireActual('../src/integrations/analytics') as Record<
+    string,
+    unknown
+  >),
+  sendAnalyticsEvent: jest.fn(),
 }));
 
 let app: FastifyInstance;
@@ -120,6 +129,68 @@ describe('GET /r/:postId', () => {
         'Location',
         'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?via=dailydev',
       );
+  });
+});
+
+describe('GET /c/:id', () => {
+  it('should return not found', () => {
+    return request(app.server).get('/c/not').expect(404);
+  });
+
+  it('should redirect to post page forwarding only utm params', () => {
+    return request(app.server)
+      .get('/c/p1?utm_source=claude-code&utm_medium=statusline&foo=bar')
+      .set('user-agent', TEST_UA)
+      .expect(302)
+      .expect(
+        'Location',
+        'http://localhost:5002/posts/p1-p1?utm_source=claude-code&utm_medium=statusline',
+      );
+  });
+
+  it('should send click analytics event with known surface as platform', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=claude-code&utm_medium=statusline')
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=u1')
+      .expect(302);
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        event_name: 'click',
+        event_page: '/c',
+        app_platform: 'claude-code',
+        target_type: 'post',
+        target_id: 'p1',
+        user_id: 'u1',
+        utm_source: 'claude-code',
+        utm_medium: 'statusline',
+      }),
+    ]);
+  });
+
+  it('should not set platform for unknown utm_source', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=newsletter')
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=u1')
+      .expect(302);
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        app_platform: undefined,
+        utm_source: 'newsletter',
+      }),
+    ]);
+  });
+
+  it('should not send analytics event for bots', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=claude-code')
+      .expect(302)
+      .expect(
+        'Location',
+        'http://localhost:5002/posts/p1-p1?utm_source=claude-code',
+      );
+    expect(sendAnalyticsEvent).not.toBeCalled();
   });
 });
 
