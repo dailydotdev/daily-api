@@ -144,8 +144,11 @@ describe('GET /c/:id', () => {
     }
   };
 
-  it('should return not found', () => {
-    return request(app.server).get('/c/not').expect(404);
+  it('should redirect unknown ids to the post page without validation', () => {
+    return request(app.server)
+      .get('/c/not')
+      .expect(302)
+      .expect('Location', 'http://localhost:5002/posts/not');
   });
 
   it('should redirect to post page forwarding only utm params', () => {
@@ -155,7 +158,7 @@ describe('GET /c/:id', () => {
       .expect(302)
       .expect(
         'Location',
-        'http://localhost:5002/posts/p1-p1?utm_source=claude-code&utm_medium=statusline',
+        'http://localhost:5002/posts/p1?utm_source=claude-code&utm_medium=statusline',
       );
   });
 
@@ -221,7 +224,7 @@ describe('GET /c/:id', () => {
       .expect(302)
       .expect(
         'Location',
-        'http://localhost:5002/posts/p1-p1?utm_source=claude-code',
+        'http://localhost:5002/posts/p1?utm_source=claude-code',
       );
     expect(sendAnalyticsEvent).not.toBeCalled();
   });

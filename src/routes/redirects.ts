@@ -6,7 +6,6 @@ import { getAnonymousFirstVisit, getBootData } from './boot';
 import createOrGetConnection from '../db';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { User } from '../entity';
-import { Post } from '../entity/posts/Post';
 import { getDiscussionLink } from '../common/links';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { fallbackImages } from '../config';
@@ -100,20 +99,10 @@ const sendPostClickAnalytics = async ({
 const redirectPostClick =
   (con: DataSource) =>
   async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
+    // No DB lookup — the post page resolves ids itself and owns 404/visibility
     const { id } = req.params as { id: string };
-    const post = await con
-      .createQueryBuilder()
-      .select(['post.id AS id', 'post.slug AS slug'])
-      .from(Post, 'post')
-      .where('post.id = :id OR post.shortId = :id', { id })
-      .getRawOne<Pick<Post, 'id' | 'slug'>>();
-
-    if (!post) {
-      return res.status(404).send();
-    }
-
     const query = req.query as Record<string, string>;
-    const target = new URL(getDiscussionLink(post.slug));
+    const target = new URL(getDiscussionLink(id));
     Object.entries(query).forEach(([key, value]) => {
       if (key.startsWith('utm_')) {
         target.searchParams.set(key, value);
@@ -122,7 +111,7 @@ const redirectPostClick =
 
     const userId = req.userId || req.trackingId;
     if (!req.isBot && userId) {
-      sendPostClickAnalytics({ con, req, postId: post.id, userId });
+      sendPostClickAnalytics({ con, req, postId: id, userId });
     }
 
     return res.status(302).redirect(target.toString());
