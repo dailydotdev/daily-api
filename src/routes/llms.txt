@@ -17,7 +17,7 @@ All API requests require a Bearer token:
 Authorization: Bearer dda_your_token_here
 ```
 
-Tokens are created at https://app.daily.dev/settings/api (requires Plus subscription).
+Tokens are created at https://daily.dev/settings/api (requires Plus subscription).
 
 ## Base URL
 

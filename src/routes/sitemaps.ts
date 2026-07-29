@@ -78,7 +78,7 @@ const toSitemapUrlSetStream = (
   );
 
 const getSitemapUrlPrefix = (): string =>
-  normalizePrefix(process.env.COMMENTS_PREFIX || 'https://app.daily.dev');
+  normalizePrefix(process.env.COMMENTS_PREFIX || 'https://daily.dev');
 
 const getPostSitemapUrl = (prefix: string, slug: string): string =>
   `${prefix}/posts/${slug}`;
