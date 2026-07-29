@@ -1,11 +1,13 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
-import { saveFixtures, TEST_UA } from './helpers';
+import { authorizeRequest, saveFixtures, TEST_UA } from './helpers';
 import { ArticlePost, Source, User, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture, videoPostsFixture } from './fixture/post';
+import { userCreatedDate, usersFixture } from './fixture/user';
 import { notifyView } from '../src/common';
+import { sendAnalyticsEvent } from '../src/integrations/analytics';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { fallbackImages } from '../src/config';
@@ -13,6 +15,14 @@ import { fallbackImages } from '../src/config';
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
   notifyView: jest.fn(),
+}));
+
+jest.mock('../src/integrations/analytics', () => ({
+  ...(jest.requireActual('../src/integrations/analytics') as Record<
+    string,
+    unknown
+  >),
+  sendAnalyticsEvent: jest.fn(),
 }));
 
 let app: FastifyInstance;
@@ -120,6 +130,103 @@ describe('GET /r/:postId', () => {
         'Location',
         'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?via=dailydev',
       );
+  });
+});
+
+describe('GET /c/:id', () => {
+  // the click event is fire-and-forget after the 302, so poll for it
+  const waitForClickEvent = async () => {
+    for (let i = 0; i < 100; i++) {
+      if ((sendAnalyticsEvent as jest.Mock).mock.calls.length) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  };
+
+  it('should redirect unknown ids to the post page without validation', () => {
+    return request(app.server)
+      .get('/c/not')
+      .expect(302)
+      .expect('Location', 'http://localhost:5002/posts/not');
+  });
+
+  it('should redirect to post page forwarding only utm params', () => {
+    return request(app.server)
+      .get('/c/p1?utm_source=claude-code&utm_medium=statusline&foo=bar')
+      .set('user-agent', TEST_UA)
+      .expect(302)
+      .expect(
+        'Location',
+        'http://localhost:5002/posts/p1?utm_source=claude-code&utm_medium=statusline',
+      );
+  });
+
+  it('should send click analytics event with known surface as platform', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=claude-code&utm_medium=statusline')
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=u1')
+      .expect(302);
+    await waitForClickEvent();
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        event_name: 'click',
+        event_page: '/c/p1',
+        app_platform: 'claude-code',
+        target_type: 'post',
+        target_id: 'p1',
+        user_id: 'u1',
+        user_first_visit: expect.any(String),
+        user_registration_date: undefined,
+        utm_source: 'claude-code',
+        utm_medium: 'statusline',
+      }),
+    ]);
+  });
+
+  it('should include registration date for logged-in users', async () => {
+    await saveFixtures(con, User, usersFixture);
+    await authorizeRequest(
+      request(app.server).get('/c/p1?utm_source=claude-code'),
+    )
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=1')
+      .expect(302);
+    await waitForClickEvent();
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        user_id: '1',
+        user_registration_date: new Date(userCreatedDate),
+        user_first_visit: expect.any(String),
+      }),
+    ]);
+  });
+
+  it('should not set platform for unknown utm_source', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=newsletter')
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=u1')
+      .expect(302);
+    await waitForClickEvent();
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        app_platform: undefined,
+        utm_source: 'newsletter',
+      }),
+    ]);
+  });
+
+  it('should not send analytics event for bots', async () => {
+    await request(app.server)
+      .get('/c/p1?utm_source=claude-code')
+      .expect(302)
+      .expect(
+        'Location',
+        'http://localhost:5002/posts/p1?utm_source=claude-code',
+      );
+    expect(sendAnalyticsEvent).not.toBeCalled();
   });
 });
 

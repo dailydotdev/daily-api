@@ -2,10 +2,12 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { UAParser as uaParser } from 'ua-parser-js';
 import { URL } from 'node:url';
 import { DataSource } from 'typeorm';
-import { getBootData } from './boot';
+import { getAnonymousFirstVisit, getBootData } from './boot';
 import createOrGetConnection from '../db';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { User } from '../entity';
+import { getDiscussionLink } from '../common/links';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { fallbackImages } from '../config';
 
 const sendRedirectAnalytics = async (
@@ -39,6 +41,81 @@ const sendRedirectAnalytics = async (
     req.log.error({ err }, 'failed to send analytics event');
   }
 };
+
+const clickSurfaces = ['claude-code'];
+
+const sendPostClickAnalytics = async ({
+  con,
+  req,
+  postId,
+  userId,
+}: {
+  con: DataSource;
+  req: FastifyRequest;
+  postId: string;
+  userId: string;
+}): Promise<void> => {
+  try {
+    const query = req.query as Record<string, string>;
+    const queryStr = JSON.stringify(query);
+    const [user, firstVisit] = await Promise.all([
+      req.userId
+        ? queryReadReplica(con, ({ queryRunner }) =>
+            queryRunner.manager.getRepository(User).findOne({
+              select: ['createdAt'],
+              where: { id: req.userId },
+            }),
+          )
+        : null,
+      getAnonymousFirstVisit(req.trackingId),
+    ]);
+    await sendAnalyticsEvent([
+      {
+        event_timestamp: new Date(),
+        event_name: 'click',
+        event_page: `/c/${postId}`,
+        app_platform: clickSurfaces.includes(query?.utm_source)
+          ? query.utm_source
+          : undefined,
+        target_type: 'post',
+        target_id: postId,
+        user_id: userId,
+        user_first_visit: firstVisit ?? undefined,
+        user_registration_date: user?.createdAt,
+        query_params: queryStr.length > 2 ? queryStr : undefined,
+        utm_campaign: query?.utm_campaign,
+        utm_content: query?.utm_content,
+        utm_medium: query?.utm_medium,
+        utm_source: query?.utm_source,
+        utm_term: query?.utm_term,
+        page_referrer: req.headers.referer,
+      },
+    ]);
+  } catch (err) {
+    req.log.error({ err }, 'failed to send post click analytics event');
+  }
+};
+
+const redirectPostClick =
+  (con: DataSource) =>
+  async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
+    // No DB lookup — the post page resolves ids itself and owns 404/visibility
+    const { id } = req.params as { id: string };
+    const query = req.query as Record<string, string>;
+    const target = new URL(getDiscussionLink(id));
+    Object.entries(query).forEach(([key, value]) => {
+      if (key.startsWith('utm_')) {
+        target.searchParams.set(key, value);
+      }
+    });
+
+    const userId = req.userId || req.trackingId;
+    if (!req.isBot && userId) {
+      sendPostClickAnalytics({ con, req, postId: id, userId });
+    }
+
+    return res.status(302).redirect(target.toString());
+  };
 
 export const redirectToAndroid = ({
   req,
@@ -201,6 +278,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/privacy', (req, res) =>
     res.redirect('https://daily.dev/privacy'),
   );
+  fastify.get('/c/:id', redirectPostClick(con));
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
   fastify.get('/get-extension', redirectToExtensionStore);

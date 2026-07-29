@@ -1000,7 +1000,7 @@ const loggedInBoot = async ({
     } as LoggedInBoot;
   });
 
-const getAnonymousFirstVisit = async (trackingId?: string) => {
+export const getAnonymousFirstVisit = async (trackingId?: string) => {
   if (!trackingId) return null;
 
   const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
