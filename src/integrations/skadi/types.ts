@@ -40,12 +40,19 @@ export type EngagementCreative = {
   source_id?: string;
 };
 
+// IAB TCF consent signals, keyed by skadi's typed metadata names.
+export type SkadiConsentMetadata = {
+  GDPR?: '0' | '1';
+  GDPR_CONSENT?: string;
+  ADDTL_CONSENT?: string;
+};
+
 export interface ISkadiClient<TValue> {
   getAd(
     placement: string,
     metadata: {
       USERID: string;
-    },
+    } & SkadiConsentMetadata,
     options?: {
       // Campaign id forwarded as a `cid` query param (e.g. from the user's
       // referralOrigin) so skadi can target a specific campaign.
