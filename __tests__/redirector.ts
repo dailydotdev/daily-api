@@ -1,10 +1,11 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
-import { saveFixtures, TEST_UA } from './helpers';
+import { authorizeRequest, saveFixtures, TEST_UA } from './helpers';
 import { ArticlePost, Source, User, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture, videoPostsFixture } from './fixture/post';
+import { userCreatedDate, usersFixture } from './fixture/user';
 import { notifyView } from '../src/common';
 import { sendAnalyticsEvent } from '../src/integrations/analytics';
 import { DataSource } from 'typeorm';
@@ -133,6 +134,16 @@ describe('GET /r/:postId', () => {
 });
 
 describe('GET /c/:id', () => {
+  // the click event is fire-and-forget after the 302, so poll for it
+  const waitForClickEvent = async () => {
+    for (let i = 0; i < 100; i++) {
+      if ((sendAnalyticsEvent as jest.Mock).mock.calls.length) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  };
+
   it('should return not found', () => {
     return request(app.server).get('/c/not').expect(404);
   });
@@ -154,16 +165,37 @@ describe('GET /c/:id', () => {
       .set('user-agent', TEST_UA)
       .set('cookie', 'da2=u1')
       .expect(302);
+    await waitForClickEvent();
     expect(sendAnalyticsEvent).toBeCalledWith([
       expect.objectContaining({
         event_name: 'click',
-        event_page: '/c',
+        event_page: '/c/p1',
         app_platform: 'claude-code',
         target_type: 'post',
         target_id: 'p1',
         user_id: 'u1',
+        user_first_visit: expect.any(String),
+        user_registration_date: undefined,
         utm_source: 'claude-code',
         utm_medium: 'statusline',
+      }),
+    ]);
+  });
+
+  it('should include registration date for logged-in users', async () => {
+    await saveFixtures(con, User, usersFixture);
+    await authorizeRequest(
+      request(app.server).get('/c/p1?utm_source=claude-code'),
+    )
+      .set('user-agent', TEST_UA)
+      .set('cookie', 'da2=1')
+      .expect(302);
+    await waitForClickEvent();
+    expect(sendAnalyticsEvent).toBeCalledWith([
+      expect.objectContaining({
+        user_id: '1',
+        user_registration_date: new Date(userCreatedDate),
+        user_first_visit: expect.any(String),
       }),
     ]);
   });
@@ -174,6 +206,7 @@ describe('GET /c/:id', () => {
       .set('user-agent', TEST_UA)
       .set('cookie', 'da2=u1')
       .expect(302);
+    await waitForClickEvent();
     expect(sendAnalyticsEvent).toBeCalledWith([
       expect.objectContaining({
         app_platform: undefined,

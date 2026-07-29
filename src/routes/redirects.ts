@@ -2,12 +2,13 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { UAParser as uaParser } from 'ua-parser-js';
 import { URL } from 'node:url';
 import { DataSource } from 'typeorm';
-import { getBootData } from './boot';
+import { getAnonymousFirstVisit, getBootData } from './boot';
 import createOrGetConnection from '../db';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { User } from '../entity';
 import { Post } from '../entity/posts/Post';
 import { getDiscussionLink } from '../common/links';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { fallbackImages } from '../config';
 
 const sendRedirectAnalytics = async (
@@ -45,10 +46,12 @@ const sendRedirectAnalytics = async (
 const clickSurfaces = ['claude-code'];
 
 const sendPostClickAnalytics = async ({
+  con,
   req,
   postId,
   userId,
 }: {
+  con: DataSource;
   req: FastifyRequest;
   postId: string;
   userId: string;
@@ -56,17 +59,30 @@ const sendPostClickAnalytics = async ({
   try {
     const query = req.query as Record<string, string>;
     const queryStr = JSON.stringify(query);
+    const [user, firstVisit] = await Promise.all([
+      req.userId
+        ? queryReadReplica(con, ({ queryRunner }) =>
+            queryRunner.manager.getRepository(User).findOne({
+              select: ['createdAt'],
+              where: { id: req.userId },
+            }),
+          )
+        : null,
+      getAnonymousFirstVisit(req.trackingId),
+    ]);
     await sendAnalyticsEvent([
       {
         event_timestamp: new Date(),
         event_name: 'click',
-        event_page: '/c',
+        event_page: `/c/${postId}`,
         app_platform: clickSurfaces.includes(query?.utm_source)
           ? query.utm_source
           : undefined,
         target_type: 'post',
         target_id: postId,
         user_id: userId,
+        user_first_visit: firstVisit ?? undefined,
+        user_registration_date: user?.createdAt,
         query_params: queryStr.length > 2 ? queryStr : undefined,
         utm_campaign: query?.utm_campaign,
         utm_content: query?.utm_content,
@@ -106,7 +122,7 @@ const redirectPostClick =
 
     const userId = req.userId || req.trackingId;
     if (!req.isBot && userId) {
-      sendPostClickAnalytics({ req, postId: post.id, userId });
+      sendPostClickAnalytics({ con, req, postId: post.id, userId });
     }
 
     return res.status(302).redirect(target.toString());
