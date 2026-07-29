@@ -33,16 +33,18 @@ const ensureReputationBasedRateLimit = async (
   count: Promise<number>,
   countThreshold: number,
   errorMessage: string,
+  isExempt: Promise<boolean> = Promise.resolve(false),
 ): Promise<void> => {
-  const [user, countValue] = await Promise.all([
+  const [user, countValue, exempt] = await Promise.all([
     con.getRepository(User).findOneOrFail({
       select: ['id', 'reputation', 'subscriptionFlags'],
       where: { id: userId },
     }),
     count,
+    isExempt,
   ]);
 
-  if (isPlusMember(user.subscriptionFlags?.cycle)) {
+  if (exempt || isPlusMember(user.subscriptionFlags?.cycle)) {
     return;
   }
 
@@ -81,10 +83,6 @@ export const ensurePostRateLimit = async (
   userId: string,
   sourceId?: string,
 ): Promise<void> => {
-  if (await isPrivilegedSquadMember(con, { userId, sourceId })) {
-    return;
-  }
-
   return ensureReputationBasedRateLimit(
     con,
     userId,
@@ -95,6 +93,7 @@ export const ensurePostRateLimit = async (
     }),
     remoteConfig.vars?.postRateLimit ?? 0,
     `Take a break. You already posted enough`,
+    isPrivilegedSquadMember(con, { userId, sourceId }),
   );
 };
 
