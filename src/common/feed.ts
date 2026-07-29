@@ -1,7 +1,23 @@
-import { DataSource } from 'typeorm';
-import { Feed } from '../entity/Feed';
+import { DataSource, EntityManager } from 'typeorm';
+import { Feed, FeedOrigin } from '../entity/Feed';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
+
+export const countUserOwnedFeeds = ({
+  con,
+  userId,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+}): Promise<number> =>
+  con
+    .getRepository(Feed)
+    .createQueryBuilder('f')
+    .where('f."userId" = :userId', { userId })
+    .andWhere(`(f.flags->>'origin' IS DISTINCT FROM :agentOrigin)`, {
+      agentOrigin: FeedOrigin.Agent,
+    })
+    .getCount();
 
 export const getFeedByIdentifiersOrFail = async ({
   con,
