@@ -85,7 +85,7 @@ Allow: /devcards/
 Allow: /graphql
 Allow: /boot
 Allow: /sitemaps/
-Sitemap: https://app.daily.dev/api/sitemaps/index.xml
+Sitemap: https://daily.dev/api/sitemaps/index.xml
 Disallow: /`),
   );
 
@@ -110,7 +110,7 @@ You can follow the discussion here.
 https://x.com/dailydotdev/status/1798960336667893866
 
 In the interim we suggest using the web version.
-https://app.daily.dev`,
+https://daily.dev`,
     );
   });
 
