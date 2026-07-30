@@ -6,6 +6,7 @@ import { remoteConfig } from '../remoteConfig';
 import { subDays } from 'date-fns';
 import { GraphQLError } from 'graphql/index';
 import { isPlusMember } from '../paddle';
+import { queryReadReplica } from './queryReadReplica';
 
 export class RateLimitError extends GraphQLError {
   extensions = {};
@@ -63,23 +64,25 @@ const ensureReputationBasedRateLimit = async (
 };
 
 export const isPrivilegedSquadMember = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   { userId, sourceId }: { userId?: string; sourceId?: string },
 ): Promise<boolean> => {
   if (!userId || !sourceId) {
     return false;
   }
 
-  const member = await con.getRepository(SourceMember).findOne({
-    select: ['role'],
-    where: { userId, sourceId },
-  });
+  const member = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(SourceMember).findOne({
+      select: ['role'],
+      where: { userId, sourceId },
+    }),
+  );
 
   return !!member && sourceRoleRank[member.role] >= sourceRoleRank.moderator;
 };
 
 export const ensurePostRateLimit = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   userId: string,
   sourceId?: string,
 ): Promise<void> => {
