@@ -14,6 +14,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { generateShortId } from '../ids';
 import { logger } from '../logger';
 import { maxFeedsPerUser } from '../types';
+import { countUserOwnedFeeds } from './feed';
 
 export const TAG_CHIP_FEED_LIMIT = 5;
 
@@ -147,7 +148,7 @@ export const seedTagChipFeedsIfNeeded = async ({
   }
 
   const existingFeedsCount = await queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Feed).countBy({ userId }),
+    countUserOwnedFeeds({ con: queryRunner.manager, userId }),
   );
   const effectiveLimit = Math.min(limit, maxFeedsPerUser - existingFeedsCount);
 

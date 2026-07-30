@@ -90,6 +90,7 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
 import {
+  countUserOwnedFeeds,
   getFeedByIdentifiersOrFail,
   validateFeedPayload,
 } from '../common/feed';
@@ -2893,7 +2894,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const feedRepo = ctx.con.getRepository(Feed);
 
-      const feedsCount = await feedRepo.countBy({
+      const feedsCount = await countUserOwnedFeeds({
+        con: ctx.con,
         userId: ctx.userId,
       });
 
