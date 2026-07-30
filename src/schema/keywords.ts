@@ -9,8 +9,9 @@ import {
 import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
-import { MoreThanOrEqual } from 'typeorm';
-import { updateFlagsStatement } from '../common/utils';
+import { EntityManager, MoreThanOrEqual } from 'typeorm';
+import { ValidationError } from 'apollo-server-errors';
+import { NotFoundError } from '../errors';
 
 export interface GQLKeyword {
   value: string;
@@ -28,6 +29,13 @@ interface GQLKeywordSearchResults {
 
 interface GQLKeywordArgs {
   keyword: string;
+}
+
+interface GQLKeywordFlagsArgs {
+  keyword: string;
+  title?: string;
+  description?: string;
+  roadmap?: string;
 }
 
 interface GQLSynonymKeywordArgs {
@@ -121,8 +129,20 @@ export const typeDefs = /* GraphQL */ `
     """
     Add keyword to the allowlist
     """
-    allowKeyword(keyword: String!, title: String): EmptyResponse
-      @auth(requires: [MODERATOR])
+    allowKeyword(
+      keyword: String!
+      title: String
+      description: String
+    ): EmptyResponse @auth(requires: [MODERATOR])
+    """
+    Update the public flags (title, description, roadmap) of a keyword
+    """
+    updateKeywordFlags(
+      keyword: String!
+      title: String
+      description: String
+      roadmap: String
+    ): EmptyResponse @auth(requires: [MODERATOR])
     """
     Add keyword to the denylist
     """
@@ -138,6 +158,40 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const PENDING_THRESHOLD = 25;
+
+/**
+ * Keeps only the provided public flags, so omitted arguments never clear
+ * existing values. Returns null when there is nothing to update.
+ */
+const pickKeywordFlags = (
+  flags: KeywordFlagsPublic,
+): KeywordFlagsPublic | null => {
+  const entries = Object.entries(flags).filter(
+    ([, value]) => value !== undefined && value !== null,
+  );
+  return entries.length ? Object.fromEntries(entries) : null;
+};
+
+/**
+ * Merges the given flags into keyword.flags using a bound parameter, so
+ * free text values (descriptions contain quotes and apostrophes) are safe.
+ * Returns the number of affected rows.
+ */
+const mergeKeywordFlags = async (
+  entityManager: EntityManager,
+  keyword: string,
+  flags: KeywordFlagsPublic,
+): Promise<number> => {
+  const { affected } = await entityManager
+    .getRepository(Keyword)
+    .createQueryBuilder()
+    .update()
+    .set({ flags: () => `flags || :keywordFlags::jsonb` })
+    .where({ value: keyword })
+    .setParameter('keywordFlags', JSON.stringify(flags))
+    .execute();
+  return affected ?? 0;
+};
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -230,7 +284,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     allowKeyword: async (
       source,
-      { keyword, title }: GQLKeywordArgs & { title?: string },
+      { keyword, title, description }: GQLKeywordFlagsArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
@@ -239,13 +293,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           value: keyword,
           status: KeywordStatus.Allow,
         });
-        if (title) {
-          await repo.update(
-            { value: keyword },
-            { flags: updateFlagsStatement<Keyword>({ title }) },
-          );
+        const flags = pickKeywordFlags({ title, description });
+        if (flags) {
+          await mergeKeywordFlags(entityManager, keyword, flags);
         }
       });
+      return { _: true };
+    },
+    updateKeywordFlags: async (
+      source,
+      { keyword, title, description, roadmap }: GQLKeywordFlagsArgs,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const flags = pickKeywordFlags({ title, description, roadmap });
+      if (!flags) {
+        throw new ValidationError(
+          'At least one of title, description or roadmap must be provided',
+        );
+      }
+      const affected = await mergeKeywordFlags(ctx.con.manager, keyword, flags);
+      if (!affected) {
+        throw new NotFoundError('Keyword not found');
+      }
       return { _: true };
     },
     denyKeyword: async (
