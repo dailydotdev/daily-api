@@ -1,9 +1,12 @@
 import { DataSource, EntityManager, MoreThan } from 'typeorm';
 import { Comment, Post, User } from '../entity';
+import { SourceMember } from '../entity/SourceMember';
+import { sourceRoleRank } from '../roles';
 import { remoteConfig } from '../remoteConfig';
 import { subDays } from 'date-fns';
 import { GraphQLError } from 'graphql/index';
 import { isPlusMember } from '../paddle';
+import { queryReadReplica } from './queryReadReplica';
 
 export class RateLimitError extends GraphQLError {
   extensions = {};
@@ -31,16 +34,18 @@ const ensureReputationBasedRateLimit = async (
   count: Promise<number>,
   countThreshold: number,
   errorMessage: string,
+  isExempt: Promise<boolean> = Promise.resolve(false),
 ): Promise<void> => {
-  const [user, countValue] = await Promise.all([
+  const [user, countValue, exempt] = await Promise.all([
     con.getRepository(User).findOneOrFail({
       select: ['id', 'reputation', 'subscriptionFlags'],
       where: { id: userId },
     }),
     count,
+    isExempt,
   ]);
 
-  if (isPlusMember(user.subscriptionFlags?.cycle)) {
+  if (exempt || isPlusMember(user.subscriptionFlags?.cycle)) {
     return;
   }
 
@@ -58,9 +63,28 @@ const ensureReputationBasedRateLimit = async (
   }
 };
 
+export const isPrivilegedSquadMember = async (
+  con: DataSource,
+  { userId, sourceId }: { userId?: string; sourceId?: string },
+): Promise<boolean> => {
+  if (!userId || !sourceId) {
+    return false;
+  }
+
+  const member = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(SourceMember).findOne({
+      select: ['role'],
+      where: { userId, sourceId },
+    }),
+  );
+
+  return !!member && sourceRoleRank[member.role] >= sourceRoleRank.moderator;
+};
+
 export const ensurePostRateLimit = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   userId: string,
+  sourceId?: string,
 ): Promise<void> => {
   return ensureReputationBasedRateLimit(
     con,
@@ -72,6 +96,7 @@ export const ensurePostRateLimit = async (
     }),
     remoteConfig.vars?.postRateLimit ?? 0,
     `Take a break. You already posted enough`,
+    isPrivilegedSquadMember(con, { userId, sourceId }),
   );
 };
 

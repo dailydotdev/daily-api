@@ -2754,7 +2754,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           props.sourceId,
           SourcePermissions.PostRequest,
         ),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId, props.sourceId),
       ]);
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
@@ -2978,7 +2978,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId, sourceId),
       ]);
 
       const { id } = await createFreeformPost(ctx.con, ctx, args);
@@ -3261,7 +3261,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId, sourceId),
       ]);
       await ctx.con.transaction(async (manager) => {
         const existingPost = await findPostByUrl(
@@ -3345,7 +3345,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .where('post.id = :id', { id })
           .getOneOrFail(),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId, sourceId),
       ]);
 
       if (post.deleted) {
@@ -3723,7 +3723,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       await Promise.all([
         sourceCheck,
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId, args.sourceId),
       ]);
 
       const id = await generateShortId();
