@@ -6,7 +6,7 @@ import {
 } from 'fastify';
 import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
-import { DataSource, Not, QueryRunner } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -29,6 +29,7 @@ import {
   SquadSource,
   User,
 } from '../entity';
+import { FeedOrigin } from '../entity/Feed';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
@@ -483,16 +484,17 @@ const getFeeds = async ({
   con: DataSource | QueryRunner;
   userId: string;
 }): Promise<Feed[]> => {
-  return con.manager.getRepository(Feed).find({
-    where: {
-      id: Not(userId),
-      userId,
-    },
-    order: {
-      createdAt: 'ASC',
-    },
-    take: maxFeedsPerUser,
-  });
+  return con.manager
+    .getRepository(Feed)
+    .createQueryBuilder('f')
+    .where('f."userId" = :userId', { userId })
+    .andWhere('f.id != :userId', { userId })
+    .andWhere(`(f.flags->>'origin' IS DISTINCT FROM :agentOrigin)`, {
+      agentOrigin: FeedOrigin.Agent,
+    })
+    .orderBy('f."createdAt"', 'ASC')
+    .limit(maxFeedsPerUser)
+    .getMany();
 };
 
 const getRoles = (userId: string): string[] => {

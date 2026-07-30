@@ -5196,6 +5196,29 @@ describe('mutation createFeed', () => {
     );
   });
 
+  it('should not count agent feeds towards the feed limit', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(
+      con,
+      Feed,
+      new Array(maxFeedsPerUser).fill(null).map((item, index) => {
+        return {
+          id: `agent${index}`,
+          userId: '1',
+          flags: { name: `Interest ${index}`, origin: FeedOrigin.Agent },
+        };
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { name: 'Cool feed' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFeed.flags.name).toEqual('Cool feed');
+  });
+
   it('should not create a new feed when name contains special characters', async () => {
     loggedUser = '1';
 

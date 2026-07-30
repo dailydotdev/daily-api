@@ -36,6 +36,7 @@ import {
   UserMarketingCta,
   UserNotification,
 } from '../src/entity';
+import { FeedOrigin } from '../src/entity/Feed';
 import { DatasetLocation } from '../src/entity/dataset/DatasetLocation';
 import {
   OrganizationMemberRole,
@@ -1773,6 +1774,31 @@ describe('boot misc', () => {
         slug: 'cool-feed-cf1',
       },
     ]);
+  });
+
+  it('should not return agent feeds', async () => {
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: { name: 'Cool feed' },
+        slug: 'cool-feed-cf1',
+      },
+      {
+        id: 'agent1',
+        userId: '1',
+        flags: { name: 'cool rust projects', origin: FeedOrigin.Agent },
+        slug: 'cool-rust-projects-agent1',
+      },
+    ]);
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', await mockLoggedInCookie())
+      .expect(200);
+
+    expect(res.body.feeds.map(({ id }: { id: string }) => id)).toEqual(['cf1']);
   });
 });
 
