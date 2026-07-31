@@ -153,7 +153,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const majorHeadlineSignificances = [
+export const majorHeadlineSignificances = [
   HighlightSignificance.Breaking,
   HighlightSignificance.Major,
 ];
@@ -171,7 +171,7 @@ type HighlightsFilters = {
   significances?: HighlightSignificance[];
 };
 
-const applyVisiblePostFilter = <T extends HighlightsCanonical>(
+export const applyVisiblePostFilter = <T extends HighlightsCanonical>(
   builder: SelectQueryBuilder<T>,
   alias: string,
 ): SelectQueryBuilder<T> =>
@@ -185,7 +185,7 @@ const applyVisiblePostFilter = <T extends HighlightsCanonical>(
     )`,
   );
 
-const applyHighlightsFilters = <T extends HighlightsCanonical>(
+export const applyHighlightsFilters = <T extends HighlightsCanonical>(
   builder: SelectQueryBuilder<T>,
   alias: string,
   { channel, significances }: HighlightsFilters,
