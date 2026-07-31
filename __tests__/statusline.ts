@@ -143,6 +143,27 @@ describe('query statuslineHeadlines', () => {
     ]);
   });
 
+  it('should degrade to headlines only when the feed service fails', async () => {
+    await createTestPosts();
+    await con.getRepository(HighlightsCanonical).save([
+      {
+        postId: 's1',
+        channels: ['vibes'],
+        highlightedAt: new Date('2026-03-19T10:40:00.000Z'),
+        headline: 'Surviving headline',
+        significance: HighlightSignificance.Breaking,
+      },
+    ]);
+    nock('http://localhost:6000').post('/api/feed').reply(500);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      (res.data.statuslineHeadlines as string[]).map(stripEscapes),
+    ).toEqual(['daily.dev Surviving headline']);
+  });
+
   it('should serve from cache without hitting the feed service again', async () => {
     await createTestPosts();
     mockFeedService(['s3']);

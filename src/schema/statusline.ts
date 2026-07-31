@@ -141,10 +141,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         return (JSON.parse(cached) as string[]).slice(0, first);
       }
 
-      const [headlines, popular] = await Promise.all([
-        fetchHeadlines(ctx),
-        fetchPopular(ctx),
-      ]);
+      // Feeds degrade independently — a feed-service outage still leaves
+      // curated headlines on the statusline (and vice versa).
+      const [headlines, popular] = (
+        await Promise.allSettled([fetchHeadlines(ctx), fetchPopular(ctx)])
+      ).map((result) =>
+        result.status === 'fulfilled' ? result.value : [],
+      ) as [StatuslineItem[], StatuslineItem[]];
 
       // Interleave curated headlines with popular posts so the rotation
       // alternates flavors; dedupe posts that appear in both feeds.
