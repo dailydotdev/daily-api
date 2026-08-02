@@ -3096,6 +3096,127 @@ describe('mutation reportPost', () => {
   });
 });
 
+describe('squad posting reputation gate', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
+      sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+        id
+      }
+    }
+  `;
+
+  const variables = { sourceId: 'rep', id: 'p1', commentary: 'My comment' };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 'rep',
+      name: 'Reputation Squad',
+      handle: 'reputationSquad',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: false,
+      postingMinReputation: 250,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '2',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '3',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+      },
+    ]);
+    await con.getRepository(User).update({ id: '1' }, { reputation: 10 });
+    await con.getRepository(User).update({ id: '2' }, { reputation: 250 });
+    await con.getRepository(User).update({ id: '3' }, { reputation: 0 });
+  });
+
+  it('should block a member below the threshold', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors?.[0].message).toEqual(
+      'You need at least 250 reputation points to post in this Squad',
+    );
+  });
+
+  it('should allow a member exactly at the threshold', async () => {
+    loggedUser = '2';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+  });
+
+  it('should let moderators post regardless of their reputation', async () => {
+    loggedUser = '3';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+  });
+
+  it('should not offer the moderation queue as a fallback', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: /* GraphQL */ `
+          mutation CreateSourcePostModeration(
+            $sourceId: ID!
+            $title: String
+            $content: String
+            $type: String!
+          ) {
+            createSourcePostModeration(
+              sourceId: $sourceId
+              title: $title
+              content: $content
+              type: $type
+            ) {
+              id
+            }
+          }
+        `,
+        variables: {
+          sourceId: 'rep',
+          title: 'Title',
+          content: 'Content',
+          type: PostType.Freeform,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should ignore the gate once the threshold is cleared', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 'rep' }, { postingMinReputation: null });
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+  });
+});
+
 describe('mutation sharePost', () => {
   const MUTATION = /* GraphQL */ `
     mutation SharePost(

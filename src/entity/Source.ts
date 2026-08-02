@@ -193,6 +193,11 @@ export class SquadSource extends Source {
   @Column({ default: false })
   moderationRequired: boolean;
 
+  // null disables the gate; otherwise plain members need at least this much
+  // reputation to post. Mutually exclusive with moderationRequired.
+  @Column({ type: 'integer', nullable: true })
+  postingMinReputation: number | null;
+
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   linkedSourceIds: string[];
 }

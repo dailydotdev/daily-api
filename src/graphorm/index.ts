@@ -1310,24 +1310,40 @@ const obj = new GraphORM({
       permissions: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
-            .select('array["memberPostingRank", "memberInviteRank"]')
+            .select(
+              `array["memberPostingRank", "memberInviteRank", "postingMinReputation", (SELECT u."reputation" FROM "user" u WHERE u."id" = ${alias}."userId")]`,
+            )
             .from(Source, 'postingSquad')
             .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
-        transform: (value: [number, number], ctx: Context, parent) => {
+        transform: (
+          value: [number, number, number | null, number | null],
+          ctx: Context,
+          parent,
+        ) => {
           const member = parent as SourceMember;
 
           if (!ctx.userId || member.userId !== ctx.userId) {
             return null;
           }
 
-          const [memberPostingRank, memberInviteRank] = value;
-
-          return getPermissionsForMember(member, {
+          const [
             memberPostingRank,
             memberInviteRank,
-          });
+            postingMinReputation,
+            userReputation,
+          ] = value;
+
+          return getPermissionsForMember(
+            member,
+            {
+              memberPostingRank,
+              memberInviteRank,
+              postingMinReputation,
+            },
+            userReputation,
+          );
         },
       },
       roleRank: {

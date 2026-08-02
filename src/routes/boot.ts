@@ -431,6 +431,13 @@ const getSquads = async (
       .addSelect('role')
       .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
+      .addSelect('"postingMinReputation"')
+      // Joining "user" here would make the unqualified selects above ambiguous,
+      // since source and user share id/name/image/type column names.
+      .addSelect(
+        '(SELECT u."reputation" FROM "user" u WHERE u."id" = sm."userId")',
+        'userReputation',
+      )
       .addSelect('sm."favoritedAt"', 'favoritedAt')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -447,17 +454,29 @@ const getSquads = async (
         GQLSource & {
           role: SourceMemberRoles;
           memberPostingRank: number;
+          postingMinReputation: number | null;
+          userReputation: number | null;
           favoritedAt: Date | null;
         }
       >();
 
     return sources.map((source) => {
-      const { role, memberPostingRank, image, favoritedAt, ...restSource } =
-        source;
+      // postingMinReputation and the viewer's reputation are only needed to
+      // resolve permissions, so they stay out of the payload.
+      const {
+        role,
+        memberPostingRank,
+        postingMinReputation,
+        userReputation,
+        image,
+        favoritedAt,
+        ...restSource
+      } = source;
 
       const permissions = getPermissionsForMember(
         { role },
-        { memberPostingRank },
+        { memberPostingRank, postingMinReputation },
+        userReputation,
       );
       // we only send posting and moderation permissions from boot to keep the payload small
       const essentialPermissions = permissions.filter(
