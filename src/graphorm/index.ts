@@ -1311,7 +1311,7 @@ const obj = new GraphORM({
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
             .select(
-              `array["memberPostingRank", "memberInviteRank", "postingMinReputation", (SELECT "reputation" FROM "user" WHERE "id" = ${alias}."userId")]`,
+              `array["memberPostingRank", "memberInviteRank", "postingMinReputation", (SELECT u."reputation" FROM "user" u WHERE u."id" = ${alias}."userId")]`,
             )
             .from(Source, 'postingSquad')
             .where(`postingSquad.id = ${alias}."sourceId"`);

@@ -432,7 +432,12 @@ const getSquads = async (
       .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
       .addSelect('"postingMinReputation"')
-      .addSelect('u."reputation"', 'userReputation')
+      // Joining "user" here would make the unqualified selects above ambiguous,
+      // since source and user share id/name/image/type column names.
+      .addSelect(
+        '(SELECT u."reputation" FROM "user" u WHERE u."id" = sm."userId")',
+        'userReputation',
+      )
       .addSelect('sm."favoritedAt"', 'favoritedAt')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -440,7 +445,6 @@ const getSquads = async (
         's',
         'sm."sourceId" = s."id" and s."type" = \'squad\'',
       )
-      .innerJoin(User, 'u', 'u."id" = sm."userId"')
       .where('sm."userId" = :userId', { userId })
       .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
       .orderBy('sm."favoritedAt" IS NULL', 'ASC')
@@ -457,9 +461,12 @@ const getSquads = async (
       >();
 
     return sources.map((source) => {
+      // postingMinReputation and the viewer's reputation are only needed to
+      // resolve permissions, so they stay out of the payload.
       const {
         role,
         memberPostingRank,
+        postingMinReputation,
         userReputation,
         image,
         favoritedAt,
@@ -468,10 +475,7 @@ const getSquads = async (
 
       const permissions = getPermissionsForMember(
         { role },
-        {
-          memberPostingRank,
-          postingMinReputation: restSource.postingMinReputation,
-        },
+        { memberPostingRank, postingMinReputation },
         userReputation,
       );
       // we only send posting and moderation permissions from boot to keep the payload small
