@@ -431,6 +431,8 @@ const getSquads = async (
       .addSelect('role')
       .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
+      .addSelect('"postingMinReputation"')
+      .addSelect('u."reputation"', 'userReputation')
       .addSelect('sm."favoritedAt"', 'favoritedAt')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -438,6 +440,7 @@ const getSquads = async (
         's',
         'sm."sourceId" = s."id" and s."type" = \'squad\'',
       )
+      .innerJoin(User, 'u', 'u."id" = sm."userId"')
       .where('sm."userId" = :userId', { userId })
       .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
       .orderBy('sm."favoritedAt" IS NULL', 'ASC')
@@ -447,17 +450,29 @@ const getSquads = async (
         GQLSource & {
           role: SourceMemberRoles;
           memberPostingRank: number;
+          postingMinReputation: number | null;
+          userReputation: number | null;
           favoritedAt: Date | null;
         }
       >();
 
     return sources.map((source) => {
-      const { role, memberPostingRank, image, favoritedAt, ...restSource } =
-        source;
+      const {
+        role,
+        memberPostingRank,
+        userReputation,
+        image,
+        favoritedAt,
+        ...restSource
+      } = source;
 
       const permissions = getPermissionsForMember(
         { role },
-        { memberPostingRank },
+        {
+          memberPostingRank,
+          postingMinReputation: restSource.postingMinReputation,
+        },
+        userReputation,
       );
       // we only send posting and moderation permissions from boot to keep the payload small
       const essentialPermissions = permissions.filter(

@@ -128,6 +128,7 @@ export interface GQLSource {
   flags?: SourceFlagsPublic;
   description?: string;
   moderationRequired?: boolean;
+  postingMinReputation?: number | null;
   moderationPostCount?: number;
 }
 
@@ -303,6 +304,11 @@ export const typeDefs = /* GraphQL */ `
     Enable post moderation for the squad
     """
     moderationRequired: Boolean
+
+    """
+    Minimum reputation members need in order to post. Null disables the gate.
+    """
+    postingMinReputation: Int
 
     """
     Count of post waiting for moderation
@@ -817,6 +823,10 @@ export const typeDefs = /* GraphQL */ `
       """
       moderationRequired: Boolean
       """
+      Minimum reputation members need in order to post. Null disables the gate.
+      """
+      postingMinReputation: Int
+      """
       Whether the Squad should be private or not
       """
       isPrivate: Boolean
@@ -866,6 +876,10 @@ export const typeDefs = /* GraphQL */ `
       Enable post moderation for the squad
       """
       moderationRequired: Boolean
+      """
+      Minimum reputation members need in order to post. Null disables the gate.
+      """
+      postingMinReputation: Int
       """
       Whether the Squad should be private or not
       """
@@ -1118,6 +1132,8 @@ const hasPermissionCheck = (
 
 export const sourceTypesWithMembers = ['squad'];
 
+export const MAX_POSTING_MIN_REPUTATION = 1000000;
+
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
@@ -1215,11 +1231,12 @@ export const isPrivilegedMember = async (
 
 type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
 
-export const canPostToSquad = (
+export const canPostToSquad = async (
+  con: DataSource | EntityManager,
   squad: SquadSource,
   sourceMember: SourceMember | null,
   permission: PostPermissions = SourcePermissions.Post,
-): boolean => {
+): Promise<boolean> => {
   if (!sourceMember) {
     return false;
   }
@@ -1232,7 +1249,25 @@ export const canPostToSquad = (
     }
   }
 
-  return memberRank >= squad.memberPostingRank;
+  if (memberRank < squad.memberPostingRank) {
+    return false;
+  }
+
+  // Moderators and admins are never held back by the reputation gate, mirroring
+  // how they bypass moderationRequired.
+  if (
+    typeof squad.postingMinReputation !== 'number' ||
+    memberRank > sourceRoleRank.member
+  ) {
+    return true;
+  }
+
+  const user = await con.getRepository(User).findOne({
+    where: { id: sourceMember.userId },
+    select: ['reputation'],
+  });
+
+  return (user?.reputation ?? 0) >= squad.postingMinReputation;
 };
 
 const validateSquadData = async (
@@ -1243,10 +1278,13 @@ const validateSquadData = async (
     memberPostingRole,
     memberInviteRole,
     categoryId,
+    moderationRequired,
+    postingMinReputation,
   }: Pick<SquadSource, 'handle' | 'name' | 'description' | 'categoryId'> & {
     memberPostingRole?: SourceMemberRoles;
     memberInviteRole?: SourceMemberRoles;
     moderationRequired?: boolean;
+    postingMinReputation?: number | null;
   },
   entityManager: DataSource | EntityManager,
   handleChanged = true,
@@ -1287,10 +1325,47 @@ const validateSquadData = async (
     throw new ValidationError('Invalid member invite role');
   }
 
+  if (typeof postingMinReputation === 'number') {
+    if (
+      !Number.isInteger(postingMinReputation) ||
+      postingMinReputation < 0 ||
+      postingMinReputation > MAX_POSTING_MIN_REPUTATION
+    ) {
+      throw new ValidationError(
+        `Reputation threshold must be a whole number between 0 and ${MAX_POSTING_MIN_REPUTATION}`,
+      );
+    }
+
+    // The two gates answer the same question differently, so allowing both would
+    // leave the squad in a state no UI can represent.
+    if (moderationRequired) {
+      throw new ValidationError(
+        'Post moderation and a reputation threshold cannot be enabled together',
+      );
+    }
+  }
+
   return handle;
 };
 
 const postPermissions = [SourcePermissions.Post, SourcePermissions.PostRequest];
+
+// The reputation gate is the only denial reason worth spelling out: the member
+// can act on it, unlike a role restriction they cannot change themselves.
+const getPostingDeniedMessage = (
+  squad: SquadSource,
+  sourceMember: SourceMember | null,
+): string => {
+  const blockedByReputation =
+    typeof squad.postingMinReputation === 'number' &&
+    !!sourceMember &&
+    sourceRoleRank[sourceMember.role] === sourceRoleRank.member &&
+    sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
+
+  return blockedByReputation
+    ? `You need at least ${squad.postingMinReputation} reputation points to post in this Squad`
+    : 'Posting not allowed!';
+};
 
 export const ensureSourcePermissions = async (
   ctx: Context,
@@ -1330,14 +1405,19 @@ export const ensureSourcePermissions = async (
 
     if (
       source.type === SourceType.Squad &&
-      postPermissions.includes(permission) &&
-      !canPostToSquad(
-        source as SquadSource,
+      postPermissions.includes(permission)
+    ) {
+      const squad = source as SquadSource;
+      const canPost = await canPostToSquad(
+        ctx.con,
+        squad,
         sourceMember,
         permission as PostPermissions,
-      )
-    ) {
-      throw new ForbiddenError('Posting not allowed!');
+      );
+
+      if (!canPost) {
+        throw new ForbiddenError(getPostingDeniedMessage(squad, sourceMember));
+      }
     }
 
     return source;
@@ -1446,6 +1526,7 @@ interface SquadInputArgs {
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
   moderationRequired?: boolean;
+  postingMinReputation?: number | null;
   isPrivate?: boolean;
   categoryId?: string;
 }
@@ -1547,7 +1628,13 @@ export const removeSourceMember = async ({
 
 export const getPermissionsForMember = (
   member: Pick<SourceMember, 'role'>,
-  source: Partial<Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>>,
+  source: Partial<
+    Pick<
+      SquadSource,
+      'memberPostingRank' | 'memberInviteRank' | 'postingMinReputation'
+    >
+  >,
+  userReputation?: number | null,
 ): SourcePermissions[] => {
   const permissions =
     roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
@@ -1556,6 +1643,14 @@ export const getPermissionsForMember = (
   const permissionsToRemove: SourcePermissions[] = [];
 
   if (source.memberPostingRank && memberRank < source.memberPostingRank) {
+    permissionsToRemove.push(SourcePermissions.Post);
+  }
+
+  if (
+    typeof source.postingMinReputation === 'number' &&
+    memberRank === sourceRoleRank[SourceMemberRoles.Member] &&
+    (userReputation ?? 0) < source.postingMinReputation
+  ) {
     permissionsToRemove.push(SourcePermissions.Post);
   }
 
@@ -2603,6 +2698,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
         moderationRequired,
+        postingMinReputation,
         isPrivate = true,
         categoryId,
       }: SquadCreateInputArgs,
@@ -2627,6 +2723,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           memberPostingRole,
           memberInviteRole,
           categoryId,
+          moderationRequired,
+          postingMinReputation,
         },
         ctx.con,
       );
@@ -2644,6 +2742,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             memberPostingRank: sourceRoleRank[memberPostingRole],
             memberInviteRank: sourceRoleRank[memberInviteRole],
             moderationRequired,
+            postingMinReputation: postingMinReputation ?? null,
           });
 
           if (!isNullOrUndefined(isPrivate) && !isPrivate) {
@@ -2707,6 +2806,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         memberPostingRole,
         memberInviteRole,
         moderationRequired,
+        postingMinReputation,
         isPrivate,
         categoryId,
       }: SquadEditInputArgs,
@@ -2725,6 +2825,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
 
+      // Both gates are validated against the merged state so a partial update
+      // cannot leave the squad moderated and reputation-gated at once.
+      const squad = source as SquadSource;
+      const nextModerationRequired =
+        moderationRequired ?? squad.moderationRequired;
+      const nextPostingMinReputation =
+        typeof postingMinReputation === 'undefined'
+          ? squad.postingMinReputation
+          : postingMinReputation;
+
       const handle = await validateSquadData(
         {
           handle: inputHandle,
@@ -2733,6 +2843,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           memberPostingRole,
           memberInviteRole,
           categoryId,
+          moderationRequired: nextModerationRequired,
+          postingMinReputation: nextPostingMinReputation,
         },
         ctx.con,
         inputHandle !== source.handle,
@@ -2749,6 +2861,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           ? sourceRoleRank[memberInviteRole]
           : undefined,
         moderationRequired,
+        postingMinReputation,
       };
 
       if (!isNullOrUndefined(isPrivate)) {

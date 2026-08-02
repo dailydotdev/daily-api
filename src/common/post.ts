@@ -702,7 +702,7 @@ export const checkIfUserPostInSourceDirectlyOrThrow = async (
     throw new ForbiddenError('Access denied!');
   }
 
-  return canPostToSquad(source as SquadSource, squadMember);
+  return canPostToSquad(con, source as SquadSource, squadMember);
 };
 
 export const createPostIntoSourceId = async (
