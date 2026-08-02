@@ -1070,6 +1070,11 @@ describe('quest progress hooks', () => {
       name: 'Rainy day queue',
       description: 'Visit the Read it later page',
     },
+    {
+      eventType: QuestEventType.VisitWatercoolerFeed,
+      name: 'Off the clock',
+      description: 'Visit the Watercooler feed',
+    },
   ])(
     'should complete %s client-side page visit quests',
     async ({ eventType, name, description }) => {
