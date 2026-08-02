@@ -208,7 +208,7 @@ const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
-  (freeform.payload.after!.title!.length || 0) +
+  (freeform.payload.after!.title?.length || 0) +
     (freeform.payload.after!.content?.length || 0) >=
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
 
