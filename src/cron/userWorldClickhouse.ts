@@ -16,6 +16,9 @@ type UserWorldCronConfig = Partial<{
   cursor: string;
 }>;
 
+/** What RETURNING actually hands back — `date` may be a string or a Date. */
+type RawGrowthRow = Omit<UserWorldDelta, 'date'> & { date: string | Date };
+
 /**
  * The world before any reads existed. Only used if the cursor is missing, which
  * should not happen in production — the initial load seeds both tables in bulk and
@@ -26,6 +29,17 @@ const DEFAULT_CURSOR = new Date('2022-01-01T00:00:00Z');
 
 const GROWTH_CHUNK_SIZE = 1000;
 const DISTRICT_CHUNK_SIZE = 500;
+
+/**
+ * Normalise a date column to 'YYYY-MM-DD'.
+ *
+ * Postgres `date` values reach us as either a string or a Date depending on the
+ * driver path — a `::text` cast in the query is NOT sufficient, because TypeORM
+ * re-hydrates the value when the select alias matches an entity column. These are
+ * calendar days, so they are compared and stored as plain ISO strings.
+ */
+const toDay = (value: string | Date): string =>
+  typeof value === 'string' ? value.slice(0, 10) : format(value, 'yyyy-MM-dd');
 
 const chunk = <T>(items: T[], size: number): T[][] =>
   items.reduce<T[][]>((acc, item) => {
@@ -136,7 +150,15 @@ export const userWorldClickhouseCron: Cron = {
           .returning(['userId', 'date', 'nicheId', 'reads'])
           .execute();
 
-        inserted = inserted.concat(result.raw as UserWorldDelta[]);
+        // `date` comes back from RETURNING on a date column, so it carries the
+        // same string-or-Date ambiguity as the read below. Normalise once, here,
+        // and everything downstream is plain 'YYYY-MM-DD'.
+        inserted = inserted.concat(
+          (result.raw as RawGrowthRow[]).map((row) => ({
+            ...row,
+            date: toDay(row.date),
+          })),
+        );
       }
 
       if (inserted.length === 0) {
@@ -194,9 +216,9 @@ export const userWorldClickhouseCron: Cron = {
           .select('district."userId"', 'userId')
           .addSelect('district."nicheId"', 'nicheId')
           .addSelect('district.reads', 'reads')
-          // ::text so the driver hands back 'YYYY-MM-DD' rather than a Date whose
-          // parsing would depend on the session timezone — these are calendar
-          // days, not instants, and a shift would move a founding date.
+          // The ::text cast is not load-bearing — TypeORM re-hydrates the value
+          // to a Date anyway when the alias matches an entity column. `toDay`
+          // below is what actually guarantees a 'YYYY-MM-DD' string.
           .addSelect('district."firstReadAt"::text', 'firstReadAt')
           .addSelect('district."lastReadAt"::text', 'lastReadAt')
           .addSelect('district."activeDays"', 'activeDays')
@@ -207,8 +229,11 @@ export const userWorldClickhouseCron: Cron = {
             userId: string;
             nicheId: string;
             reads: number;
-            firstReadAt: string;
-            lastReadAt: string;
+            // Typed loosely on purpose: the `::text` cast above does NOT guarantee a
+            // string here, because the alias matches an entity column and TypeORM
+            // re-hydrates it as a Date. `toDay` below is what actually pins it.
+            firstReadAt: string | Date;
+            lastReadAt: string | Date;
             activeDays: number;
           }>();
 
@@ -223,19 +248,23 @@ export const userWorldClickhouseCron: Cron = {
             return change;
           }
 
+          // Both sides must be 'YYYY-MM-DD' strings before comparing. Left as a
+          // Date, `date < 'YYYY-MM-DD'` coerces the Date through toString() to
+          // "Wed Jul 01 2026 …", and 'W' sorts above any digit — so the comparison
+          // silently inverts and the earlier date loses. That put a district's
+          // founding date at its most recent read instead of its first.
+          const priorFirst = toDay(prior.firstReadAt);
+          const priorLast = toDay(prior.lastReadAt);
+
           return {
             userId: change.userId,
             nicheId: change.nicheId,
             reads: prior.reads + change.reads,
             activeDays: prior.activeDays + change.activeDays,
             firstReadAt:
-              prior.firstReadAt < change.firstReadAt
-                ? prior.firstReadAt
-                : change.firstReadAt,
+              priorFirst < change.firstReadAt ? priorFirst : change.firstReadAt,
             lastReadAt:
-              prior.lastReadAt > change.lastReadAt
-                ? prior.lastReadAt
-                : change.lastReadAt,
+              priorLast > change.lastReadAt ? priorLast : change.lastReadAt,
           };
         });
 
