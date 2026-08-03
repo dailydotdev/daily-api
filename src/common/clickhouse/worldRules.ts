@@ -147,8 +147,16 @@ pv AS (
 reg AS (SELECT id FROM api.user GROUP BY id)`;
 
 /**
- * Reads in `(cursor, until]`, deduplicated to one row per (user, post) within the
+ * Reads in `[cursor, until)`, deduplicated to one row per (user, post) within the
  * window, grouped into the per-day per-niche counts the growth table stores.
+ *
+ * The window is half-open, [cursor, until). Both bounds matter. With `<= until` an
+ * event on the exact millisecond of midnight is pulled into the *previous* day's
+ * run while carrying the *next* day's date; the run after it then collects the rest
+ * of that day, conflicts on (userId, date, nicheId), and DO NOTHING silently drops
+ * it. With `> cursor` instead of `>=`, an event landing exactly on a cursor is in
+ * neither window and is lost outright. Half-open intervals tile with no gap and no
+ * overlap, which is what the ON CONFLICT dedup depends on.
  *
  * Dedup is window-local by design: a post re-read on a later day counts again.
  * Exact lifetime dedup would need a 71M-row (userId, postId) ledger; measured drift
@@ -168,8 +176,8 @@ firsts AS (
   INNER JOIN nc n ON pn.nicheId = n.id
   INNER JOIN pmeta pm ON eff.eff_id = pm.id
   INNER JOIN reg ON e.user_id = reg.id
-  WHERE e.event_timestamp > {cursor: DateTime}
-    AND e.event_timestamp <= {until: DateTime}
+  WHERE e.event_timestamp >= {cursor: DateTime}
+    AND e.event_timestamp < {until: DateTime}
     AND e.event_name IN (${asSqlList(READ_EVENTS)})
     AND eff.eff_id NOT IN (SELECT id FROM du)
     AND eff.eff_id NOT IN (SELECT id FROM pv)
