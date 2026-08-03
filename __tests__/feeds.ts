@@ -35,6 +35,8 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { PollOption } from '../src/entity/polls/PollOption';
+import { Niche, NicheBucketGroup } from '../src/entity/Niche';
+import { PostNiche } from '../src/entity/PostNiche';
 import { SourceMemberRoles } from '../src/roles';
 import { snotraUserApiClient } from '../src/integrations/snotra/clients';
 import { PersonaliseState } from '../src/integrations/snotra/types';
@@ -4540,8 +4542,8 @@ describe('query feedPreview', () => {
 
 describe('query userUpvotedFeed', () => {
   const QUERY = `
-  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String) {
-    userUpvotedFeed(userId: $userId, first: $first, after: $after) {
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $niches: [String!]) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after, niches: $niches) {
       ${feedFields()}
     }
   }
@@ -4589,6 +4591,65 @@ describe('query userUpvotedFeed', () => {
     res.data.userUpvotedFeed.edges.forEach(({ node }) =>
       expect(['p1', 'p3']).toContain(node.id),
     );
+  });
+
+  describe('niches filter', () => {
+    const jsTsId = '3a5b0ff5-5f4e-4b3f-9d2e-1c5a6b7c8d9e';
+    const rustId = '4b6c1aa6-6a5f-4c40-8e3f-2d6b7c8d9e0f';
+
+    beforeEach(async () => {
+      await saveFixtures(con, Niche, [
+        {
+          id: jsTsId,
+          slug: 'js_ts',
+          title: 'JS/TS',
+          bucketGroup: NicheBucketGroup.Ecosystem,
+        },
+        {
+          id: rustId,
+          slug: 'rust',
+          title: 'Rust',
+          bucketGroup: NicheBucketGroup.Ecosystem,
+        },
+      ]);
+      // p1 is JS/TS only, p3 is primarily Rust with JS/TS as its secondary
+      await saveFixtures(con, PostNiche, [
+        { postId: 'p1', nicheId: jsTsId, rank: 1 },
+        { postId: 'p3', nicheId: rustId, rank: 1 },
+        { postId: 'p3', nicheId: jsTsId, rank: 2 },
+      ]);
+    });
+
+    it('should only return upvotes in the given niches', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['rust'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userUpvotedFeed.edges.map(({ node }) => node.id)).toEqual(
+        ['p3'],
+      );
+    });
+
+    it('should match a secondary niche of a post', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['js_ts'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(
+        res.data.userUpvotedFeed.edges.map(({ node }) => node.id).sort(),
+      ).toEqual(['p1', 'p3']);
+    });
+
+    it('should return nothing for an unknown niche', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['nope'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userUpvotedFeed.edges).toEqual([]);
+    });
   });
 });
 
