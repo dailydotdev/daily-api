@@ -28,8 +28,11 @@ const cronConfigRedisKey = generateStorageKey(
   'config',
 );
 
-const nicheJs = '11111111-1111-1111-1111-111111111111';
-const nicheAi = '22222222-2222-2222-2222-222222222222';
+// Must be well-formed v4 UUIDs: the delta schema validates `nicheId` with
+// z.uuid(), which enforces the version and variant nibbles. Repeated-digit
+// placeholders like 1111-1111-1111 fail it.
+const nicheJs = '11111111-1111-4111-8111-111111111111';
+const nicheAi = '22222222-2222-4222-8222-222222222222';
 
 beforeEach(async () => {
   jest.clearAllMocks();
