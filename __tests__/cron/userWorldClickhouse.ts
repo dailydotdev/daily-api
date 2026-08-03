@@ -211,7 +211,12 @@ describe('userWorldClickhouse cron', () => {
     // it. This is the failure that took down the first production run.
     await runWith([
       ...delta,
-      { userId: 'deleted-user', date: '2026-07-02', nicheId: nicheJs, reads: 9 },
+      {
+        userId: 'deleted-user',
+        date: '2026-07-02',
+        nicheId: nicheJs,
+        reads: 9,
+      },
     ]);
 
     expect(await con.getRepository(UserNicheGrowth).count()).toBe(delta.length);
