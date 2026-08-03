@@ -2178,6 +2178,27 @@ const obj = new GraphORM({
       },
     },
   },
+  Niche: {
+    requiredColumns: ['id'],
+  },
+  // Entity-backed, so graphorm resolves the niche relation and the whole world
+  // comes back as one jsonb-aggregated query instead of a query per district.
+  UserWorldDistrict: {
+    from: 'UserNicheAnalytics',
+    // nicheId is needed for the relation join even when only slug is requested
+    requiredColumns: ['userId', 'nicheId'],
+    fields: {
+      firstReadAt: { transform: transformDate },
+      lastReadAt: { transform: transformDate },
+    },
+  },
+  UserWorldGrowth: {
+    from: 'UserNicheGrowth',
+    requiredColumns: ['userId', 'nicheId'],
+    fields: {
+      date: { transform: transformDate },
+    },
+  },
   UserProfileAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {

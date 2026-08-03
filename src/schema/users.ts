@@ -160,9 +160,6 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
-import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
-import { UserNicheGrowth } from '../entity/user/UserNicheGrowth';
-import { Niche } from '../entity/Niche';
 import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
@@ -357,8 +354,15 @@ export interface GQLUserPersonalizedDigest {
   flags: UserPersonalizedDigestFlagsPublic;
 }
 
+export interface GQLNiche {
+  id: string;
+  slug: string;
+  title: string;
+  bucketGroup: string;
+}
+
 export interface GQLUserWorldDistrict {
-  niche: string;
+  niche: GQLNiche;
   reads: number;
   firstReadAt: Date;
   lastReadAt: Date;
@@ -366,15 +370,9 @@ export interface GQLUserWorldDistrict {
 }
 
 export interface GQLUserWorldGrowth {
-  date: string;
-  niche: string;
+  date: Date;
+  niche: GQLNiche;
   reads: number;
-}
-
-export interface GQLUserWorld {
-  id: string;
-  totalReads: number;
-  districts: GQLUserWorldDistrict[];
 }
 
 export interface GQLUserProfileAnalytics {
@@ -1376,13 +1374,35 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  A content niche — the unit a district is built around
+  """
+  type Niche {
+    """
+    Niche ID
+    """
+    id: ID!
+    """
+    Stable slug, e.g. "js_ts"
+    """
+    slug: String!
+    """
+    Display title
+    """
+    title: String!
+    """
+    Whether the niche is a stack ecosystem or a cross-stack theme
+    """
+    bucketGroup: String!
+  }
+
+  """
   A single district of a user's personal world — one niche they have read in
   """
   type UserWorldDistrict {
     """
-    Niche slug, e.g. "js_ts"
+    The niche this district is built around
     """
-    niche: String!
+    niche: Niche!
     """
     Distinct posts read in this niche
     """
@@ -1402,8 +1422,8 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  One day's growth in one district — the timeline replayed in date order is the
-  world being built
+  One day's growth in one district — replayed in date order it is the world
+  being built
   """
   type UserWorldGrowth {
     """
@@ -1411,36 +1431,13 @@ export const typeDefs = /* GraphQL */ `
     """
     date: DateTime!
     """
-    Niche slug
+    The niche that grew
     """
-    niche: String!
+    niche: Niche!
     """
     Distinct posts first read in this niche on this day
     """
     reads: Int!
-  }
-
-  """
-  A user's personal world, built from what they have read
-  """
-  type UserWorld {
-    """
-    User ID
-    """
-    id: ID!
-    """
-    Distinct posts read across every district
-    """
-    totalReads: Int!
-    """
-    Districts, largest first
-    """
-    districts: [UserWorldDistrict!]!
-    """
-    Day-by-day growth, oldest first. Only fetched when selected — a long-tenured
-    world runs to tens of thousands of rows.
-    """
-    timeline: [UserWorldGrowth!]!
   }
 
   extend type Query {
@@ -1453,9 +1450,15 @@ export const typeDefs = /* GraphQL */ `
     """
     userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
     """
-    Get a user's personal world. Public — worlds are shareable by design.
+    Get a user's personal world, largest district first. Public — worlds are
+    shareable by design.
     """
-    userWorld(id: ID!): UserWorld @cacheControl(maxAge: 600)
+    userWorld(id: ID!): [UserWorldDistrict!]! @cacheControl(maxAge: 600)
+    """
+    Day-by-day growth of a user's world, oldest first. Separate from userWorld
+    because a long-tenured world runs to tens of thousands of rows.
+    """
+    userWorldTimeline(id: ID!): [UserWorldGrowth!]! @cacheControl(maxAge: 600)
     """
     Get User Streak
     """
@@ -2525,31 +2528,6 @@ function processSocialLinksForDualWrite(
 }
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
-  UserWorld: {
-    // A field resolver, not part of the parent query, so a client that only wants
-    // the skyline never pays for the log behind it. Ordered oldest-first because
-    // the consumer replays it forward to build the world.
-    timeline: async (
-      world: GQLUserWorld,
-      _,
-      ctx: Context,
-    ): Promise<GQLUserWorldGrowth[]> =>
-      ctx.con
-        .getRepository(UserNicheGrowth)
-        .createQueryBuilder('growth')
-        .select('growth.date::text', 'date')
-        .addSelect('niche.slug', 'niche')
-        .addSelect('growth.reads', 'reads')
-        .innerJoin(Niche, 'niche', 'niche.id = growth."nicheId"')
-        .where('growth."userId" = :id', { id: world.id })
-        // hidden at serving only, matching the districts above
-        .andWhere('niche.slug NOT IN (:...hidden)', {
-          hidden: SERVING_HIDDEN_NICHE_SLUGS,
-        })
-        .orderBy('growth.date', 'ASC')
-        .addOrderBy('niche.slug', 'ASC')
-        .getRawMany<GQLUserWorldGrowth>(),
-  },
   Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(
@@ -2569,43 +2547,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return res[0];
     },
     userWorld: async (
-      source,
+      _,
       { id }: { id: string },
       ctx: Context,
-    ): Promise<GQLUserWorld | null> => {
-      // One range scan: the primary key leads with userId precisely so a whole
-      // world is contiguous rather than up to 40 point lookups.
-      const districts = await ctx.con
-        .getRepository(UserNicheAnalytics)
-        .createQueryBuilder('district')
-        .select('niche.slug', 'niche')
-        .addSelect('district.reads', 'reads')
-        .addSelect('district."firstReadAt"', 'firstReadAt')
-        .addSelect('district."lastReadAt"', 'lastReadAt')
-        .addSelect('district."activeDays"', 'activeDays')
-        .innerJoin(Niche, 'niche', 'niche.id = district."nicheId"')
-        .where('district."userId" = :id', { id })
-        // Hidden at serving, not at collection — the rows exist, so this is
-        // reversible without a backfill.
-        .andWhere('niche.slug NOT IN (:...hidden)', {
-          hidden: SERVING_HIDDEN_NICHE_SLUGS,
-        })
-        .orderBy('district.reads', 'DESC')
-        .addOrderBy('niche.slug', 'ASC')
-        .getRawMany<GQLUserWorldDistrict>();
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldDistrict[]> =>
+      graphorm.query<GQLUserWorldDistrict>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            // userId leads the primary key, so a whole world is one range scan
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            .orderBy(`"${builder.alias}".reads`, 'DESC');
 
-      // No districts means nothing we can attribute has been read — an unfounded
-      // world, not an error.
-      if (districts.length === 0) {
-        return null;
-      }
+          return builder;
+        },
+        true,
+      ),
+    userWorldTimeline: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldGrowth[]> =>
+      graphorm.query<GQLUserWorldGrowth>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            // oldest first: the consumer replays it forward to build the world
+            .orderBy(`"${builder.alias}".date`, 'ASC');
 
-      return {
-        id,
-        districts,
-        totalReads: districts.reduce((sum, { reads }) => sum + reads, 0),
-      };
-    },
+          return builder;
+        },
+        true,
+      ),
     userStats: async (
       source,
       { id }: { id: string },
