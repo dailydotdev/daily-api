@@ -42,6 +42,8 @@ import { ContentPreference } from '../entity/contentPreference/ContentPreference
 import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { whereNotUserBlocked } from './contentPreference';
+import { Niche } from '../entity/Niche';
+import { PostNiche } from '../entity/PostNiche';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -59,6 +61,26 @@ export const whereTags = (
       [variableAlias]: tags.map((tag) => tag.toLowerCase()),
     })
     .andWhere(`pk."postId" = ${alias}.id`)
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+/**
+ * Matches posts labeled with any of the given niche slugs, at either rank —
+ * a post's secondary niche is still that post being about that niche.
+ */
+export const whereNiches = (
+  niches: string[],
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): string => {
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostNiche, 'pn')
+    .innerJoin(Niche, 'n', 'n.id = pn."nicheId"')
+    .where('n.slug IN (:...niches)', { niches })
+    .andWhere(`pn."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
 };
