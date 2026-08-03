@@ -2805,7 +2805,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         // never asks for the entitlements field.
         const [user, districts] = await Promise.all([
           settings?.name ? null : getWorldOwner(queryRunner.manager, id),
-          settings?.crest ? [] : getCrestDistricts(queryRunner.manager, id),
+          settings?.crest ? null : getCrestDistricts(queryRunner.manager, id),
         ]);
         return resolveWorldSettings({ userId: id, settings, districts, user });
       }),
@@ -5405,11 +5405,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: Context,
     ): Promise<WorldEntitlement[]> =>
       resolveEntitlements(
-        settings.districts.length
-          ? settings.districts
-          : await queryReadReplica(ctx.con, ({ queryRunner }) =>
-              getCrestDistricts(queryRunner.manager, settings.userId),
-            ),
+        settings.districts ??
+          (await queryReadReplica(ctx.con, ({ queryRunner }) =>
+            getCrestDistricts(queryRunner.manager, settings.userId),
+          )),
       ),
   },
   User: {

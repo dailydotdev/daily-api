@@ -125,14 +125,16 @@ export const resolveWorldSettings = ({
 }: {
   userId: string;
   settings: UserWorldSettings | null;
-  districts: CrestDistrict[];
+  /** Null when they were never loaded, which is not the same as none existing. */
+  districts: CrestDistrict[] | null;
   user: Pick<User, 'name' | 'username'> | null;
 }) => ({
   userId,
   districts,
   name: settings?.name ?? defaultWorldName(user),
   sky: settings?.sky ?? DEFAULT_SKY,
-  crest: settings?.crest ?? defaultCrest({ userId, districts }),
+  crest:
+    settings?.crest ?? defaultCrest({ userId, districts: districts ?? [] }),
   look: settings?.look ?? DEFAULT_LOOK,
   private: settings?.private ?? false,
 });
