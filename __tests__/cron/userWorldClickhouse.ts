@@ -204,6 +204,36 @@ describe('userWorldClickhouse cron', () => {
     );
   });
 
+  it('should skip users that no longer exist in postgres', async () => {
+    // The delta is built from a ClickHouse mirror of the user table, which lags.
+    // A row for an account Postgres has already deleted violates the growth FK and
+    // aborts the whole transaction — so the rest of the batch must not be lost with
+    // it. This is the failure that took down the first production run.
+    await runWith([
+      ...delta,
+      {
+        userId: 'deleted-user',
+        date: '2026-07-02',
+        nicheId: nicheJs,
+        reads: 9,
+      },
+    ]);
+
+    expect(await con.getRepository(UserNicheGrowth).count()).toBe(delta.length);
+    expect(
+      await con
+        .getRepository(UserNicheGrowth)
+        .countBy({ userId: 'deleted-user' }),
+    ).toBe(0);
+
+    // the surviving rows still fold into districts exactly as they would have
+    const district = await con
+      .getRepository(UserNicheAnalytics)
+      .findOneByOrFail({ userId: '1', nicheId: nicheJs });
+    expect(district.reads).toBe(5);
+    expect(district.activeDays).toBe(2);
+  });
+
   it('should be a no-op when run twice on the same day', async () => {
     await runWith(delta);
     const { cursor } = await getRedisHash(cronConfigRedisKey);
