@@ -3736,10 +3736,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
 
         // Only the keys the client actually sent — an absent one must leave the
-        // stored value alone, which is not the same as being sent as null.
+        // stored value alone, which is not the same as being sent as null. The
+        // test is against undefined rather than key presence so that an absent
+        // argument materialised as an undefined key still counts as absent.
         const changes = Object.fromEntries(
           (['name', 'sky', 'crest', 'look', 'private'] as const)
-            .filter((key) => key in args)
+            .filter((key) => typeof patch[key] !== 'undefined')
             .map((key) => [key, patch[key] ?? null]),
         );
         // An empty patch would upsert a row with nothing to update, which is
