@@ -13,7 +13,7 @@ import { UserNicheGrowth } from '../../src/entity/user/UserNicheGrowth';
 import { Niche } from '../../src/entity/Niche';
 import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
-import { deleteRedisKey, getRedisHash } from '../../src/redis';
+import { deleteRedisKey, getRedisHash, setRedisHash } from '../../src/redis';
 import { generateStorageKey, StorageTopic } from '../../src/config';
 
 let con: DataSource;
@@ -34,9 +34,15 @@ const cronConfigRedisKey = generateStorageKey(
 const nicheJs = '11111111-1111-4111-8111-111111111111';
 const nicheAi = '22222222-2222-4222-8222-222222222222';
 
+// Well before the fixture dates, so every delta falls inside the window.
+const seedCursor = '2026-01-01T00:00:00.000Z';
+
 beforeEach(async () => {
   jest.clearAllMocks();
   await deleteRedisKey(cronConfigRedisKey);
+  // Production always has a cursor once the bulk seed has run; an absent one is
+  // the recovery path, exercised explicitly below.
+  await setRedisHash(cronConfigRedisKey, { cursor: seedCursor });
   await con.getRepository(UserNicheAnalytics).clear();
   await con.getRepository(UserNicheGrowth).clear();
   await saveFixtures(con, User, usersFixture);
@@ -102,10 +108,10 @@ describe('userWorldClickhouse cron', () => {
     await runWith(delta);
     const before = await con.getRepository(UserNicheAnalytics).find();
 
-    // Simulate a retry after a run that failed *after* committing: rewind the
-    // cursor so the identical window is fetched again. Districts advance only from
-    // rows the growth insert actually returned, and every row now conflicts, so
-    // this must be inert rather than double-counting.
+    // Drop the cursor entirely: the cron recovers it from the growth log, which
+    // lands a day after the newest row, and the identical window is fetched again.
+    // Districts advance only from rows the growth insert returned, and every row
+    // now conflicts, so this must be inert rather than double-counting.
     await deleteRedisKey(cronConfigRedisKey);
     await runWith(delta);
 
@@ -131,7 +137,7 @@ describe('userWorldClickhouse cron', () => {
 
   it('should accumulate across windows', async () => {
     await runWith(delta);
-    // a later day's run — rewind the cursor so the second window is fetched
+    // a later day's run; the cursor is recovered from the growth log
     await deleteRedisKey(cronConfigRedisKey);
     await runWith([
       { userId: '1', date: '2026-07-05', nicheId: nicheJs, reads: 4 },
@@ -168,6 +174,34 @@ describe('userWorldClickhouse cron', () => {
     expect(at.getUTCMinutes()).toBe(0);
     expect(at.getUTCSeconds()).toBe(0);
     expect(at.getUTCMilliseconds()).toBe(0);
+  });
+
+  it('should recover the cursor from the growth log when redis is empty', async () => {
+    await runWith(delta);
+    await deleteRedisKey(cronConfigRedisKey);
+
+    // Newest growth row is 2026-07-03, so the next window opens on 07-04 and a
+    // read on 07-04 must be picked up rather than skipped or replayed from 2022.
+    await runWith([
+      { userId: '1', date: '2026-07-04', nicheId: nicheJs, reads: 2 },
+    ]);
+
+    const district = await con
+      .getRepository(UserNicheAnalytics)
+      .findOneByOrFail({ userId: '1', nicheId: nicheJs });
+
+    expect(district.reads).toBe(7);
+    expect(district.lastReadAt).toBe('2026-07-04');
+  });
+
+  it('should refuse to run with no cursor and an empty growth log', async () => {
+    await deleteRedisKey(cronConfigRedisKey);
+
+    // Guessing here is worse than failing: an early default replays years through
+    // the delta path, a late one silently skips whatever was missed.
+    await expect(expectSuccessfulCron(cron)).rejects.toThrow(
+      /user_niche_growth is empty/,
+    );
   });
 
   it('should be a no-op when run twice on the same day', async () => {

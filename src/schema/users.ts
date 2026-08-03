@@ -161,6 +161,7 @@ import {
   UserIntegrationType,
 } from '../entity/UserIntegration';
 import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
+import { UserNicheGrowth } from '../entity/user/UserNicheGrowth';
 import { Niche } from '../entity/Niche';
 import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
@@ -362,6 +363,12 @@ export interface GQLUserWorldDistrict {
   firstReadAt: Date;
   lastReadAt: Date;
   activeDays: number;
+}
+
+export interface GQLUserWorldGrowth {
+  date: string;
+  niche: string;
+  reads: number;
 }
 
 export interface GQLUserWorld {
@@ -1395,6 +1402,25 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  One day's growth in one district — the timeline replayed in date order is the
+  world being built
+  """
+  type UserWorldGrowth {
+    """
+    Day the reads landed
+    """
+    date: DateTime!
+    """
+    Niche slug
+    """
+    niche: String!
+    """
+    Distinct posts first read in this niche on this day
+    """
+    reads: Int!
+  }
+
+  """
   A user's personal world, built from what they have read
   """
   type UserWorld {
@@ -1410,6 +1436,11 @@ export const typeDefs = /* GraphQL */ `
     Districts, largest first
     """
     districts: [UserWorldDistrict!]!
+    """
+    Day-by-day growth, oldest first. Only fetched when selected — a long-tenured
+    world runs to tens of thousands of rows.
+    """
+    timeline: [UserWorldGrowth!]!
   }
 
   extend type Query {
@@ -2494,6 +2525,31 @@ function processSocialLinksForDualWrite(
 }
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
+  UserWorld: {
+    // A field resolver, not part of the parent query, so a client that only wants
+    // the skyline never pays for the log behind it. Ordered oldest-first because
+    // the consumer replays it forward to build the world.
+    timeline: async (
+      world: GQLUserWorld,
+      _,
+      ctx: Context,
+    ): Promise<GQLUserWorldGrowth[]> =>
+      ctx.con
+        .getRepository(UserNicheGrowth)
+        .createQueryBuilder('growth')
+        .select('growth.date::text', 'date')
+        .addSelect('niche.slug', 'niche')
+        .addSelect('growth.reads', 'reads')
+        .innerJoin(Niche, 'niche', 'niche.id = growth."nicheId"')
+        .where('growth."userId" = :id', { id: world.id })
+        // hidden at serving only, matching the districts above
+        .andWhere('niche.slug NOT IN (:...hidden)', {
+          hidden: SERVING_HIDDEN_NICHE_SLUGS,
+        })
+        .orderBy('growth.date', 'ASC')
+        .addOrderBy('niche.slug', 'ASC')
+        .getRawMany<GQLUserWorldGrowth>(),
+  },
   Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(

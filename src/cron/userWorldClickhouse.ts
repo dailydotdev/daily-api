@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import type { DataSource } from 'typeorm';
 import { z } from 'zod';
 import { Cron } from './cron';
 import { getClickHouseClient } from '../common/clickhouse';
@@ -19,14 +20,6 @@ type UserWorldCronConfig = Partial<{
 /** What RETURNING actually hands back — `date` may be a string or a Date. */
 type RawGrowthRow = Omit<UserWorldDelta, 'date'> & { date: string | Date };
 
-/**
- * The world before any reads existed. Only used if the cursor is missing, which
- * should not happen in production — the initial load seeds both tables in bulk and
- * sets the cursor to the export's upper bound. Starting from here instead would
- * replay four years of events through the delta path.
- */
-const DEFAULT_CURSOR = new Date('2022-01-01T00:00:00Z');
-
 const GROWTH_CHUNK_SIZE = 1000;
 const DISTRICT_CHUNK_SIZE = 500;
 
@@ -40,6 +33,49 @@ const DISTRICT_CHUNK_SIZE = 500;
  */
 const toDay = (value: string | Date): string =>
   typeof value === 'string' ? value.slice(0, 10) : format(value, 'yyyy-MM-dd');
+
+/**
+ * Where to resume when Redis has no cursor.
+ *
+ * Redis is a cache: keys get evicted, flushed, or simply do not exist in a new
+ * environment. The cursor cannot be the only record of how far we have ingested,
+ * because a constant fallback is catastrophic in both directions — an early one
+ * (2022) replays four years through the delta path, and a late one (now) silently
+ * skips whatever was missed. Neither fails loudly.
+ *
+ * The growth log already knows. It stores whole days, and a run only ever covers
+ * whole days, so the day after its newest row is exactly where the last successful
+ * run stopped. Redis becomes an optimisation rather than the source of truth.
+ *
+ * Deriving a day or two early is harmless: growth rows are keyed
+ * (userId, date, nicheId) and inserted ON CONFLICT DO NOTHING, so re-covering a
+ * window inserts nothing and leaves districts untouched.
+ *
+ * An empty table means the bulk seed has not run. That is refused rather than
+ * guessed — from here the delta path would take days to catch up and would produce
+ * wrong districts while it did.
+ *
+ * The scan is unindexed, but this only runs when the cursor is missing.
+ */
+const cursorFromGrowthLog = async (con: DataSource): Promise<Date> => {
+  const latest = await con
+    .getRepository(UserNicheGrowth)
+    .createQueryBuilder('growth')
+    .select('MAX(growth.date)::text', 'date')
+    .getRawOne<{ date: string | null }>();
+
+  if (!latest?.date) {
+    throw new Error(
+      `${userWorldClickhouseCron.name}: no cursor in Redis and user_niche_growth is empty. ` +
+        'Seed both tables from the bulk export and set the cursor to the export upper bound ' +
+        'before enabling this cron.',
+    );
+  }
+
+  const [year, month, day] = toDay(latest.date).split('-').map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day + 1));
+};
 
 const chunk = <T>(items: T[], size: number): T[][] =>
   items.reduce<T[][]>((acc, item) => {
@@ -63,7 +99,7 @@ export const userWorldClickhouseCron: Cron = {
     const cronConfig: UserWorldCronConfig = await getRedisHash(redisStorageKey);
     const cursor = cronConfig.cursor
       ? new Date(cronConfig.cursor)
-      : DEFAULT_CURSOR;
+      : await cursorFromGrowthLog(con);
 
     if (Number.isNaN(cursor.getTime())) {
       throw new Error('Invalid cursor');
