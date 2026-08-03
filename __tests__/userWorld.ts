@@ -7,7 +7,9 @@ import {
   disposeGraphQLTesting,
   initializeGraphQLTesting,
   saveFixtures,
+  testMutationErrorCode,
 } from './helpers';
+import { UserWorldSettings } from '../src/entity/user/UserWorldSettings';
 import { User } from '../src/entity';
 import { Niche, NicheBucketGroup } from '../src/entity/Niche';
 import { UserNicheAnalytics } from '../src/entity/user/UserNicheAnalytics';
@@ -39,6 +41,7 @@ beforeEach(async () => {
   loggedUser = null;
   await con.getRepository(UserNicheAnalytics).clear();
   await con.getRepository(UserNicheGrowth).clear();
+  await con.getRepository(UserWorldSettings).clear();
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Niche, [
     {
@@ -264,5 +267,227 @@ describe('query userWorldTimeline', () => {
       0,
     );
     expect(summed).toBe(world.data.userWorld[0].reads);
+  });
+});
+
+describe('query userWorldSettings', () => {
+  const QUERY = `query UserWorldSettings($id: ID!) {
+    userWorldSettings(id: $id) {
+      name
+      private
+      sky { pal hour }
+      crest { charge div a b }
+      look { id base mine name ol bl }
+      availableCharges
+      availableTinctures
+    }
+  }`;
+
+  it('should derive every field from the reading when nothing is customised', async () => {
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings).toEqual({
+      name: null,
+      private: false,
+      sky: { pal: 'brand', hour: 'day' },
+      // largest district gives the charge and the field, second the other
+      // tincture; the division comes off a hash of the user id
+      crest: { charge: 'obelisk', div: 'pale', a: 0xd97efe, b: 0xffe877 },
+      look: {
+        id: 'diorama',
+        base: 'diorama',
+        mine: false,
+        name: '',
+        ol: 0.24,
+        bl: 1,
+      },
+      // blockchain is hidden at serving, so it lends neither charge nor tincture
+      availableCharges: ['obelisk', 'loom'],
+      availableTinctures: [0xd97efe, 0x887bf8, 0xffe877, 0xffb794],
+    });
+  });
+
+  it('should offer no charge from a district below level 3', async () => {
+    // Identity arrives at L3 — under it there is no monument to put on a shield,
+    // so the oldest district lends its own rather than leaving the crest bare.
+    await con.getRepository(UserNicheAnalytics).save({
+      userId: '3',
+      nicheId: nicheJs,
+      reads: 2,
+      firstReadAt: '2026-04-01',
+      lastReadAt: '2026-04-02',
+      activeDays: 1,
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '3' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings.availableCharges).toEqual(['loom']);
+  });
+});
+
+describe('mutation updateUserWorldSettings', () => {
+  const MUTATION = `mutation UpdateUserWorldSettings(
+    $name: String, $sky: UserWorldSkyInput, $crest: UserWorldCrestInput, $private: Boolean
+  ) {
+    updateUserWorldSettings(name: $name, sky: $sky, crest: $crest, private: $private) {
+      name
+      private
+      sky { pal hour }
+      crest { charge div a b }
+    }
+  }`;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { name: 'the quiet archive' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should store a name and a sky without touching the rest', async () => {
+    loggedUser = '1';
+    const named = await client.mutate(MUTATION, {
+      variables: { name: 'the quiet archive' },
+    });
+    const skied = await client.mutate(MUTATION, {
+      variables: { sky: { pal: 'slate', hour: 'night' } },
+    });
+
+    expect(named.errors).toBeFalsy();
+    expect(skied.errors).toBeFalsy();
+    // the second call never mentioned the name, so it must survive
+    expect(skied.data.updateUserWorldSettings).toMatchObject({
+      name: 'the quiet archive',
+      sky: { pal: 'slate', hour: 'night' },
+    });
+  });
+
+  it('should clear a name back to the suggestion when sent null', async () => {
+    loggedUser = '1';
+    await client.mutate(MUTATION, { variables: { name: 'the quiet archive' } });
+    const res = await client.mutate(MUTATION, { variables: { name: null } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserWorldSettings.name).toBeNull();
+  });
+
+  it('should accept a crest built out of earned monuments and accents', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        crest: { charge: 'loom', div: 'chevron', a: 0xffb794, b: 0x887bf8 },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserWorldSettings.crest).toEqual({
+      charge: 'loom',
+      div: 'chevron',
+      a: 0xffb794,
+      b: 0x887bf8,
+    });
+  });
+
+  it('should reject a charge the reading has not earned', async () => {
+    // anvilyard belongs to linux_os, which this user has never read
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: {
+            charge: 'anvilyard',
+            div: 'plain',
+            a: 0xd97efe,
+            b: 0xffe877,
+          },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'charge "anvilyard" has not been earned',
+    );
+  });
+
+  it('should reject a tincture that is no founded district accent', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: { charge: 'obelisk', div: 'plain', a: 0xd97efe, b: 0x000000 },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'tincture "b" is not an accent of any founded district',
+    );
+  });
+
+  it('should not let a hidden niche lend a charge', async () => {
+    // blockchain is this user's largest district but is never drawn, so the
+    // crest must not be able to fly its mark either
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: { charge: 'vault', div: 'plain', a: 0xd97efe, b: 0xffe877 },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'charge "vault" has not been earned',
+    );
+  });
+});
+
+describe('world privacy', () => {
+  const WORLD = `query UserWorld($id: ID!) { userWorld(id: $id) { reads } }`;
+  const TIMELINE = `query UserWorldTimeline($id: ID!) { userWorldTimeline(id: $id) { reads } }`;
+  const SETTINGS = `query UserWorldSettings($id: ID!) { userWorldSettings(id: $id) { private } }`;
+
+  beforeEach(async () => {
+    await con
+      .getRepository(UserWorldSettings)
+      .upsert({ userId: '1', private: true }, ['userId']);
+  });
+
+  it('should hide the world, the timeline and the settings from everyone else', async () => {
+    loggedUser = '2';
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+    const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
+    const settings = await client.query(SETTINGS, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([]);
+    expect(timeline.data.userWorldTimeline).toEqual([]);
+    expect(settings.data.userWorldSettings).toBeNull();
+  });
+
+  it('should hide it from anonymous viewers', async () => {
+    loggedUser = null;
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([]);
+  });
+
+  it('should still show the owner their own world', async () => {
+    loggedUser = '1';
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+    const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
+    const settings = await client.query(SETTINGS, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([{ reads: 80 }, { reads: 50 }]);
+    expect(timeline.data.userWorldTimeline).toHaveLength(2);
+    expect(settings.data.userWorldSettings).toEqual({ private: true });
+  });
+
+  it('should not hide a world whose owner never set the flag', async () => {
+    loggedUser = '1';
+    const res = await client.query(WORLD, { variables: { id: '2' } });
+
+    expect(res.data.userWorld).toEqual([{ reads: 7 }]);
   });
 });

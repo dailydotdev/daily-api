@@ -1,4 +1,14 @@
 import { emailRegex, isNullOrUndefined } from './../common/object';
+import {
+  applyWorldPrivacy,
+  assertCrestEarned,
+  canViewWorld,
+  getCrestDistricts,
+  getWorldSettings,
+  resolveWorldSettings,
+} from '../common/userWorld';
+import { worldSettingsUpdateSchema } from '../common/schema/userWorld';
+import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
@@ -374,6 +384,8 @@ export interface GQLUserWorldGrowth {
   niche: GQLNiche;
   reads: number;
 }
+
+export type GQLUserWorldSettings = ReturnType<typeof resolveWorldSettings>;
 
 export interface GQLUserProfileAnalytics {
   id: string;
@@ -1440,6 +1452,147 @@ export const typeDefs = /* GraphQL */ `
     reads: Int!
   }
 
+  """
+  The sky over a world. Two axes rather than a list, because two axes is what
+  makes a sky feel found instead of picked
+  """
+  type UserWorldSky {
+    """
+    Palette: brand, clear, blossom, ember, seaglass, orchid, harvest or slate
+    """
+    pal: String!
+    """
+    Where the sun sits: dawn, day, gold, dusk or night
+    """
+    hour: String!
+  }
+
+  """
+  A world's mark, assembled entirely out of the reading behind it. The charge
+  comes from monuments raised and the tinctures from districts founded; only the
+  division is free
+  """
+  type UserWorldCrest {
+    """
+    Signature of a monument the user has raised
+    """
+    charge: String!
+    """
+    How the field is cut: plain, pale, fess, bend, chevron or quarter
+    """
+    div: String!
+    """
+    Field tincture, as a 24-bit RGB integer
+    """
+    a: Int!
+    """
+    Second tincture, as a 24-bit RGB integer
+    """
+    b: Int!
+  }
+
+  """
+  Which passes a look wants running
+  """
+  type UserWorldLookFx {
+    post: Boolean!
+    bloom: Boolean!
+    outline: Boolean!
+  }
+
+  """
+  The film a world is photographed through. A preset until a knob moves, and
+  the user's own from then on
+  """
+  type UserWorldLook {
+    id: String!
+    """
+    The preset this was forked from, so reverting has somewhere to go
+    """
+    base: String!
+    """
+    Whether the knobs have been moved off the preset
+    """
+    mine: Boolean!
+    name: String!
+    ol: Float!
+    bl: Float!
+    duo: Float!
+    warm: Float!
+    sat: Float!
+    grain: Float!
+    vig: Float!
+    lift: Float!
+    duoA: Int!
+    duoB: Int!
+    ink: Int!
+    fx: UserWorldLookFx!
+  }
+
+  """
+  What a user has made of their own world. Every field is a suggestion derived
+  from their reading until they disagree with it
+  """
+  type UserWorldSettings {
+    """
+    What the user calls the place, or null if they have never named it — the
+    client shows its own generated suggestion in that case
+    """
+    name: String
+    sky: UserWorldSky!
+    crest: UserWorldCrest!
+    look: UserWorldLook!
+    """
+    Whether the world is hidden from everyone but its owner
+    """
+    private: Boolean!
+    """
+    Charges this world is entitled to fly, from districts at level 3 or above
+    """
+    availableCharges: [String!]!
+    """
+    Tinctures available, from the accents of every founded district
+    """
+    availableTinctures: [Int!]!
+  }
+
+  input UserWorldSkyInput {
+    pal: String!
+    hour: String!
+  }
+
+  input UserWorldCrestInput {
+    charge: String!
+    div: String!
+    a: Int!
+    b: Int!
+  }
+
+  input UserWorldLookFxInput {
+    post: Boolean!
+    bloom: Boolean!
+    outline: Boolean!
+  }
+
+  input UserWorldLookInput {
+    id: String!
+    base: String!
+    mine: Boolean!
+    name: String!
+    ol: Float!
+    bl: Float!
+    duo: Float!
+    warm: Float!
+    sat: Float!
+    grain: Float!
+    vig: Float!
+    lift: Float!
+    duoA: Int!
+    duoB: Int!
+    ink: Int!
+    fx: UserWorldLookFxInput!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1450,15 +1603,21 @@ export const typeDefs = /* GraphQL */ `
     """
     userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
     """
-    Get a user's personal world, largest district first. Public — worlds are
-    shareable by design.
+    Get a user's personal world, largest district first. Shareable by default;
+    empty if the owner has made their world private.
     """
-    userWorld(id: ID!): [UserWorldDistrict!]! @cacheControl(maxAge: 600)
+    userWorld(id: ID!): [UserWorldDistrict!]!
     """
     Day-by-day growth of a user's world, oldest first. Separate from userWorld
-    because a long-tenured world runs to tens of thousands of rows.
+    because a long-tenured world runs to tens of thousands of rows. Empty if the
+    owner has made their world private.
     """
-    userWorldTimeline(id: ID!): [UserWorldGrowth!]! @cacheControl(maxAge: 600)
+    userWorldTimeline(id: ID!): [UserWorldGrowth!]!
+    """
+    A user's world customisations, with the charges and tinctures their reading
+    entitles them to. Null if the owner has made their world private.
+    """
+    userWorldSettings(id: ID!): UserWorldSettings
     """
     Get User Streak
     """
@@ -1710,6 +1869,20 @@ export const typeDefs = /* GraphQL */ `
     Sign the current user up as a daily.dev hackathon participant
     """
     joinHackathon: EmptyResponse @auth
+
+    """
+    Update the current user's world customisations. Every argument is optional:
+    an omitted one is left alone, an explicit null clears it back to the derived
+    suggestion. A crest is rejected unless its charge and tinctures have been
+    earned.
+    """
+    updateUserWorldSettings(
+      name: String
+      sky: UserWorldSkyInput
+      crest: UserWorldCrestInput
+      look: UserWorldLookInput
+      private: Boolean
+    ): UserWorldSettings @auth
 
     """
     Update user profile information
@@ -2564,6 +2737,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
             )
             .orderBy(`"${builder.alias}".reads`, 'DESC');
+          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
 
           return builder;
         },
@@ -2587,11 +2761,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             )
             // oldest first: the consumer replays it forward to build the world
             .orderBy(`"${builder.alias}".date`, 'ASC');
+          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
 
           return builder;
         },
         true,
       ),
+    userWorldSettings: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLUserWorldSettings | null> =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const settings = await getWorldSettings(queryRunner.manager, id);
+        if (!canViewWorld({ viewerId: ctx.userId, ownerId: id, settings })) {
+          return null;
+        }
+        return resolveWorldSettings({
+          userId: id,
+          settings,
+          districts: await getCrestDistricts(queryRunner.manager, id),
+        });
+      }),
     userStats: async (
       source,
       { id }: { id: string },
@@ -3524,6 +3715,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
   },
   Mutation: {
+    updateUserWorldSettings: async (
+      _,
+      args: z.infer<typeof worldSettingsUpdateSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLUserWorldSettings> => {
+      const patch = worldSettingsUpdateSchema.parse(args);
+      const { userId } = ctx;
+
+      return ctx.con.transaction(async (manager) => {
+        const districts = await getCrestDistricts(manager, userId);
+        if (patch.crest) {
+          const rejection = assertCrestEarned({
+            crest: patch.crest,
+            districts,
+          });
+          if (rejection) {
+            throw new ValidationError(rejection);
+          }
+        }
+
+        // Only the keys the client actually sent — an absent one must leave the
+        // stored value alone, which is not the same as being sent as null.
+        const changes = Object.fromEntries(
+          (['name', 'sky', 'crest', 'look', 'private'] as const)
+            .filter((key) => key in args)
+            .map((key) => [key, patch[key] ?? null]),
+        );
+        // An empty patch would upsert a row with nothing to update, which is
+        // both a no-op and invalid SQL.
+        if (Object.keys(changes).length) {
+          await manager
+            .getRepository(UserWorldSettings)
+            .upsert({ userId, ...changes }, ['userId']);
+        }
+
+        return resolveWorldSettings({
+          userId,
+          settings: await getWorldSettings(manager, userId),
+          districts,
+        });
+      });
+    },
     joinHackathon: async (
       _,
       __,
