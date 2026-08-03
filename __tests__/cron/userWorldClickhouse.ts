@@ -234,6 +234,30 @@ describe('userWorldClickhouse cron', () => {
     expect(district.activeDays).toBe(2);
   });
 
+  it('should skip niches that no longer exist in postgres', async () => {
+    // Same exposure as the user case and the same total blast radius — `nicheId`
+    // is also a foreign key, so one row naming a niche Postgres has dropped aborts
+    // the run. Rarer only because the catalogue is curated rather than user-driven.
+    const nicheGone = '33333333-3333-4333-8333-333333333333';
+
+    await runWith([
+      ...delta,
+      { userId: '1', date: '2026-07-02', nicheId: nicheGone, reads: 7 },
+    ]);
+
+    expect(await con.getRepository(UserNicheGrowth).count()).toBe(delta.length);
+    expect(
+      await con.getRepository(UserNicheAnalytics).countBy({
+        nicheId: nicheGone,
+      }),
+    ).toBe(0);
+
+    const district = await con
+      .getRepository(UserNicheAnalytics)
+      .findOneByOrFail({ userId: '1', nicheId: nicheJs });
+    expect(district.reads).toBe(5);
+  });
+
   it('should be a no-op when run twice on the same day', async () => {
     await runWith(delta);
     const { cursor } = await getRedisHash(cronConfigRedisKey);

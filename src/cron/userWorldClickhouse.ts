@@ -173,31 +173,48 @@ export const userWorldClickhouseCron: Cron = {
     // from what was actually inserted is what would double-count.
     let inserted: UserWorldDelta[] = [];
     let skipped = 0;
+    let missingNiches = 0;
 
     await con.transaction(async (manager) => {
-      // 0. Keep only users Postgres still has.
+      // 0. Keep only rows whose user AND niche Postgres still has.
       //
-      //    The delta comes from a ClickHouse mirror of `api.user`. The query already
-      //    drops deletion tombstones, but the mirror lags: an account removed since
-      //    the last replicated batch is still live there and already gone here. The
-      //    growth table has a real FK to "user", so one such row does not skip a
-      //    user — it aborts the run. That is exactly how the first production run
-      //    failed, and with `restartPolicy: OnFailure` it then retried the same
-      //    doomed insert until the deadline killed it.
+      //    The delta comes from ClickHouse mirrors of `api.user` and `api.niche`.
+      //    The query already drops deletion tombstones, but the mirrors lag: a row
+      //    removed since the last replicated batch is still live there and already
+      //    gone here. Both columns are foreign keys, so one such row does not skip
+      //    a district — it aborts the run. That is exactly how the first production
+      //    run failed on the user side, and with `restartPolicy: OnFailure` it then
+      //    retried the same doomed insert until the deadline killed it.
+      //
+      //    The two differ only in how often the window is open, not in what happens
+      //    when it is. Users delete themselves continuously, which is why that side
+      //    broke on day one; niches are a small catalogue changed by hand, so the
+      //    same failure is rare rather than impossible. Rare and total is still
+      //    worth two cheap lookups.
       //
       //    FOR KEY SHARE is the lock the FK check takes anyway, taken earlier. That
-      //    is what makes the filter hold rather than merely narrow the window: it
-      //    blocks deletion of these rows for the rest of the transaction, so a user
-      //    cannot disappear between this SELECT and the INSERT below. It does not
-      //    block ordinary profile updates, which take a weaker lock.
-      const present: { id: string }[] = await manager.query(
+      //    is what makes this a guarantee rather than a narrower window: it blocks
+      //    deletion of these rows for the rest of the transaction, so neither a user
+      //    nor a niche can disappear between these SELECTs and the INSERT below. It
+      //    does not block ordinary updates, which take a weaker lock.
+      const presentUsers: { id: string }[] = await manager.query(
         'SELECT id FROM "user" WHERE id = ANY($1) FOR KEY SHARE',
         [[...new Set(data.map((row) => row.userId))]],
       );
-      const known = new Set(present.map((row) => row.id));
-      const insertable = data.filter((row) => known.has(row.userId));
+      const presentNiches: { id: string }[] = await manager.query(
+        'SELECT id FROM "niche" WHERE id = ANY($1) FOR KEY SHARE',
+        [[...new Set(data.map((row) => row.nicheId))]],
+      );
+
+      const knownUsers = new Set(presentUsers.map((row) => row.id));
+      const knownNiches = new Set(presentNiches.map((row) => row.id));
+      const insertable = data.filter(
+        (row) => knownUsers.has(row.userId) && knownNiches.has(row.nicheId),
+      );
 
       skipped = data.length - insertable.length;
+      missingNiches =
+        new Set(data.map((row) => row.nicheId)).size - knownNiches.size;
 
       // 1. Append to the growth log. The composite key makes replaying a window a
       //    no-op, which is what lets the cron be rerun after a partial failure.
@@ -351,10 +368,15 @@ export const userWorldClickhouseCron: Cron = {
       {
         rows: data.length,
         inserted: inserted.length,
-        // Rows for users the mirror still lists but Postgres no longer has. A
-        // handful is normal replication lag; a sudden jump means the mirror has
-        // fallen behind and worlds are being built from stale membership.
+        // Rows dropped because the mirror still lists a user or niche Postgres no
+        // longer has. A handful is normal replication lag; a sudden jump means a
+        // mirror has fallen behind and worlds are being built from stale membership.
         skipped,
+        // Broken out because the two mean different things. Missing users are
+        // routine — people delete accounts all day. A missing niche is not: the
+        // catalogue is curated, so anything above zero means the niche mirror is
+        // stale and reads are being filed under a niche that no longer exists.
+        missingNiches,
         users: new Set(data.map((row) => row.userId)).size,
         queryParams,
       },
