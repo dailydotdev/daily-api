@@ -160,6 +160,7 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
@@ -351,6 +352,27 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface GQLNiche {
+  id: string;
+  slug: string;
+  title: string;
+  bucketGroup: string;
+}
+
+export interface GQLUserWorldDistrict {
+  niche: GQLNiche;
+  reads: number;
+  firstReadAt: Date;
+  lastReadAt: Date;
+  activeDays: number;
+}
+
+export interface GQLUserWorldGrowth {
+  date: Date;
+  niche: GQLNiche;
+  reads: number;
 }
 
 export interface GQLUserProfileAnalytics {
@@ -1351,6 +1373,73 @@ export const typeDefs = /* GraphQL */ `
     targets: MarketingCtaTargets!
   }
 
+  """
+  A content niche — the unit a district is built around
+  """
+  type Niche {
+    """
+    Niche ID
+    """
+    id: ID!
+    """
+    Stable slug, e.g. "js_ts"
+    """
+    slug: String!
+    """
+    Display title
+    """
+    title: String!
+    """
+    Whether the niche is a stack ecosystem or a cross-stack theme
+    """
+    bucketGroup: String!
+  }
+
+  """
+  A single district of a user's personal world — one niche they have read in
+  """
+  type UserWorldDistrict {
+    """
+    The niche this district is built around
+    """
+    niche: Niche!
+    """
+    Distinct posts read in this niche
+    """
+    reads: Int!
+    """
+    When the district was founded
+    """
+    firstReadAt: DateTime!
+    """
+    Most recent read in this niche
+    """
+    lastReadAt: DateTime!
+    """
+    Days on which this district gained reads
+    """
+    activeDays: Int!
+  }
+
+  """
+  One day's growth in one district — replayed in date order it is the world
+  being built
+  """
+  type UserWorldGrowth {
+    """
+    Day the reads landed
+    """
+    date: DateTime!
+    """
+    The niche that grew
+    """
+    niche: Niche!
+    """
+    Distinct posts first read in this niche on this day
+    """
+    reads: Int!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1360,6 +1449,16 @@ export const typeDefs = /* GraphQL */ `
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
+    """
+    Get a user's personal world, largest district first. Public — worlds are
+    shareable by design.
+    """
+    userWorld(id: ID!): [UserWorldDistrict!]! @cacheControl(maxAge: 600)
+    """
+    Day-by-day growth of a user's world, oldest first. Separate from userWorld
+    because a long-tenured world runs to tens of thousands of rows.
+    """
+    userWorldTimeline(id: ID!): [UserWorldGrowth!]! @cacheControl(maxAge: 600)
     """
     Get User Streak
     """
@@ -2447,6 +2546,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return res[0];
     },
+    userWorld: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldDistrict[]> =>
+      graphorm.query<GQLUserWorldDistrict>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            // userId leads the primary key, so a whole world is one range scan
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            .orderBy(`"${builder.alias}".reads`, 'DESC');
+
+          return builder;
+        },
+        true,
+      ),
+    userWorldTimeline: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldGrowth[]> =>
+      graphorm.query<GQLUserWorldGrowth>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            // oldest first: the consumer replays it forward to build the world
+            .orderBy(`"${builder.alias}".date`, 'ASC');
+
+          return builder;
+        },
+        true,
+      ),
     userStats: async (
       source,
       { id }: { id: string },
