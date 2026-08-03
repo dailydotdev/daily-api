@@ -160,6 +160,8 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
+import { Niche } from '../entity/Niche';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
@@ -351,6 +353,20 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface GQLUserWorldDistrict {
+  niche: string;
+  reads: number;
+  firstReadAt: Date;
+  lastReadAt: Date;
+  activeDays: number;
+}
+
+export interface GQLUserWorld {
+  id: string;
+  totalReads: number;
+  districts: GQLUserWorldDistrict[];
 }
 
 export interface GQLUserProfileAnalytics {
@@ -1351,6 +1367,50 @@ export const typeDefs = /* GraphQL */ `
     targets: MarketingCtaTargets!
   }
 
+  """
+  A single district of a user's personal world — one niche they have read in
+  """
+  type UserWorldDistrict {
+    """
+    Niche slug, e.g. "js_ts"
+    """
+    niche: String!
+    """
+    Distinct posts read in this niche
+    """
+    reads: Int!
+    """
+    When the district was founded
+    """
+    firstReadAt: DateTime!
+    """
+    Most recent read in this niche
+    """
+    lastReadAt: DateTime!
+    """
+    Days on which this district gained reads
+    """
+    activeDays: Int!
+  }
+
+  """
+  A user's personal world, built from what they have read
+  """
+  type UserWorld {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Distinct posts read across every district
+    """
+    totalReads: Int!
+    """
+    Districts, largest first
+    """
+    districts: [UserWorldDistrict!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1360,6 +1420,10 @@ export const typeDefs = /* GraphQL */ `
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
+    """
+    Get a user's personal world. Public — worlds are shareable by design.
+    """
+    userWorld(id: ID!): UserWorld @cacheControl(maxAge: 600)
     """
     Get User Streak
     """
@@ -2446,6 +2510,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new NotFoundError('user not found');
       }
       return res[0];
+    },
+    userWorld: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLUserWorld | null> => {
+      // One range scan: the primary key leads with userId precisely so a whole
+      // world is contiguous rather than up to 40 point lookups.
+      const districts = await ctx.con
+        .getRepository(UserNicheAnalytics)
+        .createQueryBuilder('district')
+        .select('niche.slug', 'niche')
+        .addSelect('district.reads', 'reads')
+        .addSelect('district."firstReadAt"', 'firstReadAt')
+        .addSelect('district."lastReadAt"', 'lastReadAt')
+        .addSelect('district."activeDays"', 'activeDays')
+        .innerJoin(Niche, 'niche', 'niche.id = district."nicheId"')
+        .where('district."userId" = :id', { id })
+        .orderBy('district.reads', 'DESC')
+        .addOrderBy('niche.slug', 'ASC')
+        .getRawMany<GQLUserWorldDistrict>();
+
+      // No districts means nothing we can attribute has been read — an unfounded
+      // world, not an error.
+      if (districts.length === 0) {
+        return null;
+      }
+
+      return {
+        id,
+        districts,
+        totalReads: districts.reduce((sum, { reads }) => sum + reads, 0),
+      };
     },
     userStats: async (
       source,

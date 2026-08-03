@@ -127,6 +127,18 @@ export const crons: Cron[] = [
     schedule: '*/5 * * * *',
   },
   {
+    name: 'user-world-clickhouse',
+    schedule: '0 3 * * *',
+    activeDeadlineSeconds: 3600,
+    limits: {
+      memory: '2Gi',
+    },
+    requests: {
+      cpu: '500m',
+      memory: '1Gi',
+    },
+  },
+  {
     name: 'post-analytics-achievements',
     schedule: '2-59/15 * * * *',
   },
