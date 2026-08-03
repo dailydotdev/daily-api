@@ -8,13 +8,9 @@ import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
 import { Niche } from '../entity/Niche';
 import { SERVING_HIDDEN_NICHE_SLUGS } from './clickhouse/worldRules';
-import {
-  type CrestDistrict,
-  defaultCrest,
-  earnedCharges,
-  earnedTinctures,
-} from './worldCrest';
+import { type CrestDistrict, defaultCrest } from './worldCatalogue';
 import { DEFAULT_LOOK, DEFAULT_SKY } from './worldStyle';
+import { User } from '../entity/user/User';
 
 /**
  * Whether `viewerId` is allowed to see `ownerId`'s world at all.
@@ -64,6 +60,15 @@ export const getWorldSettings = (
 ): Promise<UserWorldSettings | null> =>
   con.getRepository(UserWorldSettings).findOneBy({ userId });
 
+/** Only what the default world name is built from. */
+export const getWorldOwner = (
+  con: DataSource | EntityManager,
+  userId: string,
+): Promise<Pick<User, 'name' | 'username'> | null> =>
+  con
+    .getRepository(User)
+    .findOne({ where: { id: userId }, select: ['name', 'username'] });
+
 /**
  * The user's districts as the crest rules see them, largest first and with the
  * niches that are hidden at serving left out — a crest cannot be built out of a
@@ -92,54 +97,42 @@ export const getCrestDistricts = async (
 };
 
 /**
- * Reject a crest the user has not earned.
+ * What an unnamed world is called.
  *
- * The division is not checked because a division encodes nothing — it is the
- * one axis where taste is allowed to be taste. Everything else has to come out
- * of the reading, which is the whole reason the mark is worth flying.
+ * Derived on the server rather than left to the client, because a world is meant
+ * to be recognised by strangers and two clients inventing two different names
+ * for the same place defeats that. Deterministic for the same reason: the same
+ * world answers with the same name everywhere it appears.
  */
-export const assertCrestEarned = ({
-  crest,
-  districts,
-}: {
-  crest: { charge: string; a: number; b: number };
-  districts: CrestDistrict[];
-}): string | null => {
-  if (!earnedCharges(districts).includes(crest.charge)) {
-    return `charge "${crest.charge}" has not been earned`;
-  }
-  const tinctures = earnedTinctures(districts);
-  for (const [key, colour] of [
-    ['a', crest.a],
-    ['b', crest.b],
-  ] as const) {
-    if (!tinctures.includes(colour)) {
-      return `tincture "${key}" is not an accent of any founded district`;
-    }
-  }
-  return null;
-};
+export const defaultWorldName = (
+  user: Pick<User, 'name' | 'username'> | null,
+): string => `${user?.name || user?.username || 'a developer'}'s world`;
 
 /**
- * What the serving layer answers with. A user who has never opened the panel
- * has no row, so the suggestions are derived per request rather than written
- * out once — a stored copy would freeze whatever the world looked like on the
- * day the row happened to appear.
+ * What the serving layer answers with. A user who has never opened the panel has
+ * no row, so the suggestions are derived per request rather than written out
+ * once — a stored copy would freeze whatever the world looked like on the day
+ * the row happened to appear.
+ *
+ * `districts` is what the derived crest is built from, and is carried on the
+ * result so the entitlements field can reuse it instead of asking again.
  */
 export const resolveWorldSettings = ({
   userId,
   settings,
   districts,
+  user,
 }: {
   userId: string;
   settings: UserWorldSettings | null;
   districts: CrestDistrict[];
+  user: Pick<User, 'name' | 'username'> | null;
 }) => ({
-  name: settings?.name ?? null,
+  userId,
+  districts,
+  name: settings?.name ?? defaultWorldName(user),
   sky: settings?.sky ?? DEFAULT_SKY,
   crest: settings?.crest ?? defaultCrest({ userId, districts }),
   look: settings?.look ?? DEFAULT_LOOK,
   private: settings?.private ?? false,
-  availableCharges: earnedCharges(districts),
-  availableTinctures: earnedTinctures(districts),
 });

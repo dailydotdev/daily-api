@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UserWorldSettings1785800000000 implements MigrationInterface {
-  name = 'UserWorldSettings1785800000000';
+export class UserWorldSettings1785786443113 implements MigrationInterface {
+  name = 'UserWorldSettings1785786443113';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // One row per user, created lazily on first customisation — no row means the

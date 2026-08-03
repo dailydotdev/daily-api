@@ -53,9 +53,10 @@ export class UserWorldSettings {
   crest: z.infer<typeof worldCrestSchema> | null;
 
   /**
-   * A taste in rendering is not a property of any one world, but a user only
-   * has one world, so it lives on the same row rather than in a table of its
-   * own.
+   * A property of the WORLD, not of whoever is looking at it: the grade the
+   * owner picks is the grade every visitor sees it through. That is why it sits
+   * on this row rather than on a per-viewer preference, and why it is served to
+   * viewers rather than only to the owner.
    */
   @Column({ type: 'jsonb', nullable: true })
   look: z.infer<typeof worldLookSchema> | null;

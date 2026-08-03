@@ -1,12 +1,17 @@
 import { emailRegex, isNullOrUndefined } from './../common/object';
 import {
   applyWorldPrivacy,
-  assertCrestEarned,
   canViewWorld,
   getCrestDistricts,
+  getWorldOwner,
   getWorldSettings,
   resolveWorldSettings,
 } from '../common/userWorld';
+import {
+  assertCrestEntitled,
+  resolveEntitlements,
+  type WorldEntitlement,
+} from '../common/worldCatalogue';
 import { worldSettingsUpdateSchema } from '../common/schema/userWorld';
 import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -1530,15 +1535,36 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  One thing a world may be dressed with, and why it may. Kinds are open-ended
+  on purpose — anything gated that gets added later is another kind here rather
+  than another field
+  """
+  type UserWorldEntitlement {
+    """
+    What sort of thing this is: charge, tincture, or a kind added later
+    """
+    kind: String!
+    """
+    Identifier within the kind — a charge signature, or a tincture as #rrggbb
+    """
+    id: String!
+    """
+    What granted it: "base" for things everyone has, or "niche:<slug>" when it
+    was unlocked by reading
+    """
+    source: String!
+  }
+
+  """
   What a user has made of their own world. Every field is a suggestion derived
   from their reading until they disagree with it
   """
   type UserWorldSettings {
     """
-    What the user calls the place, or null if they have never named it — the
-    client shows its own generated suggestion in that case
+    What the user calls the place. Falls back to a deterministic name derived
+    from the owner, so every viewer sees the same one
     """
-    name: String
+    name: String!
     sky: UserWorldSky!
     crest: UserWorldCrest!
     look: UserWorldLook!
@@ -1547,13 +1573,10 @@ export const typeDefs = /* GraphQL */ `
     """
     private: Boolean!
     """
-    Charges this world is entitled to fly, from districts at level 3 or above
+    Everything this world may be dressed with. Only resolved when asked for —
+    displaying a world costs nothing extra for the catalogue behind it
     """
-    availableCharges: [String!]!
-    """
-    Tinctures available, from the accents of every founded district
-    """
-    availableTinctures: [Int!]!
+    entitlements: [UserWorldEntitlement!]!
   }
 
   input UserWorldSkyInput {
@@ -2777,11 +2800,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         if (!canViewWorld({ viewerId: ctx.userId, ownerId: id, settings })) {
           return null;
         }
-        return resolveWorldSettings({
-          userId: id,
-          settings,
-          districts: await getCrestDistricts(queryRunner.manager, id),
-        });
+        // Districts are only needed to derive a crest nobody has chosen yet. A
+        // customised world skips the join entirely; so does one whose viewer
+        // never asks for the entitlements field.
+        const [user, districts] = await Promise.all([
+          settings?.name ? null : getWorldOwner(queryRunner.manager, id),
+          settings?.crest ? [] : getCrestDistricts(queryRunner.manager, id),
+        ]);
+        return resolveWorldSettings({ userId: id, settings, districts, user });
       }),
     userStats: async (
       source,
@@ -3726,9 +3752,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return ctx.con.transaction(async (manager) => {
         const districts = await getCrestDistricts(manager, userId);
         if (patch.crest) {
-          const rejection = assertCrestEarned({
+          const rejection = assertCrestEntitled({
             crest: patch.crest,
-            districts,
+            entitlements: resolveEntitlements(districts),
           });
           if (rejection) {
             throw new ValidationError(rejection);
@@ -3752,10 +3778,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .upsert({ userId, ...changes }, ['userId']);
         }
 
+        const stored = await getWorldSettings(manager, userId);
         return resolveWorldSettings({
           userId,
-          settings: await getWorldSettings(manager, userId),
+          settings: stored,
           districts,
+          user: stored?.name ? null : await getWorldOwner(manager, userId),
         });
       });
     },
@@ -5366,6 +5394,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw err;
       }
     },
+  },
+  UserWorldSettings: {
+    // Lazy on purpose: rendering someone's world must not pay for the catalogue
+    // of everything they could have chosen instead. The districts are reused
+    // when the derived crest already needed them.
+    entitlements: async (
+      settings: GQLUserWorldSettings,
+      _,
+      ctx: Context,
+    ): Promise<WorldEntitlement[]> =>
+      resolveEntitlements(
+        settings.districts.length
+          ? settings.districts
+          : await queryReadReplica(ctx.con, ({ queryRunner }) =>
+              getCrestDistricts(queryRunner.manager, settings.userId),
+            ),
+      ),
   },
   User: {
     image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),

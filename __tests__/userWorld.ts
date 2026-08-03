@@ -278,8 +278,7 @@ describe('query userWorldSettings', () => {
       sky { pal hour }
       crest { charge div a b }
       look { id base mine name ol bl }
-      availableCharges
-      availableTinctures
+      entitlements { kind id source }
     }
   }`;
 
@@ -288,7 +287,8 @@ describe('query userWorldSettings', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userWorldSettings).toEqual({
-      name: null,
+      // deterministic, so every viewer of this world reads the same name
+      name: "Ido's world",
       private: false,
       sky: { pal: 'brand', hour: 'day' },
       // largest district gives the charge and the field, second the other
@@ -302,15 +302,25 @@ describe('query userWorldSettings', () => {
         ol: 0.24,
         bl: 1,
       },
-      // blockchain is hidden at serving, so it lends neither charge nor tincture
-      availableCharges: ['obelisk', 'loom'],
-      availableTinctures: [0xd97efe, 0x887bf8, 0xffe877, 0xffb794],
+      // blockchain is hidden at serving, so it grants nothing. Reading is
+      // resolved before the base grants, so obelisk reports the niche that
+      // earned it rather than the base grant that would also have covered it.
+      entitlements: [
+        { kind: 'charge', id: 'obelisk', source: 'niche:ai_llm' },
+        { kind: 'tincture', id: '#d97efe', source: 'niche:ai_llm' },
+        { kind: 'tincture', id: '#887bf8', source: 'niche:ai_llm' },
+        { kind: 'charge', id: 'loom', source: 'niche:js_ts' },
+        { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
+        { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
+        { kind: 'tincture', id: '#ba56e1', source: 'base' },
+        { kind: 'tincture', id: '#f5f6fa', source: 'base' },
+      ],
     });
   });
 
-  it('should offer no charge from a district below level 3', async () => {
+  it('should grant no charge from a district below level 3', async () => {
     // Identity arrives at L3 — under it there is no monument to put on a shield,
-    // so the oldest district lends its own rather than leaving the crest bare.
+    // so only the base charge is available and the accents still are.
     await con.getRepository(UserNicheAnalytics).save({
       userId: '3',
       nicheId: nicheJs,
@@ -323,7 +333,29 @@ describe('query userWorldSettings', () => {
     const res = await client.query(QUERY, { variables: { id: '3' } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userWorldSettings.availableCharges).toEqual(['loom']);
+    expect(res.data.userWorldSettings.entitlements).toEqual([
+      { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
+      { kind: 'charge', id: 'obelisk', source: 'base' },
+      { kind: 'tincture', id: '#ba56e1', source: 'base' },
+      { kind: 'tincture', id: '#f5f6fa', source: 'base' },
+    ]);
+    // and the suggested crest cannot borrow the unearned signature either
+    expect(res.data.userWorldSettings.crest.charge).toBe('obelisk');
+  });
+
+  it('should not pay for the catalogue when it is not asked for', async () => {
+    // entitlements is a lazily resolved field, so a world that is merely being
+    // displayed never runs the district join behind it
+    const res = await client.query(
+      `query UserWorldSettings($id: ID!) {
+        userWorldSettings(id: $id) { name crest { charge } }
+      }`,
+      { variables: { id: '1' } },
+    );
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings.crest.charge).toBe('obelisk');
   });
 });
 
@@ -370,7 +402,7 @@ describe('mutation updateUserWorldSettings', () => {
     const res = await client.mutate(MUTATION, { variables: { name: null } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.updateUserWorldSettings.name).toBeNull();
+    expect(res.data.updateUserWorldSettings.name).toBe("Ido's world");
   });
 
   it('should accept a crest built out of earned monuments and accents', async () => {
@@ -407,7 +439,7 @@ describe('mutation updateUserWorldSettings', () => {
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
-      'charge "anvilyard" has not been earned',
+      'charge "anvilyard" is not available to this world',
     );
   });
 
@@ -422,24 +454,7 @@ describe('mutation updateUserWorldSettings', () => {
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
-      'tincture "b" is not an accent of any founded district',
-    );
-  });
-
-  it('should not let a hidden niche lend a charge', async () => {
-    // blockchain is this user's largest district but is never drawn, so the
-    // crest must not be able to fly its mark either
-    loggedUser = '1';
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          crest: { charge: 'vault', div: 'plain', a: 0xd97efe, b: 0xffe877 },
-        },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-      'charge "vault" has not been earned',
+      'tincture "b" is not available to this world',
     );
   });
 });
