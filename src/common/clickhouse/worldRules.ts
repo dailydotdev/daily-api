@@ -14,8 +14,7 @@
  * - Shares collapse into `sharedPostId`. Share rows carry a NULL title and the
  *   article lives on the parent; filtering them instead discarded 12% of traffic.
  * - `daily_updates` / `dailydevworld` are first-party daily.dev squads — product
- *   notification, not content. Matched by HANDLE: `dailydevworld` is a handle whose
- *   id is a UUID, and a *different* third-party squad is named "Dev World".
+ *   notification, not content. Excluded by source id.
  * - `private = 1` is inherited from the source, and the `unknown` placeholder source
  *   is itself flagged private. Excluding it outright drops ~23% of reads to catch
  *   ~31. So: private AND not `unknown`.
@@ -35,16 +34,41 @@
  * (postId, nicheId) pair by its own latest version rather than trusting FINAL.
  */
 
+/**
+ * Every `<origin> view` event, plus the click-through.
+ *
+ * The view events are generated in the webapp as `${origin} view` from the
+ * `PostOrigin` union (apps `packages/shared/src/hooks/log/useLogContextData.ts`),
+ * so this list is that union rather than a sample of what happens to be in
+ * ClickHouse today. `reader modal view` and `brief modal view` fire zero times in
+ * the last 90 days but are declared origins — listing them means those surfaces are
+ * counted the moment they start being used, instead of silently going missing.
+ *
+ * `collection modal view` was missed originally: 33,140 events in 90 days, and 97.7%
+ * of its (user, post) pairs are not reached by any other read event, so it is
+ * additive rather than a duplicate of the article events.
+ */
 export const READ_EVENTS = [
   'article page view',
   'article modal view',
+  'reader modal view',
+  'collection modal view',
+  'brief modal view',
   'go to link',
 ] as const;
 
-/** First-party daily.dev surfaces. Handles, not ids — see the note above. */
-export const EXCLUDED_SOURCE_HANDLES = [
-  'daily_updates',
-  'dailydevworld',
+/**
+ * First-party daily.dev surfaces: product notification, not content.
+ *
+ * Source ids, given directly, so `api.source` drops out of the query entirely — it
+ * was only ever joined to translate handles into these. Ids are also the least
+ * ambiguous key of the three: `dailydevworld` is a *handle* whose id is a UUID, and
+ * a separate third-party squad is *named* "Dev World", so both of the other columns
+ * can mislead.
+ */
+export const EXCLUDED_SOURCE_IDS = [
+  'daily_updates', // daily.dev Changelog
+  'a1f0092b-0ee1-414b-82e6-f2c92d7335e4', // daily.dev World
 ] as const;
 
 /** Niches that never appear in a world. */
@@ -58,7 +82,8 @@ const asSqlList = (values: readonly string[]): string =>
  *
  * Exposes: `eff` (post id with shares collapsed), `pmeta` (author/scout of the
  * resolved post), `pn` (one niche per post), `nc` (niche slugs), `du` (excluded
- * posts), `pv` (private posts), `reg` (registered users).
+ * posts), `pv` (private posts), `reg` (registered users). `api.source` is not
+ * touched — the first-party exclusion uses ids directly.
  */
 export const worldRulesCte = /* sql */ `
 res AS (
@@ -91,12 +116,9 @@ nc AS (
          argMax(slug, _version) AS slug,
          argMax(is_deleted, _version) AS del
   FROM api.niche GROUP BY id HAVING del = 0),
-xsrc AS (
-  SELECT id FROM api.source GROUP BY id
-  HAVING argMax(handle, _version) IN (${asSqlList(EXCLUDED_SOURCE_HANDLES)})),
 du AS (
   SELECT id FROM api.post GROUP BY id
-  HAVING argMax(sourceId, _version) IN (SELECT id FROM xsrc)),
+  HAVING argMax(sourceId, _version) IN (${asSqlList(EXCLUDED_SOURCE_IDS)})),
 pv AS (
   SELECT id FROM api.post GROUP BY id
   HAVING argMax(private, _version) = 1 AND argMax(sourceId, _version) != 'unknown'),
