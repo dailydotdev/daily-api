@@ -1,27 +1,39 @@
 import { getInterestAgentTools } from '../../../src/common/interest/runInterestAgent';
 
+const browsingTools = [
+  'set_interest_tags',
+  'search_daily_dev',
+  'query_feed',
+  'read_post',
+  'read_comments',
+  'get_source',
+  'get_tag',
+  'search_tags',
+  'search_sources',
+  'set_run_summary',
+];
+
 describe('getInterestAgentTools', () => {
   it('includes every tool by default', () => {
     expect(getInterestAgentTools(undefined)).toEqual([
-      'set_interest_tags',
-      'search_daily_dev',
-      'set_run_summary',
-      'score_finding',
+      ...browsingTools,
       'add_finding',
       'write_post',
     ]);
   });
 
-  it('omits scoring and add_finding when feed output is off', () => {
+  it('never offers score_finding, which was replaced by read_post contentQuality', () => {
+    expect(getInterestAgentTools(undefined)).not.toContain('score_finding');
+  });
+
+  it('keeps the browsing tools when feed output is off, dropping only add_finding', () => {
     const tools = getInterestAgentTools({
       feed: false,
       post: true,
       digest: false,
       notification: true,
     });
-    expect(tools).not.toContain('score_finding');
-    expect(tools).not.toContain('add_finding');
-    expect(tools).toContain('write_post');
+    expect(tools).toEqual([...browsingTools, 'write_post']);
   });
 
   it('omits write_post when post output is off', () => {
@@ -36,12 +48,13 @@ describe('getInterestAgentTools', () => {
   });
 
   it('omits discover_external when the web source is off', () => {
-    const tools = getInterestAgentTools(undefined, {
-      dailyDev: true,
-      web: false,
-      github: false,
-    });
-    expect(tools).not.toContain('discover_external');
+    expect(
+      getInterestAgentTools(undefined, {
+        dailyDev: true,
+        web: false,
+        github: false,
+      }),
+    ).not.toContain('discover_external');
   });
 
   it('includes discover_external when the web source is on', () => {
