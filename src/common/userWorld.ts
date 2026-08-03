@@ -76,17 +76,19 @@ export const getCrestDistricts = async (
   const rows = await con
     .getRepository(UserNicheAnalytics)
     .createQueryBuilder('una')
-    .select(['una.reads'])
-    .addSelect('niche.slug', 'slug')
+    // Both columns are aliased explicitly so the raw keys are exactly these,
+    // rather than the "{alias}_{property}" form an entity select would produce.
+    .select('niche.slug', 'slug')
+    .addSelect('una.reads', 'reads')
     .innerJoin(Niche, 'niche', 'niche.id = una."nicheId"')
     .where('una."userId" = :userId', { userId })
     .andWhere('niche.slug NOT IN (:...hidden)', {
       hidden: [...SERVING_HIDDEN_NICHE_SLUGS],
     })
     .orderBy('una.reads', 'DESC')
-    .getRawMany<{ slug: string; una_reads: number }>();
+    .getRawMany<{ slug: string; reads: number }>();
 
-  return rows.map(({ slug, una_reads }) => ({ slug, reads: una_reads }));
+  return rows;
 };
 
 /**
