@@ -35,14 +35,17 @@
  */
 
 /**
- * Every `<origin> view` event, plus the click-through.
+ * The `<origin> view` events that actually fire, plus the click-through.
  *
- * The view events are generated in the webapp as `${origin} view` from the
- * `PostOrigin` union (apps `packages/shared/src/hooks/log/useLogContextData.ts`),
- * so this list is that union rather than a sample of what happens to be in
- * ClickHouse today. `reader modal view` and `brief modal view` fire zero times in
- * the last 90 days but are declared origins — listing them means those surfaces are
- * counted the moment they start being used, instead of silently going missing.
+ * View events are generated in the webapp as `${origin} view` from the `PostOrigin`
+ * union (apps `packages/shared/src/hooks/log/useLogContextData.ts`). That union also
+ * declares `reader modal` and `brief modal`, but neither has fired once in 90 days,
+ * so they are left out until they do.
+ *
+ * That means **this list has to be revisited when a new post surface ships** — it is
+ * a snapshot of which origins are live, not the union itself. Cross-check against
+ * `PostOrigin` rather than against ClickHouse volume, or a new surface looks
+ * identical to a surface nobody uses.
  *
  * `collection modal view` was missed originally: 33,140 events in 90 days, and 97.7%
  * of its (user, post) pairs are not reached by any other read event, so it is
@@ -51,9 +54,7 @@
 export const READ_EVENTS = [
   'article page view',
   'article modal view',
-  'reader modal view',
   'collection modal view',
-  'brief modal view',
   'go to link',
 ] as const;
 
