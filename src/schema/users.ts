@@ -162,6 +162,7 @@ import {
 } from '../entity/UserIntegration';
 import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
 import { Niche } from '../entity/Niche';
+import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
@@ -2528,6 +2529,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         .addSelect('district."activeDays"', 'activeDays')
         .innerJoin(Niche, 'niche', 'niche.id = district."nicheId"')
         .where('district."userId" = :id', { id })
+        // Hidden at serving, not at collection — the rows exist, so this is
+        // reversible without a backfill.
+        .andWhere('niche.slug NOT IN (:...hidden)', {
+          hidden: SERVING_HIDDEN_NICHE_SLUGS,
+        })
         .orderBy('district.reads', 'DESC')
         .addOrderBy('niche.slug', 'ASC')
         .getRawMany<GQLUserWorldDistrict>();

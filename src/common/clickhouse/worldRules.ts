@@ -20,7 +20,8 @@
  *   ~31. So: private AND not `unknown`.
  * - Self-reads are excluded — author, scout, and reading your own share. Only 1.58%
  *   platform-wide but 27.6% for an active poster.
- * - `blockchain` is not part of the world.
+ * - Nothing is dropped by niche at collection time. `blockchain` is hidden when a
+ *   world is served (`SERVING_HIDDEN_NICHE_SLUGS`), so that choice stays reversible.
  *
  * `event_timestamp` is the clock. It is the table's sort-key prefix, so a cursor
  * range on it prunes granules; `server_timestamp` is more accurate but unindexed and
@@ -50,12 +51,25 @@
  * `collection modal view` was missed originally: 33,140 events in 90 days, and 97.7%
  * of its (user, post) pairs are not reached by any other read event, so it is
  * additive rather than a duplicate of the article events.
+ *
+ * `click` is the open action itself, and it is here for two reasons. It is the same
+ * gesture as `go to link` — `useOnPostClick` takes `eventName = 'go to link'` as a
+ * *default*, so callers override it per surface — and counting one but not the other
+ * would bias the metric by surface rather than merely undercount it.
+ *
+ * More importantly it is a safety net. Reads are deduplicated to distinct
+ * (user, post) within each window, so a click and a view for the same post collapse
+ * to one and `click` can never inflate a total. All it can contribute is a post that
+ * was opened while *no* view event fired — which is precisely how `collection modal
+ * view` stayed invisible for months. With `click` present, a surface whose view
+ * logging is not wired yet still counts, instead of silently reading as zero.
  */
 export const READ_EVENTS = [
   'article page view',
   'article modal view',
   'collection modal view',
   'go to link',
+  'click',
 ] as const;
 
 /**
@@ -72,8 +86,15 @@ export const EXCLUDED_SOURCE_IDS = [
   'a1f0092b-0ee1-414b-82e6-f2c92d7335e4', // daily.dev World
 ] as const;
 
-/** Niches that never appear in a world. */
-export const EXCLUDED_NICHE_SLUGS = ['blockchain'] as const;
+/**
+ * Niches hidden when a world is SERVED. Deliberately not applied to collection.
+ *
+ * Do not add this to the delta query. The rows are collected either way, so hiding
+ * a niche is a display decision that can be reverted without a backfill — whereas
+ * dropping it at collection time destroys history that only a full re-import could
+ * recover.
+ */
+export const SERVING_HIDDEN_NICHE_SLUGS = ['blockchain'] as const;
 
 const asSqlList = (values: readonly string[]): string =>
   values.map((value) => `'${value}'`).join(',');
@@ -150,7 +171,6 @@ firsts AS (
   WHERE e.event_timestamp > {cursor: DateTime}
     AND e.event_timestamp <= {until: DateTime}
     AND e.event_name IN (${asSqlList(READ_EVENTS)})
-    AND n.slug NOT IN (${asSqlList(EXCLUDED_NICHE_SLUGS)})
     AND eff.eff_id NOT IN (SELECT id FROM du)
     AND eff.eff_id NOT IN (SELECT id FROM pv)
     AND pm.au != e.user_id
