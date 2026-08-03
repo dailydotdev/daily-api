@@ -172,11 +172,36 @@ export const userWorldClickhouseCron: Cron = {
     // districts are left alone. Advancing districts from the raw delta instead of
     // from what was actually inserted is what would double-count.
     let inserted: UserWorldDelta[] = [];
+    let skipped = 0;
 
     await con.transaction(async (manager) => {
+      // 0. Keep only users Postgres still has.
+      //
+      //    The delta comes from a ClickHouse mirror of `api.user`. The query already
+      //    drops deletion tombstones, but the mirror lags: an account removed since
+      //    the last replicated batch is still live there and already gone here. The
+      //    growth table has a real FK to "user", so one such row does not skip a
+      //    user — it aborts the run. That is exactly how the first production run
+      //    failed, and with `restartPolicy: OnFailure` it then retried the same
+      //    doomed insert until the deadline killed it.
+      //
+      //    FOR KEY SHARE is the lock the FK check takes anyway, taken earlier. That
+      //    is what makes the filter hold rather than merely narrow the window: it
+      //    blocks deletion of these rows for the rest of the transaction, so a user
+      //    cannot disappear between this SELECT and the INSERT below. It does not
+      //    block ordinary profile updates, which take a weaker lock.
+      const present: { id: string }[] = await manager.query(
+        'SELECT id FROM "user" WHERE id = ANY($1) FOR KEY SHARE',
+        [[...new Set(data.map((row) => row.userId))]],
+      );
+      const known = new Set(present.map((row) => row.id));
+      const insertable = data.filter((row) => known.has(row.userId));
+
+      skipped = data.length - insertable.length;
+
       // 1. Append to the growth log. The composite key makes replaying a window a
       //    no-op, which is what lets the cron be rerun after a partial failure.
-      for (const rows of chunk(data, GROWTH_CHUNK_SIZE)) {
+      for (const rows of chunk(insertable, GROWTH_CHUNK_SIZE)) {
         const result = await manager
           .createQueryBuilder()
           .insert()
@@ -326,6 +351,10 @@ export const userWorldClickhouseCron: Cron = {
       {
         rows: data.length,
         inserted: inserted.length,
+        // Rows for users the mirror still lists but Postgres no longer has. A
+        // handful is normal replication lag; a sudden jump means the mirror has
+        // fallen behind and worlds are being built from stale membership.
+        skipped,
         users: new Set(data.map((row) => row.userId)).size,
         queryParams,
       },

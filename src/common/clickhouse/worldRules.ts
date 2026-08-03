@@ -106,6 +106,16 @@ const asSqlList = (values: readonly string[]): string =>
  * resolved post), `pn` (one niche per post), `nc` (niche slugs), `du` (excluded
  * posts), `pv` (private posts), `reg` (registered users). `api.source` is not
  * touched — the first-party exclusion uses ids directly.
+ *
+ * `reg` drops deleted accounts. Unlike `api.post_niche`, `api.user` collapses
+ * normally, so `is_deleted` is a usable tombstone — 159,359 of 1,992,627 mirrored
+ * users carry one. Keeping them was not merely wasted work: the growth table has a
+ * real FK to `"user"`, so a single read by an account Postgres has already removed
+ * aborts the entire run. That is how this cron failed on its first production run.
+ *
+ * This narrows the gap but cannot close it — see `userWorldClickhouse`, which also
+ * filters against Postgres itself, because the mirror lags and an account can be
+ * deleted while the cron is mid-flight.
  */
 export const worldRulesCte = /* sql */ `
 res AS (
@@ -144,7 +154,9 @@ du AS (
 pv AS (
   SELECT id FROM api.post GROUP BY id
   HAVING argMax(private, _version) = 1 AND argMax(sourceId, _version) != 'unknown'),
-reg AS (SELECT id FROM api.user GROUP BY id)`;
+reg AS (
+  SELECT id FROM api.user GROUP BY id
+  HAVING argMax(is_deleted, _version) = 0)`;
 
 /**
  * Reads in `[cursor, until)`, deduplicated to one row per (user, post) within the
