@@ -233,6 +233,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .where(`${builder.alias}."interestId" = :id`, { id })
+            .andWhere(
+              `EXISTS (SELECT 1 FROM post p WHERE p.id = ${builder.alias}."postId" AND p.deleted = false AND p.banned = false)`,
+            )
             .orderBy(`${builder.alias}.score`, 'DESC');
           return builder;
         },

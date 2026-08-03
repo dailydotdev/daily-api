@@ -297,6 +297,20 @@ describe('query interestFindings', () => {
     ).toEqual(['p2', 'p1']);
   });
 
+  it('should hide findings whose post was banned or deleted after delivery', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).update({ id: 'p2' }, { banned: true });
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { deleted: true });
+
+    const res = await client.query(INTEREST_FINDINGS, {
+      variables: { id: 'uir-1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.interestFindings).toEqual([]);
+  });
+
   it('should reject findings for a non-owner', async () => {
     loggedUser = '2';
     return testQueryErrorCode(

@@ -19,7 +19,7 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { remoteConfig } from '../../../src/remoteConfig';
 import { discoverExternalUrls } from '../../../src/common/interest/discoverExternalUrls';
-import { discoverAndIngestExternal } from '../../../src/common/interest/runInterestAgent';
+import { discoverAndIngestExternal } from '../../../src/common/interest/tools/discoverExternal';
 
 jest.mock('../../../src/common/interest/discoverExternalUrls', () => ({
   discoverExternalUrls: jest.fn(),

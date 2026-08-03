@@ -122,7 +122,10 @@ describe('userInterestRun worker', () => {
     expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
-  it('never persists the machine fallback recap, which renders as the notification headline', async () => {
+  it('keeps the previous recap instead of persisting the machine fallback, which renders as the notification headline', async () => {
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { lastRunSummary: 'Zig 0.14 shipped.' });
     (runInterestAgent as jest.Mock).mockResolvedValue({
       findingsAdded: 0,
       summaryPostId: null,
@@ -139,10 +142,8 @@ describe('userInterestRun worker', () => {
     const interest = await con
       .getRepository(UserInterest)
       .findOneByOrFail({ id: 'uir-1' });
-    expect(interest.lastRunSummary).toBeNull();
+    expect(interest.lastRunSummary).toEqual('Zig 0.14 shipped.');
 
-    // The live worker queued p1, so the user is still notified — the headline
-    // falls back to the count-based copy instead of "Added 0 finding(s)".
     const call = (triggerTypedEvent as jest.Mock).mock.calls.find(
       (c) => c[1] === 'api.v1.interest-content-available',
     );

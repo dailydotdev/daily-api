@@ -11,12 +11,15 @@ import { KeywordStatus } from '../../entity/Keyword';
 import { FeedTag } from '../../entity/FeedTag';
 import { PostType } from '../../entity/posts/Post';
 import { evaluateInterestRelevance } from '../../common/interest/evaluateInterestRelevance';
+import {
+  excludedInterestPostTypes,
+  getExcludedInterestSourceIds,
+} from '../../common/interest/exclusions';
 import { generateShortId } from '../../ids';
 import { remoteConfig } from '../../remoteConfig';
 
 const skippedTypes = new Set<string>([
-  PostType.Brief,
-  PostType.Digest,
+  ...excludedInterestPostTypes,
   PostType.Freeform,
 ]);
 
@@ -32,9 +35,15 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
         !post?.id ||
         post.private ||
         post.deleted ||
+        post.banned ||
         !post.showOnFeed ||
         skippedTypes.has(post.type)
       ) {
+        return;
+      }
+
+      const excludedSourceIds = await getExcludedInterestSourceIds({ con });
+      if (post.sourceId && excludedSourceIds.includes(post.sourceId)) {
         return;
       }
 

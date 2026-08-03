@@ -21,11 +21,9 @@ beforeEach(async () => {
 
 describe('interest agent exclusions', () => {
   it('excludes aggregation post types', () => {
-    expect(excludedInterestPostTypes).toEqual([
-      PostType.Collection,
-      PostType.Digest,
-      PostType.Brief,
-    ]);
+    expect(new Set(excludedInterestPostTypes)).toEqual(
+      new Set([PostType.Collection, PostType.Digest, PostType.Brief]),
+    );
     expect(excludedInterestPostTypes).not.toContain(PostType.Article);
   });
 

@@ -29,7 +29,7 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         { id: interest.id },
         {
           lastRunAt: new Date(runAt),
-          lastRunSummary: result.agentSummary,
+          lastRunSummary: result.agentSummary ?? interest.lastRunSummary,
         },
       );
 
