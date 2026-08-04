@@ -10,11 +10,13 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { feedClient } from '../integrations/feed/generators';
+import type { FeedTopic } from '../integrations/feed/types';
 import { queryReadReplica } from './queryReadReplica';
 import { generateShortId } from '../ids';
 import { logger } from '../logger';
-import { maxFeedsPerUser } from '../types';
-import { countUserOwnedFeeds } from './feed';
+import { maxFeedsPerUser, TagChipSeedStrategy } from '../types';
+import { countUserOwnedFeeds, getUserOnboardingTags } from './feed';
+import { remoteConfig } from '../remoteConfig';
 
 export const TAG_CHIP_FEED_LIMIT = 5;
 
@@ -64,9 +66,11 @@ const resolveLabel = async ({
 const reserveSeedSlot = async ({
   con,
   userId,
+  strategy,
 }: {
   con: DataSource;
   userId: string;
+  strategy: TagChipSeedStrategy;
 }): Promise<boolean> => {
   const result = await con
     .createQueryBuilder()
@@ -76,7 +80,10 @@ const reserveSeedSlot = async ({
     .andWhere(`(flags->>'tagChipFeedsSeededAt') IS NULL`)
     .setParameter(
       'seededJson',
-      JSON.stringify({ tagChipFeedsSeededAt: new Date().toISOString() }),
+      JSON.stringify({
+        tagChipFeedsSeededAt: new Date().toISOString(),
+        tagChipFeedsSeedStrategy: strategy,
+      }),
     )
     .execute();
 
@@ -106,43 +113,78 @@ const getSeedTagValues = async ({
   }
 
   if (!values.length) {
-    const followed = await con.getRepository(ContentPreferenceKeyword).find({
-      select: ['keywordId'],
-      where: {
-        userId,
-        feedId: userId,
-        status: ContentPreferenceStatus.Follow,
-      },
-      take: limit,
-    });
-    values = dedupeKeepOrder(followed.map((pref) => pref.keywordId)).slice(
-      0,
-      limit,
-    );
+    values = dedupeKeepOrder(
+      await getUserOnboardingTags({ con, userId, limit }),
+    ).slice(0, limit);
   }
 
   return values;
 };
 
+const getSeedTopics = async ({
+  con,
+  userId,
+  limit,
+}: {
+  con: DataSource;
+  userId: string;
+  limit: number;
+}): Promise<FeedTopic[]> => {
+  const tags = dedupeKeepOrder(await getUserOnboardingTags({ con, userId }));
+
+  if (!tags.length) {
+    return [];
+  }
+
+  const topics = await feedClient.getTopics(
+    tags,
+    remoteConfig.vars.tagChipTopicsClusterThreshold,
+  );
+  const seenLabels = new Set<string>();
+
+  return topics
+    .map(({ label, tags: topicTags }) => ({
+      label,
+      tags: dedupeKeepOrder(topicTags ?? []),
+    }))
+    .filter(({ label, tags: topicTags }) => {
+      if (!label || !topicTags.length || seenLabels.has(label)) {
+        return false;
+      }
+
+      seenLabels.add(label);
+
+      return true;
+    })
+    .slice(0, limit);
+};
+
 /**
- * Lazily seeds one custom feed per tag (feedClient.getUserTags, falling back to
- * the user's onboarding follows) the first time the caller opts in via
- * `includeTagChipFeeds`. Gated by
- * `User.flags.tagChipFeedsSeededAt`: set atomically before any seed work
- * happens, so a second call is a guaranteed no-op even if the first failed
- * mid-flight. Skipped if the user is at the `maxFeedsPerUser` cap (no chip
- * feeds get written; flag still marked so we don't retry on every read).
+ * Lazily seeds the caller's tag-chip feeds the first time they opt in via
+ * `includeTagChipFeeds`. Gated by `User.flags.tagChipFeedsSeededAt`: set
+ * atomically before any seed work happens, so a second call is a guaranteed
+ * no-op even if the first failed mid-flight. Skipped if the user is at the
+ * `maxFeedsPerUser` cap (no chip feeds get written; flag still marked so we
+ * don't retry on every read).
+ *
+ * Strategy `V1` (default) seeds one single-tag feed per tag from
+ * `feedClient.getUserTags`, falling back to the user's onboarding tags.
+ * Strategy `V2` clusters those onboarding tags into topics via
+ * `feedClient.getTopics` and seeds one multi-tag feed per topic, falling back to
+ * `V1` when clustering is unavailable or yields nothing.
  */
 export const seedTagChipFeedsIfNeeded = async ({
   con,
   userId,
   limit = TAG_CHIP_FEED_LIMIT,
+  strategy = TagChipSeedStrategy.V1,
 }: {
   con: DataSource;
   userId: string;
   limit?: number;
+  strategy?: TagChipSeedStrategy;
 }): Promise<boolean> => {
-  const reserved = await reserveSeedSlot({ con, userId });
+  const reserved = await reserveSeedSlot({ con, userId, strategy });
   if (!reserved) {
     return false;
   }
@@ -156,37 +198,60 @@ export const seedTagChipFeedsIfNeeded = async ({
     return false;
   }
 
-  const values = await getSeedTagValues({
-    con,
-    userId,
-    limit: effectiveLimit,
-  });
-  if (!values.length) {
+  let topics: FeedTopic[] = [];
+
+  if (strategy === TagChipSeedStrategy.V2) {
+    try {
+      topics = await getSeedTopics({ con, userId, limit: effectiveLimit });
+    } catch (err) {
+      logger.error(
+        { err, userId },
+        'feedClient.getTopics failed; tag-chip seeding will fall back to single-tag feeds',
+      );
+    }
+  }
+
+  if (!topics.length) {
+    const values = await getSeedTagValues({
+      con,
+      userId,
+      limit: effectiveLimit,
+    });
+
+    topics = values.map((value) => ({ label: value, tags: [value] }));
+  }
+
+  if (!topics.length) {
     return false;
   }
 
-  const labelByValue = await resolveLabel({ con, values });
+  const labelByValue = await resolveLabel({
+    con,
+    values: topics.map(({ label }) => label),
+  });
 
   await con.transaction(async (manager) => {
-    for (const value of values) {
+    for (const topic of topics) {
       const feedId = await generateShortId();
       await manager.getRepository(Feed).save({
         id: feedId,
         userId,
         flags: {
-          name: labelByValue.get(value) || value,
+          name: labelByValue.get(topic.label) || topic.label,
           origin: FeedOrigin.TagChip,
         },
       });
-      await manager.getRepository(ContentPreferenceKeyword).save({
-        userId,
-        feedId,
-        referenceId: value,
-        keywordId: value,
-        status: ContentPreferenceStatus.Follow,
-        type: ContentPreferenceType.Keyword,
-      });
-      await manager.getRepository(FeedTag).save({ feedId, tag: value });
+      for (const tag of topic.tags) {
+        await manager.getRepository(ContentPreferenceKeyword).save({
+          userId,
+          feedId,
+          referenceId: tag,
+          keywordId: tag,
+          status: ContentPreferenceStatus.Follow,
+          type: ContentPreferenceType.Keyword,
+        });
+        await manager.getRepository(FeedTag).save({ feedId, tag });
+      }
     }
   });
 

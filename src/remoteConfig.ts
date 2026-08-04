@@ -69,6 +69,7 @@ export type RemoteConfigValue = {
   headlineChannelMinPosts: number;
   excludedMarketingCta: string[];
   personalContextEnabled: boolean;
+  tagChipTopicsClusterThreshold: number;
 };
 
 class RemoteConfig {

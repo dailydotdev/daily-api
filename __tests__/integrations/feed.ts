@@ -245,6 +245,56 @@ describe('FeedClient', () => {
       expect(tags).toEqual([]);
     });
   });
+
+  describe('getTopics', () => {
+    const topics = [
+      { label: 'docker', tags: ['docker', 'kubernetes'] },
+      { label: 'react', tags: ['react'] },
+    ];
+
+    it('should return the clustered topics from the feed service', async () => {
+      nock(url)
+        .post('/api/topics', {
+          allowed_tags: ['kubernetes', 'docker', 'react'],
+          cluster_threshold: 0.4,
+        })
+        .reply(200, { data: topics });
+
+      const feedClient = new FeedClient(url);
+      expect(
+        await feedClient.getTopics(['kubernetes', 'docker', 'react'], 0.4),
+      ).toEqual(topics);
+    });
+
+    it('should omit the threshold when not provided', async () => {
+      nock(url)
+        .post('/api/topics', { allowed_tags: ['react'] })
+        .reply(200, { data: [{ label: 'react', tags: ['react'] }] });
+
+      const feedClient = new FeedClient(url);
+      expect(await feedClient.getTopics(['react'])).toEqual([
+        { label: 'react', tags: ['react'] },
+      ]);
+    });
+
+    it('should return an empty array when data is missing', async () => {
+      nock(url)
+        .post('/api/topics', { allowed_tags: ['react'] })
+        .reply(200, {});
+
+      const feedClient = new FeedClient(url);
+      expect(await feedClient.getTopics(['react'])).toEqual([]);
+    });
+
+    it('should degrade to an empty list when the feed service errors', async () => {
+      nock(url)
+        .post('/api/topics', { allowed_tags: ['react'] })
+        .reply(500, {});
+
+      const feedClient = new FeedClient(url);
+      expect(await feedClient.getTopics(['react'])).toEqual([]);
+    });
+  });
 });
 
 describe('connectionFromNodes with staleCursor', () => {
