@@ -42,11 +42,6 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
         return;
       }
 
-      const excludedSourceIds = await getExcludedInterestSourceIds({ con });
-      if (post.sourceId && excludedSourceIds.includes(post.sourceId)) {
-        return;
-      }
-
       const keywordRows = await con.getRepository(PostKeyword).find({
         select: ['keyword'],
         where: { postId: post.id, status: KeywordStatus.Allow },
@@ -88,6 +83,11 @@ export const postVisibleInterestMatchWorker: TypedWorker<'api.v1.post-visible'> 
         .getMany();
 
       if (!limited.length) {
+        return;
+      }
+
+      const excludedSourceIds = await getExcludedInterestSourceIds({ con });
+      if (post.sourceId && excludedSourceIds.includes(post.sourceId)) {
         return;
       }
 

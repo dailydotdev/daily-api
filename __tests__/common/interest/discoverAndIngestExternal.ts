@@ -87,6 +87,10 @@ describe('discoverAndIngestExternal', () => {
     });
 
     expect(result.added).toBe(1);
+    // The agent can only name and link discovered findings if these come back.
+    expect(result.ingested).toEqual([
+      { postId: result.postIds[0], title: 'A' },
+    ]);
 
     const findings = await con
       .getRepository(InterestFinding)

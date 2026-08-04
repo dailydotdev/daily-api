@@ -252,7 +252,24 @@ describe('query_feed', () => {
     ).toMatchObject({ error: 'tag_not_found' });
   });
 
-  it('reports a clamped offset and a stride that skips the whole window', async () => {
+  it('pages by rows examined, so no candidate is skipped', async () => {
+    const { captured } = await getTools();
+    const res = await call(captured, 'query_feed', {
+      scope: 'tag',
+      tag: 'zig',
+      limit: 10,
+      offset: 20,
+    });
+
+    expect(res).toMatchObject({
+      offset: 20,
+      nextOffset: 30,
+      requested: 10,
+      offsetClamped: false,
+    });
+  });
+
+  it('reports the paging ceiling instead of a stride the tool would clamp', async () => {
     const { captured } = await getTools();
     const res = await call(captured, 'query_feed', {
       scope: 'tag',
@@ -261,13 +278,12 @@ describe('query_feed', () => {
       offset: 5000,
     });
 
-    // nextOffset must step by rows read (limit * overfetch), not rows returned.
     expect(res).toMatchObject({
       offset: 200,
       offsetClamped: true,
-      nextOffset: 230,
-      requested: 10,
+      pagingLimitReached: true,
     });
+    expect(res.nextOffset).toBeUndefined();
   });
 
   it('windows the tag scope by default and reports the window applied', async () => {
@@ -300,17 +316,34 @@ describe('query_feed', () => {
     expect(res.periodDays).toBeUndefined();
   });
 
-  it('reports orderBy and period as ignored on the interest scope', async () => {
-    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+  it('normalises and synonym-resolves tags passed to the tags scope', async () => {
+    const { captured } = await getTools();
+    const res = await call(captured, 'query_feed', {
+      scope: 'tags',
+      tags: ['ZIG', 'ziglang', 'nope'],
+    });
+
+    expect(res.tags).toEqual(['zig']);
+    expect(res.unknownTags).toEqual(['nope']);
+  });
+
+  it('separates an unknown vocabulary from an empty topic on the tags scope', async () => {
     const { captured } = await getTools();
 
     expect(
-      await call(captured, 'query_feed', {
-        scope: 'interest',
-        orderBy: 'date',
-        period: 7,
-      }),
-    ).toMatchObject({ orderByIgnored: 'date', periodIgnored: 7 });
+      await call(captured, 'query_feed', { scope: 'tags', tags: ['nope'] }),
+    ).toMatchObject({ error: 'tags_not_found', unknownTags: ['nope'] });
+  });
+
+  it('returns candidates for the interest scope from the saved tags', async () => {
+    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+    const { captured } = await getTools();
+    const res = await call(captured, 'query_feed', { scope: 'interest' });
+
+    expect(res.candidates.map((c: { postId: string }) => c.postId)).toEqual(
+      expect.arrayContaining(['p1', 'p2']),
+    );
+    expect(res.orderBy).toBeUndefined();
   });
 
   it('excludes aggregation posts from candidates', async () => {
@@ -457,6 +490,28 @@ describe('set_interest_tags', () => {
     expect(res.unknown).toEqual(['nope']);
     expect(res.overCap).not.toContain('nope');
   });
+
+  it.each([[['zog', 'not-real']], [[]]])(
+    'keeps the existing tags when nothing resolves from %j',
+    async (tags) => {
+      await con.getRepository(FeedTag).save([
+        { feedId: 'feed-1', tag: 'zig' },
+        { feedId: 'feed-1', tag: 'rust' },
+      ]);
+      const { captured } = await getTools();
+
+      const res = await call(captured, 'set_interest_tags', { tags });
+      expect(res.error).toEqual(
+        tags.length ? 'no_tags_resolved' : 'tags_required',
+      );
+      expect(res.keptTags).toEqual(expect.arrayContaining(['zig', 'rust']));
+
+      const saved = await con
+        .getRepository(FeedTag)
+        .findBy({ feedId: 'feed-1' });
+      expect(saved.map((row) => row.tag).sort()).toEqual(['rust', 'zig']);
+    },
+  );
 
   it('is not gated by the exploration budget, as the prompt promises', async () => {
     const { captured, ...built } = await getTools();

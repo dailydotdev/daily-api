@@ -21,7 +21,7 @@ import {
 } from './constants';
 
 export type FeedScope = 'interest' | 'tags' | 'source' | 'tag';
-export type FeedOrder = 'relevance' | 'date' | 'upvotes';
+export type FeedOrder = 'date' | 'upvotes';
 
 export const resolveLimit = (limit?: number) =>
   Math.min(Math.max(limit ?? DEFAULT_SEARCH_LIMIT, 1), MAX_SEARCH_LIMIT);
@@ -77,23 +77,22 @@ export const createCandidatePipeline = ({
   const toCandidates = async ({
     postIds,
     limit,
-    fetched,
     offset,
     requestedOffset,
   }: {
     postIds: string[];
     limit: number;
-    fetched: number;
     offset: number;
     requestedOffset?: number;
   }) => {
-    const exhausted = postIds.length < fetched;
-    // offset counts inventory rows, not returned candidates, so the agent must
-    // step by `fetched` to avoid re-reading the window it was just served.
+    const exhausted = postIds.length < limit;
+    const nextOffset = offset + limit;
     const paging = {
       offset,
-      nextOffset: offset + fetched,
       offsetClamped: offset !== (requestedOffset ?? offset),
+      ...(nextOffset <= MAX_CANDIDATE_OFFSET
+        ? { nextOffset }
+        : { pagingLimitReached: true }),
     };
     const empty = {
       candidates: [],
@@ -174,10 +173,7 @@ export const createCandidatePipeline = ({
 
     // `IN (...)` does not preserve order, so re-apply the inventory's ranking.
     const byId = new Map(posts.map((post) => [post.id, post]));
-    const ordered = freshIds
-      .map((id) => byId.get(id))
-      .filter((post) => !!post)
-      .slice(0, limit);
+    const ordered = freshIds.map((id) => byId.get(id)).filter((post) => !!post);
 
     return {
       candidates: ordered.map((post) => ({

@@ -68,7 +68,6 @@ import { organizationUserRemoved } from './organization/organizationUserRemoved'
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userInterestRunWorker } from './interest/userInterestRun';
 import { postVisibleInterestMatchWorker } from './interest/postVisibleInterestMatch';
-import { postUpvotedInterestSignalWorker } from './interest/postUpvotedInterestSignal';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { userUpdatedPersonalContextWorker } from './personalContext/userUpdatedPersonalContext';
 import { githubAccountLinkedWorker } from './personalContext/githubAccountLinked';
@@ -166,7 +165,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userGenerateBriefWorker,
   userInterestRunWorker,
   postVisibleInterestMatchWorker,
-  postUpvotedInterestSignalWorker,
   userUpdatedPlusSubscriptionBriefWorker,
   userUpdatedPersonalContextWorker,
   githubAccountLinkedWorker,

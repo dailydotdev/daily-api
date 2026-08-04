@@ -6,11 +6,8 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import type { DataSource } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
-import { In } from 'typeorm';
 import { queryReadReplica } from '../queryReadReplica';
 import { Post } from '../../entity/posts/Post';
-import { PostKeyword } from '../../entity/PostKeyword';
-import { KeywordStatus } from '../../entity/Keyword';
 import { FeedTag } from '../../entity/FeedTag';
 import { getExcludedInterestSourceIds } from './exclusions';
 import {
@@ -21,7 +18,7 @@ import { InterestFeedback } from '../../entity/InterestFeedback';
 import type { UserInterest } from '../../entity/UserInterest';
 import { getDiscussionLink } from '../links';
 import { remoteConfig } from '../../remoteConfig';
-import { addFeedTagsWithinCap, DEFAULT_INTEREST_MAX_TAGS } from './feedTags';
+import { DEFAULT_INTEREST_MAX_TAGS } from './feedTags';
 import { createInterestAgentModel } from './agentModel';
 import { createCandidatePipeline } from './tools/candidates';
 import type {
@@ -287,7 +284,6 @@ export const runInterestAgent = async ({
     registerTools,
     activeTools,
     state,
-    addedPostIds,
     maxTags,
     maxToolCalls,
     pendingFindings,
@@ -361,22 +357,6 @@ export const runInterestAgent = async ({
   } finally {
     unsubscribe();
     session.dispose();
-  }
-
-  const feedId = interest.feedId;
-  if (feedId && addedPostIds.size) {
-    const keywords = await queryReadReplica(con, ({ queryRunner }) =>
-      queryRunner.manager.getRepository(PostKeyword).find({
-        select: ['keyword'],
-        where: { postId: In([...addedPostIds]), status: KeywordStatus.Allow },
-      }),
-    );
-    await addFeedTagsWithinCap({
-      con,
-      feedId,
-      tags: keywords.map((row) => row.keyword),
-      maxTags,
-    });
   }
 
   log.info(

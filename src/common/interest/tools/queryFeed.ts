@@ -12,7 +12,6 @@ import {
   resolveOffset,
 } from './candidates';
 import {
-  CANDIDATE_OVERFETCH,
   DEFAULT_TAG_SCOPE_PERIOD_DAYS,
   budgetError,
   jsonResult,
@@ -28,7 +27,7 @@ export const queryFeedTool = ({
 }: InterestToolContext) => ({
   name: 'query_feed',
   label: 'Query daily.dev feed',
-  description: `Read a ranked daily.dev feed. scope "interest" uses this interest's saved tags, "tags" uses tags you supply, "source" reads one source's posts (pass sourceId), "tag" reads one tag's posts (pass tag). The interest and tags scopes run through the same ranking the user's own feed uses: engagement-ranked, and filtered by their blocked tags, blocked sources, blocked words and followed sources, so results are already shaped to this reader. They need tags to exist, and work at topic granularity rather than phrase granularity. No publish-date restriction, so these scopes reach older posts the interest has never seen. The source and tag scopes support orderBy "date" or "upvotes" plus an optional period in days; they have no relevance ranker, so "relevance" falls back to "upvotes" there. The tag scope windows to the last ${DEFAULT_TAG_SCOPE_PERIOD_DAYS} days unless you pass a larger period; the response reports the ordering and window actually applied. orderBy and period do not apply to the interest and tags scopes and are reported back as ignored. Page with nextOffset from the response, not by adding your limit: offset counts inventory rows and more are read than returned.`,
+  description: `Read a ranked daily.dev feed. scope "interest" uses this interest's saved tags, "tags" uses tags you supply, "source" reads one source's posts (pass sourceId), "tag" reads one tag's posts (pass tag). The interest and tags scopes run through the same ranking the user's own feed uses: engagement-ranked, and filtered by their blocked tags, blocked sources, blocked words and followed sources, so results are already shaped to this reader. They need tags to exist, and work at topic granularity rather than phrase granularity. No publish-date restriction, so these scopes reach older posts the interest has never seen. The source and tag scopes support orderBy "date" or "upvotes" plus an optional period in days; they default to "upvotes". The tag scope windows to the last ${DEFAULT_TAG_SCOPE_PERIOD_DAYS} days unless you pass a larger period. orderBy and period only apply to the source and tag scopes, which report the orderBy and periodDays they used; the interest and tags scopes are ranked by the feed service and cannot be re-ordered or windowed. Tags you pass are lowercased and synonym-resolved, and the response echoes the tags it used plus any unknownTags that do not exist, so an empty page is never ambiguous. limit is how many rows are examined, so fewer candidates than limit means the rest were filtered — page on with nextOffset, and pagingLimitReached means you have reached how deep this tool will page.`,
   parameters: Type.Object({
     scope: Type.Optional(
       Type.Union([
@@ -42,11 +41,7 @@ export const queryFeedTool = ({
     sourceId: Type.Optional(Type.String()),
     tag: Type.Optional(Type.String()),
     orderBy: Type.Optional(
-      Type.Union([
-        Type.Literal('relevance'),
-        Type.Literal('date'),
-        Type.Literal('upvotes'),
-      ]),
+      Type.Union([Type.Literal('date'), Type.Literal('upvotes')]),
     ),
     period: Type.Optional(Type.Number()),
     limit: Type.Optional(Type.Number()),
@@ -69,12 +64,10 @@ export const queryFeedTool = ({
       return jsonResult(budgetError);
     }
     const scope = params.scope ?? 'interest';
-    const orderBy = params.orderBy ?? 'relevance';
     const limit = resolveLimit(params.limit);
-    const fetched = limit * CANDIDATE_OVERFETCH;
     const offset = resolveOffset(params.offset);
-
     if (scope === 'source' || scope === 'tag') {
+      const orderBy = params.orderBy === 'date' ? 'date' : 'upvotes';
       if (scope === 'source' && !params.sourceId) {
         return jsonResult({ error: 'source_id_required' });
       }
@@ -125,18 +118,17 @@ export const queryFeedTool = ({
         tag,
         orderBy,
         period: params.period,
-        limit: fetched,
+        limit,
         offset,
       });
       const result = {
         ...(await pipeline.toCandidates({
           postIds,
           limit,
-          fetched,
           offset,
           requestedOffset: params.offset,
         })),
-        orderBy: orderBy === 'date' ? 'date' : 'upvotes',
+        orderBy,
         ...(windowDays ? { periodDays: windowDays } : {}),
         ...(scope === 'tag' && tag !== params.tag ? { resolvedTag: tag } : {}),
       };
@@ -154,23 +146,35 @@ export const queryFeedTool = ({
       return jsonResult(result);
     }
 
-    const tags = params.tags?.length
-      ? params.tags
-      : await pipeline.findTagsForFeed();
-
-    if (!tags.length) {
-      return jsonResult({
-        candidates: [],
-        error: 'no_tags',
-        hint: 'Call set_interest_tags first, or pass tags explicitly.',
-      });
+    let unknownTags: string[] = [];
+    let tags: string[];
+    if (params.tags?.length) {
+      const resolved = await pipeline.resolveTags(params.tags);
+      tags = resolved.resolved;
+      unknownTags = resolved.unknown;
+      if (!tags.length) {
+        return jsonResult({
+          error: 'tags_not_found',
+          unknownTags,
+          hint: 'None of those slugs exist on daily.dev. Use search_tags to find real ones — this is not an empty topic.',
+        });
+      }
+    } else {
+      tags = await pipeline.findTagsForFeed();
+      if (!tags.length) {
+        return jsonResult({
+          candidates: [],
+          error: 'no_tags',
+          hint: 'Call set_interest_tags first, or pass tags explicitly.',
+        });
+      }
     }
 
     const response = await getForYouByTagFeedGenerator(tags).generate(
       pipeline.feedContext,
       {
         user_id: interest.userId,
-        page_size: fetched,
+        page_size: limit,
         offset,
       },
     );
@@ -178,17 +182,11 @@ export const queryFeedTool = ({
       ...(await pipeline.toCandidates({
         postIds: getFeedResponsePostIds(response),
         limit,
-        fetched,
         offset,
         requestedOffset: params.offset,
       })),
-      // These scopes go through the feed service's own ranking, so anything the
-      // agent passed here was not applied.
-      orderBy: 'relevance',
-      ...(params.orderBy && params.orderBy !== 'relevance'
-        ? { orderByIgnored: params.orderBy }
-        : {}),
-      ...(params.period ? { periodIgnored: params.period } : {}),
+      tags,
+      ...(unknownTags.length ? { unknownTags } : {}),
     };
     log.info(
       {

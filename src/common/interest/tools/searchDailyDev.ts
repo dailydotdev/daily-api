@@ -4,12 +4,7 @@ import { mimirClient } from '../../../integrations/mimir/clients';
 import { mimirFilterBuilder } from '../../../integrations/mimir/filters';
 import type { InterestToolContext } from './context';
 import { resolveLimit, resolveOffset } from './candidates';
-import {
-  CANDIDATE_OVERFETCH,
-  SEARCH_VERSION,
-  budgetError,
-  jsonResult,
-} from './constants';
+import { SEARCH_VERSION, budgetError, jsonResult } from './constants';
 
 export const searchDailyDevTool = ({
   log,
@@ -34,14 +29,13 @@ export const searchDailyDevTool = ({
       return jsonResult(budgetError);
     }
     const limit = resolveLimit(params.limit);
-    const fetched = limit * CANDIDATE_OVERFETCH;
     const offset = resolveOffset(params.offset);
     const response: SearchResponse = await mimirClient.search(
       new SearchRequest({
         query: params.query,
         version: SEARCH_VERSION,
         offset,
-        limit: fetched,
+        limit,
         filters: mimirFilterBuilder({
           publishedAfter: interest.lastRunAt ?? undefined,
         }),
@@ -51,7 +45,6 @@ export const searchDailyDevTool = ({
     const result = await pipeline.toCandidates({
       postIds,
       limit,
-      fetched,
       offset,
       requestedOffset: params.offset,
     });

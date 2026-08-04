@@ -10,7 +10,7 @@ import {
   MAX_COMMENT_CHARS,
   MAX_COMMENT_LENGTH,
   MAX_COMMENT_LIMIT,
-  MAX_COMMENT_REPLIES,
+  MAX_REPLIES_PER_PARENT,
   budgetError,
   jsonResult,
 } from './constants';
@@ -116,16 +116,18 @@ export const readCommentsTool = ({
           return { topLevel: parents, replies: [] };
         }
 
-        // Capped and ranked by upvotes so a busy thread cannot pull thousands
-        // of rows that the character budget below would discard anyway;
-        // chronological order is restored per parent when rendering.
         const children = await selectComments(queryRunner.manager, false)
           .setParameter(
             'parentIds',
             parents.map((comment) => comment.id),
           )
-          .orderBy('c.upvotes', 'DESC')
-          .limit(MAX_COMMENT_REPLIES)
+          .addSelect(
+            'ROW_NUMBER() OVER (PARTITION BY c."parentId" ORDER BY c.upvotes DESC)',
+            'rank',
+          )
+          .orderBy('rank', 'ASC')
+          .addOrderBy('c.upvotes', 'DESC')
+          .limit(parents.length * MAX_REPLIES_PER_PARENT)
           .getRawMany();
 
         return { topLevel: parents, replies: children };

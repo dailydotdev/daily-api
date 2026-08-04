@@ -14,7 +14,7 @@ import {
 } from '../../../entity/posts/utils';
 import type { UserInterest } from '../../../entity/UserInterest';
 import { getExistingPost } from '../../post';
-import { standardizeURL } from '../../links';
+import { getDiscussionLink, standardizeURL } from '../../links';
 import { blockingBatchRunner } from '../../async';
 import { generateShortId } from '../../../ids';
 import { remoteConfig } from '../../../remoteConfig';
@@ -47,9 +47,14 @@ export const discoverAndIngestExternal = async ({
   >;
   query: string;
   limit?: number;
-}): Promise<{ discovered: number; added: number; postIds: string[] }> => {
+}): Promise<{
+  discovered: number;
+  added: number;
+  postIds: string[];
+  ingested: { postId: string; title: string | null }[];
+}> => {
   if (!interest.sources?.web || !interest.sourceId) {
-    return { discovered: 0, added: 0, postIds: [] };
+    return { discovered: 0, added: 0, postIds: [], ingested: [] };
   }
   const sourceId = interest.sourceId;
 
@@ -66,7 +71,7 @@ export const discoverAndIngestExternal = async ({
   });
   const remaining = maxPerDay - discoveredToday;
   if (remaining <= 0) {
-    return { discovered: 0, added: 0, postIds: [] };
+    return { discovered: 0, added: 0, postIds: [], ingested: [] };
   }
 
   const candidates = await discoverExternalUrls({
@@ -93,7 +98,7 @@ export const discoverAndIngestExternal = async ({
     return acc;
   }, []);
 
-  const postIds: string[] = [];
+  const added: { postId: string; title: string | null }[] = [];
   await blockingBatchRunner({
     data: eligible,
     batchLimit: DISCOVERY_BATCH_SIZE,
@@ -154,12 +159,14 @@ export const discoverAndIngestExternal = async ({
             })
             .orIgnore()
             .execute();
-          return (insertResult.raw as unknown[])?.length ? shareId : null;
+          return (insertResult.raw as unknown[])?.length
+            ? { postId: shareId, title: candidate.title || null }
+            : null;
         }),
       );
-      for (const shareId of results) {
-        if (shareId) {
-          postIds.push(shareId);
+      for (const ingested of results) {
+        if (ingested) {
+          added.push(ingested);
         }
       }
     },
@@ -168,11 +175,16 @@ export const discoverAndIngestExternal = async ({
   logger
     .child({ provider: 'interest agent' })
     .info(
-      { interestId: interest.id, query, added: postIds.length },
+      { interestId: interest.id, query, added: added.length },
       'interest agent discover_external',
     );
 
-  return { discovered: candidates.length, added: postIds.length, postIds };
+  return {
+    discovered: candidates.length,
+    added: added.length,
+    postIds: added.map(({ postId }) => postId),
+    ingested: added,
+  };
 };
 
 export const discoverExternalTool = ({
@@ -189,7 +201,7 @@ export const discoverExternalTool = ({
     name: 'discover_external',
     label: 'Discover external content',
     description:
-      "Search the web for content matching the interest. Pass a focused search query. Matching pages are ingested into daily.dev and added to the interest's feed as findings. Treat this as an equal inventory to daily.dev search and use it freely on every run — not just when daily.dev is thin.",
+      "Search the web for content matching the interest. Pass a focused search query. Matching pages are ingested into daily.dev and added to the interest's feed as findings, so do not pass them to add_finding. Treat this as an equal inventory to daily.dev search and use it freely on every run — not just when daily.dev is thin. Returns each ingested finding with its title and permalink so you can name and link them in your summary; a null title means the page had none yet, so lead with a different finding. read_post on a returned postId gives the full detail.",
     parameters: Type.Object({
       query: Type.String(),
       limit: Type.Optional(Type.Number()),
@@ -218,6 +230,11 @@ export const discoverExternalTool = ({
       return jsonResult({
         discovered: result.discovered,
         added: result.added,
+        findings: result.ingested.map(({ postId, title }) => ({
+          postId,
+          title,
+          permalink: getDiscussionLink(postId),
+        })),
       });
     },
   };
