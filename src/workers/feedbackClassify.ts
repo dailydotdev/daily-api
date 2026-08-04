@@ -1,12 +1,14 @@
 import { TypedWorker } from './worker';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
+import { Feature, FeatureType, FeatureValue } from '../entity/Feature';
 import { getBragiClient } from '../integrations/bragi';
 import { createFeedbackIssue } from '../integrations/linear';
 
 /**
  * Worker that processes new feedback submissions:
  * 1. Calls Bragi for classification
- * 2. Creates Linear issue with classification metadata
+ * 2. Creates Linear issue with classification metadata; feedback from team
+ *    members is delegated to the Huginn agent in autopilot mode
  * 3. Updates feedback record with classification and Linear issue info
  *
  * Status is set to Accepted, which triggers a CDC event that the
@@ -70,6 +72,14 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
           }
         : null;
 
+      const isTeamMember = await con.getRepository(Feature).exists({
+        where: {
+          userId: feedback.userId,
+          feature: FeatureType.Team,
+          value: FeatureValue.Allow,
+        },
+      });
+
       const issue = await createFeedbackIssue({
         feedbackId,
         userId: feedback.userId,
@@ -80,6 +90,7 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         clientInfo: feedback.clientInfo,
         classification,
         screenshotUrl: feedback.screenshotUrl,
+        isTeamMember,
       });
 
       if (!issue) {
