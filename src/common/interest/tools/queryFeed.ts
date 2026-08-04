@@ -163,7 +163,6 @@ export const queryFeedTool = ({
       tags = await pipeline.findTagsForFeed();
       if (!tags.length) {
         return jsonResult({
-          candidates: [],
           error: 'no_tags',
           hint: 'Call set_interest_tags first, or pass tags explicitly.',
         });

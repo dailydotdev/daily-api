@@ -10,7 +10,6 @@ import { queryReadReplica } from '../queryReadReplica';
 import { Post } from '../../entity/posts/Post';
 import { FeedTag } from '../../entity/FeedTag';
 import {
-  deliverablePostPredicate,
   getExcludedInterestSourceIds,
   whereFindingDeliverable,
 } from './exclusions';
@@ -166,21 +165,22 @@ export const createInterestAgentTools = async ({
   // to describe what the user is being told about.
   const [pendingFindings, pendingCount] = await Promise.all([
     queryReadReplica(con, ({ queryRunner }) =>
-      queryRunner.manager
-        .getRepository(InterestFinding)
-        .createQueryBuilder('f')
-        .select([
-          'f."postId" AS "postId"',
-          'p.title AS title',
-          'p.slug AS slug',
-        ])
-        .innerJoin(
-          Post,
-          'p',
-          `p.id = f."postId" AND ${deliverablePostPredicate('p')}`,
-        )
-        .where('f."interestId" = :interestId', { interestId: interest.id })
-        .andWhere('f.status = :status', { status: InterestFindingStatus.New })
+      whereFindingDeliverable(
+        queryRunner.manager
+          .getRepository(InterestFinding)
+          .createQueryBuilder('f')
+          .select([
+            'f."postId" AS "postId"',
+            'p.title AS title',
+            'p.slug AS slug',
+          ])
+          .innerJoin(Post, 'p', 'p.id = f."postId"')
+          .where('f."interestId" = :interestId', { interestId: interest.id })
+          .andWhere('f.status = :status', {
+            status: InterestFindingStatus.New,
+          }),
+        'f',
+      )
         .orderBy('f."createdAt"', 'DESC')
         .limit(MAX_PENDING_FINDINGS)
         .getRawMany<{

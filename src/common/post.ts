@@ -934,10 +934,19 @@ export const updateModeratedPost = async (
 export const getExistingPost = async (
   manager: ConnectionManager,
   { url, canonicalUrl }: { url: string; canonicalUrl: string },
-): Promise<Pick<Post, 'id' | 'deleted' | 'visible' | 'banned'> | null> =>
+): Promise<Pick<
+  Post,
+  'id' | 'deleted' | 'visible' | 'banned' | 'title'
+> | null> =>
   manager
     .createQueryBuilder(Post, 'post')
-    .select(['post.id', 'post.deleted', 'post.visible', 'post.banned'])
+    .select([
+      'post.id',
+      'post.deleted',
+      'post.visible',
+      'post.banned',
+      'post.title',
+    ])
     .where([
       { canonicalUrl: In(getUrlDedupVariants(canonicalUrl)) },
       { url: In(getUrlDedupVariants(url)) },

@@ -22,6 +22,7 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { PostType } from '../../../src/entity/posts/Post';
 import { remoteConfig } from '../../../src/remoteConfig';
+import { MAX_COMMENT_LENGTH } from '../../../src/common/interest/tools/constants';
 
 // The interest/tags scopes call the feed service; the source/tag scopes are
 // plain SQL and run against the real database.
@@ -34,6 +35,13 @@ jest.mock('../../../src/integrations/feed/generators', () => ({
     generate: async () => ({ data: [{ id: 'p1' }, { id: 'p2' }] }),
   }),
 }));
+
+jest.mock('../../../src/common/interest/feedTags', () => {
+  const actual = jest.requireActual(
+    '../../../src/common/interest/feedTags',
+  ) as Record<string, unknown>;
+  return { ...actual, replaceFeedTags: jest.fn(actual.replaceFeedTags) };
+});
 
 let con: DataSource;
 
@@ -85,6 +93,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.clearAllMocks();
   remoteConfig.vars.interestAgentMaxTags = undefined;
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
@@ -139,17 +148,42 @@ describe('read_comments', () => {
     ]);
   });
 
-  it('returns the discussion with honest counts', async () => {
+  it('returns every comment flat, with parentId and reply counts', async () => {
     const { captured } = await getTools();
     const res = await call(captured, 'read_comments', { postId: 'p1' });
 
-    expect(res.comments).toHaveLength(1);
-    expect(res.comments[0]).toMatchObject({
-      author: usersFixture[0].username,
-      content: 'top level',
+    expect(res.shown).toEqual(2);
+    expect(res.comments).toEqual([
+      expect.objectContaining({
+        id: 'c1',
+        parentId: null,
+        author: usersFixture[0].username,
+        content: 'top level',
+        upvotes: 5,
+      }),
+      expect.objectContaining({ id: 'c2', parentId: 'c1', content: 'a reply' }),
+    ]);
+  });
+
+  it('truncates long comments and flags them, without dropping any', async () => {
+    await con.getRepository(Comment).save({
+      id: 'c3',
+      postId: 'p1',
+      userId: '1',
+      content: 'x'.repeat(MAX_COMMENT_LENGTH + 50),
+      contentHtml: '<p>long</p>',
+      upvotes: 99,
     });
-    expect(res.comments[0].replies).toHaveLength(1);
-    expect(res.shown).toEqual({ parents: 1, replies: 1 });
+    const { captured } = await getTools();
+    const res = await call(captured, 'read_comments', { postId: 'p1' });
+
+    expect(res.shown).toEqual(3);
+    expect(res.comments[0]).toMatchObject({
+      id: 'c3',
+      contentTruncated: true,
+    });
+    expect(res.comments[0].content).toHaveLength(MAX_COMMENT_LENGTH);
+    expect(res.comments[1].contentTruncated).toBeUndefined();
   });
 
   it('reports a banned post as not found rather than comment-less', async () => {
@@ -180,7 +214,7 @@ describe('read_comments', () => {
     const res = await call(captured, 'read_comments', { postId: 'p1' });
 
     expect(res.postCommentCount).toEqual(200);
-    expect(res.shown).toEqual({ parents: 1, replies: 1 });
+    expect(res.shown).toEqual(2);
   });
 });
 
@@ -501,13 +535,30 @@ describe('set_interest_tags', () => {
 
   it('skips the write when the resolved set already matches', async () => {
     const { captured } = await getTools();
+    const { replaceFeedTags } = jest.requireMock(
+      '../../../src/common/interest/feedTags',
+    );
 
     expect(
       await call(captured, 'set_interest_tags', { tags: ['zig'] }),
     ).toMatchObject({ savedTags: ['zig'], unchanged: false });
+    expect(replaceFeedTags).toHaveBeenCalledTimes(1);
+
     expect(
       await call(captured, 'set_interest_tags', { tags: ['ZIG'] }),
     ).toMatchObject({ savedTags: ['zig'], unchanged: true });
+    expect(replaceFeedTags).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses when the interest has no feed', async () => {
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { feedId: null });
+    const { captured } = await getTools();
+
+    expect(
+      await call(captured, 'set_interest_tags', { tags: ['zig'] }),
+    ).toMatchObject({ error: 'interest_has_no_feed' });
   });
 
   it.each([[['zog', 'not-real']], [[]]])(

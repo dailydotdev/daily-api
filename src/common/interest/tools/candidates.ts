@@ -71,8 +71,8 @@ export const createCandidatePipeline = ({
 
   /**
    * Turns ranked post ids from a backing inventory into deliverable candidates.
-   * `fetched` is how many ids the inventory was asked for, so an empty result
-   * can be reported as "source exhausted" rather than "everything filtered".
+   * `limit` is how many ids the inventory was asked for, so a short result can
+   * be reported as "source exhausted" rather than "everything filtered".
    */
   const toCandidates = async ({
     postIds,

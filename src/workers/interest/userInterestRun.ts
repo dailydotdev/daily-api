@@ -34,17 +34,22 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         },
       );
 
-      const newFindings = await whereFindingDeliverable(
-        con
-          .getRepository(InterestFinding)
-          .createQueryBuilder('f')
-          .select('f.id', 'id')
-          .where('f."interestId" = :interestId', { interestId: interest.id })
-          .andWhere('f.status = :status', {
-            status: InterestFindingStatus.New,
-          }),
-        'f',
-      ).getRawMany<{ id: string }>();
+      const [newFindings, deliverableCount] = await Promise.all([
+        con.getRepository(InterestFinding).find({
+          select: ['id'],
+          where: { interestId: interest.id, status: InterestFindingStatus.New },
+        }),
+        whereFindingDeliverable(
+          con
+            .getRepository(InterestFinding)
+            .createQueryBuilder('f')
+            .where('f."interestId" = :interestId', { interestId: interest.id })
+            .andWhere('f.status = :status', {
+              status: InterestFindingStatus.New,
+            }),
+          'f',
+        ).getCount(),
+      ]);
 
       if (newFindings.length) {
         await con
@@ -55,13 +60,13 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           );
       }
 
-      const hasContent = newFindings.length > 0 || !!result.summaryPostId;
+      const hasContent = deliverableCount > 0 || !!result.summaryPostId;
 
       if (hasContent && (interest.outputModes?.notification ?? true)) {
         await triggerTypedEvent(logger, 'api.v1.interest-content-available', {
           interestId: interest.id,
           userId: interest.userId,
-          count: newFindings.length,
+          count: deliverableCount,
           runAt,
         });
       }

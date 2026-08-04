@@ -1,4 +1,5 @@
 import { Type } from 'typebox';
+import { FeedTag } from '../../../entity/FeedTag';
 import { replaceFeedTags } from '../feedTags';
 import type { InterestToolContext } from './context';
 import { jsonResult } from './constants';
@@ -19,20 +20,28 @@ export const setInterestTagsTool = ({
   execute: async (_id: never, params: { tags: string[] }) => {
     const feedId = interest.feedId;
     if (!feedId) {
-      return jsonResult({ savedTags: [], unknown: [], overCap: [] });
+      return jsonResult({ error: 'interest_has_no_feed' });
     }
+    const readCurrentTags = async () =>
+      (
+        await con.getRepository(FeedTag).find({
+          select: ['tag'],
+          where: { feedId },
+        })
+      ).map((row) => row.tag);
+
     const { resolved, unknown } = await pipeline.resolveTags(params.tags);
     if (!resolved.length) {
       return jsonResult({
         error: params.tags.length ? 'no_tags_resolved' : 'tags_required',
         unknown,
-        keptTags: await pipeline.findTagsForFeed(),
+        keptTags: await readCurrentTags(),
         hint: 'The existing tags were kept. Use search_tags to find real slugs.',
       });
     }
     const savedTags = resolved.slice(0, maxTags);
     const overCap = resolved.slice(maxTags);
-    const current = await pipeline.findTagsForFeed();
+    const current = await readCurrentTags();
     const unchanged =
       current.length === savedTags.length &&
       savedTags.every((tag) => current.includes(tag));

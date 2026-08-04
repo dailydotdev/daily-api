@@ -160,7 +160,10 @@ export const discoverAndIngestExternal = async ({
             .orIgnore()
             .execute();
           return (insertResult.raw as unknown[])?.length
-            ? { postId: shareId, title: candidate.title || null }
+            ? {
+                postId: shareId,
+                title: existing?.title ?? candidate.title ?? null,
+              }
             : null;
         }),
       );

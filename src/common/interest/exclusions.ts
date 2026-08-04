@@ -11,9 +11,6 @@ import { getChannelDigestSourceIds } from '../channelDigest/definitions';
 export const COLLECTIONS_SOURCE = 'collections';
 export const TRENDS_SOURCE = 'trends';
 
-export const deliverablePostPredicate = (alias: string): string =>
-  `${alias}.deleted = false AND ${alias}.banned = false`;
-
 export const whereFindingDeliverable = <T extends ObjectLiteral>(
   builder: SelectQueryBuilder<T>,
   alias: string,
@@ -23,8 +20,13 @@ export const whereFindingDeliverable = <T extends ObjectLiteral>(
       .subQuery()
       .select('1')
       .from(Post, 'p')
+      .leftJoin(Post, 'sp', 'sp.id = p."sharedPostId"')
       .where(`p.id = ${alias}."postId"`)
-      .andWhere(deliverablePostPredicate('p')),
+      .andWhere('p.deleted = false')
+      .andWhere('p.banned = false')
+      .andWhere(
+        '(p."sharedPostId" IS NULL OR (sp.deleted = false AND sp.banned = false))',
+      ),
   );
 
 export const excludedInterestPostTypes: string[] = [
