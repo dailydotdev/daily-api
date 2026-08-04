@@ -39,6 +39,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.LINEAR_API_KEY;
   delete process.env.LINEAR_FEEDBACK_TEAM_ID;
+  delete process.env.LINEAR_HUGINN_AGENT_ID;
 });
 
 describe('createFeedbackIssue - Client Environment section', () => {
@@ -137,5 +138,59 @@ describe('createFeedbackIssue - Client Environment section', () => {
     expect(description).toContain('### Client Environment');
     expect(description).toContain('| **User Agent** | Mozilla/5.0 |');
     expect(description).not.toContain('| **Viewport** |');
+  });
+});
+
+describe('createFeedbackIssue - huginn autopilot delegation', () => {
+  const baseInput = {
+    feedbackId: 'fb-1',
+    userId: 'user-1',
+    category: 1,
+    description: 'Something is broken',
+    classification: null,
+  };
+
+  it('should delegate team member feedback to huginn with autopilot label', async () => {
+    process.env.LINEAR_HUGINN_AGENT_ID = 'huginn-agent-id';
+
+    await createFeedbackIssue({ ...baseInput, isTeamMember: true });
+
+    expect(mockCreateIssue).toHaveBeenCalledWith(
+      expect.objectContaining({ delegateId: 'huginn-agent-id' }),
+    );
+    expect(mockCreateIssueLabel).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'huginn:autopilot' }),
+    );
+    expect(mockCreateIssue.mock.calls[0][0].labelIds).toContain('label-1');
+  });
+
+  it('should reuse existing autopilot label when present', async () => {
+    process.env.LINEAR_HUGINN_AGENT_ID = 'huginn-agent-id';
+    mockIssueLabels.mockResolvedValue({
+      nodes: [{ id: 'autopilot-label', name: 'huginn:autopilot' }],
+    });
+
+    await createFeedbackIssue({ ...baseInput, isTeamMember: true });
+
+    expect(mockCreateIssue.mock.calls[0][0].labelIds).toContain(
+      'autopilot-label',
+    );
+  });
+
+  it('should not delegate feedback from non-team members', async () => {
+    process.env.LINEAR_HUGINN_AGENT_ID = 'huginn-agent-id';
+
+    await createFeedbackIssue({ ...baseInput, isTeamMember: false });
+
+    expect(mockCreateIssue.mock.calls[0][0].delegateId).toBeUndefined();
+    expect(mockCreateIssueLabel).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'huginn:autopilot' }),
+    );
+  });
+
+  it('should not delegate when huginn agent id is not configured', async () => {
+    await createFeedbackIssue({ ...baseInput, isTeamMember: true });
+
+    expect(mockCreateIssue.mock.calls[0][0].delegateId).toBeUndefined();
   });
 });

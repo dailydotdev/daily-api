@@ -57,7 +57,10 @@ interface CreateFeedbackIssueInput {
   clientInfo?: z.infer<typeof feedbackClientInfoSchema> | null;
   classification: FeedbackClassification | null;
   screenshotUrl?: string | null;
+  isTeamMember?: boolean;
 }
+
+export const HUGINN_AUTOPILOT_LABEL = 'huginn:autopilot';
 
 interface CreateFeedbackIssueResult {
   id: string;
@@ -208,6 +211,32 @@ ${screenshotSection}
 `;
 };
 
+const getAutopilotLabelId = async (
+  linearInstance: LinearClient,
+  teamId: string,
+): Promise<string | null> => {
+  try {
+    const existingLabels = await linearInstance.issueLabels({
+      filter: { name: { eqIgnoreCase: HUGINN_AUTOPILOT_LABEL } },
+    });
+
+    const existing = existingLabels.nodes[0];
+    if (existing) {
+      return existing.id;
+    }
+
+    const payload = await linearInstance.createIssueLabel({
+      teamId,
+      name: HUGINN_AUTOPILOT_LABEL,
+      color: '#f59e0b',
+    });
+    const label = await payload.issueLabel;
+    return label ? label.id : null;
+  } catch {
+    return null;
+  }
+};
+
 export const createFeedbackIssue = async (
   input: CreateFeedbackIssueInput,
 ): Promise<CreateFeedbackIssueResult | null> => {
@@ -215,6 +244,7 @@ export const createFeedbackIssue = async (
   if (!client || !client.instance) {
     return null;
   }
+  const linearInstance = client.instance;
 
   const teamId = process.env.LINEAR_FEEDBACK_TEAM_ID;
   if (!teamId) {
@@ -234,13 +264,39 @@ export const createFeedbackIssue = async (
           return `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
         })();
 
-    const issuePayload = await client.instance!.createIssue({
+    const huginnAgentId = process.env.LINEAR_HUGINN_AGENT_ID;
+    const delegateToHuginn = Boolean(input.isTeamMember && huginnAgentId);
+
+    const labelIds = await getOrCreateLabels(linearInstance, teamId, input);
+
+    if (delegateToHuginn) {
+      const autopilotLabelId = await getAutopilotLabelId(
+        linearInstance,
+        teamId,
+      );
+      if (autopilotLabelId) {
+        labelIds.push(autopilotLabelId);
+      }
+    }
+
+    // delegateId is supported by the live Linear API but missing from the
+    // pinned SDK's IssueCreateInput typings; delegating to the Huginn agent
+    // creates an agent session which starts its autopilot flow
+    const issueInput: Parameters<LinearClient['createIssue']>[0] & {
+      delegateId?: string;
+    } = {
       teamId,
       title,
       description,
       priority,
-      labelIds: await getOrCreateLabels(client.instance!, teamId, input),
-    });
+      labelIds,
+    };
+
+    if (delegateToHuginn) {
+      issueInput.delegateId = huginnAgentId;
+    }
+
+    const issuePayload = await linearInstance.createIssue(issueInput);
 
     const issue = await issuePayload.issue;
     if (!issue) {
