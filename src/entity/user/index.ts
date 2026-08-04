@@ -9,6 +9,7 @@ export * from './UserStats';
 export * from './UserTopReader';
 export * from './UserNicheAnalytics';
 export * from './UserNicheGrowth';
+export * from './UserWorldSettings';
 export * from './UserProfileAnalytics';
 export * from './UserProfileAnalyticsHistory';
 export * from './UserPostsAnalytics';

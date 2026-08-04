@@ -2199,6 +2199,25 @@ const obj = new GraphORM({
       date: { transform: transformDate },
     },
   },
+  // Sourced from the USER rather than from the settings row, because the row is
+  // Plainly the settings row, and nothing but. Null means the owner has never
+  // customised anything — no access is a ForbiddenError rather than a null, so
+  // the two never have to be told apart from the same value.
+  //
+  // Every customisation is served exactly as stored, including as null. The
+  // client owns the display defaults: it has to render a world that has no row
+  // here at all, so a second set of defaults on this side would only be a copy
+  // that could disagree with it.
+  UserWorldSettings: {
+    // `private` drives the access check in the resolver, so it is selected even
+    // when the caller has not asked for it.
+    requiredColumns: ['userId', 'private'],
+    fields: {
+      sky: { jsonType: true },
+      crest: { jsonType: true },
+      look: { jsonType: true },
+    },
+  },
   UserProfileAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {

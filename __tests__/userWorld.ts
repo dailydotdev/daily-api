@@ -7,7 +7,10 @@ import {
   disposeGraphQLTesting,
   initializeGraphQLTesting,
   saveFixtures,
+  testMutationErrorCode,
+  testQueryErrorCode,
 } from './helpers';
+import { UserWorldSettings } from '../src/entity/user/UserWorldSettings';
 import { User } from '../src/entity';
 import { Niche, NicheBucketGroup } from '../src/entity/Niche';
 import { UserNicheAnalytics } from '../src/entity/user/UserNicheAnalytics';
@@ -39,6 +42,7 @@ beforeEach(async () => {
   loggedUser = null;
   await con.getRepository(UserNicheAnalytics).clear();
   await con.getRepository(UserNicheGrowth).clear();
+  await con.getRepository(UserWorldSettings).clear();
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Niche, [
     {
@@ -264,5 +268,300 @@ describe('query userWorldTimeline', () => {
       0,
     );
     expect(summed).toBe(world.data.userWorld[0].reads);
+  });
+});
+
+describe('query userWorldSettings', () => {
+  const QUERY = `query UserWorldSettings($id: ID!) {
+    userWorldSettings(id: $id) {
+      name
+      private
+      sky { pal hour }
+      crest { charge div a b }
+      look { id base mine name ol bl }
+    }
+  }`;
+
+  it('should be null for a world nobody has customised', async () => {
+    // null means "no config", and it can only mean that — being refused is an
+    // error rather than a second thing this null has to stand for
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings).toBeNull();
+  });
+
+  it('should serve back only what was actually chosen', async () => {
+    await con.getRepository(UserWorldSettings).save({
+      userId: '1',
+      sky: { pal: 'slate', hour: 'night' },
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    // the untouched customisations stay null for the client to default
+    expect(res.data.userWorldSettings).toEqual({
+      name: null,
+      private: false,
+      sky: { pal: 'slate', hour: 'night' },
+      crest: null,
+      look: null,
+    });
+  });
+
+  it('should serve a stored crest back', async () => {
+    await con.getRepository(UserWorldSettings).save({
+      userId: '1',
+      crest: { charge: 'loom', div: 'bend', a: 0xffe877, b: 0x887bf8 },
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings.crest).toEqual({
+      charge: 'loom',
+      div: 'bend',
+      a: 0xffe877,
+      b: 0x887bf8,
+    });
+  });
+});
+
+describe('query userWorldEntitlements', () => {
+  const QUERY = `query UserWorldEntitlements($id: ID!) {
+    userWorldEntitlements(id: $id) { kind id source }
+  }`;
+
+  it('should grant a charge per monument and a tincture per founded district', async () => {
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    // blockchain is hidden at serving, so it grants nothing at all
+    expect(res.data.userWorldEntitlements).toEqual([
+      { kind: 'charge', id: 'obelisk', source: 'niche:ai_llm' },
+      { kind: 'tincture', id: '#d97efe', source: 'niche:ai_llm' },
+      { kind: 'tincture', id: '#887bf8', source: 'niche:ai_llm' },
+      { kind: 'charge', id: 'loom', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
+    ]);
+  });
+
+  it('should grant no charge from a district below level 3', async () => {
+    // A monument appears at L3. Under it the accents are still founded, but
+    // there is nothing raised to put on a shield.
+    await con.getRepository(UserNicheAnalytics).save({
+      userId: '3',
+      nicheId: nicheJs,
+      reads: 2,
+      firstReadAt: '2026-04-01',
+      lastReadAt: '2026-04-02',
+      activeDays: 1,
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '3' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldEntitlements).toEqual([
+      { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
+    ]);
+  });
+
+  it('should give a reader of nothing no entitlements at all', async () => {
+    // and therefore no crest — eligibility is having raised something, and
+    // there is no starter mark to hand out
+    const res = await client.query(QUERY, { variables: { id: '4' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldEntitlements).toEqual([]);
+  });
+});
+
+describe('mutation updateUserWorldSettings', () => {
+  const MUTATION = `mutation UpdateUserWorldSettings(
+    $name: String, $sky: UserWorldSkyInput, $crest: UserWorldCrestInput, $private: Boolean
+  ) {
+    updateUserWorldSettings(name: $name, sky: $sky, crest: $crest, private: $private) {
+      name
+      private
+      sky { pal hour }
+      crest { charge div a b }
+    }
+  }`;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { name: 'the quiet archive' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should store a name and a sky without touching the rest', async () => {
+    loggedUser = '1';
+    const named = await client.mutate(MUTATION, {
+      variables: { name: 'the quiet archive' },
+    });
+    const skied = await client.mutate(MUTATION, {
+      variables: { sky: { pal: 'slate', hour: 'night' } },
+    });
+
+    expect(named.errors).toBeFalsy();
+    expect(skied.errors).toBeFalsy();
+    // the second call never mentioned the name, so it must survive
+    expect(skied.data.updateUserWorldSettings).toMatchObject({
+      name: 'the quiet archive',
+      sky: { pal: 'slate', hour: 'night' },
+    });
+  });
+
+  it('should unname a world when sent null', async () => {
+    loggedUser = '1';
+    await client.mutate(MUTATION, { variables: { name: 'the quiet archive' } });
+    const res = await client.mutate(MUTATION, { variables: { name: null } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserWorldSettings.name).toBeNull();
+  });
+
+  it('should accept a crest built out of earned monuments and accents', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        crest: { charge: 'loom', div: 'chevron', a: 0xffb794, b: 0x887bf8 },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserWorldSettings.crest).toEqual({
+      charge: 'loom',
+      div: 'chevron',
+      a: 0xffb794,
+      b: 0x887bf8,
+    });
+  });
+
+  it('should reject a charge the reading has not earned', async () => {
+    // anvilyard belongs to linux_os, which this user has never read
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: {
+            charge: 'anvilyard',
+            div: 'plain',
+            a: 0xd97efe,
+            b: 0xffe877,
+          },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'charge "anvilyard" is not available to this world',
+    );
+  });
+
+  it('should reject a tincture that is no founded district accent', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: { charge: 'obelisk', div: 'plain', a: 0xd97efe, b: 0x000000 },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'tincture "b" is not available to this world',
+    );
+  });
+
+  it('should not let a reader of nothing fly any crest', async () => {
+    // user 4 has read nothing, so no charge exists that they could claim —
+    // eligibility falls out of the entitlements rather than being a separate rule
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: { charge: 'obelisk', div: 'plain', a: 0xd97efe, b: 0xffe877 },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'this world has not raised anything to put on a crest',
+    );
+  });
+});
+
+describe('world privacy', () => {
+  const WORLD = `query UserWorld($id: ID!) { userWorld(id: $id) { reads } }`;
+  const TIMELINE = `query UserWorldTimeline($id: ID!) { userWorldTimeline(id: $id) { reads } }`;
+  const SETTINGS = `query UserWorldSettings($id: ID!) { userWorldSettings(id: $id) { private } }`;
+  const ENTITLEMENTS = `query UserWorldEntitlements($id: ID!) { userWorldEntitlements(id: $id) { id } }`;
+
+  beforeEach(async () => {
+    await con
+      .getRepository(UserWorldSettings)
+      .upsert({ userId: '1', private: true }, ['userId']);
+  });
+
+  it('should refuse the settings and the catalogue outright', async () => {
+    // an error rather than a null, so being refused never looks like a world
+    // whose owner has simply not customised anything
+    loggedUser = '2';
+    await testQueryErrorCode(
+      client,
+      { query: SETTINGS, variables: { id: '1' } },
+      'FORBIDDEN',
+      'This world is private',
+    );
+    await testQueryErrorCode(
+      client,
+      { query: ENTITLEMENTS, variables: { id: '1' } },
+      'FORBIDDEN',
+      'This world is private',
+    );
+  });
+
+  it('should empty the world and the timeline for everyone else', async () => {
+    loggedUser = '2';
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+    const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([]);
+    expect(timeline.data.userWorldTimeline).toEqual([]);
+  });
+
+  it('should hide it from anonymous viewers', async () => {
+    loggedUser = null;
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([]);
+    await testQueryErrorCode(
+      client,
+      { query: SETTINGS, variables: { id: '1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should still show the owner their own world', async () => {
+    loggedUser = '1';
+    const world = await client.query(WORLD, { variables: { id: '1' } });
+    const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
+    const settings = await client.query(SETTINGS, { variables: { id: '1' } });
+
+    expect(world.data.userWorld).toEqual([{ reads: 80 }, { reads: 50 }]);
+    expect(timeline.data.userWorldTimeline).toHaveLength(2);
+    expect(settings.data.userWorldSettings).toEqual({ private: true });
+  });
+
+  it('should not hide a world whose owner never set the flag', async () => {
+    loggedUser = '1';
+    const res = await client.query(WORLD, { variables: { id: '2' } });
+
+    expect(res.data.userWorld).toEqual([{ reads: 7 }]);
   });
 });
