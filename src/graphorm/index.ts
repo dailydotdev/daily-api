@@ -108,15 +108,6 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
-import { DEFAULT_LOOK, DEFAULT_SKY } from '../common/worldStyle';
-
-/**
- * One column off the owner's world settings row, or null when they have never
- * customised anything. A correlated lookup on the settings primary key, so the
- * whole type still resolves in the single query graphorm builds.
- */
-const selectWorldSetting = (alias: string, column: string): string =>
-  `(SELECT s."${column}" FROM user_world_settings s WHERE s."userId" = "${alias}"."id")`;
 
 type PostGraphormContext = Context & {
   includeInvisiblePosts?: boolean;
@@ -2209,40 +2200,22 @@ const obj = new GraphORM({
     },
   },
   // Sourced from the USER rather than from the settings row, because the row is
-  // created lazily and a world nobody has customised still has to answer.
-  // Reading from the settings table would collapse "never opened the panel" into
-  // the same null a private world returns, and those two have to stay tellable
-  // apart.
+  // Plainly the settings row, and nothing but. Null means the owner has never
+  // customised anything — no access is a ForbiddenError rather than a null, so
+  // the two never have to be told apart from the same value.
+  //
+  // Every customisation is served exactly as stored, including as null. The
+  // client owns the display defaults: it has to render a world that has no row
+  // here at all, so a second set of defaults on this side would only be a copy
+  // that could disagree with it.
   UserWorldSettings: {
-    from: 'User',
-    requiredColumns: ['id'],
+    // `private` drives the access check in the resolver, so it is selected even
+    // when the caller has not asked for it.
+    requiredColumns: ['userId', 'private'],
     fields: {
-      // Null until the owner names the place. The client supplies the fallback:
-      // it is a display default, and pushing it here bought nothing that the
-      // client could not do with the profile it already has.
-      name: {
-        select: (_, alias) => selectWorldSetting(alias, 'name'),
-      },
-      sky: {
-        select: (_, alias) => selectWorldSetting(alias, 'sky'),
-        jsonType: true,
-        transform: (value) => value ?? DEFAULT_SKY,
-      },
-      // No default. A world with nothing behind it flies no crest, so null here
-      // is the answer rather than a gap to fill in.
-      crest: {
-        select: (_, alias) => selectWorldSetting(alias, 'crest'),
-        jsonType: true,
-      },
-      look: {
-        select: (_, alias) => selectWorldSetting(alias, 'look'),
-        jsonType: true,
-        transform: (value) => value ?? DEFAULT_LOOK,
-      },
-      private: {
-        select: (_, alias) =>
-          `COALESCE(${selectWorldSetting(alias, 'private')}, false)`,
-      },
+      sky: { jsonType: true },
+      crest: { jsonType: true },
+      look: { jsonType: true },
     },
   },
   UserProfileAnalytics: {

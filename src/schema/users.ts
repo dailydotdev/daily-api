@@ -393,13 +393,12 @@ export interface GQLUserWorldGrowth {
   reads: number;
 }
 
+/** Served exactly as stored — the client owns every display default. */
 export type GQLUserWorldSettings = {
-  /** Null until the owner names the world; the client supplies the fallback. */
   name: string | null;
-  sky: z.infer<typeof worldSkySchema>;
-  /** Null when the world has raised nothing worth putting on a shield. */
+  sky: z.infer<typeof worldSkySchema> | null;
   crest: z.infer<typeof worldCrestSchema> | null;
-  look: z.infer<typeof worldLookSchema>;
+  look: z.infer<typeof worldLookSchema> | null;
   private: boolean;
 };
 
@@ -1567,23 +1566,23 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  What a user has made of their own world. Every field is a suggestion derived
-  from their reading until they disagree with it
+  What a user has made of their own world. Every field is null until they change
+  it — the client owns the display defaults, since it has to render a world that
+  has no settings at all
   """
   type UserWorldSettings {
     """
-    What the user calls the place, or null if they have never named it. The
-    client supplies the fallback
+    What the user calls the place, or null if they have never named it
     """
     name: String
-    sky: UserWorldSky!
+    sky: UserWorldSky
     """
     The mark this world flies, or null. Not every world has one — a crest is
     assembled from monuments raised, so a world with nothing behind it has no
     mark rather than a starter one
     """
     crest: UserWorldCrest
-    look: UserWorldLook!
+    look: UserWorldLook
     """
     Whether the world is hidden from everyone but its owner
     """
@@ -1648,14 +1647,14 @@ export const typeDefs = /* GraphQL */ `
     """
     userWorldTimeline(id: ID!): [UserWorldGrowth!]!
     """
-    A user's world customisations. Null if the owner has made their world
-    private.
+    A user's world customisations, or null if they have never customised
+    anything. Errors with FORBIDDEN if the owner has made their world private.
     """
     userWorldSettings(id: ID!): UserWorldSettings
     """
     Everything a world may be dressed with, and what granted each one. Separate
     from the settings because it is what an editor needs, not what displaying a
-    world needs. Empty if the owner has made their world private.
+    world needs. Errors with FORBIDDEN if the owner has made their world private.
     """
     userWorldEntitlements(id: ID!): [UserWorldEntitlement!]!
     """
@@ -2812,21 +2811,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       { id }: { id: string },
       ctx: Context,
       info: GraphQLResolveInfo,
-    ): Promise<GQLUserWorldSettings | null> =>
-      graphorm.queryOne<GQLUserWorldSettings>(
+    ): Promise<GQLUserWorldSettings | null> => {
+      const settings = await graphorm.queryOne<GQLUserWorldSettings>(
         ctx,
         info,
         (builder) => {
           builder.queryBuilder = builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id`,
+            `"${builder.alias}"."userId" = :id`,
             { id },
           );
-          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
 
           return builder;
         },
         true,
-      ),
+      );
+      // Null already means "never customised", so being refused has to say so
+      // out loud rather than borrow the same answer. Filtering the row out in
+      // SQL would have made the two indistinguishable.
+      if (settings?.private && ctx.userId !== id) {
+        throw new ForbiddenError('This world is private');
+      }
+
+      return settings;
+    },
     /**
      * Not graphorm-backed: an entitlement is not a row anywhere. It is computed
      * by folding the user's districts through the grant tables, which is exactly
@@ -2840,7 +2847,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
         const settings = await getWorldSettings(queryRunner.manager, id);
         if (!canViewWorld({ viewerId: ctx.userId, ownerId: id, settings })) {
-          return [];
+          throw new ForbiddenError('This world is private');
         }
         return resolveEntitlements(
           await getCrestDistricts(queryRunner.manager, id),
@@ -3783,7 +3790,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       args: z.infer<typeof worldSettingsUpdateSchema>,
       ctx: AuthContext,
       info: GraphQLResolveInfo,
-    ): Promise<GQLUserWorldSettings> => {
+    ): Promise<GQLUserWorldSettings | null> => {
       const patch = worldSettingsUpdateSchema.parse(args);
       const { userId } = ctx;
 
@@ -3819,19 +3826,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       // Read back through graphorm so the mutation answers in exactly the shape
-      // the query does, defaults and all, rather than assembling a second one.
-      return graphorm.queryOneOrFail<GQLUserWorldSettings>(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id`,
-            { id: userId },
-          );
+      // the query does rather than assembling a second one. Null is reachable:
+      // a call that changed nothing writes no row.
+      return graphorm.queryOne<GQLUserWorldSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :id`,
+          { id: userId },
+        );
 
-          return builder;
-        },
-      );
+        return builder;
+      });
     },
     joinHackathon: async (
       _,

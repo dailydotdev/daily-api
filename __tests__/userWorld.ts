@@ -8,6 +8,7 @@ import {
   initializeGraphQLTesting,
   saveFixtures,
   testMutationErrorCode,
+  testQueryErrorCode,
 } from './helpers';
 import { UserWorldSettings } from '../src/entity/user/UserWorldSettings';
 import { User } from '../src/entity';
@@ -281,37 +282,31 @@ describe('query userWorldSettings', () => {
     }
   }`;
 
-  it('should answer with defaults for a world nobody has customised', async () => {
+  it('should be null for a world nobody has customised', async () => {
+    // null means "no config", and it can only mean that — being refused is an
+    // error rather than a second thing this null has to stand for
     const res = await client.query(QUERY, { variables: { id: '1' } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userWorldSettings).toEqual({
-      // unnamed and uncrested — the client names it, and a mark has to be earned
-      name: null,
-      private: false,
-      sky: { pal: 'brand', hour: 'day' },
-      crest: null,
-      look: {
-        id: 'diorama',
-        base: 'diorama',
-        mine: false,
-        name: '',
-        ol: 0.24,
-        bl: 1,
-      },
-    });
+    expect(res.data.userWorldSettings).toBeNull();
   });
 
-  it('should answer for a user with no settings row and no reading', async () => {
-    // sourced from the user rather than the settings row, so a world nobody has
-    // touched still resolves — null here would be indistinguishable from private
-    const res = await client.query(QUERY, { variables: { id: '3' } });
+  it('should serve back only what was actually chosen', async () => {
+    await con.getRepository(UserWorldSettings).save({
+      userId: '1',
+      sky: { pal: 'slate', hour: 'night' },
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userWorldSettings).toMatchObject({
+    // the untouched customisations stay null for the client to default
+    expect(res.data.userWorldSettings).toEqual({
       name: null,
-      crest: null,
       private: false,
+      sky: { pal: 'slate', hour: 'night' },
+      crest: null,
+      look: null,
     });
   });
 
@@ -513,17 +508,31 @@ describe('world privacy', () => {
       .upsert({ userId: '1', private: true }, ['userId']);
   });
 
-  it('should hide every world surface from everyone else', async () => {
+  it('should refuse the settings and the catalogue outright', async () => {
+    // an error rather than a null, so being refused never looks like a world
+    // whose owner has simply not customised anything
+    loggedUser = '2';
+    await testQueryErrorCode(
+      client,
+      { query: SETTINGS, variables: { id: '1' } },
+      'FORBIDDEN',
+      'This world is private',
+    );
+    await testQueryErrorCode(
+      client,
+      { query: ENTITLEMENTS, variables: { id: '1' } },
+      'FORBIDDEN',
+      'This world is private',
+    );
+  });
+
+  it('should empty the world and the timeline for everyone else', async () => {
     loggedUser = '2';
     const world = await client.query(WORLD, { variables: { id: '1' } });
     const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
-    const settings = await client.query(SETTINGS, { variables: { id: '1' } });
-    const items = await client.query(ENTITLEMENTS, { variables: { id: '1' } });
 
     expect(world.data.userWorld).toEqual([]);
     expect(timeline.data.userWorldTimeline).toEqual([]);
-    expect(settings.data.userWorldSettings).toBeNull();
-    expect(items.data.userWorldEntitlements).toEqual([]);
   });
 
   it('should hide it from anonymous viewers', async () => {
@@ -531,6 +540,11 @@ describe('world privacy', () => {
     const world = await client.query(WORLD, { variables: { id: '1' } });
 
     expect(world.data.userWorld).toEqual([]);
+    await testQueryErrorCode(
+      client,
+      { query: SETTINGS, variables: { id: '1' } },
+      'FORBIDDEN',
+    );
   });
 
   it('should still show the owner their own world', async () => {

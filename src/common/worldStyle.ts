@@ -76,28 +76,6 @@ export const CREST_DIVISIONS = [
 export const WORLD_NAME_MAX_LENGTH = 30;
 export const LOOK_NAME_MAX_LENGTH = 22;
 
-/**
- * Where a world starts before anybody touches it. Brand dusk at day, and the
- * file's own art direction to the decimal — nothing about the locked art
- * direction moves unless somebody asks it to.
- */
-export const DEFAULT_SKY = { pal: 'brand', hour: 'day' } as const;
-
-export const DEFAULT_LOOK = {
-  id: 'diorama',
-  base: 'diorama',
-  mine: false,
-  name: '',
-  sat: 1.0,
-  lift: 0.05,
-  vig: 0.17,
-  grain: 0.026,
-  warm: 0.0,
-  duo: 0.0,
-  duoA: 0x272a32,
-  duoB: 0xf5f6fa,
-  ink: 0x2a2438,
-  ol: 0.24,
-  bl: 1.0,
-  fx: { post: true, bloom: true, outline: true },
-} as const;
+/* Where a world starts before anybody touches it is the renderer's business.
+   The API stores what was chosen and answers null for what was not, so the
+   defaults live once, on the client that has to draw them. */
