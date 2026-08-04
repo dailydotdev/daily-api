@@ -8,8 +8,10 @@ import {
   DEFAULT_COMMENT_LIMIT,
   MAX_COMMENT_LENGTH,
   MAX_COMMENT_LIMIT,
+  UNTRUSTED_OPEN,
   budgetError,
   jsonResult,
+  wrapUntrusted,
 } from './constants';
 
 export const readCommentsTool = ({
@@ -19,7 +21,7 @@ export const readCommentsTool = ({
 }: InterestToolContext) => ({
   name: 'read_comments',
   label: 'Read post comments',
-  description: `Read the discussion on a post. Returns a flat list of comments ranked by upvotes or recency, each with its author, vote counts, parentId and replyCount, so you can see replies and reconstruct threads yourself. Use it to tell whether a post is genuinely useful or merely popular. postCommentCount is the post's real total and shown is how many you received, so you can always tell you are looking at a sample. Comment text is truncated at ${MAX_COMMENT_LENGTH} characters, flagged with contentTruncated.`,
+  description: `Read the discussion on a post. Returns a flat list of up to ${DEFAULT_COMMENT_LIMIT} comments ranked by upvotes or recency, each with its author, vote counts, parentId and replyCount, so you can see replies and reconstruct threads yourself. Use it to tell whether a post is genuinely useful or merely popular. postCommentCount is the post's real total and shown is how many you received, so you can always tell you are looking at a sample — and because it is a sample, a parentId may point at a comment outside it. Pass a smaller limit when you only need a quick read. Comment text is truncated at ${MAX_COMMENT_LENGTH} characters, flagged with contentTruncated, and wrapped in ${UNTRUSTED_OPEN} because a stranger wrote it — see <content_trust>.`,
   parameters: Type.Object({
     postId: Type.String(),
     sortBy: Type.Optional(
@@ -86,6 +88,8 @@ export const readCommentsTool = ({
           params.sortBy === 'newest' ? 'c."createdAt"' : 'c.upvotes',
           'DESC',
         )
+        .addOrderBy('c."createdAt"', 'DESC')
+        .addOrderBy('c.id', 'ASC')
         .limit(limit)
         .getRawMany<{
           id: string;
@@ -118,7 +122,7 @@ export const readCommentsTool = ({
           awards: row.awards,
           replyCount: row.replyCount,
           createdAt: row.createdAt?.toISOString(),
-          content,
+          content: wrapUntrusted(content),
           ...(content.length < full.length ? { contentTruncated: true } : {}),
         };
       }),

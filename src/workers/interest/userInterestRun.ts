@@ -1,4 +1,3 @@
-import { In } from 'typeorm';
 import type { TypedWorker } from '../worker';
 import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import {
@@ -34,31 +33,23 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         },
       );
 
-      const [newFindings, deliverableCount] = await Promise.all([
-        con.getRepository(InterestFinding).find({
-          select: ['id'],
-          where: { interestId: interest.id, status: InterestFindingStatus.New },
-        }),
-        whereFindingDeliverable(
-          con
-            .getRepository(InterestFinding)
-            .createQueryBuilder('f')
-            .where('f."interestId" = :interestId', { interestId: interest.id })
-            .andWhere('f.status = :status', {
-              status: InterestFindingStatus.New,
-            }),
-          'f',
-        ).getCount(),
-      ]);
-
-      if (newFindings.length) {
-        await con
+      const deliverableCount = await whereFindingDeliverable(
+        con
           .getRepository(InterestFinding)
-          .update(
-            { id: In(newFindings.map((finding) => finding.id)) },
-            { status: InterestFindingStatus.Surfaced },
-          );
-      }
+          .createQueryBuilder('f')
+          .where('f."interestId" = :interestId', { interestId: interest.id })
+          .andWhere('f.status = :status', {
+            status: InterestFindingStatus.New,
+          }),
+        'f',
+      ).getCount();
+
+      await con
+        .getRepository(InterestFinding)
+        .update(
+          { interestId: interest.id, status: InterestFindingStatus.New },
+          { status: InterestFindingStatus.Surfaced },
+        );
 
       const hasContent = deliverableCount > 0 || !!result.summaryPostId;
 

@@ -179,7 +179,7 @@ export const createCandidatePipeline = ({
       candidates: ordered.map((post) => ({
         postId: post.id,
         title: post.title,
-        url: getDiscussionLink(post.slug ?? post.id),
+        permalink: getDiscussionLink(post.slug ?? post.id),
         publishedAt: post.createdAt.toISOString(),
         upvotes: post.upvotes,
         comments: post.comments,

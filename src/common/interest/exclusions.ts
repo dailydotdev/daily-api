@@ -19,13 +19,13 @@ export const whereFindingDeliverable = <T extends ObjectLiteral>(
     builder
       .subQuery()
       .select('1')
-      .from(Post, 'p')
-      .leftJoin(Post, 'sp', 'sp.id = p."sharedPostId"')
-      .where(`p.id = ${alias}."postId"`)
-      .andWhere('p.deleted = false')
-      .andWhere('p.banned = false')
+      .from(Post, 'fp')
+      .leftJoin(Post, 'fsp', 'fsp.id = fp."sharedPostId"')
+      .where(`fp.id = ${alias}."postId"`)
+      .andWhere('fp.deleted = false')
+      .andWhere('fp.banned = false')
       .andWhere(
-        '(p."sharedPostId" IS NULL OR (sp.deleted = false AND sp.banned = false))',
+        '(fp."sharedPostId" IS NULL OR (fsp.deleted = false AND fsp.banned = false))',
       ),
   );
 
