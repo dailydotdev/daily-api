@@ -8,7 +8,7 @@ import { SOURCE_TOP_TAGS, budgetError, jsonResult } from './constants';
 export const getSourceTool = ({
   con,
   excludedSourceIds,
-  overBudget,
+  consumeBudget,
 }: InterestToolContext) => ({
   name: 'get_source',
   label: 'Get source',
@@ -18,7 +18,7 @@ export const getSourceTool = ({
     source: Type.String(),
   }),
   execute: async (_id: never, params: { source: string }) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const source = await queryReadReplica(con, ({ queryRunner }) =>

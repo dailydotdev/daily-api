@@ -177,11 +177,11 @@ export const discoverAndIngestExternal = async ({
 
 export const discoverExternalTool = ({
   con,
-  logger,
+  log,
   interest,
   state,
   addedPostIds,
-  overBudget,
+  consumeBudget,
 }: InterestToolContext) => {
   let discoverCalls = 0;
 
@@ -195,7 +195,7 @@ export const discoverExternalTool = ({
       limit: Type.Optional(Type.Number()),
     }),
     execute: async (_id: never, params: { query: string; limit?: number }) => {
-      if (overBudget()) {
+      if (consumeBudget()) {
         return jsonResult(budgetError);
       }
       const maxCalls =
@@ -208,7 +208,7 @@ export const discoverExternalTool = ({
 
       const result = await discoverAndIngestExternal({
         con,
-        logger,
+        logger: log,
         interest,
         query: params.query,
         limit: params.limit,

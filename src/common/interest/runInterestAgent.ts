@@ -24,18 +24,15 @@ import { remoteConfig } from '../../remoteConfig';
 import { addFeedTagsWithinCap, DEFAULT_INTEREST_MAX_TAGS } from './feedTags';
 import { createInterestAgentModel } from './agentModel';
 import { createCandidatePipeline } from './tools/candidates';
-import type { InterestToolContext } from './tools/context';
+import type {
+  InterestAgentRunState,
+  InterestToolContext,
+} from './tools/context';
 import { createInterestToolDefinitions } from './tools/registry';
+import { MAX_RUN_SUMMARY_LENGTH } from './tools/constants';
 
-const MAX_RUN_SUMMARY_LENGTH = 140;
 const DEFAULT_MAX_TOOL_CALLS_PER_RUN = 200;
 const MAX_PENDING_FINDINGS = 20;
-
-export type InterestAgentRunResult = {
-  findingsAdded: number;
-  summaryPostId: string | null;
-  agentSummary: string | null;
-};
 
 const buildSystemPrompt = (
   interest: UserInterest,
@@ -195,7 +192,7 @@ export const createInterestAgentTools = async ({
     ),
   ]);
 
-  const state: InterestAgentRunResult = {
+  const state: InterestAgentRunState = {
     findingsAdded: 0,
     summaryPostId: null,
     agentSummary: null,
@@ -210,14 +207,13 @@ export const createInterestAgentTools = async ({
   const toolContext: InterestToolContext = {
     con,
     log,
-    logger,
     interest,
     excludedSourceIds,
     maxTags,
     pendingCount,
     state,
     addedPostIds,
-    overBudget: () => {
+    consumeBudget: () => {
       toolCalls += 1;
       return toolCalls > maxToolCalls;
     },
@@ -260,6 +256,7 @@ export const createInterestAgentTools = async ({
     log,
     registerTools,
     activeTools,
+    consumeBudget: toolContext.consumeBudget,
     state,
     addedPostIds,
     excludedSourceIds,
@@ -280,7 +277,7 @@ export const runInterestAgent = async ({
   con: DataSource;
   logger: FastifyBaseLogger;
   interest: UserInterest;
-}): Promise<InterestAgentRunResult> => {
+}): Promise<InterestAgentRunState> => {
   if (!interest.sourceId) {
     throw new Error('interest is missing a provisioned source');
   }

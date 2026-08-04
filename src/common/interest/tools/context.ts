@@ -12,14 +12,17 @@ export type InterestAgentRunState = {
 export type InterestToolContext = {
   con: DataSource;
   log: FastifyBaseLogger;
-  logger: FastifyBaseLogger;
   interest: UserInterest;
   excludedSourceIds: string[];
   maxTags: number;
   pendingCount: number;
   state: InterestAgentRunState;
   addedPostIds: Set<string>;
-  overBudget: () => boolean;
+  /**
+   * Charges one call against the run's exploration budget and reports whether it
+   * is now spent. Mutates, so only call it where a call is actually being spent.
+   */
+  consumeBudget: () => boolean;
   pipeline: ReturnType<typeof createCandidatePipeline>;
 };
 

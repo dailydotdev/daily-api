@@ -15,6 +15,7 @@ import { ONE_DAY_IN_SECONDS } from '../../constants';
 import { excludedInterestPostTypes } from '../exclusions';
 import {
   DEFAULT_SEARCH_LIMIT,
+  DEFAULT_TAG_SCOPE_PERIOD_DAYS,
   MAX_CANDIDATE_OFFSET,
   MAX_SEARCH_LIMIT,
 } from './constants';
@@ -77,17 +78,29 @@ export const createCandidatePipeline = ({
     postIds,
     limit,
     fetched,
+    offset,
+    requestedOffset,
   }: {
     postIds: string[];
     limit: number;
     fetched: number;
+    offset: number;
+    requestedOffset?: number;
   }) => {
     const exhausted = postIds.length < fetched;
+    // offset counts inventory rows, not returned candidates, so the agent must
+    // step by `fetched` to avoid re-reading the window it was just served.
+    const paging = {
+      offset,
+      nextOffset: offset + fetched,
+      offsetClamped: offset !== (requestedOffset ?? offset),
+    };
     const empty = {
       candidates: [],
       requested: limit,
       filtered: { alreadyDelivered: 0, alreadyViewed: 0, unavailable: 0 },
       exhausted,
+      ...paging,
     };
     if (!postIds.length) {
       return empty;
@@ -182,6 +195,7 @@ export const createCandidatePipeline = ({
         unavailable: freshIds.length - posts.length,
       },
       exhausted,
+      ...paging,
     };
   };
 
@@ -222,7 +236,7 @@ export const createCandidatePipeline = ({
     period?: number;
     limit: number;
     offset: number;
-  }): Promise<string[]> =>
+  }) =>
     queryReadReplica(con, async ({ queryRunner }) => {
       // The tag scope drives off post_keyword (IDX_post_keyword_status_keyword_postid)
       // instead of filtering posts with an EXISTS subquery: for a narrow tag the
@@ -259,9 +273,11 @@ export const createCandidatePipeline = ({
         .limit(limit)
         .offset(offset);
 
-      if (period) {
+      const windowDays =
+        period ?? (scope === 'tag' ? DEFAULT_TAG_SCOPE_PERIOD_DAYS : undefined);
+      if (windowDays) {
         builder.andWhere('p."createdAt" >= :since', {
-          since: new Date(Date.now() - period * ONE_DAY_IN_SECONDS * 1000),
+          since: new Date(Date.now() - windowDays * ONE_DAY_IN_SECONDS * 1000),
         });
       }
 
@@ -271,7 +287,7 @@ export const createCandidatePipeline = ({
       );
 
       const rows = await builder.getRawMany<{ id: string }>();
-      return rows.map((row) => row.id);
+      return { postIds: rows.map((row) => row.id), windowDays };
     });
 
   const feedContext = { con, log } as unknown as Context;
@@ -302,13 +318,63 @@ export const createCandidatePipeline = ({
       )
     ).map((row) => row.tag);
 
-  const findAllowedKeywords = (tags: string[]) =>
-    queryReadReplica(con, ({ queryRunner }) =>
+  /**
+   * Normalises and synonym-resolves a batch of agent-supplied slugs the same way
+   * resolveTag does for a single one, in two queries rather than two per tag.
+   */
+  const resolveTags = async (tags: string[]) => {
+    const requested = [...new Set(tags.map((tag) => tag.trim().toLowerCase()))];
+    if (!requested.length) {
+      return { resolved: [], unknown: [] };
+    }
+    const rows = await queryReadReplica(con, ({ queryRunner }) =>
       queryRunner.manager.getRepository(Keyword).find({
-        select: ['value'],
-        where: { value: In(tags), status: KeywordStatus.Allow },
+        select: ['value', 'status', 'synonym'],
+        where: { value: In(requested) },
       }),
     );
+    const byValue = new Map(rows.map((row) => [row.value, row]));
+
+    const canonicalNeeded = rows
+      .filter((row) => row.status === KeywordStatus.Synonym && row.synonym)
+      .map((row) => row.synonym as string);
+    const allowedCanonical = canonicalNeeded.length
+      ? new Set(
+          (
+            await queryReadReplica(con, ({ queryRunner }) =>
+              queryRunner.manager.getRepository(Keyword).find({
+                select: ['value'],
+                where: {
+                  value: In(canonicalNeeded),
+                  status: KeywordStatus.Allow,
+                },
+              }),
+            )
+          ).map((row) => row.value),
+        )
+      : new Set<string>();
+
+    const resolved: string[] = [];
+    const unknown: string[] = [];
+    requested.forEach((value) => {
+      const row = byValue.get(value);
+      if (row?.status === KeywordStatus.Allow) {
+        resolved.push(row.value);
+        return;
+      }
+      if (
+        row?.status === KeywordStatus.Synonym &&
+        row.synonym &&
+        allowedCanonical.has(row.synonym)
+      ) {
+        resolved.push(row.synonym);
+        return;
+      }
+      unknown.push(value);
+    });
+
+    return { resolved: [...new Set(resolved)], unknown };
+  };
 
   return {
     getDeliveredIds,
@@ -319,6 +385,6 @@ export const createCandidatePipeline = ({
     findViewed,
     findDelivered,
     findTagsForFeed,
-    findAllowedKeywords,
+    resolveTags,
   };
 };

@@ -11,20 +11,24 @@ import {
   resolveLimit,
   resolveOffset,
 } from './candidates';
-import { CANDIDATE_OVERFETCH, budgetError, jsonResult } from './constants';
+import {
+  CANDIDATE_OVERFETCH,
+  DEFAULT_TAG_SCOPE_PERIOD_DAYS,
+  budgetError,
+  jsonResult,
+} from './constants';
 
 export const queryFeedTool = ({
   con,
   log,
   interest,
   excludedSourceIds,
-  overBudget,
+  consumeBudget,
   pipeline,
 }: InterestToolContext) => ({
   name: 'query_feed',
   label: 'Query daily.dev feed',
-  description:
-    'Read a ranked daily.dev feed. scope "interest" uses this interest\'s saved tags, "tags" uses tags you supply, "source" reads one source\'s posts (pass sourceId), "tag" reads one tag\'s posts (pass tag). The interest and tags scopes run through the same ranking the user\'s own feed uses: engagement-ranked, and filtered by their blocked tags, blocked sources, blocked words and followed sources, so results are already shaped to this reader. They need tags to exist, and work at topic granularity rather than phrase granularity. No publish-date restriction, so these scopes reach older posts the interest has never seen. The source and tag scopes support orderBy "date" or "upvotes" plus an optional period in days; they have no relevance ranker, so "relevance" falls back to "upvotes" there and the response tells you which ordering was applied.',
+  description: `Read a ranked daily.dev feed. scope "interest" uses this interest's saved tags, "tags" uses tags you supply, "source" reads one source's posts (pass sourceId), "tag" reads one tag's posts (pass tag). The interest and tags scopes run through the same ranking the user's own feed uses: engagement-ranked, and filtered by their blocked tags, blocked sources, blocked words and followed sources, so results are already shaped to this reader. They need tags to exist, and work at topic granularity rather than phrase granularity. No publish-date restriction, so these scopes reach older posts the interest has never seen. The source and tag scopes support orderBy "date" or "upvotes" plus an optional period in days; they have no relevance ranker, so "relevance" falls back to "upvotes" there. The tag scope windows to the last ${DEFAULT_TAG_SCOPE_PERIOD_DAYS} days unless you pass a larger period; the response reports the ordering and window actually applied. orderBy and period do not apply to the interest and tags scopes and are reported back as ignored. Page with nextOffset from the response, not by adding your limit: offset counts inventory rows and more are read than returned.`,
   parameters: Type.Object({
     scope: Type.Optional(
       Type.Union([
@@ -61,7 +65,7 @@ export const queryFeedTool = ({
       offset?: number;
     },
   ) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const scope = params.scope ?? 'interest';
@@ -115,7 +119,7 @@ export const queryFeedTool = ({
         tag = resolved.keyword.value;
       }
 
-      const postIds = await pipeline.queryScopedPostIds({
+      const { postIds, windowDays } = await pipeline.queryScopedPostIds({
         scope,
         sourceId: params.sourceId,
         tag,
@@ -125,10 +129,15 @@ export const queryFeedTool = ({
         offset,
       });
       const result = {
-        ...(await pipeline.toCandidates({ postIds, limit, fetched })),
-        offset,
-        offsetClamped: offset !== (params.offset ?? 0),
+        ...(await pipeline.toCandidates({
+          postIds,
+          limit,
+          fetched,
+          offset,
+          requestedOffset: params.offset,
+        })),
         orderBy: orderBy === 'date' ? 'date' : 'upvotes',
+        ...(windowDays ? { periodDays: windowDays } : {}),
         ...(scope === 'tag' && tag !== params.tag ? { resolvedTag: tag } : {}),
       };
       log.info(
@@ -170,9 +179,16 @@ export const queryFeedTool = ({
         postIds: getFeedResponsePostIds(response),
         limit,
         fetched,
+        offset,
+        requestedOffset: params.offset,
       })),
-      offset,
-      offsetClamped: offset !== (params.offset ?? 0),
+      // These scopes go through the feed service's own ranking, so anything the
+      // agent passed here was not applied.
+      orderBy: 'relevance',
+      ...(params.orderBy && params.orderBy !== 'relevance'
+        ? { orderByIgnored: params.orderBy }
+        : {}),
+      ...(params.period ? { periodIgnored: params.period } : {}),
     };
     log.info(
       {

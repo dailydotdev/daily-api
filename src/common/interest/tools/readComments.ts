@@ -18,7 +18,7 @@ import {
 export const readCommentsTool = ({
   con,
   interest,
-  overBudget,
+  consumeBudget,
 }: InterestToolContext) => ({
   name: 'read_comments',
   label: 'Read post comments',
@@ -35,7 +35,7 @@ export const readCommentsTool = ({
     _id: never,
     params: { postId: string; sortBy?: 'upvotes' | 'newest'; limit?: number },
   ) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const limit = Math.min(
@@ -44,6 +44,32 @@ export const readCommentsTool = ({
     );
     const order: 'c.upvotes' | 'c."createdAt"' =
       params.sortBy === 'newest' ? 'c."createdAt"' : 'c.upvotes';
+
+    // Probe separately, otherwise an invisible post is indistinguishable from a
+    // visible one with no comments — both yield zero rows below.
+    const post = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager.getRepository(Post).findOne({
+        select: ['id', 'comments'],
+        where: [
+          {
+            id: params.postId,
+            deleted: false,
+            banned: false,
+            private: false,
+            showOnFeed: true,
+          },
+          {
+            id: params.postId,
+            deleted: false,
+            banned: false,
+            sourceId: interest.sourceId ?? '',
+          },
+        ],
+      }),
+    );
+    if (!post) {
+      return jsonResult({ postId: params.postId, error: 'not_found' });
+    }
 
     const selectComments = (manager: EntityManager, parentIsNull: boolean) =>
       manager
@@ -109,19 +135,20 @@ export const readCommentsTool = ({
     if (!topLevel.length) {
       return jsonResult({
         postId: params.postId,
-        postCommentCount: 0,
+        postCommentCount: post.comments,
         shown: { parents: 0, replies: 0 },
-        contentTruncated: false,
+        commentsOmitted: false,
         comments: [],
       });
     }
 
     let budget = MAX_COMMENT_CHARS;
-    let contentTruncated = false;
+    let commentsOmitted = false;
     const render = (comment: Record<string, unknown>) => {
-      const text = String(comment.content ?? '').slice(0, MAX_COMMENT_LENGTH);
+      const full = String(comment.content ?? '');
+      const text = full.slice(0, MAX_COMMENT_LENGTH);
       if (budget <= 0) {
-        contentTruncated = true;
+        commentsOmitted = true;
         return null;
       }
       budget -= text.length;
@@ -133,6 +160,7 @@ export const readCommentsTool = ({
         awards: comment.awards,
         createdAt: (comment.createdAt as Date)?.toISOString(),
         content: text,
+        ...(text.length < full.length ? { contentTruncated: true } : {}),
       };
     };
 
@@ -162,9 +190,9 @@ export const readCommentsTool = ({
 
     return jsonResult({
       postId: params.postId,
-      postCommentCount: topLevel[0].postCommentCount,
+      postCommentCount: post.comments,
       shown: { parents: comments.length, replies: shownReplies },
-      contentTruncated,
+      commentsOmitted,
       comments,
     });
   },

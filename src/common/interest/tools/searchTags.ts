@@ -9,7 +9,10 @@ import {
   jsonResult,
 } from './constants';
 
-export const searchTagsTool = ({ con, overBudget }: InterestToolContext) => ({
+export const searchTagsTool = ({
+  con,
+  consumeBudget,
+}: InterestToolContext) => ({
   name: 'search_tags',
   label: 'Search tags',
   description:
@@ -19,7 +22,7 @@ export const searchTagsTool = ({ con, overBudget }: InterestToolContext) => ({
     limit: Type.Optional(Type.Number()),
   }),
   execute: async (_id: never, params: { query: string; limit?: number }) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const limit = Math.min(

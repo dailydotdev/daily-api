@@ -12,7 +12,7 @@ import {
 export const searchSourcesTool = ({
   con,
   excludedSourceIds,
-  overBudget,
+  consumeBudget,
 }: InterestToolContext) => ({
   name: 'search_sources',
   label: 'Search sources',
@@ -23,7 +23,7 @@ export const searchSourcesTool = ({
     limit: Type.Optional(Type.Number()),
   }),
   execute: async (_id: never, params: { query: string; limit?: number }) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const limit = Math.min(

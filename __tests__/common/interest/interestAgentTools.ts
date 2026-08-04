@@ -22,6 +22,18 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { PostType } from '../../../src/entity/posts/Post';
 
+// The interest/tags scopes call the feed service; the source/tag scopes are
+// plain SQL and run against the real database.
+jest.mock('../../../src/integrations/feed/generators', () => ({
+  ...(jest.requireActual('../../../src/integrations/feed/generators') as Record<
+    string,
+    unknown
+  >),
+  getForYouByTagFeedGenerator: () => ({
+    generate: async () => ({ data: [{ id: 'p1' }, { id: 'p2' }] }),
+  }),
+}));
+
 let con: DataSource;
 
 type ToolHandler = (
@@ -138,16 +150,16 @@ describe('read_comments', () => {
     expect(res.shown).toEqual({ parents: 1, replies: 1 });
   });
 
-  it('refuses a banned post', async () => {
+  it('reports a banned post as not found rather than comment-less', async () => {
     await con.getRepository(ArticlePost).update({ id: 'p1' }, { banned: true });
     const { captured } = await getTools();
 
     expect(
       await call(captured, 'read_comments', { postId: 'p1' }),
-    ).toMatchObject({ comments: [] });
+    ).toMatchObject({ error: 'not_found' });
   });
 
-  it('refuses a private post from another source', async () => {
+  it('reports a private post as not found rather than comment-less', async () => {
     await con
       .getRepository(ArticlePost)
       .update({ id: 'p1' }, { private: true });
@@ -155,23 +167,47 @@ describe('read_comments', () => {
 
     expect(
       await call(captured, 'read_comments', { postId: 'p1' }),
-    ).toMatchObject({ comments: [] });
+    ).toMatchObject({ error: 'not_found' });
+  });
+
+  it('reports the real post comment count, not the number returned', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { comments: 200 });
+    const { captured } = await getTools();
+    const res = await call(captured, 'read_comments', { postId: 'p1' });
+
+    expect(res.postCommentCount).toEqual(200);
+    expect(res.shown).toEqual({ parents: 1, replies: 1 });
   });
 });
 
 describe('read_post', () => {
-  it('refuses a banned post but still reports quality signals for a live one', async () => {
-    const { captured } = await getTools();
-
-    const live = await call(captured, 'read_post', { postId: 'p1' });
-    expect(live).toMatchObject({ postId: 'p1', alreadyDelivered: false });
-    expect(live.engagement).toHaveProperty('downvotes');
-
+  it('reports engagement and quality signals for a visible post', async () => {
     await con
       .getRepository(ArticlePost)
-      .update({ id: 'p1' }, { deleted: true });
-    const { captured: after } = await getTools();
-    expect(await call(after, 'read_post', { postId: 'p1' })).toMatchObject({
+      .update(
+        { id: 'p1' },
+        { downvotes: 3, contentQuality: { is_clickbait_probability: 0.8 } },
+      );
+    const { captured } = await getTools();
+
+    const res = await call(captured, 'read_post', { postId: 'p1' });
+    expect(res).toMatchObject({
+      postId: 'p1',
+      alreadyDelivered: false,
+      contentQuality: { is_clickbait_probability: 0.8 },
+    });
+    expect(res.engagement.downvotes).toEqual(3);
+  });
+
+  it.each([['banned'], ['deleted']])('refuses a %s post', async (field) => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { [field]: true });
+    const { captured } = await getTools();
+
+    expect(await call(captured, 'read_post', { postId: 'p1' })).toMatchObject({
       error: 'not_found',
     });
   });
@@ -216,15 +252,65 @@ describe('query_feed', () => {
     ).toMatchObject({ error: 'tag_not_found' });
   });
 
-  it('reports a clamped offset', async () => {
+  it('reports a clamped offset and a stride that skips the whole window', async () => {
     const { captured } = await getTools();
     const res = await call(captured, 'query_feed', {
       scope: 'tag',
       tag: 'zig',
+      limit: 10,
       offset: 5000,
     });
 
-    expect(res).toMatchObject({ offset: 200, offsetClamped: true });
+    // nextOffset must step by rows read (limit * overfetch), not rows returned.
+    expect(res).toMatchObject({
+      offset: 200,
+      offsetClamped: true,
+      nextOffset: 230,
+      requested: 10,
+    });
+  });
+
+  it('windows the tag scope by default and reports the window applied', async () => {
+    const { captured } = await getTools();
+
+    expect(
+      await call(captured, 'query_feed', { scope: 'tag', tag: 'zig' }),
+    ).toMatchObject({ orderBy: 'upvotes', periodDays: 30 });
+  });
+
+  it('lets an explicit period widen the tag scope window', async () => {
+    const { captured } = await getTools();
+
+    expect(
+      await call(captured, 'query_feed', {
+        scope: 'tag',
+        tag: 'zig',
+        period: 180,
+      }),
+    ).toMatchObject({ periodDays: 180 });
+  });
+
+  it('does not window the source scope, which one source already bounds', async () => {
+    const { captured } = await getTools();
+    const res = await call(captured, 'query_feed', {
+      scope: 'source',
+      sourceId: 'a',
+    });
+
+    expect(res.periodDays).toBeUndefined();
+  });
+
+  it('reports orderBy and period as ignored on the interest scope', async () => {
+    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+    const { captured } = await getTools();
+
+    expect(
+      await call(captured, 'query_feed', {
+        scope: 'interest',
+        orderBy: 'date',
+        period: 7,
+      }),
+    ).toMatchObject({ orderByIgnored: 'date', periodIgnored: 7 });
   });
 
   it('excludes aggregation posts from candidates', async () => {
@@ -339,17 +425,48 @@ describe('write_post', () => {
 });
 
 describe('set_interest_tags', () => {
-  it('keeps only real tags and reports the dropped ones', async () => {
+  it('normalises case, resolves synonyms, and reports only genuinely unknown slugs', async () => {
     const { captured } = await getTools();
     const res = await call(captured, 'set_interest_tags', {
-      tags: ['zig', 'not-a-real-tag'],
+      tags: ['ZIG', 'ziglang', 'not-a-real-tag'],
     });
 
     expect(res).toMatchObject({
       savedTags: ['zig'],
-      dropped: ['not-a-real-tag'],
+      unknown: ['not-a-real-tag'],
+      overCap: [],
     });
     const saved = await con.getRepository(FeedTag).findBy({ feedId: 'feed-1' });
     expect(saved.map((row) => row.tag)).toEqual(['zig']);
+  });
+
+  it('separates real tags cut by the cap from unknown ones', async () => {
+    await con.getRepository(Keyword).save(
+      ['alpha', 'beta'].map((value) => ({
+        value,
+        status: KeywordStatus.Allow,
+        occurrences: 1,
+      })),
+    );
+    const { captured, maxTags } = await getTools();
+    const res = await call(captured, 'set_interest_tags', {
+      tags: ['zig', 'alpha', 'beta', 'nope'],
+    });
+
+    expect(res.savedTags).toHaveLength(Math.min(3, maxTags));
+    expect(res.unknown).toEqual(['nope']);
+    expect(res.overCap).not.toContain('nope');
+  });
+
+  it('is not gated by the exploration budget, as the prompt promises', async () => {
+    const { captured, ...built } = await getTools();
+    // Drain the budget, then confirm tags still persist.
+    while (!built.consumeBudget()) {
+      /* spend it */
+    }
+
+    expect(
+      await call(captured, 'set_interest_tags', { tags: ['zig'] }),
+    ).toMatchObject({ savedTags: ['zig'] });
   });
 });

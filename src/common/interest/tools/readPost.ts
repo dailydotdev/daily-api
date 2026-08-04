@@ -51,7 +51,7 @@ type PostDetailRow = {
 export const readPostTool = ({
   con,
   interest,
-  overBudget,
+  consumeBudget,
   pipeline,
 }: InterestToolContext) => ({
   name: 'read_post',
@@ -62,7 +62,7 @@ export const readPostTool = ({
     postId: Type.String(),
   }),
   execute: async (_id: never, params: { postId: string }) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const post = await queryReadReplica(con, ({ queryRunner }) =>
@@ -114,6 +114,7 @@ export const readPostTool = ({
         .leftJoin(Post, 'sp', 'sp.id = p."sharedPostId"')
         .where('p.id = :postId', { postId: params.postId })
         .andWhere('p.deleted = false')
+        .andWhere('p.banned = false')
         .andWhere(
           '((p.private = false AND p."showOnFeed" = true) OR p."sourceId" = :interestSourceId)',
           { interestSourceId: interest.sourceId },

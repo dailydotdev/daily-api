@@ -35,6 +35,10 @@ export const writePostTool = ({
         hint: 'This run added no findings and none are waiting to be delivered, so there is nothing new to summarise.',
       });
     }
+    const { sourceId } = interest;
+    if (!sourceId) {
+      return jsonResult({ error: 'interest_has_no_source' });
+    }
     const id = await generateShortId();
     const saved = await insertFreeformPost({
       con,
@@ -44,7 +48,7 @@ export const writePostTool = ({
         content: params.content,
         contentHtml: markdown.render(params.content),
         authorId: interest.userId,
-        sourceId: interest.sourceId as string,
+        sourceId,
       },
     });
     await con.getRepository(Post).update(

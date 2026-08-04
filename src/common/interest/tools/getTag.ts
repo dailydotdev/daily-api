@@ -9,7 +9,7 @@ import { SOURCE_TOP_TAGS, budgetError, jsonResult } from './constants';
 export const getTagTool = ({
   con,
   excludedSourceIds,
-  overBudget,
+  consumeBudget,
   pipeline,
 }: InterestToolContext) => ({
   name: 'get_tag',
@@ -20,7 +20,7 @@ export const getTagTool = ({
     tag: Type.String(),
   }),
   execute: async (_id: never, params: { tag: string }) => {
-    if (overBudget()) {
+    if (consumeBudget()) {
       return jsonResult(budgetError);
     }
     const { requested, keyword, resolvedFrom } = await pipeline.resolveTag(
