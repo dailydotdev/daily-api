@@ -286,11 +286,10 @@ describe('query userWorldSettings', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userWorldSettings).toEqual({
-      // deterministic, so every viewer of this world reads the same name
-      name: "Ido's world",
+      // unnamed and uncrested — the client names it, and a mark has to be earned
+      name: null,
       private: false,
       sky: { pal: 'brand', hour: 'day' },
-      // no crest until the owner assembles one — there is no starter mark
       crest: null,
       look: {
         id: 'diorama',
@@ -304,14 +303,15 @@ describe('query userWorldSettings', () => {
   });
 
   it('should answer for a user with no settings row and no reading', async () => {
-    // sourced from the user rather than the settings row, so a world that has
-    // never been touched still resolves rather than coming back null
+    // sourced from the user rather than the settings row, so a world nobody has
+    // touched still resolves — null here would be indistinguishable from private
     const res = await client.query(QUERY, { variables: { id: '3' } });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userWorldSettings).toMatchObject({
-      name: "Nimrod's world",
+      name: null,
       crest: null,
+      private: false,
     });
   });
 
@@ -421,13 +421,13 @@ describe('mutation updateUserWorldSettings', () => {
     });
   });
 
-  it('should clear a name back to the suggestion when sent null', async () => {
+  it('should unname a world when sent null', async () => {
     loggedUser = '1';
     await client.mutate(MUTATION, { variables: { name: 'the quiet archive' } });
     const res = await client.mutate(MUTATION, { variables: { name: null } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.updateUserWorldSettings.name).toBe("Ido's world");
+    expect(res.data.updateUserWorldSettings.name).toBeNull();
   });
 
   it('should accept a crest built out of earned monuments and accents', async () => {

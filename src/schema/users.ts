@@ -394,7 +394,8 @@ export interface GQLUserWorldGrowth {
 }
 
 export type GQLUserWorldSettings = {
-  name: string;
+  /** Null until the owner names the world; the client supplies the fallback. */
+  name: string | null;
   sky: z.infer<typeof worldSkySchema>;
   /** Null when the world has raised nothing worth putting on a shield. */
   crest: z.infer<typeof worldCrestSchema> | null;
@@ -1571,10 +1572,10 @@ export const typeDefs = /* GraphQL */ `
   """
   type UserWorldSettings {
     """
-    What the user calls the place. Falls back to a deterministic name derived
-    from the owner, so every viewer sees the same one
+    What the user calls the place, or null if they have never named it. The
+    client supplies the fallback
     """
-    name: String!
+    name: String
     sky: UserWorldSky!
     """
     The mark this world flies, or null. Not every world has one — a crest is

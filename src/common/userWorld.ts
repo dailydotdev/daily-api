@@ -84,19 +84,3 @@ export const getCrestDistricts = async (
 
   return rows;
 };
-
-/**
- * What an unnamed world is called.
- *
- * Derived on the server rather than left to the client, because a world is meant
- * to be recognised by strangers and two clients inventing two different names
- * for the same place defeats that. Deterministic for the same reason: the same
- * world answers with the same name everywhere it appears.
- */
-export const defaultWorldName = ({
-  name,
-  username,
-}: {
-  name?: string | null;
-  username?: string | null;
-}): string => `${name || username || 'a developer'}'s world`;
