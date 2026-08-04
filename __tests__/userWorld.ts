@@ -278,11 +278,10 @@ describe('query userWorldSettings', () => {
       sky { pal hour }
       crest { charge div a b }
       look { id base mine name ol bl }
-      entitlements { kind id source }
     }
   }`;
 
-  it('should derive every field from the reading when nothing is customised', async () => {
+  it('should answer with defaults for a world nobody has customised', async () => {
     const res = await client.query(QUERY, { variables: { id: '1' } });
 
     expect(res.errors).toBeFalsy();
@@ -291,9 +290,8 @@ describe('query userWorldSettings', () => {
       name: "Ido's world",
       private: false,
       sky: { pal: 'brand', hour: 'day' },
-      // largest district gives the charge and the field, second the other
-      // tincture; the division comes off a hash of the user id
-      crest: { charge: 'obelisk', div: 'pale', a: 0xd97efe, b: 0xffe877 },
+      // no crest until the owner assembles one — there is no starter mark
+      crest: null,
       look: {
         id: 'diorama',
         base: 'diorama',
@@ -302,25 +300,62 @@ describe('query userWorldSettings', () => {
         ol: 0.24,
         bl: 1,
       },
-      // blockchain is hidden at serving, so it grants nothing. Reading is
-      // resolved before the base grants, so obelisk reports the niche that
-      // earned it rather than the base grant that would also have covered it.
-      entitlements: [
-        { kind: 'charge', id: 'obelisk', source: 'niche:ai_llm' },
-        { kind: 'tincture', id: '#d97efe', source: 'niche:ai_llm' },
-        { kind: 'tincture', id: '#887bf8', source: 'niche:ai_llm' },
-        { kind: 'charge', id: 'loom', source: 'niche:js_ts' },
-        { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
-        { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
-        { kind: 'tincture', id: '#ba56e1', source: 'base' },
-        { kind: 'tincture', id: '#f5f6fa', source: 'base' },
-      ],
     });
   });
 
+  it('should answer for a user with no settings row and no reading', async () => {
+    // sourced from the user rather than the settings row, so a world that has
+    // never been touched still resolves rather than coming back null
+    const res = await client.query(QUERY, { variables: { id: '3' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings).toMatchObject({
+      name: "Nimrod's world",
+      crest: null,
+    });
+  });
+
+  it('should serve a stored crest back', async () => {
+    await con.getRepository(UserWorldSettings).save({
+      userId: '1',
+      crest: { charge: 'loom', div: 'bend', a: 0xffe877, b: 0x887bf8 },
+    });
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userWorldSettings.crest).toEqual({
+      charge: 'loom',
+      div: 'bend',
+      a: 0xffe877,
+      b: 0x887bf8,
+    });
+  });
+});
+
+describe('query userWorldEntitlements', () => {
+  const QUERY = `query UserWorldEntitlements($id: ID!) {
+    userWorldEntitlements(id: $id) { kind id source }
+  }`;
+
+  it('should grant a charge per monument and a tincture per founded district', async () => {
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+
+    expect(res.errors).toBeFalsy();
+    // blockchain is hidden at serving, so it grants nothing at all
+    expect(res.data.userWorldEntitlements).toEqual([
+      { kind: 'charge', id: 'obelisk', source: 'niche:ai_llm' },
+      { kind: 'tincture', id: '#d97efe', source: 'niche:ai_llm' },
+      { kind: 'tincture', id: '#887bf8', source: 'niche:ai_llm' },
+      { kind: 'charge', id: 'loom', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
+      { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
+    ]);
+  });
+
   it('should grant no charge from a district below level 3', async () => {
-    // Identity arrives at L3 — under it there is no monument to put on a shield,
-    // so only the base charge is available and the accents still are.
+    // A monument appears at L3. Under it the accents are still founded, but
+    // there is nothing raised to put on a shield.
     await con.getRepository(UserNicheAnalytics).save({
       userId: '3',
       nicheId: nicheJs,
@@ -333,29 +368,19 @@ describe('query userWorldSettings', () => {
     const res = await client.query(QUERY, { variables: { id: '3' } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userWorldSettings.entitlements).toEqual([
+    expect(res.data.userWorldEntitlements).toEqual([
       { kind: 'tincture', id: '#ffe877', source: 'niche:js_ts' },
       { kind: 'tincture', id: '#ffb794', source: 'niche:js_ts' },
-      { kind: 'charge', id: 'obelisk', source: 'base' },
-      { kind: 'tincture', id: '#ba56e1', source: 'base' },
-      { kind: 'tincture', id: '#f5f6fa', source: 'base' },
     ]);
-    // and the suggested crest cannot borrow the unearned signature either
-    expect(res.data.userWorldSettings.crest.charge).toBe('obelisk');
   });
 
-  it('should not pay for the catalogue when it is not asked for', async () => {
-    // entitlements is a lazily resolved field, so a world that is merely being
-    // displayed never runs the district join behind it
-    const res = await client.query(
-      `query UserWorldSettings($id: ID!) {
-        userWorldSettings(id: $id) { name crest { charge } }
-      }`,
-      { variables: { id: '1' } },
-    );
+  it('should give a reader of nothing no entitlements at all', async () => {
+    // and therefore no crest — eligibility is having raised something, and
+    // there is no starter mark to hand out
+    const res = await client.query(QUERY, { variables: { id: '4' } });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userWorldSettings.crest.charge).toBe('obelisk');
+    expect(res.data.userWorldEntitlements).toEqual([]);
   });
 });
 
@@ -457,12 +482,30 @@ describe('mutation updateUserWorldSettings', () => {
       'tincture "b" is not available to this world',
     );
   });
+
+  it('should not let a reader of nothing fly any crest', async () => {
+    // user 4 has read nothing, so no charge exists that they could claim —
+    // eligibility falls out of the entitlements rather than being a separate rule
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          crest: { charge: 'obelisk', div: 'plain', a: 0xd97efe, b: 0xffe877 },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'this world has not raised anything to put on a crest',
+    );
+  });
 });
 
 describe('world privacy', () => {
   const WORLD = `query UserWorld($id: ID!) { userWorld(id: $id) { reads } }`;
   const TIMELINE = `query UserWorldTimeline($id: ID!) { userWorldTimeline(id: $id) { reads } }`;
   const SETTINGS = `query UserWorldSettings($id: ID!) { userWorldSettings(id: $id) { private } }`;
+  const ENTITLEMENTS = `query UserWorldEntitlements($id: ID!) { userWorldEntitlements(id: $id) { id } }`;
 
   beforeEach(async () => {
     await con
@@ -470,15 +513,17 @@ describe('world privacy', () => {
       .upsert({ userId: '1', private: true }, ['userId']);
   });
 
-  it('should hide the world, the timeline and the settings from everyone else', async () => {
+  it('should hide every world surface from everyone else', async () => {
     loggedUser = '2';
     const world = await client.query(WORLD, { variables: { id: '1' } });
     const timeline = await client.query(TIMELINE, { variables: { id: '1' } });
     const settings = await client.query(SETTINGS, { variables: { id: '1' } });
+    const items = await client.query(ENTITLEMENTS, { variables: { id: '1' } });
 
     expect(world.data.userWorld).toEqual([]);
     expect(timeline.data.userWorldTimeline).toEqual([]);
     expect(settings.data.userWorldSettings).toBeNull();
+    expect(items.data.userWorldEntitlements).toEqual([]);
   });
 
   it('should hide it from anonymous viewers', async () => {

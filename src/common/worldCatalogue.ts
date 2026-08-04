@@ -1,6 +1,5 @@
 import type { z } from 'zod';
 import type { worldCrestSchema } from './schema/userWorld';
-import { CREST_DIVISIONS } from './worldStyle';
 
 /**
  * What a world is allowed to be dressed with, and why.
@@ -101,16 +100,19 @@ export const NICHE_GRANTS: Record<
 export const CREST_CHARGE_MIN_READS = 3;
 
 /**
- * The charge every world starts with.
+ * Grants nobody has to earn.
  *
- * This currently doubles as `ai_llm`'s monument, so a reader of LLMs and a
- * reader of nothing fly the same mark for different reasons. It wants a glyph of
- * its own that belongs to no subject — client art, tracked separately.
+ * Empty, and that is the point: a reader of nothing is not entitled to a crest.
+ * A mark that everybody starts with is not a mark — it says nothing about whose
+ * world it is flying over, which is the only job a crest has.
+ *
+ * The arrays stay because this is where non-reading grants land when they
+ * arrive. Anything added here becomes available to every world at once, so it
+ * wants to be a deliberate act rather than a default.
  */
-export const BASE_CHARGES = ['obelisk'] as const;
+export const BASE_CHARGES: readonly string[] = [];
 
-/** Brand violet on off-white — the tinctures nobody has to earn. */
-export const BASE_TINCTURES = [0xba56e1, 0xf5f6fa] as const;
+export const BASE_TINCTURES: readonly number[] = [];
 
 export type Crest = z.infer<typeof worldCrestSchema>;
 
@@ -183,6 +185,9 @@ export const assertCrestEntitled = ({
   const held = (kind: WorldEntitlementKind, id: string) =>
     entitlements.some((item) => item.kind === kind && item.id === id);
 
+  if (!isCrestEligible(entitlements)) {
+    return 'this world has not raised anything to put on a crest';
+  }
   if (!held(WorldEntitlementKind.Charge, crest.charge)) {
     return `charge "${crest.charge}" is not available to this world`;
   }
@@ -198,34 +203,11 @@ export const assertCrestEntitled = ({
 };
 
 /**
- * Every world flies a crest from day one: the largest district gives the charge,
- * the top two give the tinctures, and the division comes off the user id — so
- * the suggestion is already personal and the user's job is to disagree with it
- * rather than to invent one.
+ * Whether this world may fly a crest at all.
+ *
+ * Eligibility is having raised something. There is no derived starter crest and
+ * no default charge to stand in — a world with nothing behind it simply has no
+ * mark, and an empty shield is the honest answer rather than a poor one.
  */
-export const defaultCrest = ({
-  userId,
-  districts,
-}: {
-  userId: string;
-  districts: CrestDistrict[];
-}): Crest => {
-  const ranked = districts.filter(({ slug }) => NICHE_GRANTS[slug]);
-  const top = ranked[0];
-  const second = ranked[1] || top;
-  let hash = 0;
-  for (const char of userId) {
-    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  }
-  return {
-    // A district below L3 has raised nothing, so it cannot lend its signature
-    // even to the suggestion — the base charge stands in until it does.
-    charge:
-      top && top.reads >= CREST_CHARGE_MIN_READS
-        ? NICHE_GRANTS[top.slug].sig
-        : BASE_CHARGES[0],
-    div: CREST_DIVISIONS[hash % CREST_DIVISIONS.length],
-    a: top ? NICHE_GRANTS[top.slug].accent : BASE_TINCTURES[0],
-    b: second ? NICHE_GRANTS[second.slug].accent : BASE_TINCTURES[1],
-  };
-};
+export const isCrestEligible = (entitlements: WorldEntitlement[]): boolean =>
+  entitlements.some(({ kind }) => kind === WorldEntitlementKind.Charge);

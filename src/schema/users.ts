@@ -3,16 +3,19 @@ import {
   applyWorldPrivacy,
   canViewWorld,
   getCrestDistricts,
-  getWorldOwner,
   getWorldSettings,
-  resolveWorldSettings,
 } from '../common/userWorld';
 import {
   assertCrestEntitled,
   resolveEntitlements,
   type WorldEntitlement,
 } from '../common/worldCatalogue';
-import { worldSettingsUpdateSchema } from '../common/schema/userWorld';
+import {
+  worldCrestSchema,
+  worldLookSchema,
+  worldSettingsUpdateSchema,
+  worldSkySchema,
+} from '../common/schema/userWorld';
 import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
@@ -390,7 +393,14 @@ export interface GQLUserWorldGrowth {
   reads: number;
 }
 
-export type GQLUserWorldSettings = ReturnType<typeof resolveWorldSettings>;
+export type GQLUserWorldSettings = {
+  name: string;
+  sky: z.infer<typeof worldSkySchema>;
+  /** Null when the world has raised nothing worth putting on a shield. */
+  crest: z.infer<typeof worldCrestSchema> | null;
+  look: z.infer<typeof worldLookSchema>;
+  private: boolean;
+};
 
 export interface GQLUserProfileAnalytics {
   id: string;
@@ -1566,17 +1576,17 @@ export const typeDefs = /* GraphQL */ `
     """
     name: String!
     sky: UserWorldSky!
-    crest: UserWorldCrest!
+    """
+    The mark this world flies, or null. Not every world has one — a crest is
+    assembled from monuments raised, so a world with nothing behind it has no
+    mark rather than a starter one
+    """
+    crest: UserWorldCrest
     look: UserWorldLook!
     """
     Whether the world is hidden from everyone but its owner
     """
     private: Boolean!
-    """
-    Everything this world may be dressed with. Only resolved when asked for —
-    displaying a world costs nothing extra for the catalogue behind it
-    """
-    entitlements: [UserWorldEntitlement!]!
   }
 
   input UserWorldSkyInput {
@@ -1637,10 +1647,16 @@ export const typeDefs = /* GraphQL */ `
     """
     userWorldTimeline(id: ID!): [UserWorldGrowth!]!
     """
-    A user's world customisations, with the charges and tinctures their reading
-    entitles them to. Null if the owner has made their world private.
+    A user's world customisations. Null if the owner has made their world
+    private.
     """
     userWorldSettings(id: ID!): UserWorldSettings
+    """
+    Everything a world may be dressed with, and what granted each one. Separate
+    from the settings because it is what an editor needs, not what displaying a
+    world needs. Empty if the owner has made their world private.
+    """
+    userWorldEntitlements(id: ID!): [UserWorldEntitlement!]!
     """
     Get User Streak
     """
@@ -2794,20 +2810,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       { id }: { id: string },
       ctx: Context,
+      info: GraphQLResolveInfo,
     ): Promise<GQLUserWorldSettings | null> =>
+      graphorm.queryOne<GQLUserWorldSettings>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          );
+          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
+
+          return builder;
+        },
+        true,
+      ),
+    /**
+     * Not graphorm-backed: an entitlement is not a row anywhere. It is computed
+     * by folding the user's districts through the grant tables, which is exactly
+     * the access pattern graphorm cannot express.
+     */
+    userWorldEntitlements: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<WorldEntitlement[]> =>
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
         const settings = await getWorldSettings(queryRunner.manager, id);
         if (!canViewWorld({ viewerId: ctx.userId, ownerId: id, settings })) {
-          return null;
+          return [];
         }
-        // Districts are only needed to derive a crest nobody has chosen yet. A
-        // customised world skips the join entirely; so does one whose viewer
-        // never asks for the entitlements field.
-        const [user, districts] = await Promise.all([
-          settings?.name ? null : getWorldOwner(queryRunner.manager, id),
-          settings?.crest ? null : getCrestDistricts(queryRunner.manager, id),
-        ]);
-        return resolveWorldSettings({ userId: id, settings, districts, user });
+        return resolveEntitlements(
+          await getCrestDistricts(queryRunner.manager, id),
+        );
       }),
     userStats: async (
       source,
@@ -3745,16 +3781,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args: z.infer<typeof worldSettingsUpdateSchema>,
       ctx: AuthContext,
+      info: GraphQLResolveInfo,
     ): Promise<GQLUserWorldSettings> => {
       const patch = worldSettingsUpdateSchema.parse(args);
       const { userId } = ctx;
 
-      return ctx.con.transaction(async (manager) => {
-        const districts = await getCrestDistricts(manager, userId);
+      await ctx.con.transaction(async (manager) => {
         if (patch.crest) {
           const rejection = assertCrestEntitled({
             crest: patch.crest,
-            entitlements: resolveEntitlements(districts),
+            entitlements: resolveEntitlements(
+              await getCrestDistricts(manager, userId),
+            ),
           });
           if (rejection) {
             throw new ValidationError(rejection);
@@ -3777,15 +3815,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .getRepository(UserWorldSettings)
             .upsert({ userId, ...changes }, ['userId']);
         }
-
-        const stored = await getWorldSettings(manager, userId);
-        return resolveWorldSettings({
-          userId,
-          settings: stored,
-          districts,
-          user: stored?.name ? null : await getWorldOwner(manager, userId),
-        });
       });
+
+      // Read back through graphorm so the mutation answers in exactly the shape
+      // the query does, defaults and all, rather than assembling a second one.
+      return graphorm.queryOneOrFail<GQLUserWorldSettings>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id: userId },
+          );
+
+          return builder;
+        },
+      );
     },
     joinHackathon: async (
       _,
@@ -5394,22 +5439,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw err;
       }
     },
-  },
-  UserWorldSettings: {
-    // Lazy on purpose: rendering someone's world must not pay for the catalogue
-    // of everything they could have chosen instead. The districts are reused
-    // when the derived crest already needed them.
-    entitlements: async (
-      settings: GQLUserWorldSettings,
-      _,
-      ctx: Context,
-    ): Promise<WorldEntitlement[]> =>
-      resolveEntitlements(
-        settings.districts ??
-          (await queryReadReplica(ctx.con, ({ queryRunner }) =>
-            getCrestDistricts(queryRunner.manager, settings.userId),
-          )),
-      ),
   },
   User: {
     image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),

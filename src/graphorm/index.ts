@@ -108,6 +108,16 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
+import { defaultWorldName } from '../common/userWorld';
+import { DEFAULT_LOOK, DEFAULT_SKY } from '../common/worldStyle';
+
+/**
+ * One column off the owner's world settings row, or null when they have never
+ * customised anything. A correlated lookup on the settings primary key, so the
+ * whole type still resolves in the single query graphorm builds.
+ */
+const selectWorldSetting = (alias: string, column: string): string =>
+  `(SELECT s."${column}" FROM user_world_settings s WHERE s."userId" = "${alias}"."id")`;
 
 type PostGraphormContext = Context & {
   includeInvisiblePosts?: boolean;
@@ -2197,6 +2207,59 @@ const obj = new GraphORM({
     requiredColumns: ['userId', 'nicheId'],
     fields: {
       date: { transform: transformDate },
+    },
+  },
+  // Sourced from the USER rather than from the settings row, because the row is
+  // created lazily and a world that has never been customised still has to
+  // answer — with a name, a sky and a look it did not have to store. Reading it
+  // from the settings table would make "never opened the panel" indistinguishable
+  // from "no such world".
+  UserWorldSettings: {
+    from: 'User',
+    requiredColumns: [
+      'id',
+      // Aliased because the GraphQL `name` is the WORLD's name, not the owner's,
+      // and the field below overrides where it comes from.
+      { column: 'name', columnAs: 'ownerName' },
+      { column: 'username', columnAs: 'ownerUsername' },
+    ],
+    fields: {
+      name: {
+        select: (_, alias) => selectWorldSetting(alias, 'name'),
+        transform: (value: string | null, _ctx, parent): string => {
+          const owner = parent as {
+            ownerName?: string | null;
+            ownerUsername?: string | null;
+          };
+          return (
+            value ??
+            defaultWorldName({
+              name: owner.ownerName,
+              username: owner.ownerUsername,
+            })
+          );
+        },
+      },
+      sky: {
+        select: (_, alias) => selectWorldSetting(alias, 'sky'),
+        jsonType: true,
+        transform: (value) => value ?? DEFAULT_SKY,
+      },
+      // No default. A world with nothing behind it flies no crest, so null here
+      // is the answer rather than a gap to fill in.
+      crest: {
+        select: (_, alias) => selectWorldSetting(alias, 'crest'),
+        jsonType: true,
+      },
+      look: {
+        select: (_, alias) => selectWorldSetting(alias, 'look'),
+        jsonType: true,
+        transform: (value) => value ?? DEFAULT_LOOK,
+      },
+      private: {
+        select: (_, alias) =>
+          `COALESCE(${selectWorldSetting(alias, 'private')}, false)`,
+      },
     },
   },
   UserProfileAnalytics: {
