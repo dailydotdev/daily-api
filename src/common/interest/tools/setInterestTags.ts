@@ -32,7 +32,13 @@ export const setInterestTagsTool = ({
     }
     const savedTags = resolved.slice(0, maxTags);
     const overCap = resolved.slice(maxTags);
-    await replaceFeedTags({ con, feedId, tags: savedTags, maxTags });
-    return jsonResult({ savedTags, unknown, overCap, maxTags });
+    const current = await pipeline.findTagsForFeed();
+    const unchanged =
+      current.length === savedTags.length &&
+      savedTags.every((tag) => current.includes(tag));
+    if (!unchanged) {
+      await replaceFeedTags({ con, feedId, tags: savedTags, maxTags });
+    }
+    return jsonResult({ savedTags, unknown, overCap, maxTags, unchanged });
   },
 });

@@ -86,17 +86,9 @@ export const readCommentsTool = ({
           'c.comments AS "replyCount"',
           'u.username AS username',
           'u.reputation AS reputation',
-          'p.comments AS "postCommentCount"',
         ])
         .leftJoin(User, 'u', 'u.id = c."userId"')
-        .innerJoin(Post, 'p', 'p.id = c."postId"')
         .where('c."postId" = :postId', { postId: params.postId })
-        .andWhere('p.deleted = false')
-        .andWhere('p.banned = false')
-        .andWhere(
-          '((p.private = false AND p."showOnFeed" = true) OR p."sourceId" = :interestSourceId)',
-          { interestSourceId: interest.sourceId },
-        )
         .andWhere(`c.flags->>'vordr' IS DISTINCT FROM 'true'`)
         .andWhere(
           parentIsNull

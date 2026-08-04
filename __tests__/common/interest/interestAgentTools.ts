@@ -21,6 +21,7 @@ import { usersFixture } from '../../fixture/user';
 import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { PostType } from '../../../src/entity/posts/Post';
+import { remoteConfig } from '../../../src/remoteConfig';
 
 // The interest/tags scopes call the feed service; the source/tag scopes are
 // plain SQL and run against the real database.
@@ -84,6 +85,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  remoteConfig.vars.interestAgentMaxTags = undefined;
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -481,14 +483,31 @@ describe('set_interest_tags', () => {
         occurrences: 1,
       })),
     );
-    const { captured, maxTags } = await getTools();
+    remoteConfig.vars.interestAgentMaxTags = 2;
+    const { captured } = await getTools();
     const res = await call(captured, 'set_interest_tags', {
       tags: ['zig', 'alpha', 'beta', 'nope'],
     });
 
-    expect(res.savedTags).toHaveLength(Math.min(3, maxTags));
-    expect(res.unknown).toEqual(['nope']);
-    expect(res.overCap).not.toContain('nope');
+    expect(res).toMatchObject({
+      savedTags: ['zig', 'alpha'],
+      overCap: ['beta'],
+      unknown: ['nope'],
+      maxTags: 2,
+    });
+    const saved = await con.getRepository(FeedTag).findBy({ feedId: 'feed-1' });
+    expect(saved.map((row) => row.tag).sort()).toEqual(['alpha', 'zig']);
+  });
+
+  it('skips the write when the resolved set already matches', async () => {
+    const { captured } = await getTools();
+
+    expect(
+      await call(captured, 'set_interest_tags', { tags: ['zig'] }),
+    ).toMatchObject({ savedTags: ['zig'], unchanged: false });
+    expect(
+      await call(captured, 'set_interest_tags', { tags: ['ZIG'] }),
+    ).toMatchObject({ savedTags: ['zig'], unchanged: true });
   });
 
   it.each([[['zog', 'not-real']], [[]]])(

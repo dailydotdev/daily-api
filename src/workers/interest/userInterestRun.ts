@@ -6,6 +6,7 @@ import {
   InterestFindingStatus,
 } from '../../entity/InterestFinding';
 import { runInterestAgent } from '../../common/interest/runInterestAgent';
+import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 
 export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'> =
@@ -33,10 +34,17 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         },
       );
 
-      const newFindings = await con.getRepository(InterestFinding).find({
-        select: ['id'],
-        where: { interestId: interest.id, status: InterestFindingStatus.New },
-      });
+      const newFindings = await whereFindingDeliverable(
+        con
+          .getRepository(InterestFinding)
+          .createQueryBuilder('f')
+          .select('f.id', 'id')
+          .where('f."interestId" = :interestId', { interestId: interest.id })
+          .andWhere('f.status = :status', {
+            status: InterestFindingStatus.New,
+          }),
+        'f',
+      ).getRawMany<{ id: string }>();
 
       if (newFindings.length) {
         await con

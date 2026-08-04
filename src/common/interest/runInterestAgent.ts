@@ -9,7 +9,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import { queryReadReplica } from '../queryReadReplica';
 import { Post } from '../../entity/posts/Post';
 import { FeedTag } from '../../entity/FeedTag';
-import { getExcludedInterestSourceIds } from './exclusions';
+import {
+  deliverablePostPredicate,
+  getExcludedInterestSourceIds,
+  whereFindingDeliverable,
+} from './exclusions';
 import {
   InterestFinding,
   InterestFindingStatus,
@@ -170,7 +174,11 @@ export const createInterestAgentTools = async ({
           'p.title AS title',
           'p.slug AS slug',
         ])
-        .innerJoin(Post, 'p', 'p.id = f."postId"')
+        .innerJoin(
+          Post,
+          'p',
+          `p.id = f."postId" AND ${deliverablePostPredicate('p')}`,
+        )
         .where('f."interestId" = :interestId', { interestId: interest.id })
         .andWhere('f.status = :status', { status: InterestFindingStatus.New })
         .orderBy('f."createdAt"', 'DESC')
@@ -182,10 +190,16 @@ export const createInterestAgentTools = async ({
         }>(),
     ),
     queryReadReplica(con, ({ queryRunner }) =>
-      queryRunner.manager.getRepository(InterestFinding).countBy({
-        interestId: interest.id,
-        status: InterestFindingStatus.New,
-      }),
+      whereFindingDeliverable(
+        queryRunner.manager
+          .getRepository(InterestFinding)
+          .createQueryBuilder('f')
+          .where('f."interestId" = :interestId', { interestId: interest.id })
+          .andWhere('f.status = :status', {
+            status: InterestFindingStatus.New,
+          }),
+        'f',
+      ).getCount(),
     ),
   ]);
 

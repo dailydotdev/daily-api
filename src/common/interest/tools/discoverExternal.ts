@@ -106,7 +106,7 @@ export const discoverAndIngestExternal = async ({
       const results = await Promise.all(
         batch.map(async ({ candidate, url, canonicalUrl }) => {
           const existing = await getExistingPost(con, { url, canonicalUrl });
-          if (existing?.deleted) {
+          if (existing?.deleted || existing?.banned) {
             return null;
           }
           let articleId = existing?.id;

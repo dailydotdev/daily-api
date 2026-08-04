@@ -18,6 +18,7 @@ import { NotFoundError } from '../errors';
 import { generateShortId } from '../ids';
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { whereFindingDeliverable } from '../common/interest/exclusions';
 import { GQLEmptyResponse } from './common';
 import type { GQLPost } from './posts';
 import { PostType } from '../entity/posts/Post';
@@ -231,12 +232,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         ctx,
         info,
         (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .where(`${builder.alias}."interestId" = :id`, { id })
-            .andWhere(
-              `EXISTS (SELECT 1 FROM post p WHERE p.id = ${builder.alias}."postId" AND p.deleted = false AND p.banned = false)`,
-            )
-            .orderBy(`${builder.alias}.score`, 'DESC');
+          builder.queryBuilder = whereFindingDeliverable(
+            builder.queryBuilder.where(`${builder.alias}."interestId" = :id`, {
+              id,
+            }),
+            builder.alias,
+          ).orderBy(`${builder.alias}.score`, 'DESC');
           return builder;
         },
         true,
