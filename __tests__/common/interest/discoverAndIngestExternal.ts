@@ -19,7 +19,7 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { remoteConfig } from '../../../src/remoteConfig';
 import { discoverExternalUrls } from '../../../src/common/interest/discoverExternalUrls';
-import { discoverAndIngestExternal } from '../../../src/common/interest/runInterestAgent';
+import { discoverAndIngestExternal } from '../../../src/common/interest/tools/discoverExternal';
 
 jest.mock('../../../src/common/interest/discoverExternalUrls', () => ({
   discoverExternalUrls: jest.fn(),
@@ -87,6 +87,10 @@ describe('discoverAndIngestExternal', () => {
     });
 
     expect(result.added).toBe(1);
+    // The agent can only name and link discovered findings if these come back.
+    expect(result.ingested).toEqual([
+      { postId: result.postIds[0], title: 'A' },
+    ]);
 
     const findings = await con
       .getRepository(InterestFinding)

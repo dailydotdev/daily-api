@@ -12,6 +12,7 @@ import {
 } from './helpers';
 import { ArticlePost, Source, User } from '../src/entity';
 import { FreeformPost } from '../src/entity/posts/FreeformPost';
+import { SharePost } from '../src/entity/posts/SharePost';
 import { Feed, FeedOrigin } from '../src/entity/Feed';
 import { AgentSource, SourceType, SourceUser } from '../src/entity/Source';
 import {
@@ -295,6 +296,65 @@ describe('query interestFindings', () => {
     expect(
       res.data.interestFindings.map((f: { postId: string }) => f.postId),
     ).toEqual(['p2', 'p1']);
+  });
+
+  it('should hide findings whose post was banned or deleted after delivery', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).update({ id: 'p2' }, { banned: true });
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { deleted: true });
+
+    const res = await client.query(INTEREST_FINDINGS, {
+      variables: { id: 'uir-1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.interestFindings).toEqual([]);
+  });
+
+  it('should hide a discovery finding whose shared article was banned', async () => {
+    loggedUser = '1';
+    await con.getRepository(AgentSource).save({
+      id: 'agent-src-hop',
+      name: 'Agent',
+      handle: 'agent-src-hop',
+      private: true,
+    });
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { sourceId: 'agent-src-hop' });
+    await con.getRepository(SharePost).save({
+      id: 'share-1',
+      shortId: 'share-1',
+      sourceId: 'agent-src-hop',
+      sharedPostId: 'p1',
+      visible: true,
+    });
+    await con.getRepository(InterestFinding).save({
+      id: 'if-3',
+      interestId: 'uir-1',
+      postId: 'share-1',
+      score: 0.95,
+      status: InterestFindingStatus.Surfaced,
+    });
+
+    const before = await client.query(INTEREST_FINDINGS, {
+      variables: { id: 'uir-1' },
+    });
+    expect(
+      before.data.interestFindings.map((f: { postId: string }) => f.postId),
+    ).toContain('share-1');
+
+    // The share is untouched; only the article it wraps is banned.
+    await con.getRepository(ArticlePost).update({ id: 'p1' }, { banned: true });
+
+    const after = await client.query(INTEREST_FINDINGS, {
+      variables: { id: 'uir-1' },
+    });
+    expect(after.errors).toBeFalsy();
+    expect(
+      after.data.interestFindings.map((f: { postId: string }) => f.postId),
+    ).not.toContain('share-1');
   });
 
   it('should reject findings for a non-owner', async () => {

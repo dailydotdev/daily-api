@@ -1,22 +1,24 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AuthStorage, ModelRegistry } from '@earendil-works/pi-coding-agent';
 
 export const MODEL_PROVIDER = 'anthropic';
 
-export const createInterestAgentModel = async () => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+const AGENT_DIR = join(tmpdir(), 'interest-agent');
+
+const buildInterestAgentModel = async () => {
+  const apiKey = process.env.AGENT_ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
-      'ANTHROPIC_API_KEY is not configured for the interest agent',
+      'AGENT_ANTHROPIC_API_KEY is not configured for the interest agent',
     );
   }
 
   const modelId = process.env.INTEREST_AGENT_MODEL || 'claude-opus-4-8';
-  const agentDir = await mkdtemp(join(tmpdir(), 'interest-agent-'));
+  await mkdir(AGENT_DIR, { recursive: true });
 
-  const authStorage = AuthStorage.create(join(agentDir, 'auth.json'));
+  const authStorage = AuthStorage.create(join(AGENT_DIR, 'auth.json'));
   authStorage.setRuntimeApiKey(MODEL_PROVIDER, apiKey);
   const modelRegistry = ModelRegistry.inMemory(authStorage);
   const model =
@@ -30,5 +32,15 @@ export const createInterestAgentModel = async () => {
     );
   }
 
-  return { agentDir, authStorage, modelRegistry, model };
+  return { agentDir: AGENT_DIR, authStorage, modelRegistry, model };
+};
+
+let cachedModel: ReturnType<typeof buildInterestAgentModel> | null = null;
+
+export const createInterestAgentModel = () => {
+  if (!cachedModel) {
+    cachedModel = buildInterestAgentModel();
+  }
+
+  return cachedModel;
 };

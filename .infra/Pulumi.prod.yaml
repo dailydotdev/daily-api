@@ -277,6 +277,8 @@ config:
       secure: AAABAPNWKCkjj4VNxfW9pxPksz2srCJuBaOfvxnyIRpnb/e7fBFUBIhTJjiZa8Kf2fAOFEqh1Xpioilpy6UrW//CFVHl5EEDtn+1U2K8Ig398ZbLwCYiJcsqj3m0NVnhs5tH/SUfHyiJBexftNuyAjE9KPW1UmyIeUpB4gTUMJG876JFVYqUY7a2XJFjGJ7a4Q==
     slackContributionsWebhook:
       secure: AAABAOKNibr2AoUeSHJzmAyyNaOTqhvy/oDYDu1spT6YzFIUpPP32FbJqNJx6Y9AgoYrJksqY+H5PXMCT87RqKYyoqYXcktk4JQpGtWur8XEMAAEfLM55s3bQnF0hfmKgWQ17nk/CuF52K4ozY0rqnw=
+    agentAnthropicApiKey:
+      secure: AAABAD7VNjbWiUH2AM409j73rN9cpScghzwhC9HHiQj6j3tqQaPDbP3PS4DJwCYtjbF4XNISYhpxtBetROMyedUIj1lZd5FRcX2/JigbKzvsRG4MUJUAHVkDFdQtNHH0oh1hEy/vusonYRXVXw1t0qbH310Oc+87QzhD7Dxx0bu6ysba+b5pxBxr3EM=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

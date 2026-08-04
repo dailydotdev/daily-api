@@ -1,4 +1,3 @@
-import { In } from 'typeorm';
 import type { TypedWorker } from '../worker';
 import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import {
@@ -6,6 +5,7 @@ import {
   InterestFindingStatus,
 } from '../../entity/InterestFinding';
 import { runInterestAgent } from '../../common/interest/runInterestAgent';
+import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 
 export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'> =
@@ -29,31 +29,35 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         { id: interest.id },
         {
           lastRunAt: new Date(runAt),
-          lastRunSummary: result.summary,
+          lastRunSummary: result.agentSummary ?? interest.lastRunSummary,
         },
       );
 
-      const newFindings = await con.getRepository(InterestFinding).find({
-        select: ['id'],
-        where: { interestId: interest.id, status: InterestFindingStatus.New },
-      });
-
-      if (newFindings.length) {
-        await con
+      const deliverableCount = await whereFindingDeliverable(
+        con
           .getRepository(InterestFinding)
-          .update(
-            { id: In(newFindings.map((finding) => finding.id)) },
-            { status: InterestFindingStatus.Surfaced },
-          );
-      }
+          .createQueryBuilder('f')
+          .where('f."interestId" = :interestId', { interestId: interest.id })
+          .andWhere('f.status = :status', {
+            status: InterestFindingStatus.New,
+          }),
+        'f',
+      ).getCount();
 
-      const hasContent = newFindings.length > 0 || !!result.summaryPostId;
+      await con
+        .getRepository(InterestFinding)
+        .update(
+          { interestId: interest.id, status: InterestFindingStatus.New },
+          { status: InterestFindingStatus.Surfaced },
+        );
+
+      const hasContent = deliverableCount > 0 || !!result.summaryPostId;
 
       if (hasContent && (interest.outputModes?.notification ?? true)) {
         await triggerTypedEvent(logger, 'api.v1.interest-content-available', {
           interestId: interest.id,
           userId: interest.userId,
-          count: newFindings.length,
+          count: deliverableCount,
           runAt,
         });
       }
