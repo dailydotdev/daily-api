@@ -15,6 +15,7 @@ const ALLOWED_TYPES = new Set([
   'tags',
   'invite',
   'plus',
+  'stack',
   // The world card composes around a plate the owner's browser already
   // rendered, so this stays an ordinary DOM capture: no WebGL in the scraper.
   'world',
