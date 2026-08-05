@@ -119,9 +119,9 @@ import {
   updateSubscriptionFlags,
   isProd,
   uploadAvatar,
-  uploadFile,
   UploadPreset,
   uploadProfileCover,
+  uploadWorldPlate,
   VALID_WEEK_STARTS,
   validateWorkEmailDomain,
   voteComment,
@@ -3891,11 +3891,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       // Overwrites the previous plate rather than accumulating one asset per
       // capture: only the newest is ever served, and the version column is what
       // says whether it is current.
-      const { url } = await uploadFile(
-        userId,
-        UploadPreset.WorldPlate,
-        upload.createReadStream(),
-      );
+      const { url } = await uploadWorldPlate(userId, upload.createReadStream());
 
       await ctx.con
         .getRepository(UserWorldSettings)
