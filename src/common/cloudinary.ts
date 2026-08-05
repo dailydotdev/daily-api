@@ -17,6 +17,7 @@ export enum UploadPreset {
   Organization = 'organization',
   ToolIcon = 'tool_icon',
   WorkspacePhoto = 'workspace_photo',
+  WorldPlate = 'world_plate',
 }
 
 interface OptionalProps {

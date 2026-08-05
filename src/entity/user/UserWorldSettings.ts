@@ -70,6 +70,27 @@ export class UserWorldSettings {
   @Column({ type: 'boolean', default: false })
   private: boolean;
 
+  /**
+   * A bare render of the world — no name, no stats, no chrome — captured in the
+   * owner's own browser and uploaded. The share card is composed around it
+   * later, so this stays free of anything that would date it when the card is
+   * redesigned.
+   *
+   * It is captured client-side because the world is WebGL: rendering it server
+   * side costs a browser with software GL, several seconds and the better part
+   * of a gigabyte, while the owner's machine has already drawn it.
+   */
+  @Column({ type: 'text', nullable: true })
+  plateUrl: string | null;
+
+  /**
+   * What the plate was a picture OF: settings and district count folded into one
+   * string. A TTL would re-render millions of unchanged worlds, so staleness is
+   * decided by comparing this against the world as it stands now.
+   */
+  @Column({ type: 'text', nullable: true })
+  plateVersion: string | null;
+
   @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
