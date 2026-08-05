@@ -1712,6 +1712,75 @@ describe('query post', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
+
+    it('should return false for watercooler posts above threshold', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con.getRepository(ArticlePost).update('p1', {
+        sourceId: WATERCOOLER_ID,
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+  });
+
+  describe('smart title', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      loggedUser = '1';
+      isPlus = true;
+
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Smart title' } } },
+      });
+    });
+
+    it('should return the smart title when clickbait shield is enabled', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('Smart title');
+    });
+
+    it('should return the original title for watercooler posts', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con
+        .getRepository(ArticlePost)
+        .update('p1', { sourceId: WATERCOOLER_ID });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('P1');
+    });
   });
 
   describe('scheduled post', () => {

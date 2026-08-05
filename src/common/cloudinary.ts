@@ -118,14 +118,15 @@ export const uploadLogoFromUrl = async (
 
 export const uploadFile = (
   name: string,
-  preset: UploadPreset,
+  /** Null uploads without one: a signed upload needs no preset to succeed. */
+  preset: UploadPreset | null,
   stream: Readable,
 ): Promise<UploadResult> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
         public_id: name,
-        upload_preset: preset,
+        ...(preset && { upload_preset: preset }),
       },
       (err, callResult) => {
         if (err) {
@@ -171,6 +172,14 @@ export const uploadProfileCover: UploadFn = (userId, stream) =>
     UploadPreset.ProfileCover,
     stream,
   );
+
+/**
+ * No preset: a plate needs no transformation of its own, and a signed upload
+ * does not require one. The public id is per user, so a new capture replaces
+ * the previous plate instead of accumulating one asset per save.
+ */
+export const uploadWorldPlate: UploadFn = (userId, stream) =>
+  uploadFile(`world_plate_${userId}`, null, stream);
 
 export const uploadToolIcon: UploadFn = (toolId, stream) =>
   uploadFile(
