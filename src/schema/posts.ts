@@ -41,6 +41,7 @@ import {
   getPostTranslatedTitle,
   getTranslationRecord,
   type GQLSourcePostModeration,
+  isClickbaitShieldDisabledForSource,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
@@ -2471,16 +2472,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: Context,
     ): Promise<GQLPostSmartTitle> =>
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
-        const post: Pick<Post, 'title' | 'contentMeta' | 'translation'> =
-          await queryRunner.manager.getRepository(Post).findOneOrFail({
-            where: { id },
-            select: ['title', 'contentMeta', 'translation'],
-          });
+        const post: Pick<
+          Post,
+          'title' | 'contentMeta' | 'translation' | 'sourceId'
+        > = await queryRunner.manager.getRepository(Post).findOneOrFail({
+          where: { id },
+          select: ['title', 'contentMeta', 'translation', 'sourceId'],
+        });
 
         const translationRecord = getTranslationRecord({
           translations: post.translation,
           contentLanguage: ctx.contentLanguage,
         });
+
+        if (isClickbaitShieldDisabledForSource(post.sourceId)) {
+          return {
+            title: getPostTranslatedTitle(post, ctx.contentLanguage),
+            translation: translationRecord,
+          };
+        }
 
         if (!ctx.isPlus) {
           return {
