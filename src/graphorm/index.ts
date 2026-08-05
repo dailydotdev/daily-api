@@ -2887,6 +2887,18 @@ const obj = new GraphORM({
       createdAt: {
         transform: transformDate,
       },
+      slug: {
+        select: (_, alias) => `"${alias}"."titleNormalized"`,
+      },
+      stackCount: {
+        select: (_, alias) =>
+          `(SELECT COUNT(*) FROM user_stack us WHERE us."toolId" = "${alias}"."id")`,
+        transform: (value): number => Number(value) || 0,
+      },
+      keyword: {
+        select: (_, alias) =>
+          `(SELECT k.value FROM keyword k WHERE k.status = 'allow' AND k.value IN (regexp_replace(lower("${alias}"."title"), '[^a-z0-9]', '', 'g'), "${alias}"."titleNormalized") ORDER BY k.occurrences DESC LIMIT 1)`,
+      },
     },
   },
   SourceStack: {
