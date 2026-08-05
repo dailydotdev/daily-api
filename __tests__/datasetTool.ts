@@ -232,3 +232,48 @@ describe('query toolsAlsoStacked', () => {
     expect(res.data.toolsAlsoStacked).toEqual([]);
   });
 });
+
+describe('query toolStackers', () => {
+  const QUERY = `
+    query ToolStackers($id: ID!, $first: Int) {
+      toolStackers(id: $id, first: $first) {
+        id
+        image
+      }
+    }
+  `;
+
+  it('should return stackers ordered by reputation', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    await con.getRepository(User).update({ id: '2' }, { reputation: 100 });
+    await con
+      .getRepository(UserStack)
+      .save([stackItem('1', next.id), stackItem('2', next.id)]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: next.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolStackers.map(({ id }) => id)).toEqual(['2', '1']);
+  });
+
+  it('should respect the first argument and return empty without stackers', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    await con
+      .getRepository(UserStack)
+      .save([stackItem('1', next.id), stackItem('2', next.id)]);
+
+    const [limited, empty] = await Promise.all([
+      client.query(QUERY, {
+        variables: { id: next.id, first: 1 },
+      }),
+      client.query(QUERY, {
+        variables: { id: toolByNormalizedTitle('redis').id },
+      }),
+    ]);
+
+    expect(limited.data.toolStackers).toHaveLength(1);
+    expect(empty.data.toolStackers).toEqual([]);
+  });
+});

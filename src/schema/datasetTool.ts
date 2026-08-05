@@ -3,10 +3,13 @@ import { BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { UserStack } from '../entity/user/UserStack';
+import { User } from '../entity/user/User';
 import { normalizeTitle } from '../common/datasetTool';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
+const MAX_STACKERS = 10;
+const DEFAULT_STACKERS = 5;
 
 export const typeDefs = /* GraphQL */ `
   extend type DatasetTool {
@@ -41,6 +44,11 @@ export const typeDefs = /* GraphQL */ `
     Tools that most often appear in the same stacks as the given tool
     """
     toolsAlsoStacked(id: ID!, first: Int): [DatasetTool!]!
+
+    """
+    Users who have the tool in their stack, highest reputation first
+    """
+    toolStackers(id: ID!, first: Int): [User!]!
   }
 `;
 
@@ -99,6 +107,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .setParameter('toolId', args.id)
             .orderBy('co."cnt"', 'DESC')
             .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
+            .limit(first);
+          return builder;
+        },
+        true,
+      );
+    },
+
+    toolStackers: async (
+      _,
+      args: { id: string; first?: number },
+      ctx: Context,
+      info,
+    ): Promise<User[]> => {
+      const first = Math.min(args.first ?? DEFAULT_STACKERS, MAX_STACKERS);
+
+      return graphorm.query<User>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .innerJoin(
+              UserStack,
+              'us',
+              `us."userId" = "${builder.alias}"."id" AND us."toolId" = :toolId`,
+              { toolId: args.id },
+            )
+            .orderBy(`"${builder.alias}"."reputation"`, 'DESC')
             .limit(first);
           return builder;
         },
