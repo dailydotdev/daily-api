@@ -15,6 +15,7 @@ const ALLOWED_TYPES = new Set([
   'tags',
   'invite',
   'plus',
+  'stack',
 ]);
 
 export default async function (fastify: FastifyInstance): Promise<void> {
