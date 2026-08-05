@@ -10,10 +10,20 @@
  * losing it costs the portrait nothing; nothing else is that cheap.
  */
 
-/** Nine minus the one that followed your reading, which no longer exists. */
+/**
+ * Nine. `lilac` is the newest — the Arcane Swarm's blue-over-lilac day, read
+ * off the realm concept art, which the ramp had nothing like: orchid is a
+ * saturated magenta and blossom is pink.
+ *
+ * These paint the WORLD view and the share card. Inside a realm the realm's own
+ * light rig takes over, because its materials were painted under one specific
+ * light — so what a palette here has to do is hold six very different islands in
+ * one frame at once.
+ */
 export const SKY_PALETTES = [
   'brand',
   'clear',
+  'lilac',
   'blossom',
   'ember',
   'seaglass',
