@@ -40,6 +40,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  isClickbaitShieldDisabledForSource,
   ONE_HOUR_IN_SECONDS,
   transformDate,
 } from '../common';
@@ -302,6 +303,25 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+type ClickbaitPostColumns = {
+  sourceId?: string;
+  clickbaitProbability?: string;
+  manualClickbaitProbability?: string;
+};
+
+const hasClickbaitTitle = (post: ClickbaitPostColumns): boolean => {
+  if (isClickbaitShieldDisabledForSource(post.sourceId)) {
+    return false;
+  }
+
+  // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
+  return checkIfTitleIsClickbait(
+    post.manualClickbaitProbability !== null
+      ? post.manualClickbaitProbability
+      : post.clickbaitProbability,
+  );
+};
+
 const fallbackFailedScrapeTitle = (
   value: string | null,
   parent: unknown,
@@ -325,10 +345,8 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return fallbackFailedScrapeTitle(value, parent);
       }
 
-      const typedParent = parent as {
+      const typedParent = parent as ClickbaitPostColumns & {
         smartTitle: I18nRecord;
-        clickbaitProbability?: string;
-        manualClickbaitProbability?: string;
         translation: Partial<Record<ContentLanguage, PostTranslation>>;
         [key: string]: unknown;
       };
@@ -349,18 +367,11 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       const clickbaitShieldEnabled =
         settings?.flags?.clickbaitShieldEnabled ?? true;
 
-      // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
-      const clickbaitTitleDetected = checkIfTitleIsClickbait(
-        typedParent.manualClickbaitProbability !== null
-          ? typedParent.manualClickbaitProbability
-          : typedParent.clickbaitProbability,
-      );
-
       if (
         ctx.isPlus &&
         altValue &&
         clickbaitShieldEnabled &&
-        clickbaitTitleDetected
+        hasClickbaitTitle(typedParent)
       ) {
         return altValue;
       }
@@ -798,6 +809,7 @@ const obj = new GraphORM({
       'pinnedAt',
       'authorId',
       'scoutId',
+      'sourceId',
       'private',
       'type',
       'liveRoomId',
@@ -840,9 +852,7 @@ const obj = new GraphORM({
       },
       clickbaitTitleDetected: {
         transform: (_, ctx: Context, parent): boolean => {
-          const typedParent = parent as {
-            clickbaitProbability: string;
-            manualClickbaitProbability?: string;
+          const typedParent = parent as ClickbaitPostColumns & {
             smartTitle: I18nRecord;
             translation: Partial<Record<ContentLanguage, PostTranslation>>;
           };
@@ -852,15 +862,7 @@ const obj = new GraphORM({
             typedParent.translation,
           );
 
-          return (
-            !!altValue &&
-            // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
-            checkIfTitleIsClickbait(
-              typedParent.manualClickbaitProbability !== null
-                ? typedParent.manualClickbaitProbability
-                : typedParent.clickbaitProbability,
-            )
-          );
+          return !!altValue && hasClickbaitTitle(typedParent);
         },
       },
       read: {
