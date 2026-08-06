@@ -11,7 +11,13 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { Roles } from '../src/roles';
-import { ArticlePost, Keyword, PostKeyword, Source } from '../src/entity';
+import {
+  ArticlePost,
+  Keyword,
+  KeywordStatus,
+  PostKeyword,
+  Source,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
@@ -192,8 +198,8 @@ describe('query keyword', () => {
 
 describe('mutation allowKeyword', () => {
   const MUTATION = `
-  mutation AllowKeyword($keyword: String!, $title: String) {
-    allowKeyword(keyword: $keyword, title: $title) {
+  mutation AllowKeyword($keyword: String!, $title: String, $description: String) {
+    allowKeyword(keyword: $keyword, title: $title, description: $description) {
       _
     }
   }`;
@@ -270,6 +276,27 @@ describe('mutation allowKeyword', () => {
     });
   });
 
+  it('should persist description to flags when provided', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        keyword: 'ai-coding',
+        title: 'AI Coding',
+        description: 'Writing code with AI assistance.',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'ai-coding' });
+    expect(keyword?.status).toEqual('allow');
+    expect(keyword?.flags).toEqual({
+      title: 'AI Coding',
+      description: 'Writing code with AI assistance.',
+    });
+  });
+
   it('should leave existing flags untouched when title is omitted', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
@@ -290,6 +317,119 @@ describe('mutation allowKeyword', () => {
       title: 'Rust',
       description: 'A systems language',
     });
+  });
+});
+
+describe('mutation updateKeywordFlags', () => {
+  const MUTATION = `
+  mutation UpdateKeywordFlags($keyword: String!, $title: String, $description: String, $roadmap: String) {
+    updateKeywordFlags(keyword: $keyword, title: $title, description: $description, roadmap: $roadmap) {
+      _
+    }
+  }`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorMutationAuthorization({
+      mutation: MUTATION,
+      variables: { keyword: 'java', title: 'Java' },
+    }));
+
+  it('should update title and description without changing status', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'frontend-development',
+      occurrences: 20,
+      status: KeywordStatus.Allow,
+      flags: { title: 'Frontend Development' },
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        keyword: 'frontend-development',
+        title: 'Frontend',
+        description: 'Building user interfaces for the web.',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'frontend-development' });
+    expect(keyword?.status).toEqual('allow');
+    expect(keyword?.flags).toEqual({
+      title: 'Frontend',
+      description: 'Building user interfaces for the web.',
+    });
+  });
+
+  it('should merge into existing flags without clobbering other keys', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'llm',
+      occurrences: 20,
+      status: KeywordStatus.Allow,
+      flags: { title: 'LLM', onboarding: true },
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'llm', description: 'Large language models.' },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'llm' });
+    expect(keyword?.flags).toEqual({
+      title: 'LLM',
+      description: 'Large language models.',
+      onboarding: true,
+    });
+  });
+
+  it('should safely persist text containing quotes and apostrophes', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'frontend',
+      occurrences: 20,
+      status: KeywordStatus.Allow,
+    });
+    const description =
+      'It\'s about the "user interface" layer -- don\'t skip it.';
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'frontend', description },
+    });
+    expect(res.errors).toBeFalsy();
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'frontend' });
+    expect(keyword?.flags.description).toEqual(description);
+  });
+
+  it('should throw validation error when no flag is provided', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save({
+      value: 'rust',
+      occurrences: 20,
+      status: KeywordStatus.Allow,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { keyword: 'rust' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw not found when keyword does not exist', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: 'does-not-exist', title: 'Nope' },
+      },
+      'NOT_FOUND',
+    );
   });
 });
 

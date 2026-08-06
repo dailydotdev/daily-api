@@ -36,6 +36,7 @@ import * as opportunity from './schema/opportunity';
 import * as autocompletes from './schema/autocompletes';
 import * as profile from './schema/profile';
 import * as userStack from './schema/userStack';
+import * as datasetTool from './schema/datasetTool';
 import * as sourceStack from './schema/sourceStack';
 import * as userHotTake from './schema/userHotTake';
 import * as gear from './schema/gear';
@@ -51,6 +52,7 @@ import * as highlights from './schema/highlights';
 import * as archive from './schema/archive';
 import * as liveRooms from './schema/liveRooms';
 import * as spotlight from './schema/spotlight';
+import * as statusline from './schema/statusline';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -105,6 +107,7 @@ export const schema = urlDirective.transformer(
                 autocompletes.typeDefs,
                 profile.typeDefs,
                 userStack.typeDefs,
+                datasetTool.typeDefs,
                 sourceStack.typeDefs,
                 userHotTake.typeDefs,
                 gear.typeDefs,
@@ -120,6 +123,7 @@ export const schema = urlDirective.transformer(
                 liveRooms.typeDefs,
                 archive.typeDefs,
                 spotlight.typeDefs,
+                statusline.typeDefs,
               ],
               resolvers: traceResolvers(
                 merge(
@@ -155,6 +159,7 @@ export const schema = urlDirective.transformer(
                   autocompletes.resolvers,
                   profile.resolvers,
                   userStack.resolvers,
+                  datasetTool.resolvers,
                   sourceStack.resolvers,
                   userHotTake.resolvers,
                   gear.resolvers,
@@ -170,6 +175,7 @@ export const schema = urlDirective.transformer(
                   liveRooms.resolvers,
                   archive.resolvers,
                   spotlight.resolvers,
+                  statusline.resolvers,
                 ),
               ),
             }),

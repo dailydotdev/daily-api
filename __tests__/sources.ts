@@ -3178,6 +3178,7 @@ describe('mutation editSquad', () => {
       $isPrivate: Boolean
       $categoryId: ID
       $moderationRequired: Boolean
+      $postingMinReputation: Int
     ) {
       editSquad(
         sourceId: $sourceId
@@ -3189,6 +3190,7 @@ describe('mutation editSquad', () => {
         isPrivate: $isPrivate
         categoryId: $categoryId
         moderationRequired: $moderationRequired
+        postingMinReputation: $postingMinReputation
       ) {
         id
         category {
@@ -3237,6 +3239,128 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .findOneBy({ id: variables.sourceId });
     expect(squad?.moderationRequired).toEqual(true);
+  });
+
+  it('should set a reputation threshold for posting', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Member,
+        postingMinReputation: 250,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.postingMinReputation).toEqual(250);
+  });
+
+  it('should clear the reputation threshold when set to null', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 's1' }, { postingMinReputation: 250 });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, postingMinReputation: null },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.postingMinReputation).toBeNull();
+  });
+
+  it('should leave the reputation threshold untouched when omitted', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 's1' }, { postingMinReputation: 250 });
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.postingMinReputation).toEqual(250);
+  });
+
+  it('should not allow a negative reputation threshold', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, postingMinReputation: -1 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow moderation and a reputation threshold together', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...variables,
+          moderationRequired: true,
+          postingMinReputation: 250,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow a reputation threshold on an already moderated squad', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 's1' }, { moderationRequired: true });
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, postingMinReputation: 250 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should allow switching from moderation to a reputation threshold', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 's1' }, { moderationRequired: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        moderationRequired: false,
+        postingMinReputation: 250,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.moderationRequired).toEqual(false);
+    expect(squad?.postingMinReputation).toEqual(250);
   });
 
   it('should not authorize when not logged in', () =>

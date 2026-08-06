@@ -78,6 +78,7 @@ import {
   getScheduledPostFlags,
   validatePostScheduledAt,
 } from './postScheduling';
+import { WATERCOOLER_ID } from './feedGenerator';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -702,7 +703,7 @@ export const checkIfUserPostInSourceDirectlyOrThrow = async (
     throw new ForbiddenError('Access denied!');
   }
 
-  return canPostToSquad(source as SquadSource, squadMember);
+  return canPostToSquad(con, source as SquadSource, squadMember);
 };
 
 export const createPostIntoSourceId = async (
@@ -1239,6 +1240,12 @@ export const getPostTranslatedTitle = (
 
   return post.translation?.[contentLanguage]?.title || post.title!;
 };
+
+// Watercooler titles are casual and human-written, so rewriting them
+// misrepresents what the author actually said.
+export const isClickbaitShieldDisabledForSource = (
+  sourceId?: string | null,
+): boolean => sourceId === WATERCOOLER_ID;
 
 export const getSmartTitle = (
   contentLanguage: ContentLanguage | null,

@@ -1712,6 +1712,75 @@ describe('query post', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
+
+    it('should return false for watercooler posts above threshold', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con.getRepository(ArticlePost).update('p1', {
+        sourceId: WATERCOOLER_ID,
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+  });
+
+  describe('smart title', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      loggedUser = '1';
+      isPlus = true;
+
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Smart title' } } },
+      });
+    });
+
+    it('should return the smart title when clickbait shield is enabled', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('Smart title');
+    });
+
+    it('should return the original title for watercooler posts', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con
+        .getRepository(ArticlePost)
+        .update('p1', { sourceId: WATERCOOLER_ID });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('P1');
+    });
   });
 
   describe('scheduled post', () => {
@@ -3093,6 +3162,127 @@ describe('mutation reportPost', () => {
       postId: 'p1',
       userId: '1',
     });
+  });
+});
+
+describe('squad posting reputation gate', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
+      sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+        id
+      }
+    }
+  `;
+
+  const variables = { sourceId: 'rep', id: 'p1', commentary: 'My comment' };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 'rep',
+      name: 'Reputation Squad',
+      handle: 'reputationSquad',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: false,
+      postingMinReputation: 250,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '2',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '3',
+        sourceId: 'rep',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+      },
+    ]);
+    await con.getRepository(User).update({ id: '1' }, { reputation: 10 });
+    await con.getRepository(User).update({ id: '2' }, { reputation: 250 });
+    await con.getRepository(User).update({ id: '3' }, { reputation: 0 });
+  });
+
+  it('should block a member below the threshold', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors?.[0].message).toEqual(
+      'You need at least 250 reputation points to post in this Squad',
+    );
+  });
+
+  it('should allow a member exactly at the threshold', async () => {
+    loggedUser = '2';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+  });
+
+  it('should let moderators post regardless of their reputation', async () => {
+    loggedUser = '3';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+  });
+
+  it('should not offer the moderation queue as a fallback', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: /* GraphQL */ `
+          mutation CreateSourcePostModeration(
+            $sourceId: ID!
+            $title: String
+            $content: String
+            $type: String!
+          ) {
+            createSourcePostModeration(
+              sourceId: $sourceId
+              title: $title
+              content: $content
+              type: $type
+            ) {
+              id
+            }
+          }
+        `,
+        variables: {
+          sourceId: 'rep',
+          title: 'Title',
+          content: 'Content',
+          type: PostType.Freeform,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should ignore the gate once the threshold is cleared', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 'rep' }, { postingMinReputation: null });
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
   });
 });
 

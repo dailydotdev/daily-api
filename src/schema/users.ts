@@ -1,4 +1,22 @@
 import { emailRegex, isNullOrUndefined } from './../common/object';
+import {
+  applyWorldPrivacy,
+  canViewWorld,
+  getCrestDistricts,
+  getWorldSettings,
+} from '../common/userWorld';
+import {
+  assertCrestEntitled,
+  resolveEntitlements,
+  type WorldEntitlement,
+} from '../common/worldCatalogue';
+import {
+  worldCrestSchema,
+  worldLookSchema,
+  worldSettingsUpdateSchema,
+  worldSkySchema,
+} from '../common/schema/userWorld';
+import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
@@ -103,6 +121,7 @@ import {
   uploadAvatar,
   UploadPreset,
   uploadProfileCover,
+  uploadWorldPlate,
   VALID_WEEK_STARTS,
   validateWorkEmailDomain,
   voteComment,
@@ -160,6 +179,7 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
@@ -352,6 +372,38 @@ export interface GQLUserPersonalizedDigest {
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
 }
+
+export interface GQLNiche {
+  id: string;
+  slug: string;
+  title: string;
+  bucketGroup: string;
+}
+
+export interface GQLUserWorldDistrict {
+  niche: GQLNiche;
+  reads: number;
+  firstReadAt: Date;
+  lastReadAt: Date;
+  activeDays: number;
+}
+
+export interface GQLUserWorldGrowth {
+  date: Date;
+  niche: GQLNiche;
+  reads: number;
+}
+
+/** Served exactly as stored — the client owns every display default. */
+export type GQLUserWorldSettings = {
+  name: string | null;
+  sky: z.infer<typeof worldSkySchema> | null;
+  crest: z.infer<typeof worldCrestSchema> | null;
+  look: z.infer<typeof worldLookSchema> | null;
+  private: boolean;
+  plateUrl: string | null;
+  plateVersion: string | null;
+};
 
 export interface GQLUserProfileAnalytics {
   id: string;
@@ -1351,6 +1403,242 @@ export const typeDefs = /* GraphQL */ `
     targets: MarketingCtaTargets!
   }
 
+  """
+  A content niche — the unit a district is built around
+  """
+  type Niche {
+    """
+    Niche ID
+    """
+    id: ID!
+    """
+    Stable slug, e.g. "js_ts"
+    """
+    slug: String!
+    """
+    Display title
+    """
+    title: String!
+    """
+    Whether the niche is a stack ecosystem or a cross-stack theme
+    """
+    bucketGroup: String!
+  }
+
+  """
+  A single district of a user's personal world — one niche they have read in
+  """
+  type UserWorldDistrict {
+    """
+    The niche this district is built around
+    """
+    niche: Niche!
+    """
+    Distinct posts read in this niche
+    """
+    reads: Int!
+    """
+    When the district was founded
+    """
+    firstReadAt: DateTime!
+    """
+    Most recent read in this niche
+    """
+    lastReadAt: DateTime!
+    """
+    Days on which this district gained reads
+    """
+    activeDays: Int!
+  }
+
+  """
+  One day's growth in one district — replayed in date order it is the world
+  being built
+  """
+  type UserWorldGrowth {
+    """
+    Day the reads landed
+    """
+    date: DateTime!
+    """
+    The niche that grew
+    """
+    niche: Niche!
+    """
+    Distinct posts first read in this niche on this day
+    """
+    reads: Int!
+  }
+
+  """
+  The sky over a world. Two axes rather than a list, because two axes is what
+  makes a sky feel found instead of picked
+  """
+  type UserWorldSky {
+    """
+    Palette: brand, clear, blossom, ember, seaglass, orchid, harvest or slate
+    """
+    pal: String!
+    """
+    Where the sun sits: dawn, day, gold, dusk or night
+    """
+    hour: String!
+  }
+
+  """
+  A world's mark, assembled entirely out of the reading behind it. The charge
+  comes from monuments raised and the tinctures from districts founded; only the
+  division is free
+  """
+  type UserWorldCrest {
+    """
+    Signature of a monument the user has raised
+    """
+    charge: String!
+    """
+    How the field is cut: plain, pale, fess, bend, chevron or quarter
+    """
+    div: String!
+    """
+    Field tincture, as a 24-bit RGB integer
+    """
+    a: Int!
+    """
+    Second tincture, as a 24-bit RGB integer
+    """
+    b: Int!
+  }
+
+  """
+  Which passes a look wants running
+  """
+  type UserWorldLookFx {
+    post: Boolean!
+    bloom: Boolean!
+    outline: Boolean!
+  }
+
+  """
+  The film a world is photographed through. A preset until a knob moves, and
+  the user's own from then on
+  """
+  type UserWorldLook {
+    id: String!
+    """
+    The preset this was forked from, so reverting has somewhere to go
+    """
+    base: String!
+    """
+    Whether the knobs have been moved off the preset
+    """
+    mine: Boolean!
+    name: String!
+    ol: Float!
+    bl: Float!
+    duo: Float!
+    warm: Float!
+    sat: Float!
+    grain: Float!
+    vig: Float!
+    lift: Float!
+    duoA: Int!
+    duoB: Int!
+    ink: Int!
+    fx: UserWorldLookFx!
+  }
+
+  """
+  One thing a world may be dressed with, and why it may. Kinds are open-ended
+  on purpose — anything gated that gets added later is another kind here rather
+  than another field
+  """
+  type UserWorldEntitlement {
+    """
+    What sort of thing this is: charge, tincture, or a kind added later
+    """
+    kind: String!
+    """
+    Identifier within the kind — a charge signature, or a tincture as #rrggbb
+    """
+    id: String!
+    """
+    What granted it: "base" for things everyone has, or "niche:<slug>" when it
+    was unlocked by reading
+    """
+    source: String!
+  }
+
+  """
+  What a user has made of their own world. Every field is null until they change
+  it — the client owns the display defaults, since it has to render a world that
+  has no settings at all
+  """
+  type UserWorldSettings {
+    """
+    What the user calls the place, or null if they have never named it
+    """
+    name: String
+    sky: UserWorldSky
+    """
+    The mark this world flies, or null. Not every world has one — a crest is
+    assembled from monuments raised, so a world with nothing behind it has no
+    mark rather than a starter one
+    """
+    crest: UserWorldCrest
+    look: UserWorldLook
+    """
+    Whether the world is hidden from everyone but its owner
+    """
+    private: Boolean!
+    """
+    A bare render of the world, captured in the owner's browser. The share card
+    is composed around it, so it carries no name, stats or chrome of its own.
+    Null when the owner has not opened their world since plates existed
+    """
+    plateUrl: String
+    """
+    What the plate was a picture of, used to decide staleness without a TTL
+    """
+    plateVersion: String
+  }
+
+  input UserWorldSkyInput {
+    pal: String!
+    hour: String!
+  }
+
+  input UserWorldCrestInput {
+    charge: String!
+    div: String!
+    a: Int!
+    b: Int!
+  }
+
+  input UserWorldLookFxInput {
+    post: Boolean!
+    bloom: Boolean!
+    outline: Boolean!
+  }
+
+  input UserWorldLookInput {
+    id: String!
+    base: String!
+    mine: Boolean!
+    name: String!
+    ol: Float!
+    bl: Float!
+    duo: Float!
+    warm: Float!
+    sat: Float!
+    grain: Float!
+    vig: Float!
+    lift: Float!
+    duoA: Int!
+    duoB: Int!
+    ink: Int!
+    fx: UserWorldLookFxInput!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1360,6 +1648,28 @@ export const typeDefs = /* GraphQL */ `
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
+    """
+    Get a user's personal world, largest district first. Shareable by default;
+    empty if the owner has made their world private.
+    """
+    userWorld(id: ID!): [UserWorldDistrict!]!
+    """
+    Day-by-day growth of a user's world, oldest first. Separate from userWorld
+    because a long-tenured world runs to tens of thousands of rows. Empty if the
+    owner has made their world private.
+    """
+    userWorldTimeline(id: ID!): [UserWorldGrowth!]!
+    """
+    A user's world customisations, or null if they have never customised
+    anything. Errors with FORBIDDEN if the owner has made their world private.
+    """
+    userWorldSettings(id: ID!): UserWorldSettings
+    """
+    Everything a world may be dressed with, and what granted each one. Separate
+    from the settings because it is what an editor needs, not what displaying a
+    world needs. Errors with FORBIDDEN if the owner has made their world private.
+    """
+    userWorldEntitlements(id: ID!): [UserWorldEntitlement!]!
     """
     Get User Streak
     """
@@ -1611,6 +1921,37 @@ export const typeDefs = /* GraphQL */ `
     Sign the current user up as a daily.dev hackathon participant
     """
     joinHackathon: EmptyResponse @auth
+
+    """
+    Update the current user's world customisations. Every argument is optional:
+    an omitted one is left alone, an explicit null clears it back to the derived
+    suggestion. A crest is rejected unless its charge and tinctures have been
+    earned.
+    """
+    updateUserWorldSettings(
+      name: String
+      sky: UserWorldSkyInput
+      crest: UserWorldCrestInput
+      look: UserWorldLookInput
+      private: Boolean
+    ): UserWorldSettings @auth
+
+    """
+    Store a bare render of the caller's own world, captured in their browser.
+    Takes no id: like every world customisation, it writes the caller's row and
+    nobody else's, which is what stops a visitor from putting an arbitrary image
+    on someone else's share card.
+    """
+    uploadUserWorldPlate(
+      """
+      The render, as captured from the world canvas
+      """
+      image: Upload!
+      """
+      What the render is a picture of, echoed back on read to decide staleness
+      """
+      version: String!
+    ): UserWorldSettings @auth @rateLimit(limit: 10, duration: 3600)
 
     """
     Update user profile information
@@ -2447,6 +2788,101 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
       return res[0];
     },
+    userWorld: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldDistrict[]> =>
+      graphorm.query<GQLUserWorldDistrict>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            // userId leads the primary key, so a whole world is one range scan
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            .orderBy(`"${builder.alias}".reads`, 'DESC');
+          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
+
+          return builder;
+        },
+        true,
+      ),
+    userWorldTimeline: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldGrowth[]> =>
+      graphorm.query<GQLUserWorldGrowth>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`"${builder.alias}"."userId" = :id`, { id })
+            .andWhere(
+              `"${builder.alias}"."nicheId" NOT IN (SELECT id FROM niche WHERE slug = ANY(:hidden))`,
+              { hidden: [...SERVING_HIDDEN_NICHE_SLUGS] },
+            )
+            // oldest first: the consumer replays it forward to build the world
+            .orderBy(`"${builder.alias}".date`, 'ASC');
+          applyWorldPrivacy({ builder, ownerId: id, viewerId: ctx.userId });
+
+          return builder;
+        },
+        true,
+      ),
+    userWorldSettings: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldSettings | null> => {
+      const settings = await graphorm.queryOne<GQLUserWorldSettings>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."userId" = :id`,
+            { id },
+          );
+
+          return builder;
+        },
+        true,
+      );
+      // Null already means "never customised", so being refused has to say so
+      // out loud rather than borrow the same answer. Filtering the row out in
+      // SQL would have made the two indistinguishable.
+      if (settings?.private && ctx.userId !== id) {
+        throw new ForbiddenError('This world is private');
+      }
+
+      return settings;
+    },
+    /**
+     * Not graphorm-backed: an entitlement is not a row anywhere. It is computed
+     * by folding the user's districts through the grant tables, which is exactly
+     * the access pattern graphorm cannot express.
+     */
+    userWorldEntitlements: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<WorldEntitlement[]> =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const settings = await getWorldSettings(queryRunner.manager, id);
+        if (!canViewWorld({ viewerId: ctx.userId, ownerId: id, settings })) {
+          throw new ForbiddenError('This world is private');
+        }
+        return resolveEntitlements(
+          await getCrestDistricts(queryRunner.manager, id),
+        );
+      }),
     userStats: async (
       source,
       { id }: { id: string },
@@ -3379,6 +3815,97 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
   },
   Mutation: {
+    updateUserWorldSettings: async (
+      _,
+      args: z.infer<typeof worldSettingsUpdateSchema>,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldSettings | null> => {
+      const patch = worldSettingsUpdateSchema.parse(args);
+      const { userId } = ctx;
+
+      await ctx.con.transaction(async (manager) => {
+        if (patch.crest) {
+          const rejection = assertCrestEntitled({
+            crest: patch.crest,
+            entitlements: resolveEntitlements(
+              await getCrestDistricts(manager, userId),
+            ),
+          });
+          if (rejection) {
+            throw new ValidationError(rejection);
+          }
+        }
+
+        // Only the keys the client actually sent — an absent one must leave the
+        // stored value alone, which is not the same as being sent as null. The
+        // test is against undefined rather than key presence so that an absent
+        // argument materialised as an undefined key still counts as absent.
+        const changes = Object.fromEntries(
+          (['name', 'sky', 'crest', 'look', 'private'] as const)
+            .filter((key) => typeof patch[key] !== 'undefined')
+            .map((key) => [key, patch[key] ?? null]),
+        );
+        // An empty patch would upsert a row with nothing to update, which is
+        // both a no-op and invalid SQL.
+        if (Object.keys(changes).length) {
+          await manager
+            .getRepository(UserWorldSettings)
+            .upsert({ userId, ...changes }, ['userId']);
+        }
+      });
+
+      // Read back through graphorm so the mutation answers in exactly the shape
+      // the query does rather than assembling a second one. Null is reachable:
+      // a call that changed nothing writes no row.
+      return graphorm.queryOne<GQLUserWorldSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :id`,
+          { id: userId },
+        );
+
+        return builder;
+      });
+    },
+    uploadUserWorldPlate: async (
+      _,
+      { image, version }: { image: Promise<FileUpload>; version: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldSettings | null> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const trimmed = version?.trim();
+      if (!trimmed || trimmed.length > 128) {
+        throw new ValidationError('Invalid plate version');
+      }
+
+      const { userId } = ctx;
+      const upload = await image;
+      // Overwrites the previous plate rather than accumulating one asset per
+      // capture: only the newest is ever served, and the version column is what
+      // says whether it is current.
+      const { url } = await uploadWorldPlate(userId, upload.createReadStream());
+
+      await ctx.con
+        .getRepository(UserWorldSettings)
+        .upsert({ userId, plateUrl: url, plateVersion: trimmed }, ['userId']);
+
+      return graphorm.queryOne<GQLUserWorldSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :id`,
+          { id: userId },
+        );
+
+        return builder;
+      });
+    },
     joinHackathon: async (
       _,
       __,

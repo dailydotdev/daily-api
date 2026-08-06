@@ -40,6 +40,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  isClickbaitShieldDisabledForSource,
   ONE_HOUR_IN_SECONDS,
   transformDate,
 } from '../common';
@@ -302,6 +303,25 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+type ClickbaitPostColumns = {
+  sourceId?: string;
+  clickbaitProbability?: string;
+  manualClickbaitProbability?: string;
+};
+
+const hasClickbaitTitle = (post: ClickbaitPostColumns): boolean => {
+  if (isClickbaitShieldDisabledForSource(post.sourceId)) {
+    return false;
+  }
+
+  // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
+  return checkIfTitleIsClickbait(
+    post.manualClickbaitProbability !== null
+      ? post.manualClickbaitProbability
+      : post.clickbaitProbability,
+  );
+};
+
 const fallbackFailedScrapeTitle = (
   value: string | null,
   parent: unknown,
@@ -325,10 +345,8 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return fallbackFailedScrapeTitle(value, parent);
       }
 
-      const typedParent = parent as {
+      const typedParent = parent as ClickbaitPostColumns & {
         smartTitle: I18nRecord;
-        clickbaitProbability?: string;
-        manualClickbaitProbability?: string;
         translation: Partial<Record<ContentLanguage, PostTranslation>>;
         [key: string]: unknown;
       };
@@ -349,18 +367,11 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       const clickbaitShieldEnabled =
         settings?.flags?.clickbaitShieldEnabled ?? true;
 
-      // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
-      const clickbaitTitleDetected = checkIfTitleIsClickbait(
-        typedParent.manualClickbaitProbability !== null
-          ? typedParent.manualClickbaitProbability
-          : typedParent.clickbaitProbability,
-      );
-
       if (
         ctx.isPlus &&
         altValue &&
         clickbaitShieldEnabled &&
-        clickbaitTitleDetected
+        hasClickbaitTitle(typedParent)
       ) {
         return altValue;
       }
@@ -798,6 +809,7 @@ const obj = new GraphORM({
       'pinnedAt',
       'authorId',
       'scoutId',
+      'sourceId',
       'private',
       'type',
       'liveRoomId',
@@ -840,9 +852,7 @@ const obj = new GraphORM({
       },
       clickbaitTitleDetected: {
         transform: (_, ctx: Context, parent): boolean => {
-          const typedParent = parent as {
-            clickbaitProbability: string;
-            manualClickbaitProbability?: string;
+          const typedParent = parent as ClickbaitPostColumns & {
             smartTitle: I18nRecord;
             translation: Partial<Record<ContentLanguage, PostTranslation>>;
           };
@@ -852,15 +862,7 @@ const obj = new GraphORM({
             typedParent.translation,
           );
 
-          return (
-            !!altValue &&
-            // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
-            checkIfTitleIsClickbait(
-              typedParent.manualClickbaitProbability !== null
-                ? typedParent.manualClickbaitProbability
-                : typedParent.clickbaitProbability,
-            )
-          );
+          return !!altValue && hasClickbaitTitle(typedParent);
         },
       },
       read: {
@@ -1310,24 +1312,40 @@ const obj = new GraphORM({
       permissions: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
-            .select('array["memberPostingRank", "memberInviteRank"]')
+            .select(
+              `array["memberPostingRank", "memberInviteRank", "postingMinReputation", (SELECT u."reputation" FROM "user" u WHERE u."id" = ${alias}."userId")]`,
+            )
             .from(Source, 'postingSquad')
             .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
-        transform: (value: [number, number], ctx: Context, parent) => {
+        transform: (
+          value: [number, number, number | null, number | null],
+          ctx: Context,
+          parent,
+        ) => {
           const member = parent as SourceMember;
 
           if (!ctx.userId || member.userId !== ctx.userId) {
             return null;
           }
 
-          const [memberPostingRank, memberInviteRank] = value;
-
-          return getPermissionsForMember(member, {
+          const [
             memberPostingRank,
             memberInviteRank,
-          });
+            postingMinReputation,
+            userReputation,
+          ] = value;
+
+          return getPermissionsForMember(
+            member,
+            {
+              memberPostingRank,
+              memberInviteRank,
+              postingMinReputation,
+            },
+            userReputation,
+          );
         },
       },
       roleRank: {
@@ -2162,6 +2180,46 @@ const obj = new GraphORM({
       },
     },
   },
+  Niche: {
+    requiredColumns: ['id'],
+  },
+  // Entity-backed, so graphorm resolves the niche relation and the whole world
+  // comes back as one jsonb-aggregated query instead of a query per district.
+  UserWorldDistrict: {
+    from: 'UserNicheAnalytics',
+    // nicheId is needed for the relation join even when only slug is requested
+    requiredColumns: ['userId', 'nicheId'],
+    fields: {
+      firstReadAt: { transform: transformDate },
+      lastReadAt: { transform: transformDate },
+    },
+  },
+  UserWorldGrowth: {
+    from: 'UserNicheGrowth',
+    requiredColumns: ['userId', 'nicheId'],
+    fields: {
+      date: { transform: transformDate },
+    },
+  },
+  // Sourced from the USER rather than from the settings row, because the row is
+  // Plainly the settings row, and nothing but. Null means the owner has never
+  // customised anything — no access is a ForbiddenError rather than a null, so
+  // the two never have to be told apart from the same value.
+  //
+  // Every customisation is served exactly as stored, including as null. The
+  // client owns the display defaults: it has to render a world that has no row
+  // here at all, so a second set of defaults on this side would only be a copy
+  // that could disagree with it.
+  UserWorldSettings: {
+    // `private` drives the access check in the resolver, so it is selected even
+    // when the caller has not asked for it.
+    requiredColumns: ['userId', 'private'],
+    fields: {
+      sky: { jsonType: true },
+      crest: { jsonType: true },
+      look: { jsonType: true },
+    },
+  },
   UserProfileAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {
@@ -2828,6 +2886,18 @@ const obj = new GraphORM({
     fields: {
       createdAt: {
         transform: transformDate,
+      },
+      slug: {
+        select: (_, alias) => `"${alias}"."titleNormalized"`,
+      },
+      stackCount: {
+        select: (_, alias) =>
+          `(SELECT COUNT(*) FROM user_stack us WHERE us."toolId" = "${alias}"."id")`,
+        transform: (value): number => Number(value) || 0,
+      },
+      keyword: {
+        select: (_, alias) =>
+          `(SELECT k.value FROM keyword k WHERE k.status = 'allow' AND k.value IN (regexp_replace(lower("${alias}"."title"), '[^a-z0-9]', '', 'g'), "${alias}"."titleNormalized") ORDER BY k.occurrences DESC LIMIT 1)`,
       },
     },
   },
