@@ -14,6 +14,10 @@ import { usersFixture } from './fixture/user';
 import { UserStack } from '../src/entity/user/UserStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 import { Keyword } from '../src/entity/Keyword';
+import { Feed } from '../src/entity/Feed';
+import { HotTake } from '../src/entity/user/HotTake';
+import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -74,11 +78,13 @@ const stackItem = (
   userId: string,
   toolId: string,
   position = 0,
+  createdAt?: Date,
 ): Partial<UserStack> => ({
   userId,
   toolId,
   section: 'Primary',
   position,
+  ...(createdAt && { createdAt }),
 });
 
 describe('query datasetTool', () => {
@@ -275,5 +281,179 @@ describe('query toolStackers', () => {
 
     expect(limited.data.toolStackers).toHaveLength(1);
     expect(empty.data.toolStackers).toEqual([]);
+  });
+});
+
+describe('query toolAdoption', () => {
+  const QUERY = `
+    query ToolAdoption($id: ID!) {
+      toolAdoption(id: $id) {
+        stackCount
+        percentile
+        quarterGrowth
+        monthly {
+          count
+        }
+      }
+    }
+  `;
+
+  it('should return adoption stats with percentile and growth', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    const react = toolByNormalizedTitle('react');
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    await con
+      .getRepository(UserStack)
+      .save([
+        stackItem('1', next.id, 0, sixMonthsAgo),
+        stackItem('2', next.id),
+        stackItem('3', react.id),
+      ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: next.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolAdoption).toMatchObject({
+      stackCount: 2,
+      // react has fewer stacks than next: 1 of 2 stacked tools below
+      percentile: 0.5,
+      // one recent addition against a base of one older item
+      quarterGrowth: 100,
+    });
+    expect(res.data.toolAdoption.monthly).toHaveLength(2);
+  });
+
+  it('should return null growth and percentile without history', async () => {
+    const redis = toolByNormalizedTitle('redis');
+    await con.getRepository(UserStack).save([stackItem('3', redis.id)]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: redis.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolAdoption).toMatchObject({
+      stackCount: 1,
+      percentile: 0,
+      quarterGrowth: null,
+    });
+  });
+});
+
+describe('query toolStackersFollowing', () => {
+  const QUERY = `
+    query ToolStackersFollowing($id: ID!) {
+      toolStackersFollowing(id: $id) {
+        id
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should only return stackers the viewer follows', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      referenceId: '2',
+      referenceUserId: '2',
+      feedId: '1',
+      status: ContentPreferenceStatus.Follow,
+    });
+    await con
+      .getRepository(UserStack)
+      .save([stackItem('2', next.id), stackItem('3', next.id)]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: next.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolStackersFollowing).toEqual([{ id: '2' }]);
+  });
+});
+
+describe('query toolTakes', () => {
+  const QUERY = `
+    query ToolTakes($id: ID!) {
+      toolTakes(id: $id) {
+        title
+        upvotes
+      }
+    }
+  `;
+
+  it('should return takes mentioning the tool ordered by upvotes', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    await con.getRepository(HotTake).save([
+      {
+        userId: '1',
+        emoji: '🔥',
+        title: 'Next.js app router finally clicked for me',
+        position: 0,
+        upvotes: 3,
+      },
+      {
+        userId: '2',
+        emoji: '⚡',
+        title: 'Pin your versions, Next.js ships fast',
+        position: 0,
+        upvotes: 7,
+      },
+      {
+        userId: '3',
+        emoji: '🧠',
+        title: 'nextjs without the dot does not match',
+        position: 0,
+        upvotes: 10,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: next.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolTakes).toEqual([
+      { title: 'Pin your versions, Next.js ships fast', upvotes: 7 },
+      { title: 'Next.js app router finally clicked for me', upvotes: 3 },
+    ]);
+  });
+
+  it('should skip short tool titles to avoid noisy matches', async () => {
+    const go = await con.getRepository(DatasetTool).save({
+      title: 'Go',
+      titleNormalized: 'go',
+      faviconSource: 'none',
+    });
+    await con.getRepository(HotTake).save({
+      userId: '1',
+      emoji: '🐹',
+      title: 'Go is the best language',
+      position: 0,
+      upvotes: 5,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { id: go.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolTakes).toEqual([]);
   });
 });
