@@ -4,6 +4,7 @@ import type {
   ArticlePost,
   CollectionPost,
   Post,
+  PostAnsweredQuestion,
   PostContentQuality,
   PostType,
   SocialTwitterPost,
@@ -70,6 +71,7 @@ export type Data = {
     };
   };
   content_quality?: PostContentQuality;
+  answered_questions?: PostAnsweredQuestion[];
 };
 
 export type FixedData = Partial<ArticlePost> &
