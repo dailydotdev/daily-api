@@ -73,7 +73,7 @@ export const crons: Cron[] = [
   },
   {
     name: 'refresh-tool-stack-stats',
-    schedule: '45 * * * *',
+    schedule: '45 */6 * * *',
   },
   {
     name: 'daily-digest',
