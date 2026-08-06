@@ -87,6 +87,9 @@ const stackItem = (
   ...(createdAt && { createdAt }),
 });
 
+const refreshToolStats = () =>
+  con.query('REFRESH MATERIALIZED VIEW tool_stack_stats');
+
 describe('query datasetTool', () => {
   const QUERY = `
     query DatasetTool($slug: String!) {
@@ -311,6 +314,7 @@ describe('query toolAdoption', () => {
         stackItem('2', next.id),
         stackItem('3', react.id),
       ]);
+    await refreshToolStats();
 
     const res = await client.query(QUERY, {
       variables: { id: next.id },
@@ -330,6 +334,7 @@ describe('query toolAdoption', () => {
   it('should return null growth and percentile without history', async () => {
     const redis = toolByNormalizedTitle('redis');
     await con.getRepository(UserStack).save([stackItem('3', redis.id)]);
+    await refreshToolStats();
 
     const res = await client.query(QUERY, {
       variables: { id: redis.id },
@@ -495,6 +500,7 @@ describe('query topTools', () => {
       // redis: 1 recent stack
       stackItem('3', redis.id),
     ]);
+    await refreshToolStats();
   });
 
   it('should order by total stacks and support category filter', async () => {
@@ -554,6 +560,7 @@ describe('query toolCategories', () => {
         stackItem('2', redis.id),
         stackItem('1', next.id),
       ]);
+    await refreshToolStats();
 
     const res = await client.query(QUERY, { variables: {} });
 

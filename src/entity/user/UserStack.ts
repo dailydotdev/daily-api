@@ -11,6 +11,7 @@ import type { DatasetTool } from '../dataset/DatasetTool';
 
 @Entity()
 @Index('IDX_user_stack_user_id', ['userId'])
+@Index('IDX_user_stack_tool_id', ['toolId'])
 export class UserStack {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_user_stack_id',

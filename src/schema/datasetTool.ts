@@ -12,6 +12,7 @@ import {
 } from '../entity/contentPreference/types';
 import { normalizeTitle } from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { ToolStackStats } from '../entity/ToolStackStats';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
@@ -262,16 +263,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
     toolAdoption: async (_, args: { id: string }, ctx: Context) =>
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
-        const repo = queryRunner.manager.getRepository(UserStack);
-        const stackCount = await repo.count({ where: { toolId: args.id } });
+        const statsRepo = queryRunner.manager.getRepository(ToolStackStats);
+        const stats = await statsRepo.findOneBy({ toolId: args.id });
+        const stackCount = Number(stats?.stackCount) || 0;
+        const recentCount = Number(stats?.recentCount) || 0;
 
-        const [recentCount, monthlyRaw, totalsRaw] = await Promise.all([
-          repo
-            .createQueryBuilder('us')
-            .where('us."toolId" = :id', { id: args.id })
-            .andWhere(`us."createdAt" >= now() - interval '90 days'`)
-            .getCount(),
-          repo
+        const [monthlyRaw, totalsRaw] = await Promise.all([
+          queryRunner.manager
+            .getRepository(UserStack)
             .createQueryBuilder('us')
             .select(`date_trunc('month', us."createdAt")`, 'date')
             .addSelect('COUNT(*)', 'count')
@@ -280,19 +279,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .groupBy(`date_trunc('month', us."createdAt")`)
             .orderBy(`date_trunc('month', us."createdAt")`, 'ASC')
             .getRawMany<{ date: Date; count: string }>(),
-          queryRunner.manager
-            .createQueryBuilder()
+          statsRepo
+            .createQueryBuilder('t')
             .select('COUNT(*)', 'total')
-            .addSelect('COUNT(*) FILTER (WHERE t."cnt" < :my)', 'lower')
-            .from(
-              (qb) =>
-                qb
-                  .select('us."toolId"', 'toolId')
-                  .addSelect('COUNT(*)', 'cnt')
-                  .from(UserStack, 'us')
-                  .groupBy('us."toolId"'),
-              't',
-            )
+            .addSelect('COUNT(*) FILTER (WHERE t."stackCount" < :my)', 'lower')
             .setParameter('my', stackCount)
             .getRawOne<{ total: string; lower: string }>(),
         ]);
@@ -302,7 +292,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         return {
           stackCount,
-          percentile: total > 0 ? Number(totalsRaw?.lower) / total : null,
+          percentile:
+            total > 0 && stackCount > 0
+              ? Number(totalsRaw?.lower) / total
+              : null,
           quarterGrowth:
             growthBase > 0 ? (recentCount / growthBase) * 100 : null,
           monthly: monthlyRaw.map((row) => ({
@@ -356,32 +349,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ): Promise<DatasetTool[]> => {
       const first = Math.min(args.first ?? DEFAULT_TOP_TOOLS, MAX_TOP_TOOLS);
 
+      const rankColumn = args.trending ? 'recentCount' : 'stackCount';
+
       return graphorm.query<DatasetTool>(
         ctx,
         info,
         (builder) => {
           builder.queryBuilder
             .innerJoin(
-              (qb) => {
-                const counts = qb
-                  .select('us."toolId"', 'toolId')
-                  .addSelect('COUNT(*)', 'cnt')
-                  .from(UserStack, 'us')
-                  .groupBy('us."toolId"');
-                if (args.trending) {
-                  counts.where(`us."createdAt" >= now() - interval '90 days'`);
-                }
-                return counts;
-              },
+              ToolStackStats,
               'top',
               `top."toolId" = "${builder.alias}"."id"`,
             )
-            .orderBy('top."cnt"', 'DESC')
+            .where(`top."${rankColumn}" > 0`)
+            .orderBy(`top."${rankColumn}"`, 'DESC')
             .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
             .limit(first);
 
           if (args.category) {
-            builder.queryBuilder.where(
+            builder.queryBuilder.andWhere(
               `"${builder.alias}"."category" = :category`,
               { category: args.category },
             );
@@ -399,8 +385,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .createQueryBuilder('dt')
           .select('dt."category"', 'category')
           .addSelect('COUNT(DISTINCT dt."id")', 'toolCount')
-          .addSelect('COUNT(us."id")', 'stacks')
-          .leftJoin(UserStack, 'us', 'us."toolId" = dt."id"')
+          .addSelect('COALESCE(SUM(t."stackCount"), 0)', 'stacks')
+          .leftJoin(ToolStackStats, 't', 't."toolId" = dt."id"')
           .where('dt."category" IS NOT NULL')
           .groupBy('dt."category"')
           .orderBy('"stacks"', 'DESC')
