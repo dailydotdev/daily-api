@@ -99,6 +99,7 @@ const CLIENT_TRACKABLE_QUEST_EVENT_TYPES = new Set<QuestEventType>([
   QuestEventType.VisitDiscussionsPage,
   QuestEventType.VisitReadItLaterPage,
   QuestEventType.VisitWatercoolerFeed,
+  QuestEventType.VisitUserWorld,
   QuestEventType.ViewUserProfile,
 ]);
 
@@ -718,6 +719,7 @@ export const typeDefs = /* GraphQL */ `
     visit_discussions_page
     visit_read_it_later_page
     visit_watercooler_feed
+    visit_user_world
     view_user_profile
   }
 

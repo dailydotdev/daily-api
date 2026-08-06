@@ -17,6 +17,11 @@ import {
   worldSkySchema,
 } from '../common/schema/userWorld';
 import { UserWorldSettings } from '../entity/user/UserWorldSettings';
+import {
+  AchievementEventType,
+  checkAchievementProgress,
+} from '../common/achievement';
+
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
@@ -3854,6 +3859,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             .upsert({ userId, ...changes }, ['userId']);
         }
       });
+
+      // Only the dressing counts as having set the place up — flipping it
+      // private is a visibility choice, not an act of making it yours.
+      if (
+        (['name', 'sky', 'crest', 'look'] as const).some(
+          (key) => !isNullOrUndefined(patch[key]),
+        )
+      ) {
+        await checkAchievementProgress(
+          ctx.con,
+          ctx.log,
+          userId,
+          AchievementEventType.WorldSetup,
+        );
+      }
 
       // Read back through graphorm so the mutation answers in exactly the shape
       // the query does rather than assembling a second one. Null is reachable:
