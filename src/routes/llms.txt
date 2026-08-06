@@ -30,7 +30,7 @@ Content-Type: application/json
 {"email": "you@example.com", "password": "..."}
 ```
 
-No token needed. The endpoint is in preview — its response tells you whether the account could be created and, if not, where a human can finish the job. Passwords are never stored.
+No token needed — this is the endpoint to call when you don't have one yet. Passwords are never stored. Once you have an account, create a Personal Access Token at https://daily.dev/settings/api.
 
 ## Base URL
 

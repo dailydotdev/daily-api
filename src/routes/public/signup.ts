@@ -28,6 +28,10 @@ const logAttempt = ({ req }: { req: FastifyRequest }): void => {
   // `info` on a non-error path is deliberate: the log line is the entire
   // product of this endpoint. It measures whether agents that read
   // llms.txt actually attempt a programmatic signup, and which ones.
+  //
+  // The shared logger rather than `req.log`: Fastify's per-request child
+  // does not inherit a spy installed on the app logger, so `req.log` can
+  // never be asserted on in a test.
   logger.info(
     {
       event: 'agent_signup_attempt',
