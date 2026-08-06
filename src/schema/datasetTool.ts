@@ -10,9 +10,21 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
+import { ForbiddenError } from 'apollo-server-errors';
 import { normalizeTitle } from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { ToolStackStats } from '../entity/ToolStackStats';
+import { ToolVote } from '../entity/ToolVote';
+import { ToolComment } from '../entity/ToolComment';
+import { UserVote } from '../types';
+import { Roles } from '../roles';
+import { markdown } from '../common/markdown';
+import {
+  voteToolSchema,
+  commentOnToolSchema,
+} from '../common/schema/toolDiscussion';
+import { offsetPageGenerator, GQLEmptyResponse } from './common';
+import { NotFoundError } from '../errors';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
@@ -55,6 +67,40 @@ export const typeDefs = /* GraphQL */ `
     Allowed content keyword matching this tool, if any
     """
     keyword: String
+
+    """
+    Number of upvotes on the tool
+    """
+    upvotes: Int!
+
+    """
+    Number of downvotes on the tool
+    """
+    downvotes: Int!
+
+    """
+    The viewer's vote on the tool (1, 0, -1)
+    """
+    userVote: Int
+  }
+
+  type ToolComment {
+    id: ID!
+    content: String!
+    contentHtml: String!
+    createdAt: DateTime!
+    user: User
+    replies: [ToolComment!]
+  }
+
+  type ToolCommentEdge {
+    node: ToolComment!
+    cursor: String!
+  }
+
+  type ToolCommentConnection {
+    pageInfo: PageInfo!
+    edges: [ToolCommentEdge!]!
   }
 
   extend type Query {
@@ -97,6 +143,28 @@ export const typeDefs = /* GraphQL */ `
     Curated tool categories ordered by total stack presence
     """
     toolCategories: [ToolCategoryStat!]!
+
+    """
+    Top-level comments on a tool, newest first
+    """
+    toolComments(id: ID!, first: Int, after: String): ToolCommentConnection!
+  }
+
+  extend type Mutation {
+    """
+    Vote on a tool (1 up, -1 down, 0 to clear)
+    """
+    voteTool(id: ID!, vote: Int!): EmptyResponse! @auth
+
+    """
+    Comment on a tool; parentId allows one level of replies
+    """
+    commentOnTool(id: ID!, content: String!, parentId: ID): ToolComment! @auth
+
+    """
+    Delete an own comment (moderators can delete any)
+    """
+    deleteToolComment(id: ID!): EmptyResponse! @auth
   }
 
   type ToolCategoryStat {
@@ -397,5 +465,135 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           toolCount: Number(row.toolCount),
         }));
       }),
+
+    toolComments: async (
+      _,
+      args: { id: string; first?: number; after?: string },
+      ctx: Context,
+      info,
+    ) => {
+      const pageGenerator = offsetPageGenerator<ToolComment>(20, 50);
+      const page = pageGenerator.connArgsToPage({
+        first: args.first,
+        after: args.after,
+      });
+
+      return graphorm.queryPaginated<ToolComment>(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          pageGenerator.nodeToCursor(page, { first: args.first }, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."toolId" = :toolId`, {
+              toolId: args.id,
+            })
+            .andWhere(`"${builder.alias}"."parentId" IS NULL`)
+            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+  },
+
+  Mutation: {
+    voteTool: async (
+      _,
+      args: { id: string; vote: number },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, vote } = voteToolSchema.parse(args);
+
+      const tool = await ctx.con.getRepository(DatasetTool).findOneBy({ id });
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+
+      if (vote === UserVote.None) {
+        await ctx.con
+          .getRepository(ToolVote)
+          .delete({ userId: ctx.userId, toolId: id });
+      } else {
+        await ctx.con
+          .getRepository(ToolVote)
+          .upsert(
+            { userId: ctx.userId, toolId: id, vote },
+            { conflictPaths: ['userId', 'toolId'] },
+          );
+      }
+
+      return { _: true };
+    },
+
+    commentOnTool: async (
+      _,
+      args: { id: string; content: string; parentId?: string },
+      ctx: AuthContext,
+      info,
+    ) => {
+      const input = commentOnToolSchema.parse(args);
+
+      const tool = await ctx.con
+        .getRepository(DatasetTool)
+        .findOneBy({ id: input.id });
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+
+      if (input.parentId) {
+        const parent = await ctx.con
+          .getRepository(ToolComment)
+          .findOneBy({ id: input.parentId });
+        if (!parent || parent.toolId !== input.id) {
+          throw new NotFoundError('Parent comment not found');
+        }
+        if (parent.parentId) {
+          throw new ForbiddenError('Cannot reply to a reply');
+        }
+      }
+
+      const comment = await ctx.con.getRepository(ToolComment).save({
+        toolId: input.id,
+        userId: ctx.userId,
+        content: input.content,
+        contentHtml: markdown.render(input.content),
+        parentId: input.parentId ?? null,
+      });
+
+      return graphorm.queryOneOrFail(ctx, info, (builder) => {
+        builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+          id: comment.id,
+        });
+        return builder;
+      });
+    },
+
+    deleteToolComment: async (
+      _,
+      args: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const comment = await ctx.con
+        .getRepository(ToolComment)
+        .findOneBy({ id: args.id });
+      if (!comment) {
+        throw new NotFoundError('Comment not found');
+      }
+
+      const isModerator = ctx.roles?.includes(Roles.Moderator);
+      if (comment.userId !== ctx.userId && !isModerator) {
+        throw new ForbiddenError("Cannot delete someone else's comment");
+      }
+
+      await ctx.con.getRepository(ToolComment).delete({ id: args.id });
+
+      return { _: true };
+    },
   },
 };

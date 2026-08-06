@@ -2899,6 +2899,46 @@ const obj = new GraphORM({
         select: (_, alias) =>
           `(SELECT k.value FROM keyword k WHERE k.status = 'allow' AND k.value IN (regexp_replace(lower("${alias}"."title"), '[^a-z0-9]', '', 'g'), "${alias}"."titleNormalized") ORDER BY k.occurrences DESC LIMIT 1)`,
       },
+      upvotes: {
+        select: (_, alias) =>
+          `(SELECT COUNT(*) FROM tool_vote tv WHERE tv."toolId" = "${alias}"."id" AND tv."vote" = 1)`,
+        transform: (value): number => Number(value) || 0,
+      },
+      downvotes: {
+        select: (_, alias) =>
+          `(SELECT COUNT(*) FROM tool_vote tv WHERE tv."toolId" = "${alias}"."id" AND tv."vote" = -1)`,
+        transform: (value): number => Number(value) || 0,
+      },
+      userVote: {
+        select: (ctx, alias, qb) =>
+          `(${qb
+            .select('tv."vote"')
+            .from('tool_vote', 'tv')
+            .where(`tv."userId" = :toolVoteUserId`, {
+              toolVoteUserId: ctx.userId,
+            })
+            .andWhere(`tv."toolId" = "${alias}"."id"`)
+            .limit(1)
+            .getQuery()})`,
+        transform: nullIfNotLoggedIn,
+      },
+    },
+  },
+  ToolComment: {
+    requiredColumns: ['id', 'toolId', 'userId', 'parentId', 'createdAt'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      replies: {
+        relation: {
+          isMany: true,
+          childColumn: 'parentId',
+          parentColumn: 'id',
+          order: 'ASC',
+          sort: 'createdAt',
+        },
+      },
     },
   },
   SourceStack: {

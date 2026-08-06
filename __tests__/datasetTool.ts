@@ -7,6 +7,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import { User } from '../src/entity/user/User';
@@ -14,6 +15,8 @@ import { usersFixture } from './fixture/user';
 import { UserStack } from '../src/entity/user/UserStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 import { Keyword } from '../src/entity/Keyword';
+import { ToolVote } from '../src/entity/ToolVote';
+import { ToolComment } from '../src/entity/ToolComment';
 import { Feed } from '../src/entity/Feed';
 import { HotTake } from '../src/entity/user/HotTake';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
@@ -569,5 +572,262 @@ describe('query toolCategories', () => {
       { category: 'Databases', toolCount: 1 },
       { category: 'Frameworks', toolCount: 1 },
     ]);
+  });
+});
+
+describe('mutation voteTool', () => {
+  const MUTATION = `
+    mutation VoteTool($id: ID!, $vote: Int!) {
+      voteTool(id: $id, vote: $vote) {
+        _
+      }
+    }
+  `;
+
+  const TOOL_QUERY = `
+    query DatasetTool($slug: String!) {
+      datasetTool(slug: $slug) {
+        upvotes
+        downvotes
+        userVote
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000', vote: 1 },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should fail on unknown tool', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000', vote: 1 },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should upvote, change vote and clear it', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const up = await client.mutate(MUTATION, {
+      variables: { id: next.id, vote: 1 },
+    });
+    expect(up.errors).toBeFalsy();
+
+    let res = await client.query(TOOL_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 1,
+      downvotes: 0,
+      userVote: 1,
+    });
+
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: -1 } });
+    res = await client.query(TOOL_QUERY, { variables: { slug: 'nextdotjs' } });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 0,
+      downvotes: 1,
+      userVote: -1,
+    });
+
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: 0 } });
+    res = await client.query(TOOL_QUERY, { variables: { slug: 'nextdotjs' } });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null,
+    });
+    expect(
+      await con
+        .getRepository(ToolVote)
+        .countBy({ userId: '1', toolId: next.id }),
+    ).toEqual(0);
+  });
+
+  it('should return null userVote for anonymous viewers', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: 1 } });
+
+    loggedUser = null;
+    const res = await client.query(TOOL_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 1,
+      downvotes: 0,
+      userVote: null,
+    });
+  });
+});
+
+describe('tool comments', () => {
+  const COMMENT_MUTATION = `
+    mutation CommentOnTool($id: ID!, $content: String!, $parentId: ID) {
+      commentOnTool(id: $id, content: $content, parentId: $parentId) {
+        id
+        content
+        contentHtml
+        user {
+          id
+        }
+      }
+    }
+  `;
+
+  const COMMENTS_QUERY = `
+    query ToolComments($id: ID!) {
+      toolComments(id: $id) {
+        edges {
+          node {
+            id
+            content
+            replies {
+              content
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const DELETE_MUTATION = `
+    mutation DeleteToolComment($id: ID!) {
+      deleteToolComment(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication to comment', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: COMMENT_MUTATION,
+        variables: {
+          id: '00000000-0000-0000-0000-000000000000',
+          content: 'hi',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should create a comment with rendered markdown', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const res = await client.mutate(COMMENT_MUTATION, {
+      variables: { id: next.id, content: 'Great **framework**' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentOnTool).toMatchObject({
+      content: 'Great **framework**',
+      user: { id: '1' },
+    });
+    expect(res.data.commentOnTool.contentHtml).toContain(
+      '<strong>framework</strong>',
+    );
+  });
+
+  it('should thread one level of replies and list newest first', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const first = await client.mutate(COMMENT_MUTATION, {
+      variables: { id: next.id, content: 'first comment' },
+    });
+    loggedUser = '2';
+    await client.mutate(COMMENT_MUTATION, {
+      variables: {
+        id: next.id,
+        content: 'a reply',
+        parentId: first.data.commentOnTool.id,
+      },
+    });
+    await client.mutate(COMMENT_MUTATION, {
+      variables: { id: next.id, content: 'second comment' },
+    });
+
+    const res = await client.query(COMMENTS_QUERY, {
+      variables: { id: next.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.toolComments.edges.map(({ node }) => ({
+        content: node.content,
+        replies: node.replies?.map((reply) => reply.content) ?? [],
+      })),
+    ).toEqual([
+      { content: 'second comment', replies: [] },
+      { content: 'first comment', replies: ['a reply'] },
+    ]);
+  });
+
+  it('should reject replying to a reply', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const top = await client.mutate(COMMENT_MUTATION, {
+      variables: { id: next.id, content: 'top' },
+    });
+    const reply = await client.mutate(COMMENT_MUTATION, {
+      variables: {
+        id: next.id,
+        content: 'reply',
+        parentId: top.data.commentOnTool.id,
+      },
+    });
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: COMMENT_MUTATION,
+        variables: {
+          id: next.id,
+          content: 'nested',
+          parentId: reply.data.commentOnTool.id,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should only allow deleting own comments', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+    const comment = await client.mutate(COMMENT_MUTATION, {
+      variables: { id: next.id, content: 'mine' },
+    });
+    const commentId = comment.data.commentOnTool.id;
+
+    loggedUser = '2';
+    await testMutationErrorCode(
+      client,
+      { mutation: DELETE_MUTATION, variables: { id: commentId } },
+      'FORBIDDEN',
+    );
+
+    loggedUser = '1';
+    const res = await client.mutate(DELETE_MUTATION, {
+      variables: { id: commentId },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(ToolComment).countBy({ id: commentId }),
+    ).toEqual(0);
   });
 });

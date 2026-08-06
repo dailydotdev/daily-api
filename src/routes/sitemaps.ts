@@ -10,6 +10,8 @@ import {
   User,
 } from '../entity';
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
+import { ToolStackStats } from '../entity/ToolStackStats';
 import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl, MIN_INDEXABLE_REPUTATION } from '../common/users';
@@ -85,6 +87,9 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
 
 const getTagSitemapUrl = (prefix: string, value: string): string =>
   `${prefix}/tags/${encodeURIComponent(value)}`;
+
+const getToolSitemapUrl = (prefix: string, slug?: string): string =>
+  slug ? `${prefix}/tools/${encodeURIComponent(slug)}` : `${prefix}/tools`;
 
 const getSourceSitemapUrl = (prefix: string, handle: string): string =>
   `${prefix}/sources/${encodeURIComponent(handle)}`;
@@ -356,6 +361,23 @@ const buildTagsSitemapQuery = (
     .from(Keyword, 'k')
     .where('k.status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
+    .limit(DEFAULT_SITEMAP_LIMIT);
+
+const MIN_SITEMAP_TOOL_STACKS = 3;
+
+const buildToolsSitemapQuery = (
+  source: DataSource | EntityManager,
+): SelectQueryBuilder<DatasetTool> =>
+  source
+    .createQueryBuilder()
+    .select('dt."titleNormalized"', 'slug')
+    .addSelect('dt."updatedAt"', 'lastmod')
+    .from(DatasetTool, 'dt')
+    .innerJoin(ToolStackStats, 't', 't."toolId" = dt."id"')
+    .where('t."stackCount" >= :minStacks', {
+      minStacks: MIN_SITEMAP_TOOL_STACKS,
+    })
+    .orderBy('slug', 'ASC')
     .limit(DEFAULT_SITEMAP_LIMIT);
 
 const buildSourcesSitemapQuery = (
@@ -674,6 +696,43 @@ const buildHighlightsSitemapXml = async (con: DataSource): Promise<string> => {
   }
 };
 
+const buildToolsSitemapXml = async (con: DataSource): Promise<string> => {
+  const prefix = getSitemapUrlPrefix();
+  const queryRunner = con.createQueryRunner('slave');
+
+  try {
+    const rows = await buildToolsSitemapQuery(queryRunner.manager).getRawMany<{
+      slug: string;
+      lastmod?: string | Date | null;
+    }>();
+
+    const toolEntries = rows.map((row) => ({
+      url: getToolSitemapUrl(prefix, row.slug),
+      lastmod: getSitemapRowLastmod(row),
+    }));
+    const rootLastmod = toolEntries.reduce<string | undefined>(
+      (latest, entry) => {
+        if (!entry.lastmod) {
+          return latest;
+        }
+
+        return !latest || entry.lastmod > latest ? entry.lastmod : latest;
+      },
+      undefined,
+    );
+
+    return getSitemapUrlSetXml([
+      {
+        url: getToolSitemapUrl(prefix),
+        lastmod: rootLastmod,
+      },
+      ...toolEntries,
+    ]);
+  } finally {
+    await queryRunner.release();
+  }
+};
+
 const getSitemapIndexXml = (
   postsSitemapCount: number,
   evergreenSitemapCount: number,
@@ -707,6 +766,9 @@ ${evergreenSitemaps}
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/tags.xml`)}</loc>
+  </sitemap>
+  <sitemap>
+    <loc>${escapeXml(`${prefix}/api/sitemaps/tools.xml`)}</loc>
   </sitemap>
   <sitemap>
     <loc>${escapeXml(`${prefix}/api/sitemaps/sources.xml`)}</loc>
@@ -884,6 +946,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           getTagSitemapUrl(prefix, row.value),
         ),
       );
+  });
+
+  fastify.get('/tools.xml', async (_, res) => {
+    const con = await createOrGetConnection();
+
+    return res
+      .type('application/xml')
+      .header('cache-control', SITEMAP_CACHE_CONTROL)
+      .send(await buildToolsSitemapXml(con));
   });
 
   fastify.get('/sources.xml', async (_, res) => {
