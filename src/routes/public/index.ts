@@ -14,6 +14,7 @@ import stackRoutes from './stack';
 import experiencesRoutes from './experiences';
 import tagsRoutes from './tags';
 import recommendRoutes from './recommend';
+import signupRoutes from './signup';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 import {
@@ -28,6 +29,16 @@ const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
 
 const SKILL_MD_URL =
   'https://raw.githubusercontent.com/dailydotdev/daily/master/.claude-plugin/plugins/daily.dev/skills/daily.dev/SKILL.md';
+
+// Routes that must answer without a Personal Access Token. `skill.md` is
+// how an agent learns the API exists; `signup` is where it asks for the
+// credentials it doesn't have yet — requiring a token on either would be
+// circular. Fastify registers a prefixed `/` route at both `/signup` and
+// `/signup/`, so the lookup key is normalised below.
+const UNAUTHENTICATED_PATHS = new Set([
+  `${PUBLIC_API_PREFIX}/skill.md`,
+  `${PUBLIC_API_PREFIX}/signup`,
+]);
 
 const tokenAuthHook = async (
   request: FastifyRequest,
@@ -164,11 +175,13 @@ export default async function (
 
   // Auth hook runs after IP rate limiting
   fastify.addHook('onRequest', async (request, reply) => {
-    // Skip auth for documentation endpoints and skill.md
-    // request.url includes the full path with prefix
+    // Skip auth for documentation endpoints, skill.md and signup.
+    // request.url includes the full path with prefix, plus any query
+    // string and trailing slash — strip both before matching.
+    const pathname = request.url.split('?')[0].replace(/\/+$/, '');
     if (
-      request.url.startsWith(`${PUBLIC_API_PREFIX}/docs`) ||
-      request.url === `${PUBLIC_API_PREFIX}/skill.md`
+      pathname.startsWith(`${PUBLIC_API_PREFIX}/docs`) ||
+      UNAUTHENTICATED_PATHS.has(pathname)
     ) {
       return;
     }
@@ -217,4 +230,5 @@ export default async function (
   await fastify.register(experiencesRoutes, { prefix: '/profile/experiences' });
   await fastify.register(tagsRoutes, { prefix: '/tags' });
   await fastify.register(recommendRoutes, { prefix: '/recommend' });
+  await fastify.register(signupRoutes, { prefix: '/signup' });
 }

@@ -19,6 +19,19 @@ Authorization: Bearer dda_your_token_here
 
 Tokens are created at https://daily.dev/settings/api (requires Plus subscription).
 
+## Sign up
+
+Don't have an account yet? Agents can ask for one directly:
+
+```
+POST https://api.daily.dev/public/v1/signup
+Content-Type: application/json
+
+{"email": "you@example.com", "password": "..."}
+```
+
+No token needed. The endpoint is in preview — its response tells you whether the account could be created and, if not, where a human can finish the job. Passwords are never stored.
+
 ## Base URL
 
 ```
