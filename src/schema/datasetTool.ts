@@ -15,6 +15,8 @@ import { queryReadReplica } from '../common/queryReadReplica';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
+const MAX_TOP_TOOLS = 24;
+const DEFAULT_TOP_TOOLS = 6;
 const MAX_STACKERS = 10;
 const DEFAULT_STACKERS = 5;
 const MAX_TAKES = 5;
@@ -37,6 +39,11 @@ export const typeDefs = /* GraphQL */ `
     Tool website
     """
     url: String
+
+    """
+    Directory category, if curated
+    """
+    category: String
 
     """
     Number of user stacks that include this tool
@@ -79,6 +86,21 @@ export const typeDefs = /* GraphQL */ `
     Hot takes mentioning the tool, most upvoted first
     """
     toolTakes(id: ID!, first: Int): [HotTake!]!
+
+    """
+    Most stacked tools, optionally within a category or by recent additions
+    """
+    topTools(first: Int, category: String, trending: Boolean): [DatasetTool!]!
+
+    """
+    Curated tool categories ordered by total stack presence
+    """
+    toolCategories: [ToolCategoryStat!]!
+  }
+
+  type ToolCategoryStat {
+    category: String!
+    toolCount: Int!
   }
 
   type ToolAdoptionPoint {
@@ -325,5 +347,69 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       );
     },
+
+    topTools: async (
+      _,
+      args: { first?: number; category?: string; trending?: boolean },
+      ctx: Context,
+      info,
+    ): Promise<DatasetTool[]> => {
+      const first = Math.min(args.first ?? DEFAULT_TOP_TOOLS, MAX_TOP_TOOLS);
+
+      return graphorm.query<DatasetTool>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .innerJoin(
+              (qb) => {
+                const counts = qb
+                  .select('us."toolId"', 'toolId')
+                  .addSelect('COUNT(*)', 'cnt')
+                  .from(UserStack, 'us')
+                  .groupBy('us."toolId"');
+                if (args.trending) {
+                  counts.where(`us."createdAt" >= now() - interval '90 days'`);
+                }
+                return counts;
+              },
+              'top',
+              `top."toolId" = "${builder.alias}"."id"`,
+            )
+            .orderBy('top."cnt"', 'DESC')
+            .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
+            .limit(first);
+
+          if (args.category) {
+            builder.queryBuilder.where(
+              `"${builder.alias}"."category" = :category`,
+              { category: args.category },
+            );
+          }
+          return builder;
+        },
+        true,
+      );
+    },
+
+    toolCategories: async (_, __, ctx: Context) =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const rows = await queryRunner.manager
+          .getRepository(DatasetTool)
+          .createQueryBuilder('dt')
+          .select('dt."category"', 'category')
+          .addSelect('COUNT(DISTINCT dt."id")', 'toolCount')
+          .addSelect('COUNT(us."id")', 'stacks')
+          .leftJoin(UserStack, 'us', 'us."toolId" = dt."id"')
+          .where('dt."category" IS NOT NULL')
+          .groupBy('dt."category"')
+          .orderBy('"stacks"', 'DESC')
+          .getRawMany<{ category: string; toolCount: string }>();
+
+        return rows.map((row) => ({
+          category: row.category,
+          toolCount: Number(row.toolCount),
+        }));
+      }),
   },
 };

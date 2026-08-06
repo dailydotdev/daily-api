@@ -457,3 +457,110 @@ describe('query toolTakes', () => {
     expect(res.data.toolTakes).toEqual([]);
   });
 });
+
+describe('query topTools', () => {
+  const QUERY = `
+    query TopTools($first: Int, $category: String, $trending: Boolean) {
+      topTools(first: $first, category: $category, trending: $trending) {
+        title
+        category
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    const react = toolByNormalizedTitle('react');
+    const redis = toolByNormalizedTitle('redis');
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: next.id }, { category: 'Frameworks' });
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: react.id }, { category: 'Frameworks' });
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: redis.id }, { category: 'Databases' });
+
+    const old = new Date();
+    old.setMonth(old.getMonth() - 6);
+    await con.getRepository(UserStack).save([
+      // react: 3 stacks but only old additions
+      stackItem('1', react.id, 0, old),
+      stackItem('2', react.id, 0, old),
+      stackItem('3', react.id, 0, old),
+      // next: 2 recent stacks
+      stackItem('1', next.id),
+      stackItem('2', next.id),
+      // redis: 1 recent stack
+      stackItem('3', redis.id),
+    ]);
+  });
+
+  it('should order by total stacks and support category filter', async () => {
+    const [all, frameworks] = await Promise.all([
+      client.query(QUERY, { variables: {} }),
+      client.query(QUERY, { variables: { category: 'Frameworks' } }),
+    ]);
+
+    expect(all.errors).toBeFalsy();
+    expect(all.data.topTools.map(({ title }) => title)).toEqual([
+      'React',
+      'Next.js',
+      'Redis',
+    ]);
+    expect(frameworks.data.topTools.map(({ title }) => title)).toEqual([
+      'React',
+      'Next.js',
+    ]);
+  });
+
+  it('should rank by recent additions when trending', async () => {
+    const res = await client.query(QUERY, {
+      variables: { trending: true },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topTools.map(({ title }) => title)).toEqual([
+      'Next.js',
+      'Redis',
+    ]);
+  });
+});
+
+describe('query toolCategories', () => {
+  const QUERY = `
+    query ToolCategories {
+      toolCategories {
+        category
+        toolCount
+      }
+    }
+  `;
+
+  it('should return categories ordered by stack presence', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    const redis = toolByNormalizedTitle('redis');
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: next.id }, { category: 'Frameworks' });
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: redis.id }, { category: 'Databases' });
+    await con
+      .getRepository(UserStack)
+      .save([
+        stackItem('1', redis.id),
+        stackItem('2', redis.id),
+        stackItem('1', next.id),
+      ]);
+
+    const res = await client.query(QUERY, { variables: {} });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolCategories).toEqual([
+      { category: 'Databases', toolCount: 1 },
+      { category: 'Frameworks', toolCount: 1 },
+    ]);
+  });
+});
