@@ -21,6 +21,10 @@ export class DatasetTool {
   url: string | null;
 
   @Column({ type: 'text', nullable: true })
+  @Index('IDX_dataset_tool_category')
+  category: string | null;
+
+  @Column({ type: 'text', nullable: true })
   faviconUrl: string | null;
 
   @Column({ type: 'text', default: 'none' })
