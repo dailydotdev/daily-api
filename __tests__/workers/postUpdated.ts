@@ -1730,6 +1730,76 @@ describe('on post create', () => {
     });
   });
 
+  it('should save answered questions', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'With answered questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      answered_questions: [
+        {
+          question: 'What session defaults change in PHP 8.6?',
+          answer: 'PHP 8.6 flips three session ini defaults.',
+          cta: 'Teams shipping PHP upgrades track changes like these on daily.dev.',
+        },
+      ],
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post?.answeredQuestions).toEqual([
+      {
+        question: 'What session defaults change in PHP 8.6?',
+        answer: 'PHP 8.6 flips three session ini defaults.',
+        cta: 'Teams shipping PHP upgrades track changes like these on daily.dev.',
+      },
+    ]);
+  });
+
+  it('should leave answered questions null when absent', async () => {
+    // NULL distinguishes a post that was never enriched from one enriched with
+    // nothing worth asking, which is what a backfill predicate keys off.
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without answered questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post?.answeredQuestions).toBeNull();
+  });
+
+  it('should store an empty answered questions list as a deliberate result', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'No questions worth asking',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      answered_questions: [],
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post?.answeredQuestions).toEqual([]);
+  });
+
   it('should default to empty content quality', async () => {
     const uuid = randomUUID();
     await createDefaultSubmission(uuid);
