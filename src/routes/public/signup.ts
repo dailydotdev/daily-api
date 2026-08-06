@@ -1,9 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
 
-const SIGNUP_URL = 'https://app.daily.dev/onboarding';
-const TOKEN_URL = 'https://app.daily.dev/settings/api';
-const RETRY_AFTER_SECONDS = 3600;
+const SIGNUP_URL = 'https://daily.dev/onboarding';
+const TOKEN_URL = 'https://daily.dev/settings/api';
 
 const unavailableResponse = {
   error: 'service_unavailable',
@@ -11,7 +10,6 @@ const unavailableResponse = {
     'Signup is temporarily unavailable. No account was created and your password was not stored. Please try again shortly — or create the account at https://app.daily.dev/onboarding and generate a Personal Access Token at https://app.daily.dev/settings/api.',
   signupUrl: SIGNUP_URL,
   tokenUrl: TOKEN_URL,
-  retryAfter: RETRY_AFTER_SECONDS,
 };
 
 type SignupBody = {
@@ -37,11 +35,7 @@ const logAttempt = ({ req }: { req: FastifyRequest }): void => {
       event: 'agent_signup_attempt',
       method: req.method,
       email: typeof body.email === 'string' ? body.email : null,
-      // Never log the plaintext. Length and presence answer "did an agent
-      // mint a credential?" without putting a possibly-real password into
-      // a log sink that is retained and broadly readable.
       passwordProvided: password !== null,
-      passwordLength: password?.length ?? 0,
       bodyKeys: Object.keys(body),
       userAgent: req.headers['user-agent'] ?? null,
       ip: req.ip,
@@ -110,10 +104,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       logAttempt({ req });
 
-      return reply
-        .status(503)
-        .header('retry-after', RETRY_AFTER_SECONDS)
-        .send(unavailableResponse);
+      return reply.status(503).send(unavailableResponse);
     },
   );
 
@@ -123,9 +114,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { schema: { hide: true } }, async (req, reply) => {
     logAttempt({ req });
 
-    return reply
-      .status(503)
-      .header('retry-after', RETRY_AFTER_SECONDS)
-      .send(unavailableResponse);
+    return reply.status(503).send(unavailableResponse);
   });
 }
