@@ -26,6 +26,9 @@ import {
   ArchiveSubjectType,
 } from '../src/common/archive';
 import { getSitemapRowLastmod } from '../src/routes/sitemaps';
+import { DatasetTool } from '../src/entity/dataset/DatasetTool';
+import { usersFixture } from './fixture/user';
+import { UserStack } from '../src/entity/user/UserStack';
 import { updateFlagsStatement } from '../src/common/utils';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
@@ -1545,5 +1548,54 @@ describe('getSitemapRowLastmod', () => {
     });
 
     expect(normalizedLastmod).toEqual('2024-01-01T12:00:00.123Z');
+  });
+});
+
+describe('GET /sitemaps/tools.xml', () => {
+  it('should return the tools sitemap with the hub and stacked tools only', async () => {
+    await saveFixtures(con, User, usersFixture);
+    const tools = await con.getRepository(DatasetTool).save([
+      {
+        title: 'Next.js',
+        titleNormalized: 'nextdotjs',
+        faviconSource: 'none',
+      },
+      {
+        title: 'Web & AI Kit',
+        titleNormalized: 'webandaikit',
+        faviconSource: 'none',
+      },
+      { title: 'Obscure', titleNormalized: 'obscure', faviconSource: 'none' },
+    ]);
+
+    const stackedTools = tools.filter(
+      ({ titleNormalized }) => titleNormalized !== 'obscure',
+    );
+    await con.getRepository(UserStack).save(
+      stackedTools.flatMap((tool) =>
+        ['1', '2', '3'].map((userId) => ({
+          userId,
+          toolId: tool.id,
+          section: 'Primary',
+          position: 0,
+        })),
+      ),
+    );
+    await con.query('REFRESH MATERIALIZED VIEW tool_stack_stats');
+
+    const res = await request(app.server)
+      .get('/sitemaps/tools.xml')
+      .expect(200);
+
+    expect(res.header['content-type']).toContain('application/xml');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toContain('<loc>http://localhost:5002/tools</loc>');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tools/nextdotjs</loc>',
+    );
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tools/webandaikit</loc>',
+    );
+    expect(res.text).not.toContain('/tools/obscure');
   });
 });

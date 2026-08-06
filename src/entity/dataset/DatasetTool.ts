@@ -25,6 +25,9 @@ export class DatasetTool {
   category: string | null;
 
   @Column({ type: 'text', nullable: true })
+  discussionPostId: string | null;
+
+  @Column({ type: 'text', nullable: true })
   faviconUrl: string | null;
 
   @Column({ type: 'text', default: 'none' })

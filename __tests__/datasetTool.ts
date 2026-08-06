@@ -7,6 +7,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import { User } from '../src/entity/user/User';
@@ -14,6 +15,11 @@ import { usersFixture } from './fixture/user';
 import { UserStack } from '../src/entity/user/UserStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 import { Keyword } from '../src/entity/Keyword';
+import { ToolVote } from '../src/entity/ToolVote';
+import { Post } from '../src/entity/posts/Post';
+import { Source, TOOLS_SOURCE } from '../src/entity/Source';
+import { sourcesFixture } from './fixture/source';
+import { SourceType } from '../src/entity/Source';
 import { Feed } from '../src/entity/Feed';
 import { HotTake } from '../src/entity/user/HotTake';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
@@ -569,5 +575,204 @@ describe('query toolCategories', () => {
       { category: 'Databases', toolCount: 1 },
       { category: 'Frameworks', toolCount: 1 },
     ]);
+  });
+});
+
+describe('mutation voteTool', () => {
+  const MUTATION = `
+    mutation VoteTool($id: ID!, $vote: Int!) {
+      voteTool(id: $id, vote: $vote) {
+        _
+      }
+    }
+  `;
+
+  const TOOL_QUERY = `
+    query DatasetTool($slug: String!) {
+      datasetTool(slug: $slug) {
+        upvotes
+        downvotes
+        userVote
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000', vote: 1 },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should fail on unknown tool', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000', vote: 1 },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should upvote, change vote and clear it', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const up = await client.mutate(MUTATION, {
+      variables: { id: next.id, vote: 1 },
+    });
+    expect(up.errors).toBeFalsy();
+
+    let res = await client.query(TOOL_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 1,
+      downvotes: 0,
+      userVote: 1,
+    });
+
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: -1 } });
+    res = await client.query(TOOL_QUERY, { variables: { slug: 'nextdotjs' } });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 0,
+      downvotes: 1,
+      userVote: -1,
+    });
+
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: 0 } });
+    res = await client.query(TOOL_QUERY, { variables: { slug: 'nextdotjs' } });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null,
+    });
+    expect(
+      await con
+        .getRepository(ToolVote)
+        .countBy({ userId: '1', toolId: next.id }),
+    ).toEqual(0);
+  });
+
+  it('should return null userVote for anonymous viewers', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+    await client.mutate(MUTATION, { variables: { id: next.id, vote: 1 } });
+
+    loggedUser = null;
+    const res = await client.query(TOOL_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(res.data.datasetTool).toEqual({
+      upvotes: 1,
+      downvotes: 0,
+      userVote: null,
+    });
+  });
+});
+
+describe('mutation initToolDiscussion', () => {
+  const MUTATION = `
+    mutation InitToolDiscussion($id: ID!) {
+      initToolDiscussion(id: $id)
+    }
+  `;
+
+  const COMMENT_MUTATION = `
+    mutation COMMENT_ON_POST_MUTATION($id: ID!, $content: String!) {
+      commentOnPost(postId: $id, content: $content) {
+        id
+        contentHtml
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(Source).save({
+      id: TOOLS_SOURCE,
+      name: 'Tools',
+      handle: TOOLS_SOURCE,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+      image: 'http//image.com/tools',
+    });
+  });
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should fail on unknown tool', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should create a hidden discussion post once and reuse it', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const first = await client.mutate(MUTATION, {
+      variables: { id: next.id },
+    });
+    expect(first.errors).toBeFalsy();
+    const postId = first.data.initToolDiscussion;
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: postId });
+    expect(post).toMatchObject({
+      title: 'Next.js discussion',
+      sourceId: TOOLS_SOURCE,
+      showOnFeed: false,
+      private: false,
+      visible: true,
+    });
+
+    const again = await client.mutate(MUTATION, {
+      variables: { id: next.id },
+    });
+    expect(again.data.initToolDiscussion).toEqual(postId);
+    const tool = await con
+      .getRepository(DatasetTool)
+      .findOneByOrFail({ id: next.id });
+    expect(tool.discussionPostId).toEqual(postId);
+  });
+
+  it('should accept ordinary post comments on the discussion post', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const init = await client.mutate(MUTATION, {
+      variables: { id: next.id },
+    });
+    const res = await client.mutate(COMMENT_MUTATION, {
+      variables: {
+        id: init.data.initToolDiscussion,
+        content: 'Great **framework**',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentOnPost.contentHtml).toContain(
+      '<strong>framework</strong>',
+    );
   });
 });

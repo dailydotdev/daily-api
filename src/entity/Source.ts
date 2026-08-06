@@ -18,6 +18,7 @@ import type { SourceCategory } from './sources/SourceCategory';
 import type { User } from './user';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
+export const TOOLS_SOURCE = 'tools';
 
 export const SQUAD_IMAGE_PLACEHOLDER =
   'https://media.daily.dev/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj';
