@@ -1,12 +1,16 @@
 import request from 'supertest';
 import { setupPublicApiTests } from './helpers';
+import { logger } from '../../../src/logger';
 
 const state = setupPublicApiTests();
 
 const AGENT_UA = 'ClaudeBot/1.0 (+https://anthropic.com/claude-bot)';
 
+// The route logs through the shared `logger`, not `req.log`: Fastify's
+// per-request child does not inherit a spy installed on the app logger,
+// so an assertion against `state.app.log` never sees the call.
 const spyOnSignupLog = () =>
-  jest.spyOn(state.app.log, 'info').mockImplementation(() => undefined);
+  jest.spyOn(logger, 'info').mockImplementation(() => undefined);
 
 const findSignupLog = (spy: jest.SpyInstance) =>
   spy.mock.calls.find(
@@ -17,18 +21,20 @@ const findSignupLog = (spy: jest.SpyInstance) =>
   )?.[0] as Record<string, unknown> | undefined;
 
 describe('POST /public/v1/signup', () => {
-  it('should answer 501 without a token and point at the human flow', async () => {
-    const { body } = await request(state.app.server)
+  it('should answer 503 without a token and point at the web flow', async () => {
+    const { body, headers } = await request(state.app.server)
       .post('/public/v1/signup')
       .send({ email: 'agent@example.com', password: 'correct-horse' })
-      .expect(501);
+      .expect(503);
 
     expect(body).toMatchObject({
-      error: 'not_implemented',
+      error: 'service_unavailable',
       signupUrl: 'https://app.daily.dev/onboarding',
       tokenUrl: 'https://app.daily.dev/settings/api',
-      message: expect.stringContaining('not available yet'),
+      retryAfter: 3600,
+      message: expect.stringContaining('temporarily unavailable'),
     });
+    expect(headers['retry-after']).toBe('3600');
   });
 
   it('should log the attempt with the user agent but never the password', async () => {
@@ -38,7 +44,7 @@ describe('POST /public/v1/signup', () => {
       .post('/public/v1/signup')
       .set('User-Agent', AGENT_UA)
       .send({ email: 'agent@example.com', password: 'correct-horse' })
-      .expect(501);
+      .expect(503);
 
     expect(findSignupLog(spy)).toMatchObject({
       event: 'agent_signup_attempt',
@@ -58,7 +64,7 @@ describe('POST /public/v1/signup', () => {
     await request(state.app.server)
       .post('/public/v1/signup')
       .send({ email: 'not-an-email' })
-      .expect(501);
+      .expect(503);
 
     expect(findSignupLog(spy)).toMatchObject({
       email: 'not-an-email',
@@ -74,9 +80,9 @@ describe('POST /public/v1/signup', () => {
     const { body } = await request(state.app.server)
       .get('/public/v1/signup')
       .set('User-Agent', AGENT_UA)
-      .expect(501);
+      .expect(503);
 
-    expect(body.error).toBe('not_implemented');
+    expect(body.error).toBe('service_unavailable');
     expect(findSignupLog(spy)).toMatchObject({
       method: 'GET',
       userAgent: AGENT_UA,
@@ -88,12 +94,12 @@ describe('POST /public/v1/signup', () => {
     await request(state.app.server)
       .post('/public/v1/signup/')
       .send({ email: 'agent@example.com', password: 'correct-horse' })
-      .expect(501);
+      .expect(503);
 
     await request(state.app.server)
       .post('/public/v1/signup?ref=llms.txt')
       .send({ email: 'agent@example.com', password: 'correct-horse' })
-      .expect(501);
+      .expect(503);
   });
 
   it('should still require a token on every other public route', async () => {

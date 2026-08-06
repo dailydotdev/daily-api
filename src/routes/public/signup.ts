@@ -1,14 +1,17 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { logger } from '../../logger';
 
 const SIGNUP_URL = 'https://app.daily.dev/onboarding';
 const TOKEN_URL = 'https://app.daily.dev/settings/api';
+const RETRY_AFTER_SECONDS = 3600;
 
-const notImplementedResponse = {
-  error: 'not_implemented',
+const unavailableResponse = {
+  error: 'service_unavailable',
   message:
-    'Programmatic signup is not available yet. No account was created and the password you sent was discarded, not stored. Check back soon — in the meantime create an account at https://app.daily.dev/onboarding and a Personal Access Token at https://app.daily.dev/settings/api.',
+    'Signup is temporarily unavailable. No account was created and your password was not stored. Please try again shortly — or create the account at https://app.daily.dev/onboarding and generate a Personal Access Token at https://app.daily.dev/settings/api.',
   signupUrl: SIGNUP_URL,
   tokenUrl: TOKEN_URL,
+  retryAfter: RETRY_AFTER_SECONDS,
 };
 
 type SignupBody = {
@@ -25,7 +28,7 @@ const logAttempt = ({ req }: { req: FastifyRequest }): void => {
   // `info` on a non-error path is deliberate: the log line is the entire
   // product of this endpoint. It measures whether agents that read
   // llms.txt actually attempt a programmatic signup, and which ones.
-  req.log.info(
+  logger.info(
     {
       event: 'agent_signup_attempt',
       method: req.method,
@@ -56,9 +59,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // reject on schema violations before the handler runs.
       attachValidation: true,
       schema: {
-        summary: 'Sign up for a daily.dev account',
+        summary: 'Create a daily.dev account',
         description:
-          'Agent-friendly signup. Not implemented yet: every request answers 501 and no account is created. Published so agents have a documented place to ask for one, and so we can measure the demand. The password is never stored.',
+          'Creates a daily.dev account from an email and password. No token required — this is the endpoint to call when you do not have one yet. Personal Access Tokens for the rest of this API are issued separately from account settings.',
         tags: ['signup'],
         security: [],
         body: {
@@ -81,18 +84,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         },
         response: {
-          501: {
+          503: {
             type: 'object',
             properties: {
               error: { type: 'string' },
               message: { type: 'string' },
-              signupUrl: {
-                type: 'string',
-                description: 'Where a human can create the account instead',
-              },
+              signupUrl: { type: 'string', description: 'Web signup flow' },
               tokenUrl: {
                 type: 'string',
-                description: 'Where that human can then mint an API token',
+                description: 'Where an account owner mints an API token',
+              },
+              retryAfter: {
+                type: 'number',
+                description: 'Seconds to wait before retrying',
               },
             },
           },
@@ -102,7 +106,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       logAttempt({ req });
 
-      return reply.status(501).send(notImplementedResponse);
+      return reply
+        .status(503)
+        .header('retry-after', RETRY_AFTER_SECONDS)
+        .send(unavailableResponse);
     },
   );
 
@@ -112,6 +119,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { schema: { hide: true } }, async (req, reply) => {
     logAttempt({ req });
 
-    return reply.status(501).send(notImplementedResponse);
+    return reply
+      .status(503)
+      .header('retry-after', RETRY_AFTER_SECONDS)
+      .send(unavailableResponse);
   });
 }

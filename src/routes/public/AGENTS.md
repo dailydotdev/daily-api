@@ -8,7 +8,6 @@ When adding or changing endpoints, update the AI-agent skill doc served at `/pub
 
 ## Rules & Lessons
 
-- **Unauthenticated routes are an explicit list** — `/docs/*`, `/skill.md` and `/signup` bypass the token hook via `UNAUTHENTICATED_PATHS` in `index.ts`, matched on the path with query string and trailing slash stripped. Everything else needs a token; don't add exemptions casually.
 - **Don't reimplement auth or rate limiting** — `index.ts` already handles both. Middleware sets `request.apiUserId`, `request.userId`, `request.isPlus`; tokens only exist for Plus users (auto-revoked on cancellation). No per-route 401 checks or Plus validation.
 - Rate limiting is two-layer: IP-based 300/min before auth (DoS protection, generous to spare shared IPs), user-based 60/min after auth (quota). Headers: `X-RateLimit-*` (IP), `X-RateLimit-*-User` (user), `Retry-After` on 429.
 - **Reuse everything in `./common.ts`** before writing anything new: utilities (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`), GraphQL field strings (`POST_NODE_FIELDS`, `BOOKMARKED_POST_EXTRA_FIELDS`, `PAGE_INFO_FIELDS`), and shared types (`PostNode`, `BookmarkedPostNode`, `FeedConnection<T>`, `PageInfo`, `SourceInfo`, `AuthorInfo`). Never duplicate field lists or redefine equivalent interfaces. Same for response schemas — check `schemas.ts` for an existing `$ref` before adding one.
