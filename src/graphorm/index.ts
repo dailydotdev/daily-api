@@ -2924,23 +2924,6 @@ const obj = new GraphORM({
       },
     },
   },
-  ToolComment: {
-    requiredColumns: ['id', 'toolId', 'userId', 'parentId', 'createdAt'],
-    fields: {
-      createdAt: {
-        transform: transformDate,
-      },
-      replies: {
-        relation: {
-          isMany: true,
-          childColumn: 'parentId',
-          parentColumn: 'id',
-          order: 'ASC',
-          sort: 'createdAt',
-        },
-      },
-    },
-  },
   SourceStack: {
     requiredColumns: ['id', 'sourceId', 'toolId', 'createdById'],
     fields: {

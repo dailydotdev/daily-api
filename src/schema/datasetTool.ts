@@ -10,20 +10,17 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
-import { ForbiddenError } from 'apollo-server-errors';
-import { normalizeTitle } from '../common/datasetTool';
+import {
+  createToolDiscussionPost,
+  normalizeTitle,
+} from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { ToolStackStats } from '../entity/ToolStackStats';
 import { ToolVote } from '../entity/ToolVote';
-import { ToolComment } from '../entity/ToolComment';
+import { Post } from '../entity/posts/Post';
 import { UserVote } from '../types';
-import { Roles } from '../roles';
-import { markdown } from '../common/markdown';
-import {
-  voteToolSchema,
-  commentOnToolSchema,
-} from '../common/schema/toolDiscussion';
-import { offsetPageGenerator, GQLEmptyResponse } from './common';
+import { voteToolSchema } from '../common/schema/toolDiscussion';
+import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 
 const MAX_ALSO_STACKED = 10;
@@ -82,25 +79,11 @@ export const typeDefs = /* GraphQL */ `
     The viewer's vote on the tool (1, 0, -1)
     """
     userVote: Int
-  }
 
-  type ToolComment {
-    id: ID!
-    content: String!
-    contentHtml: String!
-    createdAt: DateTime!
-    user: User
-    replies: [ToolComment!]
-  }
-
-  type ToolCommentEdge {
-    node: ToolComment!
-    cursor: String!
-  }
-
-  type ToolCommentConnection {
-    pageInfo: PageInfo!
-    edges: [ToolCommentEdge!]!
+    """
+    Hidden post hosting the tool's discussion, once initialized
+    """
+    discussionPostId: ID
   }
 
   extend type Query {
@@ -143,11 +126,6 @@ export const typeDefs = /* GraphQL */ `
     Curated tool categories ordered by total stack presence
     """
     toolCategories: [ToolCategoryStat!]!
-
-    """
-    Top-level comments on a tool, newest first
-    """
-    toolComments(id: ID!, first: Int, after: String): ToolCommentConnection!
   }
 
   extend type Mutation {
@@ -157,14 +135,10 @@ export const typeDefs = /* GraphQL */ `
     voteTool(id: ID!, vote: Int!): EmptyResponse! @auth
 
     """
-    Comment on a tool; parentId allows one level of replies
+    Get or create the tool's hidden discussion post; comments on it are
+    ordinary post comments
     """
-    commentOnTool(id: ID!, content: String!, parentId: ID): ToolComment! @auth
-
-    """
-    Delete an own comment (moderators can delete any)
-    """
-    deleteToolComment(id: ID!): EmptyResponse! @auth
+    initToolDiscussion(id: ID!): ID! @auth
   }
 
   type ToolCategoryStat {
@@ -465,41 +439,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           toolCount: Number(row.toolCount),
         }));
       }),
-
-    toolComments: async (
-      _,
-      args: { id: string; first?: number; after?: string },
-      ctx: Context,
-      info,
-    ) => {
-      const pageGenerator = offsetPageGenerator<ToolComment>(20, 50);
-      const page = pageGenerator.connArgsToPage({
-        first: args.first,
-        after: args.after,
-      });
-
-      return graphorm.queryPaginated<ToolComment>(
-        ctx,
-        info,
-        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          pageGenerator.nodeToCursor(page, { first: args.first }, node, index),
-        (builder) => {
-          builder.queryBuilder
-            .where(`"${builder.alias}"."toolId" = :toolId`, {
-              toolId: args.id,
-            })
-            .andWhere(`"${builder.alias}"."parentId" IS NULL`)
-            .orderBy(`"${builder.alias}"."createdAt"`, 'DESC')
-            .limit(page.limit)
-            .offset(page.offset);
-          return builder;
-        },
-        undefined,
-        true,
-      );
-    },
   },
 
   Mutation: {
@@ -531,69 +470,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       return { _: true };
     },
 
-    commentOnTool: async (
-      _,
-      args: { id: string; content: string; parentId?: string },
-      ctx: AuthContext,
-      info,
-    ) => {
-      const input = commentOnToolSchema.parse(args);
-
-      const tool = await ctx.con
-        .getRepository(DatasetTool)
-        .findOneBy({ id: input.id });
-      if (!tool) {
-        throw new NotFoundError('Tool not found');
-      }
-
-      if (input.parentId) {
-        const parent = await ctx.con
-          .getRepository(ToolComment)
-          .findOneBy({ id: input.parentId });
-        if (!parent || parent.toolId !== input.id) {
-          throw new NotFoundError('Parent comment not found');
-        }
-        if (parent.parentId) {
-          throw new ForbiddenError('Cannot reply to a reply');
-        }
-      }
-
-      const comment = await ctx.con.getRepository(ToolComment).save({
-        toolId: input.id,
-        userId: ctx.userId,
-        content: input.content,
-        contentHtml: markdown.render(input.content),
-        parentId: input.parentId ?? null,
-      });
-
-      return graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
-          id: comment.id,
-        });
-        return builder;
-      });
-    },
-
-    deleteToolComment: async (
+    initToolDiscussion: async (
       _,
       args: { id: string },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      const comment = await ctx.con
-        .getRepository(ToolComment)
+    ): Promise<string> => {
+      const tool = await ctx.con
+        .getRepository(DatasetTool)
         .findOneBy({ id: args.id });
-      if (!comment) {
-        throw new NotFoundError('Comment not found');
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+      if (tool.discussionPostId) {
+        return tool.discussionPostId;
       }
 
-      const isModerator = ctx.roles?.includes(Roles.Moderator);
-      if (comment.userId !== ctx.userId && !isModerator) {
-        throw new ForbiddenError("Cannot delete someone else's comment");
+      const post = await createToolDiscussionPost(ctx.con, tool);
+      const claimed = await ctx.con
+        .getRepository(DatasetTool)
+        .createQueryBuilder()
+        .update()
+        .set({ discussionPostId: post.id })
+        .where('id = :id AND "discussionPostId" IS NULL', { id: tool.id })
+        .execute();
+
+      if (!claimed.affected) {
+        // Lost a concurrent init; use the winner's post.
+        await ctx.con.getRepository(Post).delete({ id: post.id });
+        const fresh = await ctx.con
+          .getRepository(DatasetTool)
+          .findOneByOrFail({ id: tool.id });
+        if (!fresh.discussionPostId) {
+          throw new Error('Failed to initialize tool discussion');
+        }
+        return fresh.discussionPostId;
       }
 
-      await ctx.con.getRepository(ToolComment).delete({ id: args.id });
-
-      return { _: true };
+      return post.id;
     },
   },
 };

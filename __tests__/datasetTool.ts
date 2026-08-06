@@ -16,7 +16,10 @@ import { UserStack } from '../src/entity/user/UserStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 import { Keyword } from '../src/entity/Keyword';
 import { ToolVote } from '../src/entity/ToolVote';
-import { ToolComment } from '../src/entity/ToolComment';
+import { Post } from '../src/entity/posts/Post';
+import { Source, TOOLS_SOURCE } from '../src/entity/Source';
+import { sourcesFixture } from './fixture/source';
+import { SourceType } from '../src/entity/Source';
 import { Feed } from '../src/entity/Feed';
 import { HotTake } from '../src/entity/user/HotTake';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
@@ -673,161 +676,103 @@ describe('mutation voteTool', () => {
   });
 });
 
-describe('tool comments', () => {
+describe('mutation initToolDiscussion', () => {
+  const MUTATION = `
+    mutation InitToolDiscussion($id: ID!) {
+      initToolDiscussion(id: $id)
+    }
+  `;
+
   const COMMENT_MUTATION = `
-    mutation CommentOnTool($id: ID!, $content: String!, $parentId: ID) {
-      commentOnTool(id: $id, content: $content, parentId: $parentId) {
+    mutation COMMENT_ON_POST_MUTATION($id: ID!, $content: String!) {
+      commentOnPost(postId: $id, content: $content) {
         id
-        content
         contentHtml
-        user {
-          id
-        }
       }
     }
   `;
 
-  const COMMENTS_QUERY = `
-    query ToolComments($id: ID!) {
-      toolComments(id: $id) {
-        edges {
-          node {
-            id
-            content
-            replies {
-              content
-            }
-          }
-        }
-      }
-    }
-  `;
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(Source).save({
+      id: TOOLS_SOURCE,
+      name: 'Tools',
+      handle: TOOLS_SOURCE,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+      image: 'http//image.com/tools',
+    });
+  });
 
-  const DELETE_MUTATION = `
-    mutation DeleteToolComment($id: ID!) {
-      deleteToolComment(id: $id) {
-        _
-      }
-    }
-  `;
-
-  it('should require authentication to comment', () =>
+  it('should require authentication', () =>
     testMutationErrorCode(
       client,
       {
-        mutation: COMMENT_MUTATION,
-        variables: {
-          id: '00000000-0000-0000-0000-000000000000',
-          content: 'hi',
-        },
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
       },
       'UNAUTHENTICATED',
     ));
 
-  it('should create a comment with rendered markdown', async () => {
+  it('should fail on unknown tool', () => {
     loggedUser = '1';
-    const next = toolByNormalizedTitle('nextdotjs');
-
-    const res = await client.mutate(COMMENT_MUTATION, {
-      variables: { id: next.id, content: 'Great **framework**' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.commentOnTool).toMatchObject({
-      content: 'Great **framework**',
-      user: { id: '1' },
-    });
-    expect(res.data.commentOnTool.contentHtml).toContain(
-      '<strong>framework</strong>',
-    );
-  });
-
-  it('should thread one level of replies and list newest first', async () => {
-    loggedUser = '1';
-    const next = toolByNormalizedTitle('nextdotjs');
-
-    const first = await client.mutate(COMMENT_MUTATION, {
-      variables: { id: next.id, content: 'first comment' },
-    });
-    loggedUser = '2';
-    await client.mutate(COMMENT_MUTATION, {
-      variables: {
-        id: next.id,
-        content: 'a reply',
-        parentId: first.data.commentOnTool.id,
-      },
-    });
-    await client.mutate(COMMENT_MUTATION, {
-      variables: { id: next.id, content: 'second comment' },
-    });
-
-    const res = await client.query(COMMENTS_QUERY, {
-      variables: { id: next.id },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(
-      res.data.toolComments.edges.map(({ node }) => ({
-        content: node.content,
-        replies: node.replies?.map((reply) => reply.content) ?? [],
-      })),
-    ).toEqual([
-      { content: 'second comment', replies: [] },
-      { content: 'first comment', replies: ['a reply'] },
-    ]);
-  });
-
-  it('should reject replying to a reply', async () => {
-    loggedUser = '1';
-    const next = toolByNormalizedTitle('nextdotjs');
-
-    const top = await client.mutate(COMMENT_MUTATION, {
-      variables: { id: next.id, content: 'top' },
-    });
-    const reply = await client.mutate(COMMENT_MUTATION, {
-      variables: {
-        id: next.id,
-        content: 'reply',
-        parentId: top.data.commentOnTool.id,
-      },
-    });
-
     return testMutationErrorCode(
       client,
       {
-        mutation: COMMENT_MUTATION,
-        variables: {
-          id: next.id,
-          content: 'nested',
-          parentId: reply.data.commentOnTool.id,
-        },
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
       },
-      'FORBIDDEN',
+      'NOT_FOUND',
     );
   });
 
-  it('should only allow deleting own comments', async () => {
+  it('should create a hidden discussion post once and reuse it', async () => {
     loggedUser = '1';
     const next = toolByNormalizedTitle('nextdotjs');
-    const comment = await client.mutate(COMMENT_MUTATION, {
-      variables: { id: next.id, content: 'mine' },
+
+    const first = await client.mutate(MUTATION, {
+      variables: { id: next.id },
     });
-    const commentId = comment.data.commentOnTool.id;
+    expect(first.errors).toBeFalsy();
+    const postId = first.data.initToolDiscussion;
 
-    loggedUser = '2';
-    await testMutationErrorCode(
-      client,
-      { mutation: DELETE_MUTATION, variables: { id: commentId } },
-      'FORBIDDEN',
-    );
+    const post = await con.getRepository(Post).findOneByOrFail({ id: postId });
+    expect(post).toMatchObject({
+      title: 'Next.js discussion',
+      sourceId: TOOLS_SOURCE,
+      showOnFeed: false,
+      private: false,
+      visible: true,
+    });
 
+    const again = await client.mutate(MUTATION, {
+      variables: { id: next.id },
+    });
+    expect(again.data.initToolDiscussion).toEqual(postId);
+    const tool = await con
+      .getRepository(DatasetTool)
+      .findOneByOrFail({ id: next.id });
+    expect(tool.discussionPostId).toEqual(postId);
+  });
+
+  it('should accept ordinary post comments on the discussion post', async () => {
     loggedUser = '1';
-    const res = await client.mutate(DELETE_MUTATION, {
-      variables: { id: commentId },
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const init = await client.mutate(MUTATION, {
+      variables: { id: next.id },
     });
+    const res = await client.mutate(COMMENT_MUTATION, {
+      variables: {
+        id: init.data.initToolDiscussion,
+        content: 'Great **framework**',
+      },
+    });
+
     expect(res.errors).toBeFalsy();
-    expect(
-      await con.getRepository(ToolComment).countBy({ id: commentId }),
-    ).toEqual(0);
+    expect(res.data.commentOnPost.contentHtml).toContain(
+      '<strong>framework</strong>',
+    );
   });
 });
