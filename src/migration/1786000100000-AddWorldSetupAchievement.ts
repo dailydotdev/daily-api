@@ -20,7 +20,7 @@ export class AddWorldSetupAchievement1786000100000
         (
           'Terraformer',
           'Make your world your own',
-          'https://media.daily.dev/image/upload/s--CV7PPCE0--/q_auto/v1786013533/achievements/terraformer',
+          'https://media.daily.dev/image/upload/s--CV7PPCE0--/q_auto/v1786013739/achievements/terraformer',
           'instant',
           'world_setup',
           '{"targetCount": 1}',
