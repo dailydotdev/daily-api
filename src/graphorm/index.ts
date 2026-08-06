@@ -950,6 +950,9 @@ const obj = new GraphORM({
       communitySentiment: {
         jsonType: true,
       },
+      answeredQuestions: {
+        jsonType: true,
+      },
       sharedPost: {
         relation: {
           isMany: false,
