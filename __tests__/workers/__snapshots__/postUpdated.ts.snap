@@ -2,6 +2,7 @@
 
 exports[`should save a new post with basic information 1`] = `
 Object {
+  "answeredQuestions": null,
   "authorId": null,
   "awards": 0,
   "banned": false,
