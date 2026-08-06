@@ -31,6 +31,7 @@ export enum QuestEventType {
   VisitDiscussionsPage = 'visit_discussions_page',
   VisitReadItLaterPage = 'visit_read_it_later_page',
   VisitWatercoolerFeed = 'visit_watercooler_feed',
+  VisitUserWorld = 'visit_user_world',
   FeedbackSubmit = 'feedback_submit',
   SquadJoin = 'squad_join',
   FollowerGain = 'follower_gain',
