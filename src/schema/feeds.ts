@@ -1069,12 +1069,13 @@ export const typeDefs = /* GraphQL */ `
       includeTagChipFeeds: Boolean = false
       """
       Which source seeds the caller's tag-chip feeds on their first opted-in
-      read. V1 seeds one single-tag feed per tag from the feed service. V2
-      clusters the caller's onboarding tags into topics and seeds one multi-tag
-      feed per topic. Client-controlled so the two can be A/B tested; only read
-      on the first seed and inert afterwards.
+      read, mirroring the client's feed_chips variant. V2 seeds one single-tag
+      feed per tag from the feed service. V3 clusters the caller's onboarding
+      tags into topics and seeds one multi-tag feed per topic.
+      Client-controlled so the two can be A/B tested; only read on the first
+      seed and inert afterwards.
       """
-      tagChipSeedStrategy: TagChipSeedStrategy = V1
+      tagChipSeedStrategy: TagChipSeedStrategy = V2
     ): FeedConnection! @auth
 
     """

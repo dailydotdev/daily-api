@@ -10,5 +10,5 @@ export const feedListInputSchema = z.object({
   tagChipSeedStrategy: z
     .enum(enumValues(TagChipSeedStrategy))
     .nullish()
-    .transform((value) => value ?? TagChipSeedStrategy.V1),
+    .transform((value) => value ?? TagChipSeedStrategy.V2),
 });

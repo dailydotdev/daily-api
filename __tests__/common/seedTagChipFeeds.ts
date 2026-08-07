@@ -245,11 +245,11 @@ describe('seedTagChipFeedsIfNeeded', () => {
 
     const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
     expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
-      TagChipSeedStrategy.V1,
+      TagChipSeedStrategy.V2,
     );
   });
 
-  describe('V2 strategy', () => {
+  describe('V3 strategy', () => {
     const saveOnboardingFollows = (tags: string[]) =>
       saveFixtures(
         con,
@@ -264,12 +264,12 @@ describe('seedTagChipFeedsIfNeeded', () => {
         })),
       );
 
-    const seedV2 = (limit = 5) =>
+    const seedV3 = (limit = 5) =>
       seedTagChipFeedsIfNeeded({
         con,
         userId: '1',
         limit,
-        strategy: TagChipSeedStrategy.V2,
+        strategy: TagChipSeedStrategy.V3,
       });
 
     const getFeedTags = (feedId: string) =>
@@ -292,7 +292,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
         { label: 'webdev', tags: ['webdev'] },
       ]);
 
-      await seedV2();
+      await seedV3();
 
       const feeds = await getChipFeeds('1');
       expect(feeds.map((f) => f.flags.name).sort()).toEqual([
@@ -334,7 +334,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
         { label: 'javascript', tags: ['javascript', 'nodejs'] },
       ]);
 
-      await seedV2(2);
+      await seedV3(2);
 
       expect(getTopicsMock).toHaveBeenCalledWith(['javascript', 'nodejs'], 0.4);
       expect(getUserTagsMock).not.toHaveBeenCalled();
@@ -348,7 +348,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
         { label: 'webdev', tags: ['webdev'] },
       ]);
 
-      await seedV2(2);
+      await seedV3(2);
 
       expect(await getChipFeeds('1')).toHaveLength(2);
     });
@@ -358,7 +358,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
       getTopicsMock.mockRejectedValue(new Error('boom'));
       getUserTagsMock.mockResolvedValue(['nodejs']);
 
-      await seedV2(2);
+      await seedV3(2);
 
       const feeds = await getChipFeeds('1');
       expect(feeds.map((f) => f.flags.name)).toEqual(['JavaScript']);
@@ -371,7 +371,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
       getTopicsMock.mockResolvedValue([]);
       getUserTagsMock.mockResolvedValue(['nodejs']);
 
-      await seedV2(2);
+      await seedV3(2);
 
       expect((await getChipFeeds('1')).map((f) => f.flags.name)).toEqual([
         'JavaScript',
@@ -382,24 +382,24 @@ describe('seedTagChipFeedsIfNeeded', () => {
     it('seeds nothing when the user has no onboarding tags', async () => {
       getUserTagsMock.mockResolvedValue(['javascript']);
 
-      await seedV2(2);
+      await seedV3(2);
 
       expect(getTopicsMock).not.toHaveBeenCalled();
       expect(getUserTagsMock).not.toHaveBeenCalled();
       expect(await getChipFeeds('1')).toHaveLength(0);
     });
 
-    it('records the V2 strategy on the user', async () => {
+    it('records the V3 strategy on the user', async () => {
       await saveOnboardingFollows(['javascript']);
       getTopicsMock.mockResolvedValue([
         { label: 'javascript', tags: ['javascript'] },
       ]);
 
-      await seedV2();
+      await seedV3();
 
       const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
       expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
-        TagChipSeedStrategy.V2,
+        TagChipSeedStrategy.V3,
       );
     });
   });

@@ -5039,7 +5039,7 @@ describe('query feedList', () => {
       getTopicsSpy.mockRestore();
     });
 
-    it('defaults to V1 when omitted', async () => {
+    it('defaults to V2 when omitted', async () => {
       getUserTagsSpy.mockResolvedValue(['javascript']);
 
       const res = await client.query(QUERY_WITH_STRATEGY, {
@@ -5050,11 +5050,11 @@ describe('query feedList', () => {
       expect(getTopicsSpy).not.toHaveBeenCalled();
       const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
       expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
-        TagChipSeedStrategy.V1,
+        TagChipSeedStrategy.V2,
       );
     });
 
-    it('seeds clustered topics when V2', async () => {
+    it('seeds clustered topics when V3', async () => {
       await con.getRepository(ContentPreferenceKeyword).save({
         feedId: '1',
         keywordId: 'javascript',
@@ -5070,7 +5070,7 @@ describe('query feedList', () => {
       const res = await client.query(QUERY_WITH_STRATEGY, {
         variables: {
           includeTagChipFeeds: true,
-          tagChipSeedStrategy: TagChipSeedStrategy.V2,
+          tagChipSeedStrategy: TagChipSeedStrategy.V3,
         },
       });
       expect(res.errors).toBeFalsy();

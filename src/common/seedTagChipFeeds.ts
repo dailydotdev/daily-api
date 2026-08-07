@@ -124,7 +124,7 @@ const getSeedTopics = async ({
   let topics: FeedTopic[] = [];
   try {
     topics =
-      strategy === TagChipSeedStrategy.V2
+      strategy === TagChipSeedStrategy.V3
         ? await getClusteredTopics({ con, userId })
         : toSingleTagTopics(await feedClient.getUserTags(userId, limit));
   } catch (err) {
@@ -151,8 +151,9 @@ const getSeedTopics = async ({
  * `maxFeedsPerUser` cap (no chip feeds get written; flag still marked so we
  * don't retry on every read).
  *
- * The strategy only picks the seed source: `V1` (default) takes single tags
- * from `feedClient.getUserTags`, `V2` clusters the user's onboarding tags into
+ * The strategy only picks the seed source and mirrors the client's
+ * `feed_chips` variant: `V2` (default) takes single tags from
+ * `feedClient.getUserTags`, `V3` clusters the user's onboarding tags into
  * multi-tag topics via `feedClient.getTopics`. Either way, an empty or failed
  * source falls back to the user's onboarding tags as single-tag topics.
  */
@@ -160,7 +161,7 @@ export const seedTagChipFeedsIfNeeded = async ({
   con,
   userId,
   limit = TAG_CHIP_FEED_LIMIT,
-  strategy = TagChipSeedStrategy.V1,
+  strategy = TagChipSeedStrategy.V2,
 }: {
   con: DataSource;
   userId: string;
