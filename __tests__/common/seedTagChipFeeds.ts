@@ -353,21 +353,7 @@ describe('seedTagChipFeedsIfNeeded', () => {
       expect(await getChipFeeds('1')).toHaveLength(2);
     });
 
-    it('drops topics with duplicate labels or no tags', async () => {
-      await saveOnboardingFollows(['javascript', 'nodejs']);
-      getTopicsMock.mockResolvedValue([
-        { label: 'javascript', tags: ['javascript'] },
-        { label: 'javascript', tags: ['nodejs'] },
-        { label: 'nodejs', tags: [] },
-      ]);
-
-      await seedV2();
-
-      const feeds = await getChipFeeds('1');
-      expect(feeds.map((f) => f.flags.name)).toEqual(['JavaScript']);
-    });
-
-    it('falls back to the V1 path when clustering fails', async () => {
+    it('falls back to onboarding tags when clustering fails', async () => {
       await saveOnboardingFollows(['javascript']);
       getTopicsMock.mockRejectedValue(new Error('boom'));
       getUserTagsMock.mockResolvedValue(['nodejs']);
@@ -375,11 +361,12 @@ describe('seedTagChipFeedsIfNeeded', () => {
       await seedV2(2);
 
       const feeds = await getChipFeeds('1');
-      expect(feeds.map((f) => f.flags.name)).toEqual(['Node.js']);
+      expect(feeds.map((f) => f.flags.name)).toEqual(['JavaScript']);
       expect(await getFeedTags(feeds[0].id)).toHaveLength(1);
+      expect(getUserTagsMock).not.toHaveBeenCalled();
     });
 
-    it('falls back to the V1 path when clustering returns nothing', async () => {
+    it('falls back to onboarding tags when clustering returns no topics', async () => {
       await saveOnboardingFollows(['javascript']);
       getTopicsMock.mockResolvedValue([]);
       getUserTagsMock.mockResolvedValue(['nodejs']);
@@ -387,19 +374,19 @@ describe('seedTagChipFeedsIfNeeded', () => {
       await seedV2(2);
 
       expect((await getChipFeeds('1')).map((f) => f.flags.name)).toEqual([
-        'Node.js',
+        'JavaScript',
       ]);
+      expect(getUserTagsMock).not.toHaveBeenCalled();
     });
 
-    it('falls back to the V1 path when the user has no onboarding tags', async () => {
+    it('seeds nothing when the user has no onboarding tags', async () => {
       getUserTagsMock.mockResolvedValue(['javascript']);
 
       await seedV2(2);
 
       expect(getTopicsMock).not.toHaveBeenCalled();
-      expect((await getChipFeeds('1')).map((f) => f.flags.name)).toEqual([
-        'JavaScript',
-      ]);
+      expect(getUserTagsMock).not.toHaveBeenCalled();
+      expect(await getChipFeeds('1')).toHaveLength(0);
     });
 
     it('records the V2 strategy on the user', async () => {

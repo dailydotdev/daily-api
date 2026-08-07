@@ -124,6 +124,8 @@ import {
 } from './feedV2';
 import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 import { seedTagChipFeedsIfNeeded } from '../common/seedTagChipFeeds';
+import { z } from 'zod';
+import { feedListInputSchema } from '../common/schema/feedList';
 
 interface GQLTagsCategory {
   id: string;
@@ -2541,14 +2543,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
-      args: ConnectionArguments & {
-        includeTagChipFeeds?: boolean;
-        tagChipSeedStrategy?: TagChipSeedStrategy;
-      },
+      args: ConnectionArguments & z.input<typeof feedListInputSchema>,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLFeed>> => {
-      const includeTagChipFeeds = args.includeTagChipFeeds === true;
+      const { includeTagChipFeeds, tagChipSeedStrategy } =
+        feedListInputSchema.parse(args);
 
       let didSeed = false;
 
@@ -2557,7 +2557,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           didSeed = await seedTagChipFeedsIfNeeded({
             con: ctx.con,
             userId: ctx.userId,
-            strategy: args.tagChipSeedStrategy,
+            strategy: tagChipSeedStrategy,
           });
         } catch (err) {
           ctx.log.error(
