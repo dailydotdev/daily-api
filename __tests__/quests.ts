@@ -1075,6 +1075,11 @@ describe('quest progress hooks', () => {
       name: 'Off the clock',
       description: 'Visit the Watercooler feed',
     },
+    {
+      eventType: QuestEventType.VisitUserWorld,
+      name: 'Grand tour',
+      description: "Visit 3 other users' worlds",
+    },
   ])(
     'should complete %s client-side page visit quests',
     async ({ eventType, name, description }) => {

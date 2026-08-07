@@ -41,6 +41,7 @@ import channelHighlights from './channelHighlights';
 import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
 import { cleanChannelHighlights } from './cleanChannelHighlights';
 import updateTagMaterializedViews from './updateTagMaterializedViews';
+import refreshToolStackStats from './refreshToolStackStats';
 import { materializeMonthlyBestPostArchives } from './materializeMonthlyBestPostArchives';
 import { materializeYearlyBestPostArchives } from './materializeYearlyBestPostArchives';
 import cleanOldNotifications from './cleanOldNotifications';
@@ -89,6 +90,7 @@ export const crons: Cron[] = [
   cleanChannelHighlights,
   cleanExpiredBetterAuthSessions,
   updateTagMaterializedViews,
+  refreshToolStackStats,
   materializeMonthlyBestPostArchives,
   materializeYearlyBestPostArchives,
   cleanOldNotifications,

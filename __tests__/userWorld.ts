@@ -4,6 +4,7 @@ import {
   GraphQLTestClient,
   GraphQLTestingState,
   MockContext,
+  createMockLogger,
   disposeGraphQLTesting,
   initializeGraphQLTesting,
   saveFixtures,
@@ -11,7 +12,14 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { UserWorldSettings } from '../src/entity/user/UserWorldSettings';
-import { User } from '../src/entity';
+import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
+  User,
+} from '../src/entity';
+import { UserAchievement } from '../src/entity/user/UserAchievement';
+import { syncUserRetroactiveAchievements } from '../src/common/achievement/retroactive';
 import { Niche, NicheBucketGroup } from '../src/entity/Niche';
 import { UserNicheAnalytics } from '../src/entity/user/UserNicheAnalytics';
 import { UserNicheGrowth } from '../src/entity/user/UserNicheGrowth';
@@ -493,6 +501,84 @@ describe('mutation updateUserWorldSettings', () => {
       'GRAPHQL_VALIDATION_FAILED',
       'this world has not raised anything to put on a crest',
     );
+  });
+
+  describe('world setup achievement', () => {
+    const achievementId = '44444444-4444-4444-8444-444444444444';
+
+    beforeEach(async () => {
+      await con.createQueryBuilder().delete().from(UserAchievement).execute();
+      await con.getRepository(Achievement).save({
+        id: achievementId,
+        name: 'Terraformer test',
+        description: 'Make your world your own',
+        image: '',
+        type: AchievementType.Instant,
+        eventType: AchievementEventType.WorldSetup,
+        criteria: { targetCount: 1 },
+        points: 5,
+      });
+    });
+
+    it('should unlock on the first piece of dressing', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { name: 'the quiet archive' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(
+        await con
+          .getRepository(UserAchievement)
+          .findOneBy({ achievementId, userId: '1' }),
+      ).toMatchObject({ progress: 1, unlockedAt: expect.any(Date) });
+    });
+
+    it('should not unlock when only the privacy toggle changed', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { private: true },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(
+        await con
+          .getRepository(UserAchievement)
+          .findOneBy({ achievementId, userId: '1' }),
+      ).toBeNull();
+    });
+
+    it('should not unlock when the dressing is cleared', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { name: null },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(
+        await con
+          .getRepository(UserAchievement)
+          .findOneBy({ achievementId, userId: '1' }),
+      ).toBeNull();
+    });
+
+    it('should unlock retroactively for a world dressed before the achievement existed', async () => {
+      await con
+        .getRepository(UserWorldSettings)
+        .save({ userId: '2', name: 'the long shelf' });
+
+      await syncUserRetroactiveAchievements({
+        con,
+        logger: createMockLogger(),
+        userId: '2',
+      });
+
+      expect(
+        await con
+          .getRepository(UserAchievement)
+          .findOneBy({ achievementId, userId: '2' }),
+      ).toMatchObject({ progress: 1, unlockedAt: expect.any(Date) });
+    });
   });
 });
 

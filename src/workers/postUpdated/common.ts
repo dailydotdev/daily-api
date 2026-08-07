@@ -153,5 +153,8 @@ export const buildCommonPostFields = ({
     subType: null,
     contentMeta,
     contentQuality: data?.content_quality || {},
+    // Left undefined when absent so a payload without the field never clears
+    // questions already stored for the post.
+    answeredQuestions: data?.answered_questions,
   };
 };

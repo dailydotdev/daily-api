@@ -17,6 +17,11 @@ import {
   worldSkySchema,
 } from '../common/schema/userWorld';
 import { UserWorldSettings } from '../entity/user/UserWorldSettings';
+import {
+  AchievementEventType,
+  checkAchievementProgress,
+} from '../common/achievement';
+
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
@@ -121,6 +126,7 @@ import {
   uploadAvatar,
   UploadPreset,
   uploadProfileCover,
+  uploadWorldPlate,
   VALID_WEEK_STARTS,
   validateWorkEmailDomain,
   voteComment,
@@ -400,6 +406,8 @@ export type GQLUserWorldSettings = {
   crest: z.infer<typeof worldCrestSchema> | null;
   look: z.infer<typeof worldLookSchema> | null;
   private: boolean;
+  plateUrl: string | null;
+  plateVersion: string | null;
 };
 
 export interface GQLUserProfileAnalytics {
@@ -1587,6 +1595,16 @@ export const typeDefs = /* GraphQL */ `
     Whether the world is hidden from everyone but its owner
     """
     private: Boolean!
+    """
+    A bare render of the world, captured in the owner's browser. The share card
+    is composed around it, so it carries no name, stats or chrome of its own.
+    Null when the owner has not opened their world since plates existed
+    """
+    plateUrl: String
+    """
+    What the plate was a picture of, used to decide staleness without a TTL
+    """
+    plateVersion: String
   }
 
   input UserWorldSkyInput {
@@ -1922,6 +1940,23 @@ export const typeDefs = /* GraphQL */ `
       look: UserWorldLookInput
       private: Boolean
     ): UserWorldSettings @auth
+
+    """
+    Store a bare render of the caller's own world, captured in their browser.
+    Takes no id: like every world customisation, it writes the caller's row and
+    nobody else's, which is what stops a visitor from putting an arbitrary image
+    on someone else's share card.
+    """
+    uploadUserWorldPlate(
+      """
+      The render, as captured from the world canvas
+      """
+      image: Upload!
+      """
+      What the render is a picture of, echoed back on read to decide staleness
+      """
+      version: String!
+    ): UserWorldSettings @auth @rateLimit(limit: 10, duration: 3600)
 
     """
     Update user profile information
@@ -3825,9 +3860,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         }
       });
 
+      // Only the dressing counts as having set the place up — flipping it
+      // private is a visibility choice, not an act of making it yours.
+      if (
+        (['name', 'sky', 'crest', 'look'] as const).some(
+          (key) => !isNullOrUndefined(patch[key]),
+        )
+      ) {
+        await checkAchievementProgress(
+          ctx.con,
+          ctx.log,
+          userId,
+          AchievementEventType.WorldSetup,
+        );
+      }
+
       // Read back through graphorm so the mutation answers in exactly the shape
       // the query does rather than assembling a second one. Null is reachable:
       // a call that changed nothing writes no row.
+      return graphorm.queryOne<GQLUserWorldSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :id`,
+          { id: userId },
+        );
+
+        return builder;
+      });
+    },
+    uploadUserWorldPlate: async (
+      _,
+      { image, version }: { image: Promise<FileUpload>; version: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserWorldSettings | null> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const trimmed = version?.trim();
+      if (!trimmed || trimmed.length > 128) {
+        throw new ValidationError('Invalid plate version');
+      }
+
+      const { userId } = ctx;
+      const upload = await image;
+      // Overwrites the previous plate rather than accumulating one asset per
+      // capture: only the newest is ever served, and the version column is what
+      // says whether it is current.
+      const { url } = await uploadWorldPlate(userId, upload.createReadStream());
+
+      await ctx.con
+        .getRepository(UserWorldSettings)
+        .upsert({ userId, plateUrl: url, plateVersion: trimmed }, ['userId']);
+
       return graphorm.queryOne<GQLUserWorldSettings>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.where(
           `"${builder.alias}"."userId" = :id`,

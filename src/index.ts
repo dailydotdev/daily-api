@@ -80,7 +80,11 @@ export default async function app(
   const app = fastify({
     logger: loggerConfig,
     disableRequestLogging: true,
-    trustProxy: true,
+    // The GCP load balancer appends `<client-ip>,<load-balancer-ip>` to any
+    // client-supplied x-forwarded-for and does not validate what precedes them.
+    // Trusting 2 hops discards the client-supplied prefix, so `request.ip`
+    // cannot be spoofed. `true` would resolve to the leftmost (attacker) entry.
+    trustProxy: 2,
     routerOptions: {
       useSemicolonDelimiter: true,
     },

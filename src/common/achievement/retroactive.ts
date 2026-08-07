@@ -535,6 +535,18 @@ const handleQuestClaim: RetroactiveHandler = async (con, userIds) => {
   return toProgressMap(rows);
 };
 
+const handleWorldSetup: RetroactiveHandler = async (con, userIds) => {
+  const rows = await con.query(
+    `SELECT "userId"
+     FROM user_world_settings
+     WHERE "userId" = ANY($1)
+       AND (name IS NOT NULL OR sky IS NOT NULL OR crest IS NOT NULL OR "look" IS NOT NULL)`,
+    [userIds],
+  );
+
+  return toInstantMap(rows);
+};
+
 const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.ProfileImageUpdate]: handleProfileImageUpdate,
   [AchievementEventType.ProfileCoverUpdate]: handleProfileCoverUpdate,
@@ -584,6 +596,7 @@ const handlers: Partial<Record<AchievementEventType, RetroactiveHandler>> = {
   [AchievementEventType.ShareClickMilestone]: handleShareClickMilestone,
   [AchievementEventType.SharePostsClicked]: handleSharePostsClicked,
   [AchievementEventType.QuestClaim]: handleQuestClaim,
+  [AchievementEventType.WorldSetup]: handleWorldSetup,
 };
 
 export const syncUsersRetroactiveAchievements = async ({

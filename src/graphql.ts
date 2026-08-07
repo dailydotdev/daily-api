@@ -36,6 +36,7 @@ import * as opportunity from './schema/opportunity';
 import * as autocompletes from './schema/autocompletes';
 import * as profile from './schema/profile';
 import * as userStack from './schema/userStack';
+import * as datasetTool from './schema/datasetTool';
 import * as sourceStack from './schema/sourceStack';
 import * as userHotTake from './schema/userHotTake';
 import * as gear from './schema/gear';
@@ -106,6 +107,7 @@ export const schema = urlDirective.transformer(
                 autocompletes.typeDefs,
                 profile.typeDefs,
                 userStack.typeDefs,
+                datasetTool.typeDefs,
                 sourceStack.typeDefs,
                 userHotTake.typeDefs,
                 gear.typeDefs,
@@ -157,6 +159,7 @@ export const schema = urlDirective.transformer(
                   autocompletes.resolvers,
                   profile.resolvers,
                   userStack.resolvers,
+                  datasetTool.resolvers,
                   sourceStack.resolvers,
                   userHotTake.resolvers,
                   gear.resolvers,

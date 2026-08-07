@@ -40,7 +40,11 @@ import {
 } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { triggerTypedEvent, updateFlagsStatement } from '../src/common';
+import {
+  triggerTypedEvent,
+  updateFlagsStatement,
+  WATERCOOLER_ID,
+} from '../src/common';
 import { randomUUID } from 'crypto';
 import { deleteKeysByPattern, deleteRedisKey, ioRedisPool } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
@@ -2731,6 +2735,34 @@ describe('query fetchSmartTitle', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+  });
+
+  it('should return the original title for watercooler posts when clickbait shield is disabled', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(SquadSource).save({
+      id: WATERCOOLER_ID,
+      handle: 'watercooler',
+      name: 'Watercooler',
+      private: false,
+    });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { sourceId: WATERCOOLER_ID });
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('P1');
   });
 
   it('should return the smart title muliple times when clickbait shield is disabled', async () => {

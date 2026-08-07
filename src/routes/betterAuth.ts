@@ -85,6 +85,13 @@ export const callBetterAuth = async ({
     req.headers as Record<string, string | string[] | undefined>,
   );
 
+  // BetterAuth keys its rate limits on the first x-forwarded-for entry, which
+  // clients can set themselves. Collapse the header to the IP Fastify resolved
+  // so the limits apply per real client instead of per spoofable value.
+  if (req.ip) {
+    headers.set('x-forwarded-for', req.ip);
+  }
+
   const authRequest = new Request(url, {
     method: method ?? req.method,
     headers,

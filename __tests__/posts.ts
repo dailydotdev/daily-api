@@ -324,6 +324,59 @@ describe('slug field', () => {
   });
 });
 
+describe('answeredQuestions field', () => {
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        answeredQuestions {
+          question
+          answer
+          cta
+        }
+      }
+    }
+  `;
+
+  it('should return null when the post was never enriched with questions', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toBeNull();
+  });
+
+  it('should return an empty list when enrichment found nothing worth asking', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { answeredQuestions: [] });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toEqual([]);
+  });
+
+  it('should return the questions when present', async () => {
+    const answeredQuestions = [
+      {
+        question: 'What session security defaults change in PHP 8.6?',
+        answer: 'PHP 8.6 flips three session ini defaults to safer values.',
+        cta: 'Teams shipping PHP upgrades track breaking changes like these on daily.dev.',
+      },
+      {
+        question: 'How does partial function application work in PHP 8.6?',
+        answer: 'A ? placeholder prefills arguments and returns a callable.',
+        cta: 'Developers adopting new PHP syntax compare real usage on daily.dev.',
+      },
+    ];
+
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { answeredQuestions });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toEqual(answeredQuestions);
+  });
+});
+
 describe('communitySentiment field', () => {
   const QUERY = /* GraphQL */ `
     {
@@ -1711,6 +1764,75 @@ describe('query post', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+
+    it('should return false for watercooler posts above threshold', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con.getRepository(ArticlePost).update('p1', {
+        sourceId: WATERCOOLER_ID,
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+  });
+
+  describe('smart title', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      loggedUser = '1';
+      isPlus = true;
+
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.99 },
+        contentMeta: { alt_title: { translations: { en: 'Smart title' } } },
+      });
+    });
+
+    it('should return the smart title when clickbait shield is enabled', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('Smart title');
+    });
+
+    it('should return the original title for watercooler posts', async () => {
+      await con.getRepository(SquadSource).save({
+        id: WATERCOOLER_ID,
+        handle: 'watercooler',
+        name: 'Watercooler',
+        private: false,
+      });
+      await con
+        .getRepository(ArticlePost)
+        .update('p1', { sourceId: WATERCOOLER_ID });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.title).toEqual('P1');
     });
   });
 
