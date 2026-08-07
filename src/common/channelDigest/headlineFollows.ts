@@ -1,7 +1,6 @@
 import type { DataSource, EntityManager } from 'typeorm';
-import { In, Not } from 'typeorm';
+import { In } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { ContentPreferenceKeyword } from '../../entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
 import { ChannelDigest } from '../../entity/ChannelDigest';
@@ -12,6 +11,7 @@ import { SourceMemberRoles } from '../../roles';
 import { queryReadReplica } from '../queryReadReplica';
 import { remoteConfig } from '../../remoteConfig';
 import { getChannelDigestSourceIds } from './definitions';
+import { getUserOnboardingTags } from '../feed';
 
 const defaultHeadlineChannelMinPosts = 10;
 
@@ -35,25 +35,6 @@ const markBackfilled = async ({
     .execute();
 
   return result.raw.length > 0;
-};
-
-const getUserOnboardingTags = async ({
-  con,
-  userId,
-}: {
-  con: DataSource;
-  userId: string;
-}): Promise<string[]> => {
-  const preferences = await con.getRepository(ContentPreferenceKeyword).find({
-    select: ['referenceId'],
-    where: {
-      userId,
-      feedId: userId,
-      status: Not(ContentPreferenceStatus.Blocked),
-    },
-  });
-
-  return preferences.map((preference) => preference.referenceId);
 };
 
 const resolveHeadlineChannelSourcesForUser = async ({

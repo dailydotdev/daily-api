@@ -72,7 +72,7 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { maxFeedsPerUser, UserVote } from '../src/types';
+import { maxFeedsPerUser, TagChipSeedStrategy, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import { feedClient } from '../src/integrations/feed/generators';
@@ -4999,6 +4999,89 @@ describe('query feedList', () => {
         .getMany();
       expect(chipFeeds).toHaveLength(1);
       expect(getUserTagsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tagChipSeedStrategy arg', () => {
+    const QUERY_WITH_STRATEGY = `
+      query FeedList(
+        $includeTagChipFeeds: Boolean
+        $tagChipSeedStrategy: TagChipSeedStrategy
+      ) {
+        feedList(
+          includeTagChipFeeds: $includeTagChipFeeds
+          tagChipSeedStrategy: $tagChipSeedStrategy
+        ) {
+          edges {
+            node {
+              flags {
+                name
+                origin
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let getUserTagsSpy: jest.SpyInstance;
+    let getTopicsSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      getUserTagsSpy = jest
+        .spyOn(feedClient, 'getUserTags')
+        .mockResolvedValue([]);
+      getTopicsSpy = jest.spyOn(feedClient, 'getTopics').mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      getUserTagsSpy.mockRestore();
+      getTopicsSpy.mockRestore();
+    });
+
+    it('defaults to V1 when omitted', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).not.toHaveBeenCalled();
+      const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
+      expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
+        TagChipSeedStrategy.V1,
+      );
+    });
+
+    it('seeds clustered topics when V2', async () => {
+      await con.getRepository(ContentPreferenceKeyword).save({
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      });
+      getTopicsSpy.mockResolvedValue([
+        { label: 'javascript', tags: ['javascript'] },
+      ]);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: {
+          includeTagChipFeeds: true,
+          tagChipSeedStrategy: TagChipSeedStrategy.V2,
+        },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).toHaveBeenCalled();
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
+
+      const seededNames = res.data.feedList.edges
+        .filter((e) => e.node.flags.origin === FeedOrigin.TagChip)
+        .map((e) => e.node.flags.name);
+      expect(seededNames).toEqual(['javascript']);
     });
   });
 });
