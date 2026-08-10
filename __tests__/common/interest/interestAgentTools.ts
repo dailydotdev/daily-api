@@ -315,6 +315,9 @@ describe('query_feed', () => {
     expect(res.candidates.map((c: { postId: string }) => c.postId)).toEqual(
       expect.arrayContaining(['p1', 'p2']),
     );
+    expect(res.candidates[0]).toMatchObject({
+      permalink: expect.stringContaining('/posts/'),
+    });
   });
 
   it('rejects an unknown tag distinguishably from an empty page', async () => {

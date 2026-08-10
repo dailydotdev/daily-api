@@ -138,9 +138,13 @@ export const readPostTool = ({
     ]);
 
     if (
-      [post.summary, post.description, post.content, post.sharedSummary].some(
-        hasUntrustedDelimiter,
-      )
+      [
+        post.summary,
+        post.description,
+        post.content,
+        post.sharedSummary,
+        post.sourceDescription,
+      ].some(hasUntrustedDelimiter)
     ) {
       log.warn(
         { interestId: interest.id, postId: post.id },
@@ -180,7 +184,7 @@ export const readPostTool = ({
             id: post.sourceId,
             handle: post.sourceHandle,
             name: post.sourceName,
-            description: post.sourceDescription,
+            description: wrapUntrusted(post.sourceDescription),
             type: post.sourceType,
             totalPosts: post.sourceFlags?.totalPosts,
             totalUpvotes: post.sourceFlags?.totalUpvotes,
