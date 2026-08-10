@@ -16,6 +16,7 @@ export const DISCOVERY_BATCH_SIZE = 10;
 
 export const UNTRUSTED_OPEN = '<user_content>';
 export const UNTRUSTED_CLOSE = '</user_content>';
+export const UNTRUSTED_STRIPPED = '[tag removed]';
 
 export const wrapUntrusted = <T extends string | null | undefined>(
   text: T,
@@ -23,9 +24,9 @@ export const wrapUntrusted = <T extends string | null | undefined>(
   typeof text === 'string' && text.length
     ? `${UNTRUSTED_OPEN}${text
         .split(UNTRUSTED_OPEN)
-        .join('')
+        .join(UNTRUSTED_STRIPPED)
         .split(UNTRUSTED_CLOSE)
-        .join('')}${UNTRUSTED_CLOSE}`
+        .join(UNTRUSTED_STRIPPED)}${UNTRUSTED_CLOSE}`
     : text;
 
 export const jsonResult = (payload: Record<string, unknown>) => ({
