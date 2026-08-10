@@ -10,12 +10,14 @@ import {
   MAX_COMMENT_LIMIT,
   UNTRUSTED_OPEN,
   budgetError,
+  hasUntrustedDelimiter,
   jsonResult,
   wrapUntrusted,
 } from './constants';
 
 export const readCommentsTool = ({
   con,
+  log,
   interest,
   consumeBudget,
 }: InterestToolContext) => ({
@@ -104,6 +106,16 @@ export const readCommentsTool = ({
           reputation: number | null;
         }>(),
     );
+
+    const flagged = rows
+      .filter((row) => hasUntrustedDelimiter(row.content))
+      .map((row) => row.id);
+    if (flagged.length) {
+      log.warn(
+        { interestId: interest.id, postId: post.id, commentIds: flagged },
+        'interest agent comment injection attempt',
+      );
+    }
 
     return jsonResult({
       postId: post.id,

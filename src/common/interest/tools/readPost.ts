@@ -8,6 +8,7 @@ import type { InterestToolContext } from './context';
 import {
   UNTRUSTED_OPEN,
   budgetError,
+  hasUntrustedDelimiter,
   jsonResult,
   wrapUntrusted,
 } from './constants';
@@ -55,6 +56,7 @@ type PostDetailRow = {
 
 export const readPostTool = ({
   con,
+  log,
   interest,
   consumeBudget,
   pipeline,
@@ -134,6 +136,17 @@ export const readPostTool = ({
       pipeline.findDelivered(post.id),
       pipeline.findViewed(post.id),
     ]);
+
+    if (
+      [post.summary, post.description, post.content, post.sharedSummary].some(
+        hasUntrustedDelimiter,
+      )
+    ) {
+      log.warn(
+        { interestId: interest.id, postId: post.id },
+        'interest agent post injection attempt',
+      );
+    }
 
     return jsonResult({
       postId: post.id,
