@@ -22,6 +22,11 @@ export type FeedResponse = {
   staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
 
+export type FeedTopic = {
+  label: string;
+  tags: string[];
+};
+
 export const isFeedResponseHighlightItem = (
   item: FeedResponseItem,
 ): item is FeedResponseHighlightItem => item.type === 'highlight';

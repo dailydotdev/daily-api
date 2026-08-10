@@ -35,6 +35,8 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { PollOption } from '../src/entity/polls/PollOption';
+import { Niche, NicheBucketGroup } from '../src/entity/Niche';
+import { PostNiche } from '../src/entity/PostNiche';
 import { SourceMemberRoles } from '../src/roles';
 import { snotraUserApiClient } from '../src/integrations/snotra/clients';
 import { PersonaliseState } from '../src/integrations/snotra/types';
@@ -70,7 +72,7 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { maxFeedsPerUser, UserVote } from '../src/types';
+import { maxFeedsPerUser, TagChipSeedStrategy, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import { feedClient } from '../src/integrations/feed/generators';
@@ -4540,8 +4542,8 @@ describe('query feedPreview', () => {
 
 describe('query userUpvotedFeed', () => {
   const QUERY = `
-  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String) {
-    userUpvotedFeed(userId: $userId, first: $first, after: $after) {
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $niches: [String!]) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after, niches: $niches) {
       ${feedFields()}
     }
   }
@@ -4589,6 +4591,65 @@ describe('query userUpvotedFeed', () => {
     res.data.userUpvotedFeed.edges.forEach(({ node }) =>
       expect(['p1', 'p3']).toContain(node.id),
     );
+  });
+
+  describe('niches filter', () => {
+    const jsTsId = '3a5b0ff5-5f4e-4b3f-9d2e-1c5a6b7c8d9e';
+    const rustId = '4b6c1aa6-6a5f-4c40-8e3f-2d6b7c8d9e0f';
+
+    beforeEach(async () => {
+      await saveFixtures(con, Niche, [
+        {
+          id: jsTsId,
+          slug: 'js_ts',
+          title: 'JS/TS',
+          bucketGroup: NicheBucketGroup.Ecosystem,
+        },
+        {
+          id: rustId,
+          slug: 'rust',
+          title: 'Rust',
+          bucketGroup: NicheBucketGroup.Ecosystem,
+        },
+      ]);
+      // p1 is JS/TS only, p3 is primarily Rust with JS/TS as its secondary
+      await saveFixtures(con, PostNiche, [
+        { postId: 'p1', nicheId: jsTsId, rank: 1 },
+        { postId: 'p3', nicheId: rustId, rank: 1 },
+        { postId: 'p3', nicheId: jsTsId, rank: 2 },
+      ]);
+    });
+
+    it('should only return upvotes in the given niches', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['rust'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userUpvotedFeed.edges.map(({ node }) => node.id)).toEqual(
+        ['p3'],
+      );
+    });
+
+    it('should match a secondary niche of a post', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['js_ts'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(
+        res.data.userUpvotedFeed.edges.map(({ node }) => node.id).sort(),
+      ).toEqual(['p1', 'p3']);
+    });
+
+    it('should return nothing for an unknown niche', async () => {
+      const res = await client.query(QUERY, {
+        variables: { userId: '2', niches: ['nope'] },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userUpvotedFeed.edges).toEqual([]);
+    });
   });
 });
 
@@ -4938,6 +4999,89 @@ describe('query feedList', () => {
         .getMany();
       expect(chipFeeds).toHaveLength(1);
       expect(getUserTagsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tagChipSeedStrategy arg', () => {
+    const QUERY_WITH_STRATEGY = `
+      query FeedList(
+        $includeTagChipFeeds: Boolean
+        $tagChipSeedStrategy: TagChipSeedStrategy
+      ) {
+        feedList(
+          includeTagChipFeeds: $includeTagChipFeeds
+          tagChipSeedStrategy: $tagChipSeedStrategy
+        ) {
+          edges {
+            node {
+              flags {
+                name
+                origin
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let getUserTagsSpy: jest.SpyInstance;
+    let getTopicsSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      getUserTagsSpy = jest
+        .spyOn(feedClient, 'getUserTags')
+        .mockResolvedValue([]);
+      getTopicsSpy = jest.spyOn(feedClient, 'getTopics').mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      getUserTagsSpy.mockRestore();
+      getTopicsSpy.mockRestore();
+    });
+
+    it('defaults to V2 when omitted', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).not.toHaveBeenCalled();
+      const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
+      expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
+        TagChipSeedStrategy.V2,
+      );
+    });
+
+    it('seeds clustered topics when V3', async () => {
+      await con.getRepository(ContentPreferenceKeyword).save({
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      });
+      getTopicsSpy.mockResolvedValue([
+        { label: 'javascript', tags: ['javascript'] },
+      ]);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: {
+          includeTagChipFeeds: true,
+          tagChipSeedStrategy: TagChipSeedStrategy.V3,
+        },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).toHaveBeenCalled();
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
+
+      const seededNames = res.data.feedList.edges
+        .filter((e) => e.node.flags.origin === FeedOrigin.TagChip)
+        .map((e) => e.node.flags.name);
+      expect(seededNames).toEqual(['javascript']);
     });
   });
 });

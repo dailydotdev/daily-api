@@ -528,6 +528,31 @@ describe('betterAuth routes', () => {
 
       getBetterAuthSpy.mockRestore();
     });
+
+    it('should pass the trusted client IP to BetterAuth, ignoring a client-supplied x-forwarded-for prefix', async () => {
+      const getBetterAuthSpy = jest
+        .spyOn(betterAuthModule, 'getBetterAuth')
+        .mockReturnValue({
+          handler: async (req: Request) =>
+            new Response(req.headers.get('x-forwarded-for'), { status: 200 }),
+          api: {
+            getSession: async () => null,
+            setPassword: async () => ({ status: true }),
+          },
+        } as ReturnType<typeof betterAuthModule.getBetterAuth>);
+
+      // Mirrors what the GCP load balancer produces when a client sends its own
+      // x-forwarded-for: <spoofed>,<client-ip>,<load-balancer-ip>.
+      const res = await request(app.server)
+        .post('/auth/request-password-reset')
+        .set('x-forwarded-for', '9.9.9.9, 203.0.113.7, 35.191.0.1')
+        .send({ email: 'ip@test.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('203.0.113.7');
+
+      getBetterAuthSpy.mockRestore();
+    });
   });
 
   describe('rewriteOAuthErrorRedirect helper', () => {

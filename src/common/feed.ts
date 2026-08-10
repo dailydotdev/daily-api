@@ -1,7 +1,31 @@
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, Not } from 'typeorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+
+export const getUserOnboardingTags = async ({
+  con,
+  userId,
+  limit,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+  limit?: number;
+}): Promise<string[]> => {
+  const preferences = await con.getRepository(ContentPreferenceKeyword).find({
+    select: ['referenceId'],
+    where: {
+      userId,
+      feedId: userId,
+      status: Not(ContentPreferenceStatus.Blocked),
+    },
+    ...(typeof limit === 'number' && { take: limit }),
+  });
+
+  return preferences.map((preference) => preference.referenceId);
+};
 
 export const countUserOwnedFeeds = ({
   con,

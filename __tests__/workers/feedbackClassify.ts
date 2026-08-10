@@ -1,6 +1,7 @@
 import { expectSuccessfulTypedBackground } from '../helpers';
 import worker from '../../src/workers/feedbackClassify';
 import { Feedback, FeedbackStatus } from '../../src/entity/Feedback';
+import { Feature, FeatureType, FeatureValue } from '../../src/entity/Feature';
 import { User } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -118,6 +119,33 @@ describe('feedbackClassify worker', () => {
           platform: 'MacIntel',
           theme: 'dark',
         },
+        isTeamMember: false,
+      }),
+    );
+  });
+
+  it('should flag team member feedback for huginn delegation', async () => {
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: FeatureValue.Allow,
+    });
+
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Team member feedback',
+      status: FeedbackStatus.Pending,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(mockCreateFeedbackIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isTeamMember: true,
       }),
     );
   });

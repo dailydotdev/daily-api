@@ -86,6 +86,12 @@ export type PostFlagsPublic = Pick<
   | 'ad'
 >;
 
+export type PostAnsweredQuestion = {
+  question: string;
+  answer: string;
+  cta: string;
+};
+
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
   is_clickbait_probability: number;
@@ -398,6 +404,13 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   translation: Partial<Record<ContentLanguage, PostTranslation>>;
+
+  // Named answeredQuestions to stay clear of the PostQuestion entity, which is a
+  // different concept (search question recommendations in their own table).
+  // Nullable rather than defaulting to [], so that a post never enriched is
+  // distinguishable from one enriched with nothing worth asking.
+  @Column({ type: 'jsonb', nullable: true })
+  answeredQuestions: PostAnsweredQuestion[] | null;
 
   @OneToMany(
     'PostCodeSnippet',

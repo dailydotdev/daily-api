@@ -27,6 +27,7 @@ import { postLifecycleStateClickhouseCron } from './postLifecycleStateClickhouse
 import { userPostsAnalyticsRefreshCron } from './userPostsAnalyticsRefresh';
 import { squadPostsAnalyticsRefreshCron } from './squadPostsAnalyticsRefresh';
 import { userProfileAnalyticsClickhouseCron } from './userProfileAnalyticsClickhouse';
+import { userWorldClickhouseCron } from './userWorldClickhouse';
 import { userProfileAnalyticsHistoryClickhouseCron } from './userProfileAnalyticsHistoryClickhouse';
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
@@ -40,6 +41,7 @@ import channelHighlights from './channelHighlights';
 import { cleanExpiredBetterAuthSessions } from './cleanExpiredBetterAuthSessions';
 import { cleanChannelHighlights } from './cleanChannelHighlights';
 import updateTagMaterializedViews from './updateTagMaterializedViews';
+import refreshToolStackStats from './refreshToolStackStats';
 import { materializeMonthlyBestPostArchives } from './materializeMonthlyBestPostArchives';
 import { materializeYearlyBestPostArchives } from './materializeYearlyBestPostArchives';
 import cleanOldNotifications from './cleanOldNotifications';
@@ -74,6 +76,7 @@ export const crons: Cron[] = [
   userPostsAnalyticsRefreshCron,
   squadPostsAnalyticsRefreshCron,
   userProfileAnalyticsClickhouseCron,
+  userWorldClickhouseCron,
   userProfileAnalyticsHistoryClickhouseCron,
   cleanZombieOpportunities,
   userProfileUpdatedSync,
@@ -87,6 +90,7 @@ export const crons: Cron[] = [
   cleanChannelHighlights,
   cleanExpiredBetterAuthSessions,
   updateTagMaterializedViews,
+  refreshToolStackStats,
   materializeMonthlyBestPostArchives,
   materializeYearlyBestPostArchives,
   cleanOldNotifications,

@@ -72,6 +72,10 @@ export const crons: Cron[] = [
     schedule: '20 3 * * *',
   },
   {
+    name: 'refresh-tool-stack-stats',
+    schedule: '45 */6 * * *',
+  },
+  {
     name: 'daily-digest',
     schedule: '2 * * * *',
     limits: {
@@ -125,6 +129,18 @@ export const crons: Cron[] = [
   {
     name: 'post-analytics-clickhouse',
     schedule: '*/5 * * * *',
+  },
+  {
+    name: 'user-world-clickhouse',
+    schedule: '0 3 * * *',
+    activeDeadlineSeconds: 3600,
+    limits: {
+      memory: '2Gi',
+    },
+    requests: {
+      cpu: '500m',
+      memory: '1Gi',
+    },
   },
   {
     name: 'post-analytics-achievements',

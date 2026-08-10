@@ -10,7 +10,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from '../../common';
-import { ContentLanguage, CoresRole } from '../../types';
+import { ContentLanguage, CoresRole, TagChipSeedStrategy } from '../../types';
 import type { Post } from '../posts/Post';
 import type { DevCard } from '../DevCard';
 import type { UserStreak } from './UserStreak';
@@ -56,6 +56,7 @@ export type UserFlags = Partial<{
     updatedAt: string;
   };
   tagChipFeedsSeededAt: string | null;
+  tagChipFeedsSeedStrategy: TagChipSeedStrategy | null;
   // Current cloud provider from campaign onboarding (e.g. aws/gcp/azure/other/
   // none). Stored here rather than a column since it's optional campaign data.
   cloudProvider: string | null;

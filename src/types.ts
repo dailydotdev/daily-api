@@ -198,6 +198,11 @@ export enum UserVoteEntity {
 
 export const maxFeedsPerUser = 35;
 
+export enum TagChipSeedStrategy {
+  V2 = 'V2',
+  V3 = 'V3',
+}
+
 export const maxBookmarksPerMutation = 10;
 
 export const RECOMMENDED_TAGS_LIMIT = 5;

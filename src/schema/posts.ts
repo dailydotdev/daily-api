@@ -41,6 +41,7 @@ import {
   getPostTranslatedTitle,
   getTranslationRecord,
   type GQLSourcePostModeration,
+  isClickbaitShieldDisabledForSource,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
@@ -69,6 +70,7 @@ import {
   Post,
   PostFlagsPublic,
   PostMention,
+  type PostAnsweredQuestion,
   type PostCommunitySentiment,
   PostQuestion,
   PostRelation,
@@ -237,6 +239,7 @@ export interface GQLPost {
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
   communitySentiment?: PostCommunitySentiment | null;
+  answeredQuestions?: PostAnsweredQuestion[] | null;
 }
 
 type ScheduledPostsContext = AuthContext & {
@@ -918,6 +921,12 @@ export const typeDefs = /* GraphQL */ `
     communitySentiment: PostCommunitySentiment
 
     """
+    Questions this post answers, each with a standalone answer. Null when the
+    post predates enrichment of this field, empty when nothing qualified.
+    """
+    answeredQuestions: [PostAnsweredQuestion!]
+
+    """
     Featured award for the post, currently the most expensive one
     """
     featuredAward: UserPost
@@ -1090,6 +1099,16 @@ export const typeDefs = /* GraphQL */ `
     highlights: [PostCommunitySentimentHighlight!]!
     discussions: [PostCommunitySentimentDiscussion!]!
     updatedAt: DateTime
+  }
+
+  """
+  A question this post answers, with a standalone answer. Distinct from
+  PostQuestion, which is a search question recommendation stored per post.
+  """
+  type PostAnsweredQuestion {
+    question: String!
+    answer: String!
+    cta: String!
   }
 
   type PollOption {
@@ -2471,16 +2490,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: Context,
     ): Promise<GQLPostSmartTitle> =>
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
-        const post: Pick<Post, 'title' | 'contentMeta' | 'translation'> =
-          await queryRunner.manager.getRepository(Post).findOneOrFail({
-            where: { id },
-            select: ['title', 'contentMeta', 'translation'],
-          });
+        const post: Pick<
+          Post,
+          'title' | 'contentMeta' | 'translation' | 'sourceId'
+        > = await queryRunner.manager.getRepository(Post).findOneOrFail({
+          where: { id },
+          select: ['title', 'contentMeta', 'translation', 'sourceId'],
+        });
 
         const translationRecord = getTranslationRecord({
           translations: post.translation,
           contentLanguage: ctx.contentLanguage,
         });
+
+        if (isClickbaitShieldDisabledForSource(post.sourceId)) {
+          return {
+            title: getPostTranslatedTitle(post, ctx.contentLanguage),
+            translation: translationRecord,
+          };
+        }
 
         if (!ctx.isPlus) {
           return {

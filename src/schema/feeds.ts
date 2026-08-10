@@ -40,6 +40,7 @@ import {
   tagFeedBuilder,
   toGQLEnum,
   whereKeyword,
+  whereNiches,
   whereTags,
 } from '../common';
 import { isMockEnabled } from '../mocks/common';
@@ -85,7 +86,12 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { DAILY_DROP_HOUR, maxFeedsPerUser, UserVote } from '../types';
+import {
+  DAILY_DROP_HOUR,
+  maxFeedsPerUser,
+  TagChipSeedStrategy,
+  UserVote,
+} from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -118,6 +124,8 @@ import {
 } from './feedV2';
 import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 import { seedTagChipFeedsIfNeeded } from '../common/seedTagChipFeeds';
+import { z } from 'zod';
+import { feedListInputSchema } from '../common/schema/feedList';
 
 interface GQLTagsCategory {
   id: string;
@@ -206,6 +214,8 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
 
   ${toGQLEnum(FeedType, 'FeedType')}
+
+  ${toGQLEnum(TagChipSeedStrategy, 'TagChipSeedStrategy')}
 
   input FeedAdvancedSettingsInput {
     """
@@ -854,6 +864,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Only return posts labeled with any of these niche slugs
+      """
+      niches: [String!]
     ): PostConnection!
 
     """
@@ -1052,6 +1067,15 @@ export const typeDefs = /* GraphQL */ `
       (e.g. behind a GrowthBook rollout flag).
       """
       includeTagChipFeeds: Boolean = false
+      """
+      Which source seeds the caller's tag-chip feeds on their first opted-in
+      read, mirroring the client's feed_chips variant. V2 seeds one single-tag
+      feed per tag from the feed service. V3 clusters the caller's onboarding
+      tags into topics and seeds one multi-tag feed per topic.
+      Client-controlled so the two can be A/B tested; only read on the first
+      seed and inert afterwards.
+      """
+      tagChipSeedStrategy: TagChipSeedStrategy = V2
     ): FeedConnection! @auth
 
     """
@@ -2294,7 +2318,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         info,
       ),
     userUpvotedFeed: feedResolver(
-      (ctx, { userId }: { userId: string } & FeedArgs, builder, alias) =>
+      (
+        ctx,
+        { userId, niches }: { userId: string; niches?: string[] } & FeedArgs,
+        builder,
+        alias,
+      ) => {
         builder
           .addSelect('up.votedAt', 'votedAt')
           .innerJoin(
@@ -2302,7 +2331,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             'up',
             `up."postId" = ${alias}.id AND up."userId" = :author AND vote = :vote`,
             { author: userId, vote: UserVote.Up },
-          ),
+          );
+
+        if (niches?.length) {
+          builder.andWhere((subBuilder) =>
+            whereNiches(niches, subBuilder, alias),
+          );
+        }
+
+        return builder;
+      },
       upvotedPageGenerator,
       applyUpvotedPaging,
       {
@@ -2506,11 +2544,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
-      args: ConnectionArguments & { includeTagChipFeeds?: boolean },
+      args: ConnectionArguments & z.input<typeof feedListInputSchema>,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLFeed>> => {
-      const includeTagChipFeeds = args.includeTagChipFeeds === true;
+      const { includeTagChipFeeds, tagChipSeedStrategy } =
+        feedListInputSchema.parse(args);
 
       let didSeed = false;
 
@@ -2519,6 +2558,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           didSeed = await seedTagChipFeedsIfNeeded({
             con: ctx.con,
             userId: ctx.userId,
+            strategy: tagChipSeedStrategy,
           });
         } catch (err) {
           ctx.log.error(
