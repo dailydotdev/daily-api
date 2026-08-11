@@ -159,7 +159,7 @@ const digestTypeToFunctionMap: Record<
       return;
     }
 
-    const { emailPayload, postIds, sourceIds, ad } = result;
+    const { emailPayload, postIds, sourceIds, ad, adGenerationId } = result;
 
     await dedupedSend(
       async () => {
@@ -206,7 +206,25 @@ const digestTypeToFunctionMap: Record<
           NotificationPreferenceStatus.Subscribed;
 
         if (emailPref !== NotificationPreferenceStatus.Muted) {
-          await sendEmail(emailPayload);
+          const delivery = await sendEmail(emailPayload);
+          if (delivery && adGenerationId) {
+            try {
+              await triggerTypedEvent(logger, 'api.v1.digest-email-queued', {
+                generationId: adGenerationId,
+                deliveryId: delivery.deliveryId,
+                queuedAt: delivery.queuedAt,
+              });
+            } catch (err) {
+              logger.error(
+                {
+                  err,
+                  generationId: adGenerationId,
+                  deliveryId: delivery.deliveryId,
+                },
+                'failed to publish digest email queued event',
+              );
+            }
+          }
         }
       },
       {

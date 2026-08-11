@@ -266,6 +266,52 @@ describe('personalizedDigestEmail worker', () => {
     expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 
+  it('should publish the Customer.io delivery for a digest ad', async () => {
+    nock.cleanAll();
+    const queuedAt = '2026-08-11T12:34:56.000Z';
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneByOrFail({ userId: '1' });
+    const mockedPostIds = postsFixture
+      .slice(0, 5)
+      .map((post) => ({ post_id: post.id }));
+
+    nock('http://localhost:6000')
+      .post('/api/personalised')
+      .reply(200, { data: mockedPostIds, rows: mockedPostIds.length });
+    nock('http://localhost:8080')
+      .post('/private')
+      .reply(200, {
+        generation_id: 'digest-generation-id',
+        value: {
+          digest: {
+            call_to_action: 'Learn more',
+            company_logo: 'https://daily.dev/logo',
+            company_name: 'daily.dev',
+            image: 'https://daily.dev/image',
+            link: 'https://daily.dev/ad',
+            title: 'Digest ad',
+          },
+        },
+      });
+    (sendEmail as jest.Mock).mockResolvedValue({
+      deliveryId: 'customer-io-delivery-id',
+      queuedAt,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expectTypedEvent('api.v1.digest-email-queued', {
+      generationId: 'digest-generation-id',
+      deliveryId: 'customer-io-delivery-id',
+      queuedAt,
+    });
+  });
+
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',

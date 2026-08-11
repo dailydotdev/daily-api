@@ -222,6 +222,11 @@ export type PubSubSchema = {
     postId: string;
     sendAtMs?: number;
   };
+  'api.v1.digest-email-queued': {
+    generationId: string;
+    deliveryId: string;
+    queuedAt: string;
+  };
   'api.v1.interest-run-requested': {
     interestId: string;
   };
