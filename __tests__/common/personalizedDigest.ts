@@ -38,6 +38,7 @@ describe('getEmailAd', () => {
       })
       .reply(200, {
         type: 'ad',
+        generation_id: 'digest-generation-id',
         value: {
           digest: {
             call_to_action: 'Click now!',
@@ -61,13 +62,16 @@ describe('getEmailAd', () => {
     });
 
     expect(ad).toEqual({
-      call_to_action: 'Click now!',
-      company_logo: ' https://daily.dev/image',
-      company_name: 'WE',
-      image: 'https://daily.dev/image',
-      link: 'https://daily.dev/ad',
-      title: 'Ad title',
-      type: 'dynamic_ad',
+      ad: {
+        call_to_action: 'Click now!',
+        company_logo: ' https://daily.dev/image',
+        company_name: 'WE',
+        image: 'https://daily.dev/image',
+        link: 'https://daily.dev/ad',
+        title: 'Ad title',
+        type: 'dynamic_ad',
+      },
+      generationId: 'digest-generation-id',
     });
   });
 

@@ -2,9 +2,12 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
+  publishEvent,
+  pubsub as pubsubClient,
   resolveDigestPersonaliseState,
   sendEmail,
   triggerTypedEvent,
+  type PubSubSchema,
 } from '../common';
 import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
@@ -42,6 +45,25 @@ import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { upsertDigestPost } from '../common/digest';
 import { isPlusMember } from '../paddle';
+
+const digestEmailQueuedTopic = pubsubClient.topic(
+  'api.v1.digest-email-queued',
+  {
+    batching: {
+      maxMessages: 100,
+      maxMilliseconds: 100,
+    },
+  },
+);
+
+const queueDigestEmailDelivery = (
+  logger: FastifyBaseLogger,
+  payload: PubSubSchema['api.v1.digest-email-queued'],
+): void => {
+  // This mapping is best-effort. Reusing one Topic lets Pub/Sub batch events
+  // from the concurrent digest workers without delaying email processing.
+  void publishEvent(logger, digestEmailQueuedTopic, payload);
+};
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -159,7 +181,7 @@ const digestTypeToFunctionMap: Record<
       return;
     }
 
-    const { emailPayload, postIds, sourceIds, ad } = result;
+    const { emailPayload, postIds, sourceIds, ad, adGenerationId } = result;
 
     await dedupedSend(
       async () => {
@@ -206,7 +228,14 @@ const digestTypeToFunctionMap: Record<
           NotificationPreferenceStatus.Subscribed;
 
         if (emailPref !== NotificationPreferenceStatus.Muted) {
-          await sendEmail(emailPayload);
+          const delivery = await sendEmail(emailPayload);
+          if (delivery && adGenerationId) {
+            queueDigestEmailDelivery(logger, {
+              generationId: adGenerationId,
+              deliveryId: delivery.deliveryId,
+              queuedAt: delivery.queuedAt,
+            });
+          }
         }
       },
       {

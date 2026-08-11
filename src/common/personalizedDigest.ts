@@ -190,11 +190,16 @@ export type CIOSkadiAd = {
   type: string;
 } & SkadiAd;
 
+type EmailAd = {
+  ad: CIOSkadiAd;
+  generationId?: string;
+};
+
 export const getEmailAd = async ({
   user,
 }: {
   user: User;
-}): Promise<CIOSkadiAd | null> => {
+}): Promise<EmailAd | null> => {
   if (isPlusMember(user.subscriptionFlags?.cycle)) {
     return null;
   }
@@ -210,8 +215,11 @@ export const getEmailAd = async ({
   }
 
   return {
-    type: 'dynamic_ad',
-    ...digestAd,
+    ad: {
+      type: 'dynamic_ad',
+      ...digestAd,
+    },
+    ...(ad.generation_id ? { generationId: ad.generation_id } : {}),
   };
 };
 
@@ -433,6 +441,7 @@ export type DigestEmailPayloadResult = {
   postIds: string[];
   sourceIds: string[];
   ad: CIOSkadiAd | null;
+  adGenerationId?: string;
 };
 
 export const getPersonalizedDigestEmailPayload = async ({
@@ -549,18 +558,19 @@ export const getPersonalizedDigestEmailPayload = async ({
     return undefined;
   }
 
-  const adProps = await getEmailAd({
+  const emailAd = await getEmailAd({
     user,
   });
-  if (adProps) {
+  if (emailAd) {
     logger.info(
       {
-        adProps,
+        adProps: emailAd.ad,
         personalizedDigest,
       },
       'Got Skadi powered Ad',
     );
   }
+  const adProps = emailAd?.ad ?? null;
 
   const variationProps = await getEmailVariation({
     personalizedDigest,
@@ -585,6 +595,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     postIds,
     sourceIds,
     ad: adProps,
+    ...(emailAd?.generationId ? { adGenerationId: emailAd.generationId } : {}),
   };
 };
 
