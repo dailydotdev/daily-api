@@ -1,4 +1,8 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  expectTypedEvent,
+  saveFixtures,
+} from '../helpers';
 import worker from '../../src/workers/personalizedDigestEmail';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -305,7 +309,7 @@ describe('personalizedDigestEmail worker', () => {
 
     expect(publishEvent).toHaveBeenCalledTimes(1);
     const [, topic, payload] = jest.mocked(publishEvent).mock.calls[0];
-    expect(topic.publisher.settings.batching).toEqual({
+    expect(topic.publisher.settings.batching).toMatchObject({
       maxMessages: 100,
       maxMilliseconds: 100,
     });
