@@ -432,10 +432,6 @@ export const workers: Worker[] = [
     subscription: 'api.post-visible-interest-match',
   },
   {
-    topic: 'post-upvoted',
-    subscription: 'api.post-upvoted-interest-signal',
-  },
-  {
     topic: 'pce.v1.personal-context-generated',
     subscription: 'api.personal-context-generated',
   },

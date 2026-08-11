@@ -58,6 +58,7 @@ export type RemoteConfigValue = {
   interestAgentMaxTags: number;
   interestAgentMaxWebSearchesPerRun: number;
   interestAgentMaxDiscoveriesPerDay: number;
+  interestAgentMaxToolCallsPerRun: number;
   dailyFeedCacheKey: string;
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;

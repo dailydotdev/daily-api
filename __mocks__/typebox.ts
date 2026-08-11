@@ -6,4 +6,7 @@ export const Type = {
   Number: schema,
   Optional: schema,
   Array: schema,
+  Literal: schema,
+  Union: schema,
+  Boolean: schema,
 };
