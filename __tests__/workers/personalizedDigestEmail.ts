@@ -1,8 +1,4 @@
-import {
-  expectSuccessfulBackground,
-  expectTypedEvent,
-  saveFixtures,
-} from '../helpers';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/personalizedDigestEmail';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -24,6 +20,7 @@ import {
   DEFAULT_TIMEZONE,
   getPersonalizedDigestPreviousSendDate,
   getPersonalizedDigestSendDate,
+  publishEvent,
   sendEmail,
 } from '../../src/common';
 import nock from 'nock';
@@ -55,6 +52,7 @@ import { PersonaliseState } from '../../src/integrations/snotra/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+  publishEvent: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -266,7 +264,7 @@ describe('personalizedDigestEmail worker', () => {
     expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 
-  it('should publish the Customer.io delivery for a digest ad', async () => {
+  it('should queue the Customer.io delivery for batched publishing', async () => {
     nock.cleanAll();
     const queuedAt = '2026-08-11T12:34:56.000Z';
     const personalizedDigest = await con
@@ -305,7 +303,13 @@ describe('personalizedDigestEmail worker', () => {
       emailBatchId: 'test-email-batch-id',
     });
 
-    expectTypedEvent('api.v1.digest-email-queued', {
+    expect(publishEvent).toHaveBeenCalledTimes(1);
+    const [, topic, payload] = jest.mocked(publishEvent).mock.calls[0];
+    expect(topic.publisher.settings.batching).toEqual({
+      maxMessages: 100,
+      maxMilliseconds: 100,
+    });
+    expect(payload).toEqual({
       generationId: 'digest-generation-id',
       deliveryId: 'customer-io-delivery-id',
       queuedAt,

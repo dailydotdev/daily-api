@@ -2,9 +2,12 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
+  publishEvent,
+  pubsub as pubsubClient,
   resolveDigestPersonaliseState,
   sendEmail,
   triggerTypedEvent,
+  type PubSubSchema,
 } from '../common';
 import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
@@ -42,6 +45,25 @@ import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { upsertDigestPost } from '../common/digest';
 import { isPlusMember } from '../paddle';
+
+const digestEmailQueuedTopic = pubsubClient.topic(
+  'api.v1.digest-email-queued',
+  {
+    batching: {
+      maxMessages: 100,
+      maxMilliseconds: 100,
+    },
+  },
+);
+
+const queueDigestEmailDelivery = (
+  logger: FastifyBaseLogger,
+  payload: PubSubSchema['api.v1.digest-email-queued'],
+): void => {
+  // This mapping is best-effort. Reusing one Topic lets Pub/Sub batch events
+  // from the concurrent digest workers without delaying email processing.
+  void publishEvent(logger, digestEmailQueuedTopic, payload);
+};
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -208,22 +230,11 @@ const digestTypeToFunctionMap: Record<
         if (emailPref !== NotificationPreferenceStatus.Muted) {
           const delivery = await sendEmail(emailPayload);
           if (delivery && adGenerationId) {
-            try {
-              await triggerTypedEvent(logger, 'api.v1.digest-email-queued', {
-                generationId: adGenerationId,
-                deliveryId: delivery.deliveryId,
-                queuedAt: delivery.queuedAt,
-              });
-            } catch (err) {
-              logger.error(
-                {
-                  err,
-                  generationId: adGenerationId,
-                  deliveryId: delivery.deliveryId,
-                },
-                'failed to publish digest email queued event',
-              );
-            }
+            queueDigestEmailDelivery(logger, {
+              generationId: adGenerationId,
+              deliveryId: delivery.deliveryId,
+              queuedAt: delivery.queuedAt,
+            });
           }
         }
       },
