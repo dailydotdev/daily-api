@@ -300,6 +300,9 @@ describe('personalizedDigestEmail worker', () => {
       deliveryId: 'customer-io-delivery-id',
       queuedAt,
     });
+    jest
+      .mocked(publishEvent)
+      .mockRejectedValueOnce(new Error('failed to publish'));
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
