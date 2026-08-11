@@ -56,13 +56,22 @@ const digestEmailQueuedTopic = pubsubClient.topic(
   },
 );
 
-const queueDigestEmailDelivery = (
+const publishDigestEmailDelivery = async (
   logger: FastifyBaseLogger,
   payload: PubSubSchema['api.v1.digest-email-queued'],
-): void => {
-  // This mapping is best-effort. Reusing one Topic lets Pub/Sub batch events
-  // from the concurrent digest workers without delaying email processing.
-  void publishEvent(logger, digestEmailQueuedTopic, payload);
+): Promise<void> => {
+  try {
+    await publishEvent(logger, digestEmailQueuedTopic, payload);
+  } catch (err) {
+    logger.error(
+      {
+        err,
+        generationId: payload.generationId,
+        deliveryId: payload.deliveryId,
+      },
+      'failed to publish digest email delivery',
+    );
+  }
 };
 
 interface Data {
@@ -230,7 +239,7 @@ const digestTypeToFunctionMap: Record<
         if (emailPref !== NotificationPreferenceStatus.Muted) {
           const delivery = await sendEmail(emailPayload);
           if (delivery && adGenerationId) {
-            queueDigestEmailDelivery(logger, {
+            await publishDigestEmailDelivery(logger, {
               generationId: adGenerationId,
               deliveryId: delivery.deliveryId,
               queuedAt: delivery.queuedAt,
