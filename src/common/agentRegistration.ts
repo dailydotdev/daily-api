@@ -4,7 +4,7 @@ import { ONE_HOUR_IN_SECONDS } from './constants';
 
 export const MARKDOWN_TOKEN_PREFIX = 'ddm_';
 export const MARKDOWN_TOKEN_AUDIENCE = 'dailydev-markdown';
-export const MARKDOWN_TOKEN_ISSUER = 'https://api.daily.dev';
+export const MARKDOWN_TOKEN_ISSUER = process.env.URL_PREFIX;
 export const MARKDOWN_TOKEN_SCOPE = 'markdown:read';
 
 const getMarkdownTokenSecret = (): string => {
