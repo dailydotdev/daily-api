@@ -344,11 +344,14 @@ export type PubSubSchema = {
   };
   'api.v1.world-district-level-up': {
     userId: string;
-    nicheId: string;
-    /** The rung just reached, on the twelve-step district ladder. */
-    level: number;
-    /** Lifetime reads behind that rung, for ranking and for logs. */
-    reads: number;
+    /** Highest rung first, capped — the notification names at most two. */
+    districts: {
+      nicheId: string;
+      /** The rung just reached, on the twelve-step district ladder. */
+      level: number;
+    }[];
+    /** Districts that levelled up in this run, including the unnamed ones. */
+    total: number;
   };
   'api.v1.worker-job-execute': {
     jobId: string;

@@ -14,9 +14,9 @@ import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
 import {
   districtLevelOf,
-  WORLD_LEVEL_UP_MIN_LEVEL,
+  WORLD_LEVEL_UP_SENT_DISTRICTS,
 } from '../common/worldLadder';
-import { triggerTypedEvent } from '../common/typedPubsub';
+import { triggerTypedEvent, type PubSubSchema } from '../common/typedPubsub';
 
 type UserWorldCronConfig = Partial<{
   cursor: string;
@@ -102,12 +102,17 @@ const chunk = <T>(items: T[], size: number): T[][] =>
   }, []);
 
 /**
- * The rung a district just crossed, or null if it did not cross one worth
- * saying out loud.
+ * The rung a district just crossed, or null if it stayed where it was.
  *
  * Free to compute where it is called: both sides of the comparison are already
  * in hand for every district the run touched, so this adds no query, no scan
  * and no second pass over the delta.
+ *
+ * There is deliberately no minimum rung. A first district reaching L2 is the
+ * moment a new reader's world starts existing, and that is the one most worth
+ * pulling them back for. What keeps this from becoming noise is downstream:
+ * everything a reader crossed today folds into ONE notification, and the
+ * notification itself is capped to one per reader per week.
  */
 const crossingOf = (
   next: Pick<WorldLevelCrossing, 'userId' | 'nicheId' | 'reads'>,
@@ -115,10 +120,7 @@ const crossingOf = (
 ): WorldLevelCrossing | null => {
   const level = districtLevelOf(next.reads);
 
-  if (
-    level < WORLD_LEVEL_UP_MIN_LEVEL ||
-    level <= districtLevelOf(priorReads)
-  ) {
+  if (level <= districtLevelOf(priorReads)) {
     return null;
   }
 
@@ -131,35 +133,42 @@ const crossingOf = (
 };
 
 /**
- * One level-up per user per run, highest rung first.
+ * Everything one reader's world did today, as a single event.
  *
- * The cron covers whole days in a single pass, so a reader can cross rungs in
- * several districts at once, and a run that has been down for a week crosses a
- * great many. Sending each turns an earned trigger into a burst of push
- * notifications that all land in the same second, which is the fastest way to
- * get the channel muted for good.
+ * The cron covers whole days in one pass, so a reader routinely crosses rungs
+ * in several districts at once, and a run that has been down for a week crosses
+ * a great many. One event per crossing would land a burst of pushes in the same
+ * second; picking a single winner would throw away the fact that the world grew
+ * in four places, which is a better thing to say than any one of them.
  *
- * Ties break towards more reads: of two districts arriving on the same rung,
- * the bigger one is the one they are actually reading.
+ * So they combine. The leaders are ranked highest rung first, ties to more
+ * reads — of two districts arriving on the same rung, the bigger one is the one
+ * they are actually reading — and the rest survive as a count.
  */
-const bestCrossingPerUser = (
+const foldCrossingsByUser = (
   crossings: WorldLevelCrossing[],
-): WorldLevelCrossing[] => {
-  const best = new Map<string, WorldLevelCrossing>();
+): PubSubSchema['api.v1.world-district-level-up'][] => {
+  const byUser = new Map<string, WorldLevelCrossing[]>();
 
   for (const crossing of crossings) {
-    const current = best.get(crossing.userId);
+    const seen = byUser.get(crossing.userId);
 
-    if (
-      !current ||
-      crossing.level > current.level ||
-      (crossing.level === current.level && crossing.reads > current.reads)
-    ) {
-      best.set(crossing.userId, crossing);
+    if (seen) {
+      seen.push(crossing);
+      continue;
     }
+
+    byUser.set(crossing.userId, [crossing]);
   }
 
-  return [...best.values()];
+  return [...byUser.entries()].map(([userId, all]) => ({
+    userId,
+    districts: all
+      .sort((a, b) => b.level - a.level || b.reads - a.reads)
+      .slice(0, WORLD_LEVEL_UP_SENT_DISTRICTS)
+      .map(({ nicheId, level }) => ({ nicheId, level })),
+    total: all.length,
+  }));
 };
 
 export const userWorldClickhouseCron: Cron = {
@@ -457,14 +466,14 @@ export const userWorldClickhouseCron: Cron = {
       cursor: until.toISOString(),
     });
 
-    const levelUps = bestCrossingPerUser(crossings);
+    const levelUps = foldCrossingsByUser(crossings);
 
     // Chunked rather than one Promise.all over everything: a busy day is
     // thousands of readers, and the point of a daily cron is that it has time.
     for (const batch of chunk(levelUps, LEVEL_UP_CHUNK_SIZE)) {
       await Promise.all(
-        batch.map((crossing) =>
-          triggerTypedEvent(logger, 'api.v1.world-district-level-up', crossing),
+        batch.map((levelUp) =>
+          triggerTypedEvent(logger, 'api.v1.world-district-level-up', levelUp),
         ),
       );
     }
@@ -473,9 +482,10 @@ export const userWorldClickhouseCron: Cron = {
       {
         rows: data.length,
         inserted: inserted.length,
-        // Districts that crossed a rung, against readers actually told about
-        // it. A wide gap is the fold doing its job; a gap that closes means
-        // readers are crossing one rung at a time, which is the healthy shape.
+        // Districts that crossed a rung, against events published. The ratio is
+        // how much the fold is carrying: one event per reader however many of
+        // their districts moved. Neither number is what was delivered — the
+        // weekly cap is applied downstream, when the notification is stored.
         crossings: crossings.length,
         levelUps: levelUps.length,
         // Rows dropped because the mirror still lists a user or niche Postgres no

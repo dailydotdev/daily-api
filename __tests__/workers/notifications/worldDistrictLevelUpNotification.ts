@@ -1,4 +1,5 @@
 import type { DataSource } from 'typeorm';
+import { formatInTimeZone } from 'date-fns-tz';
 import createOrGetConnection from '../../../src/db';
 import { Niche } from '../../../src/entity/Niche';
 import { User } from '../../../src/entity/user/User';
@@ -12,6 +13,27 @@ import { usersFixture } from '../../fixture/user';
 let con: DataSource;
 
 const nicheRust = '44444444-4444-4444-8444-444444444444';
+const nicheGo = '66666666-6666-4666-8666-666666666666';
+const nicheGone = '55555555-5555-4555-8555-555555555555';
+
+const invoke = (
+  payload: Parameters<typeof worker.handler>[0],
+): ReturnType<typeof worker.handler> =>
+  invokeTypedNotificationWorker<'api.v1.world-district-level-up'>(
+    worker,
+    payload,
+  );
+
+const contextOf = async (
+  payload: Parameters<typeof worker.handler>[0],
+): Promise<NotificationWorldDistrictLevelUpContext> => {
+  const result = await invoke(payload);
+
+  expect(result).toHaveLength(1);
+  expect(result![0].type).toBe(NotificationType.WorldDistrictLevelUp);
+
+  return result![0].ctx as NotificationWorldDistrictLevelUpContext;
+};
 
 describe('worldDistrictLevelUpNotification worker', () => {
   beforeAll(async () => {
@@ -23,6 +45,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Niche, [
       { id: nicheRust, slug: 'rust', title: 'Rust' },
+      { id: nicheGo, slug: 'go', title: 'Go' },
     ]);
   });
 
@@ -35,32 +58,97 @@ describe('worldDistrictLevelUpNotification worker', () => {
   });
 
   it('should notify the owner with the niche title', async () => {
-    const result =
-      await invokeTypedNotificationWorker<'api.v1.world-district-level-up'>(
-        worker,
-        { userId: '1', nicheId: nicheRust, level: 7, reads: 42 },
-      );
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
 
-    expect(result).toHaveLength(1);
-    expect(result![0].type).toBe(NotificationType.WorldDistrictLevelUp);
-
-    const ctx = result![0].ctx as NotificationWorldDistrictLevelUpContext;
     expect(ctx.userIds).toEqual(['1']);
-    expect(ctx.nicheTitle).toBe('Rust');
-    expect(ctx.level).toBe(7);
+    expect(ctx.districts).toEqual([
+      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7 },
+    ]);
+    expect(ctx.total).toBe(1);
   });
 
-  it('should do nothing when the niche is gone', async () => {
-    const result =
-      await invokeTypedNotificationWorker<'api.v1.world-district-level-up'>(
-        worker,
-        {
-          userId: '1',
-          nicheId: '55555555-5555-4555-8555-555555555555',
-          level: 7,
-          reads: 42,
-        },
-      );
+  it('should name at most two districts and keep the rest as a count', async () => {
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [
+        { nicheId: nicheRust, level: 7 },
+        { nicheId: nicheGo, level: 5 },
+      ],
+      total: 6,
+    });
+
+    expect(ctx.districts).toHaveLength(2);
+    expect(ctx.total).toBe(6);
+  });
+
+  it('should bucket the dedup key by ISO week', async () => {
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    // The rate limit: the per-user notification unique key is derived from this,
+    // so a second level-up in the same calendar week is dropped on insert.
+    expect(ctx.dedupKey).toBe(
+      formatInTimeZone(new Date(), 'Etc/UTC', "RRRR-'W'II"),
+    );
+  });
+
+  it('should hold the send until a reasonable hour in the reader timezone', async () => {
+    await con.getRepository(User).update({ id: '1' }, { timezone: 'Etc/UTC' });
+
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    // The cron runs at 03:00 UTC. Whenever the test happens to run, the send
+    // must land on the configured hour rather than immediately.
+    expect(ctx.sendAtMs).toBeGreaterThan(Date.now());
+    expect(
+      formatInTimeZone(new Date(ctx.sendAtMs as number), 'Etc/UTC', 'HH'),
+    ).toBe('18');
+  });
+
+  it('should drop a district the catalogue no longer has, from names and count', async () => {
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [
+        { nicheId: nicheRust, level: 7 },
+        { nicheId: nicheGone, level: 5 },
+      ],
+      total: 2,
+    });
+
+    expect(ctx.districts).toEqual([
+      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7 },
+    ]);
+    // Counting it would promise growth the reader cannot find in their world.
+    expect(ctx.total).toBe(1);
+  });
+
+  it('should do nothing when no niche survives', async () => {
+    const result = await invoke({
+      userId: '1',
+      districts: [{ nicheId: nicheGone, level: 7 }],
+      total: 1,
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should do nothing when the user is gone', async () => {
+    const result = await invoke({
+      userId: 'deleted-user',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
 
     expect(result).toBeUndefined();
   });

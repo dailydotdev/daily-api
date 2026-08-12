@@ -273,8 +273,27 @@ export const notificationTitleMap: Record<
   // The rung is a number, not its build name. The ladder names twelve rungs for
   // whoever edits the geometry, and WAYSTONE or ARCANUM is a second vocabulary
   // to learn before the news means anything. The world counts; so does this.
-  world_district_level_up: (ctx: NotificationWorldDistrictLevelUpContext) =>
-    `<b>${ctx.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${ctx.level}</span> in your world`,
+  //
+  // Two districts are named and the rest become a count. A push notification
+  // that lists four subjects is read as a digest, and a digest is skimmed.
+  world_district_level_up: (ctx: NotificationWorldDistrictLevelUpContext) => {
+    const [first, second] = ctx.districts;
+    const lead = `<b>${first.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${first.level}</span>`;
+
+    if (ctx.total <= 1) {
+      return `${lead} in your world`;
+    }
+
+    if (ctx.total === 2 && second) {
+      return `${lead} and <b>${second.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${second.level}</span> in your world`;
+    }
+
+    // Counted off the leader rather than the named pair, so a district the
+    // catalogue dropped between the cron and here is still counted, not named.
+    const rest = ctx.total - 1;
+
+    return `${lead}, and ${rest} more district${rest === 1 ? '' : 's'} grew in your world`;
+  },
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
     `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
@@ -840,14 +859,15 @@ export const generateNotificationMap: Record<
     return (
       builder
         .icon(NotificationIcon.World)
-        .referenceWorldDistrict(ctx.nicheId)
+        .referenceWorldDistrict(ctx.districts[0].nicheId)
         .avatarWorld()
         .targetUrl(`${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/world`)
-        // Reference is the niche, so the user has to be in the key: without it
-        // the first reader to reach L7 in Rust would be the only one who ever
-        // could. The rung completes it, and makes a replayed cron window a
-        // no-op rather than a second notification.
-        .uniqueKey(`${ctx.userIds[0]}:${ctx.level}`)
+        // Reference is the leading niche, so the user has to be in the key:
+        // without it the first reader to reach L7 in Rust would be the only
+        // one who ever could. The week completing it is the same bucket the
+        // per-user rate limit uses, which is what makes a replayed cron window
+        // a no-op here too.
+        .uniqueKey(`${ctx.userIds[0]}:${ctx.dedupKey}`)
     );
   },
   digest_ready: (

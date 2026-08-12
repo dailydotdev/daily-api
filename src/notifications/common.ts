@@ -573,6 +573,7 @@ enum UserNotificationUniqueKey {
   DigestReady = 'digest_ready',
   ScheduledPostPublished = 'scheduled_post_published',
   InterestContentBatch = 'interest_content_batch',
+  WorldLevelUp = 'world_level_up',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -586,6 +587,12 @@ const notificationTypeToUniqueKey: Partial<
     UserNotificationUniqueKey.ScheduledPostPublished,
   [NotificationType.InterestContentBatch]:
     UserNotificationUniqueKey.InterestContentBatch,
+  // Paired with a per-week `dedupKey`, this is the whole rate limit: the unique
+  // index on (userId, uniqueKey) means the second world level-up in a calendar
+  // week is dropped by ON CONFLICT DO NOTHING, and since push streams from
+  // user_notification, the dropped one never reaches a device either.
+  [NotificationType.WorldDistrictLevelUp]:
+    UserNotificationUniqueKey.WorldLevelUp,
 };
 
 const fixedUniqueKeyTypes = new Set<NotificationType>([

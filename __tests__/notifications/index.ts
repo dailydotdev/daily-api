@@ -1483,6 +1483,89 @@ describe('storeNotificationBundle', () => {
     expect(userNotifications.length).toEqual(2);
   });
 
+  it('should deliver one world_district_level_up per week, whatever crossed', async () => {
+    const build = (
+      districts: { nicheId: string; nicheTitle: string; level: number }[],
+      dedupKey: string,
+    ) =>
+      generateNotificationV2(NotificationType.WorldDistrictLevelUp, {
+        userIds: [userId],
+        districts,
+        total: districts.length,
+        dedupKey,
+      });
+
+    const rust = { nicheId: 'n1', nicheTitle: 'Rust', level: 7 };
+    const go = { nicheId: 'n2', nicheTitle: 'Go', level: 4 };
+
+    await con.transaction(async (manager) => {
+      await storeNotificationBundleV2(
+        manager,
+        build([rust], '2026-W33'),
+        '2026-W33',
+      );
+      // Another day, another district, same week — and the leading niche
+      // differs, so the reference cannot be what drops it.
+      await storeNotificationBundleV2(
+        manager,
+        build([go], '2026-W33'),
+        '2026-W33',
+      );
+      await storeNotificationBundleV2(
+        manager,
+        build([rust], '2026-W34'),
+        '2026-W34',
+      );
+    });
+
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .findBy({ userId });
+
+    expect(userNotifications.length).toEqual(2);
+  });
+
+  it('should name two districts and count the rest', () => {
+    const title = (total: number) =>
+      generateNotificationV2(NotificationType.WorldDistrictLevelUp, {
+        userIds: [userId],
+        districts: [
+          { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
+          { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
+        ],
+        total,
+        dedupKey: '2026-W33',
+      }).notification.title;
+
+    expect(title(1)).toEqual(
+      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span> in your world',
+    );
+    expect(title(2)).toEqual(
+      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span> and <b>Go</b> reached <span class="text-theme-color-cabbage">L4</span> in your world',
+    );
+    expect(title(4)).toEqual(
+      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span>, and 3 more districts grew in your world',
+    );
+  });
+
+  it('should keep the count singular when a single district goes unnamed', () => {
+    // total 2 with one name is the dropped-niche path: it must not read
+    // "and 1 more districts grew".
+    const actual = generateNotificationV2(
+      NotificationType.WorldDistrictLevelUp,
+      {
+        userIds: [userId],
+        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+        total: 2,
+        dedupKey: '2026-W33',
+      },
+    );
+
+    expect(actual.notification.title).toEqual(
+      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span>, and 1 more district grew in your world',
+    );
+  });
+
   it('should generate squad_new_comment notification', () => {
     const type = NotificationType.SquadNewComment;
     const ctx: NotificationCommenterContext = {

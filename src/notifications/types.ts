@@ -247,11 +247,19 @@ export type NotificationAchievementContext = NotificationBaseContext & {
 
 export type NotificationWorldDistrictLevelUpContext =
   NotificationBaseContext & {
-    nicheId: string;
-    /** The niche's own title, resolved at send time. Never derived client-side. */
-    nicheTitle: string;
-    /** The rung just reached, on the twelve-step district ladder. */
-    level: number;
+    /**
+     * The districts the copy names, highest rung first. Never empty, and never
+     * longer than what the copy can carry.
+     */
+    districts: {
+      nicheId: string;
+      /** Titles come from the niche catalogue, never from a client-side casing. */
+      nicheTitle: string;
+      /** The rung just reached, on the twelve-step district ladder. */
+      level: number;
+    }[];
+    /** Districts that levelled up in total. Anything past the named ones is a count. */
+    total: number;
   };
 
 export type NotificationLiveRoomContext = NotificationBaseContext & {

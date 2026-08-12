@@ -31,20 +31,12 @@ export const districtLevelOf = (reads: number): number => {
 };
 
 /**
- * The lowest rung worth interrupting somebody for.
+ * How many districts a level-up notification names before it starts counting.
  *
- * The ladder doubles from L4 up, so its bottom is dense on purpose: L2 is the
- * second article a reader has ever seen in a niche, and L3 the third. Those are
- * rungs the world needs in order to draw a district differently from its
- * neighbour, not events. Notifying on them would fire most days for most
- * readers and say nothing either time, which is how a channel gets muted.
- *
- * L5 is ten articles in one niche. That is a reader who has come back to a
- * subject repeatedly, and it is roughly where the district stops being a camp
- * on bare rock and starts looking built.
- *
- * Raising this is the first knob to reach for if the notification underperforms
- * — it is a constant rather than remote config because crons do not initialise
- * GrowthBook.
+ * Two is what a push notification can carry without becoming a list. Everything
+ * past them becomes "and N more", so the cron only has to ship the leaders.
+ * Three are sent, not two, so a niche deleted between the cron and the worker
+ * costs the notification a name rather than its second clause.
  */
-export const WORLD_LEVEL_UP_MIN_LEVEL = 5;
+export const WORLD_LEVEL_UP_NAMED_DISTRICTS = 2;
+export const WORLD_LEVEL_UP_SENT_DISTRICTS = 3;

@@ -1,6 +1,7 @@
 import {
   districtLevelOf,
-  WORLD_LEVEL_UP_MIN_LEVEL,
+  WORLD_LEVEL_UP_NAMED_DISTRICTS,
+  WORLD_LEVEL_UP_SENT_DISTRICTS,
 } from '../../src/common/worldLadder';
 
 describe('districtLevelOf', () => {
@@ -37,8 +38,11 @@ describe('districtLevelOf', () => {
     expect(districtLevelOf(100_000)).toBe(12);
   });
 
-  it('should put the notification floor on a rung that exists', () => {
-    expect(WORLD_LEVEL_UP_MIN_LEVEL).toBeGreaterThan(0);
-    expect(WORLD_LEVEL_UP_MIN_LEVEL).toBeLessThanOrEqual(12);
+  it('should ship at least as many districts as the copy can name', () => {
+    // The spare is what lets the worker drop a niche the catalogue no longer
+    // has and still fill both slots in the copy.
+    expect(WORLD_LEVEL_UP_SENT_DISTRICTS).toBeGreaterThan(
+      WORLD_LEVEL_UP_NAMED_DISTRICTS,
+    );
   });
 });
