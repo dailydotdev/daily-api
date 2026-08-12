@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type z from 'zod';
-import type { EntityManager } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import createOrGetConnection from '../../db';
 import { parseSchema } from './utils';
 import {
@@ -23,7 +23,7 @@ import {
 } from '../../entity/claim/ClaimCandidate';
 import { ClaimEvidence } from '../../entity/claim/ClaimEvidence';
 import { LedgerEntity } from '../../entity/claim/LedgerEntity';
-import { ArticlePost } from '../../entity/posts/ArticlePost';
+import { Post } from '../../entity/posts/Post';
 import { ConflictError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
@@ -58,6 +58,44 @@ const resolveCandidateEntity = async ({
     kind: candidate.entityKind,
     aliases: candidate.entityAliases,
   });
+};
+
+// Any post type can carry a claim, and single table inheritance keeps url and
+// publishedAt on the shared post table, so read them off the base entity
+// instead of narrowing to one post type.
+const findEvidenceSource = ({
+  con,
+  postId,
+}: {
+  con: DataSource | EntityManager;
+  postId: string;
+}) =>
+  con
+    .getRepository(Post)
+    .createQueryBuilder('p')
+    .select('p."url"', 'url')
+    .addSelect('p."publishedAt"', 'publishedAt')
+    .where('p.id = :postId', { postId })
+    .getRawOne<{ url: string | null; publishedAt: Date | null }>();
+
+const createClaimFromCandidate = async ({
+  manager,
+  candidate,
+}: {
+  manager: EntityManager;
+  candidate: ClaimCandidate;
+}): Promise<string> => {
+  const entity = await resolveCandidateEntity({ manager, candidate });
+  const claim = await manager.getRepository(Claim).save({
+    entityId: entity.id,
+    changeType: candidate.changeType,
+    statement: candidate.statement,
+    versionScope: candidate.versionScope,
+    effectiveDate: candidate.effectiveDate,
+    sunsetDate: candidate.sunsetDate,
+  });
+
+  return claim.id;
 };
 
 export default async (fastify: FastifyInstance): Promise<void> => {
@@ -142,11 +180,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(200).send({ success: true });
     }
 
-    const post = await con.getRepository(ArticlePost).findOne({
-      select: ['url', 'publishedAt'],
-      where: { id: candidate.postId },
-    });
-    const url = body.url ?? post?.url;
+    // Merging cites the candidate's post as evidence, so it needs a url: the
+    // post's own, or one the reviewer supplies when the post carries none.
+    const source = await findEvidenceSource({ con, postId: candidate.postId });
+    const url = body.url ?? source?.url;
 
     if (!url) {
       return res
@@ -154,33 +191,22 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .send({ error: 'Evidence url is required when the post has none' });
     }
 
+    if (
+      body.claimId &&
+      !(await con.getRepository(Claim).findOneBy({ id: body.claimId }))
+    ) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
     const claimId = await con.transaction(async (manager) => {
-      if (body.claimId) {
-        const exists = await manager
-          .getRepository(Claim)
-          .findOneBy({ id: body.claimId });
+      // Without a claimId the candidate becomes a claim of its own, filed
+      // against the ledger entity its names resolve to.
+      const targetClaimId =
+        body.claimId ??
+        (await createClaimFromCandidate({ manager, candidate }));
 
-        if (!exists) {
-          return null;
-        }
-      }
-
-      let targetClaimId = body.claimId;
-
-      if (!targetClaimId) {
-        const entity = await resolveCandidateEntity({ manager, candidate });
-        const claim = await manager.getRepository(Claim).save({
-          entityId: entity.id,
-          changeType: candidate.changeType,
-          statement: candidate.statement,
-          versionScope: candidate.versionScope,
-          effectiveDate: candidate.effectiveDate,
-          sunsetDate: candidate.sunsetDate,
-        });
-
-        targetClaimId = claim.id;
-      }
-
+      // Re-merging the same post into the same claim is a no-op, guarded by the
+      // unique index on (claimId, url).
       await manager
         .getRepository(ClaimEvidence)
         .createQueryBuilder()
@@ -190,7 +216,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           postId: candidate.postId,
           url,
           sourceClass: body.sourceClass,
-          publishedAt: post?.publishedAt ?? null,
+          publishedAt: source?.publishedAt ?? null,
         })
         .orIgnore()
         .execute();
@@ -202,10 +228,6 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
       return targetClaimId;
     });
-
-    if (!claimId) {
-      return res.status(404).send({ error: 'Claim not found' });
-    }
 
     return res.status(200).send({ claimId });
   });

@@ -5,9 +5,10 @@ import appFunc from '../../../src';
 import createOrGetConnection from '../../../src/db';
 import { saveFixtures } from '../../helpers';
 import { sourcesFixture } from '../../fixture/source';
-import { postsFixture } from '../../fixture/post';
+import { postsFixture, videoPostsFixture } from '../../fixture/post';
 import { Source } from '../../../src/entity/Source';
 import { ArticlePost } from '../../../src/entity/posts/ArticlePost';
+import { YouTubePost } from '../../../src/entity/posts/YouTubePost';
 import {
   Claim,
   ClaimChangeType,
@@ -51,12 +52,13 @@ afterAll(() => app.close());
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, YouTubePost, videoPostsFixture);
 });
 
-const seedCandidate = () =>
+const seedCandidate = (postId = postsFixture[0].id as string) =>
   con.getRepository(ClaimCandidate).save({
     id: candidateId,
-    postId: postsFixture[0].id,
+    postId,
     rawEntityName: 'Next.js',
     entityAliases: ['nextjs'],
     entityKind: LedgerEntityKind.Package,
@@ -189,6 +191,25 @@ describe('private ledger routes', () => {
     expect(candidate).toMatchObject({
       status: ClaimCandidateStatus.Merged,
       claimId: body.claimId,
+    });
+  });
+
+  it('should take evidence from a non-article post', async () => {
+    await seedCandidate(videoPostsFixture[0].id as string);
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con
+        .getRepository(ClaimEvidence)
+        .findOneBy({ claimId: body.claimId }),
+    ).toMatchObject({
+      postId: videoPostsFixture[0].id,
+      url: videoPostsFixture[0].url,
     });
   });
 
