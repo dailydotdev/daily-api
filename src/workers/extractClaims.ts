@@ -1,5 +1,3 @@
-import { gunzipSync } from 'node:zlib';
-import { Storage } from '@google-cloud/storage';
 import {
   ClaimChangeType as ProtoClaimChangeType,
   ClaimDirectness as ProtoClaimDirectness,
@@ -14,6 +12,7 @@ import {
 } from '../entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../entity/claim/LedgerEntity';
 import { Source } from '../entity/Source';
+import { downloadTextFromUri } from '../common/googleCloud';
 import { getBragiClient } from '../integrations/bragi/clients';
 
 const changeTypeMap: Record<number, ClaimChangeType> = {
@@ -72,27 +71,8 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
     const logDetails = { postId, messageId };
 
     try {
-      const [bucketName, ...objectParts] = resourceLocation
-        .slice('gs://'.length)
-        .split('/');
-      const objectName = objectParts.join('/');
-
-      if (!bucketName || !objectName) {
-        throw new Error(
-          `Malformed cleaned content location: ${resourceLocation}`,
-        );
-      }
-
-      const [downloaded] = await new Storage()
-        .bucket(bucketName)
-        .file(objectName)
-        .download();
-      // Yggdrasil sometimes stores the cleaned XML gzipped without setting
-      // contentEncoding, so decompressive transcoding does not kick in.
-      const isGzip = downloaded[0] === 0x1f && downloaded[1] === 0x8b;
-      const content = (isGzip ? gunzipSync(downloaded) : downloaded).toString(
-        'utf-8',
-      );
+      // Passed to bragi verbatim: evidence spans must match the post exactly.
+      const content = await downloadTextFromUri(resourceLocation);
 
       if (!content) {
         return;
