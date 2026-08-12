@@ -25,35 +25,39 @@ type CopyBand = {
 
 const BANDS: CopyBand[] = [
   {
-    // L1-L4: five articles or fewer. Barely anything on the ground yet, and
-    // the lines say so. Overselling a pile of rocks is how a reader learns to
-    // stop believing the next one.
-    upTo: 4,
+    // L1-L3, three articles or fewer: a lodestone on bare rock, then stacked
+    // stones, then a tended camp with a lantern and a path. Nothing is built
+    // yet, so nothing here claims anything is. Overselling a pile of rocks is
+    // how a reader learns to discount the next line too.
+    upTo: 3,
     lines: [
-      "It's mostly rocks so far.",
-      "Tiny, but it's there.",
-      'Every district starts out like this.',
+      'Not much there yet.',
+      'Every district starts this small.',
+      'Give it a few more reads and see.',
     ],
   },
   {
-    // L5-L8: ten to eighty. Roofs went up at L4, so every rung in this band
-    // has them.
+    // L4-L8. The band opens at L4 because that is where the first roof goes up
+    // and the plot, in the ladder's own words, starts reading as built rather
+    // than found. Everything above it keeps those buildings, so the lines hold
+    // for the whole band.
     upTo: 8,
     lines: [
-      "It's got roofs now.",
-      "That one's turning into an actual place.",
-      'Enough reading to fill a town.',
+      "It's got buildings on it now.",
+      'Starting to look lived in.',
+      'Enough reading that someone could plausibly live there.',
     ],
   },
   {
-    // L9-L11: a hundred and sixty upwards. L9 is where the ladder's own notes
-    // say a district becomes legible from across the map, and nothing above it
-    // gets smaller.
+    // L9-L11. L9 is the rung with sky bridges strung between the towers and
+    // the first that is legible from across the map; L11 still has its decks
+    // and bridges. The article count is the concrete version of "that took
+    // some doing": L9 is 160 reads and the band tops out at 640.
     upTo: 11,
     lines: [
       'You can spot that one from anywhere on the map.',
-      "Every rung is double the last, so that's a serious pile of reading.",
-      'Towers and bridges up there now.',
+      'Towers and sky bridges up there.',
+      "That one's over a hundred articles deep.",
     ],
   },
   {

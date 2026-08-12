@@ -32,6 +32,28 @@ describe('worldLevelUpLine', () => {
     expect(new Set(bands).size).toEqual(4);
   });
 
+  it('should not call a district built before anything is built on it', () => {
+    // The first roof goes up at L4. Below that the ladder has a lodestone on
+    // bare rock, stacked stones, and a tended camp, so no line under L4 may
+    // claim a building.
+    const built = /building|roof|lived in|live there|tower|bridge/i;
+
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      for (const level of [1, 2, 3]) {
+        expect(line(level, seed)).not.toMatch(built);
+      }
+    }
+  });
+
+  it('should put the band boundary at the rung that starts building', () => {
+    // L3 is a camp, L4 is the first roof. They must not read the same.
+    const seeds = ['a', 'b', 'c', 'd', 'e', 'f'];
+
+    for (const seed of seeds) {
+      expect(line(3, seed)).not.toEqual(line(4, seed));
+    }
+  });
+
   it('should give the top of the ladder its own line', () => {
     // L12 is the only rung with nothing above it, and the only one whose band
     // holds a single sentence, so every seed lands on it.
