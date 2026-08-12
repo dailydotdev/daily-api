@@ -22,12 +22,12 @@ describe('agent signup', () => {
 
     expect(body).toMatchObject({
       token: expect.stringMatching(/^ddm_/),
-      signupUrl: expect.stringMatching(
-        /^https:\/\/daily\.dev\/onboarding\?agent_token=ddm_/,
-      ),
+      signupUrl: expect.any(String),
       expiresAt: expect.any(String),
     });
     const signupUrl = new URL(body.signupUrl);
+    expect(signupUrl.origin).toBe(new URL(process.env.COMMENTS_PREFIX).origin);
+    expect(signupUrl.pathname).toBe('/onboarding');
     expect(signupUrl.searchParams.get('agent_token')).toBe(body.token);
 
     const payload = jwt.verify(
