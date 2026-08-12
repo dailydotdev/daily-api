@@ -281,6 +281,8 @@ config:
       secure: AAABAD7VNjbWiUH2AM409j73rN9cpScghzwhC9HHiQj6j3tqQaPDbP3PS4DJwCYtjbF4XNISYhpxtBetROMyedUIj1lZd5FRcX2/JigbKzvsRG4MUJUAHVkDFdQtNHH0oh1hEy/vusonYRXVXw1t0qbH310Oc+87QzhD7Dxx0bu6ysba+b5pxBxr3EM=
     linearHuginnAgentId:
       secure: AAABANKRo+IcGU45hHot31p7j3Qei8oAGU5QSDZRNN1eJRY1yn37uJfRcTnfL0K5GC4LFeBcg7wbGZafY+7h7mIqICo=
+    agentAccessTokenSecret:
+      secure: AAABAPxrWvSZchpaXNnGXANoZfcYNljETFw0TsO5KBNjxhLgQWXHf6WnWt+UhGRo7ulAqG4xsD4oaCJyQfhmCJltAxgTBiBTEIPqAu58ku640wIBEyG0rCXQTgil7Jax
   api:k8s:
     host: subs.daily.dev
     namespace: daily

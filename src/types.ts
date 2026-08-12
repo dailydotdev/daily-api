@@ -33,6 +33,7 @@ declare global {
       EMAIL_TRACKING_ORIGIN?: string;
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
+      AGENT_ACCESS_TOKEN_SECRET: string;
       COOKIES_KEY: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
