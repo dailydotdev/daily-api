@@ -1550,6 +1550,25 @@ describe('storeNotificationBundle', () => {
     );
   });
 
+  it('should carry a level-appropriate line as the description', () => {
+    const describe_ = (level: number) =>
+      generateNotificationV2(NotificationType.WorldDistrictLevelUp, {
+        userIds: [userId],
+        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level }],
+        total: 1,
+        handle: 'idoshamun',
+        dedupKey: '2026-W33',
+      }).notification.description;
+
+    // The title carries the facts, the description carries the colour. It has
+    // to be there, and it has to change as the ladder is climbed.
+    expect(describe_(2)).toEqual(expect.any(String));
+    expect(describe_(2)).not.toEqual(describe_(12));
+    expect(describe_(12)).toEqual(
+      'Top of the ladder. There is nothing above it.',
+    );
+  });
+
   it('should keep the count singular when a single district goes unnamed', () => {
     // total 2 with one name is the dropped-niche path: it must not read
     // "and 1 more districts grew".

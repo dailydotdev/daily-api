@@ -54,6 +54,7 @@ import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency, formatMetricValue } from '../common/number';
 import { generateCampaignPostNotification } from '../common/campaign/post';
 import { generateCampaignSquadNotification } from '../common/campaign/source';
+import { worldLevelUpLine } from '../common/worldLevelUpCopy';
 
 const systemTitle = () => undefined;
 const feedbackCancelledTitle = 'Your feedback has been reviewed';
@@ -864,6 +865,15 @@ export const generateNotificationMap: Record<
         .icon(NotificationIcon.World)
         .referenceWorldDistrict(ctx.districts[0].nicheId)
         .avatarWorld()
+        // Composed here rather than in the email, so the in-app item and the
+        // email read the same sentence. Seeded by the reader and the week: a
+        // redelivered event repeats itself, the next one does not.
+        .description(
+          worldLevelUpLine({
+            level: ctx.districts[0].level,
+            seed: `${ctx.userIds[0]}:${ctx.dedupKey}`,
+          }),
+        )
         // `/world/:handle`, not `/:handle/world` — the world is its own route
         // rather than a profile tab. Same link `WorldShare` copies.
         .targetUrl(`${process.env.COMMENTS_PREFIX}/world/${ctx.handle}`)

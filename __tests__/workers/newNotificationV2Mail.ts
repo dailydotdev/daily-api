@@ -70,6 +70,7 @@ import {
   type NotificationOpportunityMatchContext,
   type NotificationWarmIntroContext,
 } from '../../src/notifications';
+import { worldLevelUpLine } from '../../src/common/worldLevelUpCopy';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
@@ -3217,11 +3218,11 @@ describe('world_district_level_up email', () => {
 
     expect(args.transactional_message_id).toEqual('100');
     expect(args.message_data).toEqual({
-      // Stripped from the in-app title rather than re-composed, so the email
-      // and the notification can never word the same event differently.
+      // Both read back from the stored notification rather than re-composed,
+      // so the email and the item in the reader's list cannot word the same
+      // event differently.
       title: 'Rust just hit L7 in your world',
-      subtitle:
-        'You read your way there. Every level rebuilds a district into something bigger, so go and see what changed.',
+      subtitle: worldLevelUpLine({ level: 7, seed: '1:2026-W33' }),
       world_link: expect.stringContaining('/world/idoshamun'),
     });
   });

@@ -1328,12 +1328,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       // the only place the districts are composed. Stripped rather than
       // re-derived, so the two can never drift apart.
       title: basicHtmlStrip(notification.title),
-      // Static, because the reason to open a world does not change with which
-      // district moved. It credits the reader for the growth and says what a
-      // level actually does: the geometry is rebuilt at every rung, so there
-      // is something new on the ground to go and look at.
-      subtitle:
-        'You read your way there. Every level rebuilds a district into something bigger, so go and see what changed.',
+      // The line varies with the rung and rotates week to week, and it is
+      // chosen once when the notification is built. Read back rather than
+      // re-picked so the email cannot say something different from the item
+      // already sitting in the reader's notification list.
+      subtitle: notification.description || '',
       world_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
