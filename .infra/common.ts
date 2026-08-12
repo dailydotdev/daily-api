@@ -344,6 +344,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-company-enrichment',
   },
   {
+    topic: 'api.v1.experience-company-enrichment',
+    subscription: 'api.experience-company-enrichment',
+  },
+  {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-user-notification',
   },

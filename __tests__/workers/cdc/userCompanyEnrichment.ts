@@ -5,7 +5,6 @@ import { triggerTypedEvent } from '../../../src/common';
 import { User } from '../../../src/entity/user/User';
 import { UserCompany } from '../../../src/entity/UserCompany';
 import { Company, CompanyType } from '../../../src/entity/Company';
-import { anthropicClient } from '../../../src/integrations/anthropic';
 import cdcWorker from '../../../src/workers/cdc/primary';
 import worker from '../../../src/workers/userCompanyEnrichment';
 import { ChangeObject } from '../../../src/types';
@@ -18,19 +17,24 @@ import {
 import { usersFixture } from '../../fixture/user';
 import { getGoogleFaviconUrl } from '../../../src/common/companyEnrichment';
 
-jest.mock('../../../src/integrations/anthropic', () => ({
-  anthropicClient: {
-    createMessage: jest.fn(),
-  },
+const mockResolveOrganization = jest.fn();
+
+jest.mock('../../../src/integrations/bragi', () => ({
+  getBragiClient: () => ({
+    garmr: {
+      execute: (fn: () => Promise<unknown>) => fn(),
+    },
+    instance: {
+      resolveOrganization: (...args: unknown[]) =>
+        mockResolveOrganization(...args),
+    },
+  }),
 }));
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
   triggerTypedEvent: jest.fn(),
 }));
-
-const mockCreateMessage = jest.mocked(anthropicClient.createMessage);
-const originalAnthropicApiKey = process.env.ANTHROPIC_API_KEY;
 
 let con: DataSource;
 
@@ -39,14 +43,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  process.env.ANTHROPIC_API_KEY = 'test';
   jest.clearAllMocks();
   nock.cleanAll();
   await saveFixtures(con, User, [usersFixture[0]]);
 });
 
 afterEach(() => {
-  process.env.ANTHROPIC_API_KEY = originalAnthropicApiKey;
   nock.cleanAll();
 });
 
@@ -64,15 +66,10 @@ describe('user company enrichment CDC', () => {
       flags: {},
     };
 
-    mockCreateMessage.mockResolvedValue({
-      content: [
-        {
-          input: {
-            englishName: 'Integrated Worlds',
-            nativeName: 'Integrated Worlds GmbH',
-          },
-        },
-      ],
+    mockResolveOrganization.mockResolvedValue({
+      englishName: 'Integrated Worlds',
+      nativeName: 'Integrated Worlds GmbH',
+      domain: 'integrated-worlds.com',
     });
     nock('https://integrated-worlds.com').get('/').reply(200);
 
