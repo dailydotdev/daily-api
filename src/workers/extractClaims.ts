@@ -68,6 +68,18 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
       return;
     }
 
+    // The topic fires on updates too — yggdrasil republishes a post on caption
+    // merges and re-enrichment — and Pub/Sub can redeliver, so extracting on
+    // every message piles up semantic duplicates for the same post. Extraction
+    // is therefore frozen at first sight of a post; re-extracting after the
+    // content changes is an explicit operation over the private ledger routes,
+    // not an implicit side effect of the topic. Checked before the GCS fetch so
+    // repeat deliveries cost nothing. Reads the primary: a replica lag here
+    // would let a redelivery slip through.
+    if (await con.getRepository(ClaimCandidate).existsBy({ postId })) {
+      return;
+    }
+
     const logDetails = { postId, messageId };
 
     try {
