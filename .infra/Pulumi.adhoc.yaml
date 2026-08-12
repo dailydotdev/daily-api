@@ -125,6 +125,8 @@ config:
     klipyApiKey:
       secure: v1:gzBeDqBc2YJvv4/D:4Z5XkabQxCfJ9YEsg+ifIHSiRRAyChx5j0FbKLibSuj2HT/5cpdTJzPqVvl6X7jlxJUhI0KY4NantpGkRdC4ZOCiYZ74qA47eTZG+/gkUG8=
     klipyGifSearchUrl: https://api.klipy.com/v2/search
+    agentAccessTokenSecret:
+      secure: v1:Wx3Jh64Ghkk5hbaY:AI81ctUwE/sTfDAerxwZbPIVSTEn31LNZSlHfseNjYRjlOTinyR5ULkgRmkycSUHBVzXSJXzM+3krXEeNg5ht5mPa0TFUhvU1OT5KbBf3aY=
   api:k8s:
     namespace: local
   api:temporal:
