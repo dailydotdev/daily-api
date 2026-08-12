@@ -72,17 +72,29 @@ const filler = (
     activeDays: 1,
   }));
 
+/**
+ * Empty the index's views by refreshing them off the emptied sources.
+ *
+ * A view cannot be cleared, and leaving one alone carries a world from one test
+ * into the next. Not CONCURRENTLY: that buys nothing on a fixture-sized view.
+ */
+const refreshIndexViews = async (): Promise<void> => {
+  for (const view of [UserWorldSummary, UserNicheRank, NicheWorldStats]) {
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(view).metadata.tableName}`,
+    );
+  }
+};
+
 beforeEach(async () => {
   loggedUser = null;
   await con.getRepository(UserWorldLevelUp).clear();
-  await con.getRepository(UserNicheRank).clear();
-  await con.getRepository(NicheWorldStats).clear();
-  await con.getRepository(UserWorldSummary).clear();
   await con.getRepository(UserNicheGrowth).clear();
   await con.getRepository(UserNicheAnalytics).clear();
   await con.getRepository(UserWorldSettings).clear();
   await con.getRepository(ContentPreferenceUser).clear();
   await con.getRepository(SourceMember).clear();
+  await refreshIndexViews();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, User, usersFixture);
   // content_preference keys its rows by feed, and the main feed is the user's
@@ -422,7 +434,11 @@ describe('query worldTopicRanking', () => {
   });
 
   it('excludes a world that has dropped below the district floor', async () => {
-    await con.getRepository(UserWorldSummary).delete({ userId: '2' });
+    // Taken off the districts the summary is built from, rather than off the
+    // summary: the eligibility rule is the view's, and deleting the row it
+    // produced would test nothing but the join.
+    await dropBelowFloor('2');
+    await refreshIndexViews();
 
     expect(await rankedUsers(nicheJs, 'all')).toEqual([
       [1, '1'],
