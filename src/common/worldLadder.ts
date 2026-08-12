@@ -31,20 +31,6 @@ export const districtLevelOf = (reads: number): number => {
 };
 
 /**
- * Articles still to read in a niche before its district climbs another rung.
- * 0 at the top of the ladder, which has nothing above it.
- */
-export const readsToNextLevel = (reads: number): number => {
-  const level = districtLevelOf(reads);
-
-  if (level >= LEVEL_READS.length) {
-    return 0;
-  }
-
-  return LEVEL_READS[level] - reads;
-};
-
-/**
  * How many districts a level-up notification names before it starts counting.
  *
  * Two is what a push notification can carry without becoming a list. Everything

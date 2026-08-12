@@ -77,13 +77,13 @@ describe('worldDistrictLevelUpNotification worker', () => {
   it('should notify the owner with the niche title', async () => {
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
     expect(ctx.userIds).toEqual(['1']);
     expect(ctx.districts).toEqual([
-      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7, toNext: 8 },
+      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7 },
     ]);
     expect(ctx.total).toBe(1);
   });
@@ -91,7 +91,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
   it('should hand the username to the world route, not the id', async () => {
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -105,7 +105,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -116,8 +116,8 @@ describe('worldDistrictLevelUpNotification worker', () => {
     const ctx = await contextOf({
       userId: '1',
       districts: [
-        { nicheId: nicheRust, level: 7, toNext: 8 },
-        { nicheId: nicheGo, level: 5, toNext: 4 },
+        { nicheId: nicheRust, level: 7 },
+        { nicheId: nicheGo, level: 5 },
       ],
       total: 6,
     });
@@ -129,7 +129,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
   it('should bucket the dedup key by ISO week', async () => {
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -144,14 +144,14 @@ describe('worldDistrictLevelUpNotification worker', () => {
     const ctx = await contextOf({
       userId: '1',
       districts: [
-        { nicheId: nicheRust, level: 7, toNext: 8 },
-        { nicheId: nicheGone, level: 5, toNext: 4 },
+        { nicheId: nicheRust, level: 7 },
+        { nicheId: nicheGone, level: 5 },
       ],
       total: 2,
     });
 
     expect(ctx.districts).toEqual([
-      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7, toNext: 8 },
+      { nicheId: nicheRust, nicheTitle: 'Rust', level: 7 },
     ]);
     // Counting it would promise growth the reader cannot find in their world.
     expect(ctx.total).toBe(1);
@@ -160,7 +160,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
   it('should do nothing when no niche survives', async () => {
     const result = await invoke({
       userId: '1',
-      districts: [{ nicheId: nicheGone, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheGone, level: 7 }],
       total: 1,
     });
 
@@ -177,7 +177,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
     const result = await invoke({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -194,7 +194,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -214,7 +214,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
     const ctx = await contextOf({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -231,12 +231,12 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
     const quiet = await invoke({
       userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
     const other = await invoke({
       userId: '2',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 
@@ -247,7 +247,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
   it('should do nothing when the user is gone', async () => {
     const result = await invoke({
       userId: 'deleted-user',
-      districts: [{ nicheId: nicheRust, level: 7, toNext: 8 }],
+      districts: [{ nicheId: nicheRust, level: 7 }],
       total: 1,
     });
 

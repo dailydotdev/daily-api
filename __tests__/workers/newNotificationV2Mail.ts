@@ -3183,12 +3183,7 @@ describe('recruiter_opportunity_live notification', () => {
 
 describe('world_district_level_up email', () => {
   const sendFor = async (
-    districts: {
-      nicheId: string;
-      nicheTitle: string;
-      level: number;
-      toNext: number;
-    }[],
+    districts: { nicheId: string; nicheTitle: string; level: number }[],
     total: number,
   ): Promise<SendEmailRequestWithTemplate> => {
     const ctx: NotificationWorldDistrictLevelUpContext = {
@@ -3217,7 +3212,7 @@ describe('world_district_level_up email', () => {
 
   it('should set parameters for one district', async () => {
     const args = await sendFor(
-      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 }],
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
       1,
     );
 
@@ -3227,7 +3222,11 @@ describe('world_district_level_up email', () => {
       // so the email and the item in the reader's list cannot word the same
       // event differently.
       title: 'Rust just hit L7 in your world',
-      subtitle: worldLevelUpLine({ level: 7, toNext: 8, seed: '1:2026-W33' }),
+      subtitle: worldLevelUpLine({
+        level: 7,
+        niche: 'Rust',
+        seed: '1:2026-W33',
+      }),
       world_link: expect.stringContaining('/world/idoshamun'),
     });
   });
@@ -3235,8 +3234,8 @@ describe('world_district_level_up email', () => {
   it('should carry the count when more districts grew than it names', async () => {
     const args = await sendFor(
       [
-        { nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 },
-        { nicheId: 'n2', nicheTitle: 'Go', level: 4, toNext: 3 },
+        { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
+        { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
       ],
       4,
     );
@@ -3248,7 +3247,7 @@ describe('world_district_level_up email', () => {
 
   it('should send nothing about the world beyond the districts and the link', async () => {
     const args = await sendFor(
-      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 }],
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
       1,
     );
 

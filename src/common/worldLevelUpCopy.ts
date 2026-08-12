@@ -23,18 +23,8 @@ type CopyBand = {
   lines: string[];
 };
 
-/**
- * Replaced with the articles left before the district climbs again.
- *
- * Only used at the bottom of the ladder, and that is a deliberate limit rather
- * than a missing feature. Down there the next rung is one or two articles away
- * and saying so is the most motivating thing available. Higher up the same
- * sentence reads as a wall: a district on L10 needs another 320, and putting
- * that number in front of somebody is a reason to stop reading rather than to
- * carry on. `ladder.ts` makes the same argument about which district to point a
- * reader at, for the same reason.
- */
-const TO_NEXT = '{toNext}';
+/** Replaced with the niche's own title, the same one the headline names. */
+const NICHE = '{niche}';
 
 const BANDS: CopyBand[] = [
   {
@@ -44,9 +34,9 @@ const BANDS: CopyBand[] = [
     // how a reader learns to discount the next line too.
     upTo: 3,
     lines: [
-      `Read ${TO_NEXT} more there and it grows again.`,
-      "That's a district on your map now.",
-      'It grows every time you read that topic.',
+      "Tiny, but it's yours.",
+      'Every district starts this small.',
+      `Keep reading ${NICHE} and it'll keep growing.`,
     ],
   },
   {
@@ -118,21 +108,15 @@ const hash = (seed: string): number => {
  */
 export const worldLevelUpLine = ({
   level,
-  toNext,
+  niche,
   seed,
 }: {
   level: number;
-  /** Articles left before the next rung. 0 at the top of the ladder. */
-  toNext: number;
+  /** The niche's title, as the headline spells it. */
+  niche: string;
   seed: string;
 }): string => {
   const band = BANDS.find((item) => level <= item.upTo) ?? BANDS[0];
-  // A line that counts down to the next rung is unusable once there is nothing
-  // to count down to, so it drops out of the rotation rather than rendering a
-  // zero.
-  const usable = band.lines.filter(
-    (line) => toNext > 0 || !line.includes(TO_NEXT),
-  );
 
-  return usable[hash(seed) % usable.length].replace(TO_NEXT, String(toNext));
+  return band.lines[hash(seed) % band.lines.length].replace(NICHE, niche);
 };

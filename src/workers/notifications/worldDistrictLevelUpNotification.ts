@@ -76,11 +76,10 @@ export const worldDistrictLevelUpNotification: TypedNotificationWorker<'api.v1.w
       // count, rather than being counted as growth the reader cannot find.
       const named = districts
         .filter(({ nicheId }) => titles.has(nicheId))
-        .map(({ nicheId, level, toNext }) => ({
+        .map(({ nicheId, level }) => ({
           nicheId,
           nicheTitle: titles.get(nicheId) as string,
           level,
-          toNext,
         }));
 
       if (!named.length) {

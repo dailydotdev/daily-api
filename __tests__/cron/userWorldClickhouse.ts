@@ -300,7 +300,7 @@ describe('userWorldClickhouse cron', () => {
           'api.v1.world-district-level-up',
           {
             userId: '1',
-            districts: [{ nicheId: nicheJs, level: 5, toNext: 10 }],
+            districts: [{ nicheId: nicheJs, level: 5 }],
             total: 1,
           },
         ],
@@ -320,7 +320,7 @@ describe('userWorldClickhouse cron', () => {
           'api.v1.world-district-level-up',
           {
             userId: '2',
-            districts: [{ nicheId: nicheAi, level: 2, toNext: 1 }],
+            districts: [{ nicheId: nicheAi, level: 2 }],
             total: 1,
           },
         ],
@@ -340,8 +340,8 @@ describe('userWorldClickhouse cron', () => {
           {
             userId: '1',
             districts: [
-              { nicheId: nicheJs, level: 6, toNext: 20 },
-              { nicheId: nicheAi, level: 5, toNext: 10 },
+              { nicheId: nicheJs, level: 6 },
+              { nicheId: nicheAi, level: 5 },
             ],
             total: 2,
           },
@@ -362,9 +362,9 @@ describe('userWorldClickhouse cron', () => {
       // Four crossed; the copy can only carry two, so three travel (one spare
       // in case the catalogue drops a niche) and the count keeps the rest.
       expect(payload.districts).toEqual([
-        { nicheId: nicheJs, level: 7, toNext: 40 },
-        { nicheId: nicheAi, level: 6, toNext: 20 },
-        { nicheId: nicheGo, level: 5, toNext: 10 },
+        { nicheId: nicheJs, level: 7 },
+        { nicheId: nicheAi, level: 6 },
+        { nicheId: nicheGo, level: 5 },
       ]);
       expect(payload.total).toBe(4);
     });
