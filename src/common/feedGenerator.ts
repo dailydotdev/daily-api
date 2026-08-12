@@ -42,7 +42,6 @@ import { ContentPreference } from '../entity/contentPreference/ContentPreference
 import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { whereNotUserBlocked } from './contentPreference';
-import { Niche } from '../entity/Niche';
 import { PostNiche } from '../entity/PostNiche';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
@@ -66,11 +65,14 @@ export const whereTags = (
 };
 
 /**
- * Matches posts labeled with any of the given niche slugs, at either rank —
+ * Matches posts labeled with any of the given niche ids, at either rank —
  * a post's secondary niche is still that post being about that niche.
+ * Takes ids rather than slugs on purpose: resolving slugs inside the subquery
+ * hides the niche from the planner's per-value stats and flips heavy upvoters
+ * to a plan that scans the whole niche instead of the user's votes.
  */
 export const whereNiches = (
-  niches: string[],
+  nicheIds: string[],
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): string => {
@@ -78,8 +80,7 @@ export const whereNiches = (
     .subQuery()
     .select('1')
     .from(PostNiche, 'pn')
-    .innerJoin(Niche, 'n', 'n.id = pn."nicheId"')
-    .where('n.slug IN (:...niches)', { niches })
+    .where('pn."nicheId" IN (:...nicheIds)', { nicheIds })
     .andWhere(`pn."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
