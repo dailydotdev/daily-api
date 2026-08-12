@@ -342,6 +342,14 @@ export type PubSubSchema = {
     achievementId: string;
     userId: string;
   };
+  'api.v1.world-district-level-up': {
+    userId: string;
+    nicheId: string;
+    /** The rung just reached, on the twelve-step district ladder. */
+    level: number;
+    /** Lifetime reads behind that rung, for ranking and for logs. */
+    reads: number;
+  };
   'api.v1.worker-job-execute': {
     jobId: string;
   };

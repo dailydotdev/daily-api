@@ -182,6 +182,7 @@ const pushHeadingMap: Partial<Record<NotificationType, string>> = {
   [NotificationType.StreakResetRestore]: 'Streak broken',
   [NotificationType.UserGiftedPlus]: 'Plus gift',
   [NotificationType.AchievementUnlocked]: 'Level up!',
+  [NotificationType.WorldDistrictLevelUp]: 'Your world grew',
   [NotificationType.PollResult]: 'Poll results',
   [NotificationType.PollResultAuthor]: 'Poll results',
   [NotificationType.FeedbackResolved]: 'Feedback update',

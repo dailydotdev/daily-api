@@ -96,6 +96,7 @@ export enum NotificationType {
   LiveRoomStartingSoon = 'live_room_starting_soon',
   StreakFreezeUsed = 'streak_freeze_used',
   StreakFreezeDepleted = 'streak_freeze_depleted',
+  WorldDistrictLevelUp = 'world_district_level_up',
 }
 
 export enum NotificationPreferenceType {
@@ -352,6 +353,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.LiveRoomStartingSoon]: {
+    email: NotificationPreferenceStatus.Muted,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.WorldDistrictLevelUp]: {
     email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

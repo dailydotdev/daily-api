@@ -15,6 +15,15 @@ import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
 import { deleteRedisKey, getRedisHash, setRedisHash } from '../../src/redis';
 import { generateStorageKey, StorageTopic } from '../../src/config';
+import { triggerTypedEvent } from '../../src/common/typedPubsub';
+
+jest.mock('../../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
+}));
 
 let con: DataSource;
 
@@ -268,5 +277,81 @@ describe('userWorldClickhouse cron', () => {
 
     expect((await getRedisHash(cronConfigRedisKey)).cursor).toBe(cursor);
     expect(await con.getRepository(UserNicheGrowth).count()).toBe(4);
+  });
+
+  describe('district level ups', () => {
+    const levelUpCalls = () =>
+      (triggerTypedEvent as jest.Mock).mock.calls.filter(
+        ([, topic]) => topic === 'api.v1.world-district-level-up',
+      );
+
+    it('should publish when a district crosses the floor rung', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ]);
+
+      expect(levelUpCalls()).toEqual([
+        [
+          expect.anything(),
+          'api.v1.world-district-level-up',
+          { userId: '1', nicheId: nicheJs, level: 5, reads: 10 },
+        ],
+      ]);
+    });
+
+    it('should stay quiet below the floor rung', async () => {
+      // The shared delta tops out at five reads, which is L4. The bottom of the
+      // ladder is dense so the world can draw a district differently from its
+      // neighbour, not because a second article is news.
+      await runWith(delta);
+
+      expect(levelUpCalls()).toHaveLength(0);
+    });
+
+    it('should send one level up per user, on the highest rung reached', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 20 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheAi, reads: 10 },
+      ]);
+
+      expect(levelUpCalls()).toEqual([
+        [
+          expect.anything(),
+          'api.v1.world-district-level-up',
+          { userId: '1', nicheId: nicheJs, level: 6, reads: 20 },
+        ],
+      ]);
+    });
+
+    it('should not fire again while a district stays on its rung', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ]);
+      jest.clearAllMocks();
+
+      // 15 reads is still L5: growth without a crossing is not an event.
+      await deleteRedisKey(cronConfigRedisKey);
+      await runWith([
+        { userId: '1', date: '2026-07-02', nicheId: nicheJs, reads: 5 },
+      ]);
+
+      expect(levelUpCalls()).toHaveLength(0);
+    });
+
+    it('should not fire again when the same window is replayed', async () => {
+      const rows = [
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ];
+
+      await runWith(rows);
+      expect(levelUpCalls()).toHaveLength(1);
+
+      // Districts advance only from growth rows the insert returned, and every
+      // row now conflicts — so a replay has nothing to cross and nothing to say.
+      await deleteRedisKey(cronConfigRedisKey);
+      await runWith(rows);
+
+      expect(levelUpCalls()).toHaveLength(1);
+    });
   });
 });

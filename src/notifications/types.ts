@@ -245,6 +245,15 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementImage: string;
 };
 
+export type NotificationWorldDistrictLevelUpContext =
+  NotificationBaseContext & {
+    nicheId: string;
+    /** The niche's own title, resolved at send time. Never derived client-side. */
+    nicheTitle: string;
+    /** The rung just reached, on the twelve-step district ladder. */
+    level: number;
+  };
+
 export type NotificationLiveRoomContext = NotificationBaseContext & {
   host: Reference<User>;
   room: Reference<LiveRoom>;

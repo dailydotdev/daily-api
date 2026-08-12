@@ -571,6 +571,10 @@ export const workers: Worker[] = [
     subscription: 'api.achievement-unlocked-notification',
   },
   {
+    topic: 'api.v1.world-district-level-up',
+    subscription: 'api.world-district-level-up-notification',
+  },
+  {
     topic: 'api.v1.generate-channel-digest',
     subscription: 'api.generate-channel-digest',
   },

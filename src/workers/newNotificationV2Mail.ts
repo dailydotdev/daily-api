@@ -142,6 +142,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
+  world_district_level_up: '', // In-app and push only, for now
   live_room_started: '',
   live_room_starting_soon: '',
   streak_freeze_used: '',
@@ -1320,6 +1321,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
+  },
+  world_district_level_up: async () => {
+    return null; // In-app and push only, for now
   },
   live_room_started: async () => {
     return null;

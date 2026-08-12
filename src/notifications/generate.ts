@@ -42,6 +42,7 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationWorldDistrictLevelUpContext,
   type NotificationLiveRoomContext,
   type NotificationInterestBatchContext,
 } from './types';
@@ -269,6 +270,11 @@ export const notificationTitleMap: Record<
   feedback_cancelled: () => feedbackCancelledTitle,
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
+  // The rung is a number, not its build name. The ladder names twelve rungs for
+  // whoever edits the geometry, and WAYSTONE or ARCANUM is a second vocabulary
+  // to learn before the news means anything. The world counts; so does this.
+  world_district_level_up: (ctx: NotificationWorldDistrictLevelUpContext) =>
+    `<b>${ctx.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${ctx.level}</span> in your world`,
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
     `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
@@ -826,6 +832,23 @@ export const generateNotificationMap: Record<
         `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
       )
       .uniqueKey(ctx.userIds[0]);
+  },
+  world_district_level_up: (
+    builder: NotificationBuilder,
+    ctx: NotificationWorldDistrictLevelUpContext,
+  ) => {
+    return (
+      builder
+        .icon(NotificationIcon.World)
+        .referenceWorldDistrict(ctx.nicheId)
+        .avatarWorld()
+        .targetUrl(`${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/world`)
+        // Reference is the niche, so the user has to be in the key: without it
+        // the first reader to reach L7 in Rust would be the only one who ever
+        // could. The rung completes it, and makes a replayed cron window a
+        // no-op rather than a second notification.
+        .uniqueKey(`${ctx.userIds[0]}:${ctx.level}`)
+    );
   },
   digest_ready: (
     builder: NotificationBuilder,
