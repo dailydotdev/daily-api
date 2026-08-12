@@ -4542,8 +4542,8 @@ describe('query feedPreview', () => {
 
 describe('query userUpvotedFeed', () => {
   const QUERY = `
-  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $niches: [String!]) {
-    userUpvotedFeed(userId: $userId, first: $first, after: $after, niches: $niches) {
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $nicheIds: [ID!]) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after, nicheIds: $nicheIds) {
       ${feedFields()}
     }
   }
@@ -4622,7 +4622,7 @@ describe('query userUpvotedFeed', () => {
 
     it('should only return upvotes in the given niches', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['rust'] },
+        variables: { userId: '2', nicheIds: [rustId] },
       });
 
       expect(res.errors).toBeFalsy();
@@ -4633,7 +4633,7 @@ describe('query userUpvotedFeed', () => {
 
     it('should match a secondary niche of a post', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['js_ts'] },
+        variables: { userId: '2', nicheIds: [jsTsId] },
       });
 
       expect(res.errors).toBeFalsy();
@@ -4644,7 +4644,10 @@ describe('query userUpvotedFeed', () => {
 
     it('should return nothing for an unknown niche', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['nope'] },
+        variables: {
+          userId: '2',
+          nicheIds: ['00000000-0000-4000-8000-000000000000'],
+        },
       });
 
       expect(res.errors).toBeFalsy();

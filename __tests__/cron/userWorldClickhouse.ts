@@ -15,6 +15,15 @@ import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
 import { deleteRedisKey, getRedisHash, setRedisHash } from '../../src/redis';
 import { generateStorageKey, StorageTopic } from '../../src/config';
+import { triggerTypedEvent } from '../../src/common/typedPubsub';
+
+jest.mock('../../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
+}));
 
 let con: DataSource;
 
@@ -33,6 +42,8 @@ const cronConfigRedisKey = generateStorageKey(
 // placeholders like 1111-1111-1111 fail it.
 const nicheJs = '11111111-1111-4111-8111-111111111111';
 const nicheAi = '22222222-2222-4222-8222-222222222222';
+const nicheGo = '66666666-6666-4666-8666-666666666666';
+const nicheRust = '77777777-7777-4777-8777-777777777777';
 
 // Well before the fixture dates, so every delta falls inside the window.
 const seedCursor = '2026-01-01T00:00:00.000Z';
@@ -49,6 +60,8 @@ beforeEach(async () => {
   await saveFixtures(con, Niche, [
     { id: nicheJs, slug: 'js_ts', title: 'JavaScript / TypeScript' },
     { id: nicheAi, slug: 'ai_llm', title: 'LLMs' },
+    { id: nicheGo, slug: 'go', title: 'Go' },
+    { id: nicheRust, slug: 'rust', title: 'Rust' },
   ]);
 });
 
@@ -268,5 +281,137 @@ describe('userWorldClickhouse cron', () => {
 
     expect((await getRedisHash(cronConfigRedisKey)).cursor).toBe(cursor);
     expect(await con.getRepository(UserNicheGrowth).count()).toBe(4);
+  });
+
+  describe('district level ups', () => {
+    const levelUpCalls = () =>
+      (triggerTypedEvent as jest.Mock).mock.calls.filter(
+        ([, topic]) => topic === 'api.v1.world-district-level-up',
+      );
+
+    it('should publish when a district crosses a rung', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ]);
+
+      expect(levelUpCalls()).toEqual([
+        [
+          expect.anything(),
+          'api.v1.world-district-level-up',
+          {
+            userId: '1',
+            districts: [{ nicheId: nicheJs, level: 5 }],
+            total: 1,
+          },
+        ],
+      ]);
+    });
+
+    it('should publish for the low rungs too', async () => {
+      // No floor: two articles in one niche is L2, and for a reader whose world
+      // is still taking shape that is the whole point of the notification.
+      await runWith([
+        { userId: '2', date: '2026-07-01', nicheId: nicheAi, reads: 2 },
+      ]);
+
+      expect(levelUpCalls()).toEqual([
+        [
+          expect.anything(),
+          'api.v1.world-district-level-up',
+          {
+            userId: '2',
+            districts: [{ nicheId: nicheAi, level: 2 }],
+            total: 1,
+          },
+        ],
+      ]);
+    });
+
+    it('should combine a user crossings into one event, highest rung first', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheAi, reads: 10 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 20 },
+      ]);
+
+      expect(levelUpCalls()).toEqual([
+        [
+          expect.anything(),
+          'api.v1.world-district-level-up',
+          {
+            userId: '1',
+            districts: [
+              { nicheId: nicheJs, level: 6 },
+              { nicheId: nicheAi, level: 5 },
+            ],
+            total: 2,
+          },
+        ],
+      ]);
+    });
+
+    it('should ship only the leaders but count them all', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 40 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheAi, reads: 20 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheGo, reads: 10 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheRust, reads: 5 },
+      ]);
+
+      const [[, , payload]] = levelUpCalls();
+
+      // Four crossed; the copy can only carry two, so three travel (one spare
+      // in case the catalogue drops a niche) and the count keeps the rest.
+      expect(payload.districts).toEqual([
+        { nicheId: nicheJs, level: 7 },
+        { nicheId: nicheAi, level: 6 },
+        { nicheId: nicheGo, level: 5 },
+      ]);
+      expect(payload.total).toBe(4);
+    });
+
+    it('should give each user their own event', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 20 },
+        { userId: '2', date: '2026-07-01', nicheId: nicheAi, reads: 10 },
+      ]);
+
+      const calls = levelUpCalls();
+      expect(calls).toHaveLength(2);
+      expect(calls.map(([, , payload]) => payload.userId).sort()).toEqual([
+        '1',
+        '2',
+      ]);
+    });
+
+    it('should not fire again while a district stays on its rung', async () => {
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ]);
+      jest.clearAllMocks();
+
+      // 15 reads is still L5: growth without a crossing is not an event.
+      await deleteRedisKey(cronConfigRedisKey);
+      await runWith([
+        { userId: '1', date: '2026-07-02', nicheId: nicheJs, reads: 5 },
+      ]);
+
+      expect(levelUpCalls()).toHaveLength(0);
+    });
+
+    it('should not fire again when the same window is replayed', async () => {
+      const rows = [
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ];
+
+      await runWith(rows);
+      expect(levelUpCalls()).toHaveLength(1);
+
+      // Districts advance only from growth rows the insert returned, and every
+      // row now conflicts — so a replay has nothing to cross and nothing to say.
+      await deleteRedisKey(cronConfigRedisKey);
+      await runWith(rows);
+
+      expect(levelUpCalls()).toHaveLength(1);
+    });
   });
 });

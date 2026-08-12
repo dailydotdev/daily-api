@@ -24,6 +24,7 @@ import {
   DEFAULT_TIMEZONE,
   getPersonalizedDigestPreviousSendDate,
   getPersonalizedDigestSendDate,
+  publishEvent,
   sendEmail,
 } from '../../src/common';
 import nock from 'nock';
@@ -55,6 +56,7 @@ import { PersonaliseState } from '../../src/integrations/snotra/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+  publishEvent: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -264,6 +266,61 @@ describe('personalizedDigestEmail worker', () => {
     expect(dateFrom.getTimezoneOffset()).toBe(0);
 
     expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
+  });
+
+  it('should queue the Customer.io delivery for batched publishing', async () => {
+    nock.cleanAll();
+    const queuedAt = '2026-08-11T12:34:56.000Z';
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneByOrFail({ userId: '1' });
+    const mockedPostIds = postsFixture
+      .slice(0, 5)
+      .map((post) => ({ post_id: post.id }));
+
+    nock('http://localhost:6000')
+      .post('/api/personalised')
+      .reply(200, { data: mockedPostIds, rows: mockedPostIds.length });
+    nock('http://localhost:8080')
+      .post('/private')
+      .reply(200, {
+        generation_id: 'digest-generation-id',
+        value: {
+          digest: {
+            call_to_action: 'Learn more',
+            company_logo: 'https://daily.dev/logo',
+            company_name: 'daily.dev',
+            image: 'https://daily.dev/image',
+            link: 'https://daily.dev/ad',
+            title: 'Digest ad',
+          },
+        },
+      });
+    (sendEmail as jest.Mock).mockResolvedValue({
+      deliveryId: 'customer-io-delivery-id',
+      queuedAt,
+    });
+    jest
+      .mocked(publishEvent)
+      .mockRejectedValueOnce(new Error('failed to publish'));
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(publishEvent).toHaveBeenCalledTimes(1);
+    const [, topic, payload] = jest.mocked(publishEvent).mock.calls[0];
+    expect(topic.publisher.settings.batching).toMatchObject({
+      maxMessages: 100,
+      maxMilliseconds: 100,
+    });
+    expect(payload).toEqual({
+      generationId: 'digest-generation-id',
+      deliveryId: 'customer-io-delivery-id',
+      queuedAt,
+    });
   });
 
   it('should generate personalized digest for user in timezone ahead UTC', async () => {

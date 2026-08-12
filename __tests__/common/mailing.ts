@@ -9,7 +9,11 @@ import {
   UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { syncSubscription, updateFlagsStatement } from '../../src/common';
+import {
+  sendEmail,
+  syncSubscription,
+  updateFlagsStatement,
+} from '../../src/common';
 import { CioUnsubscribeTopic } from '../../src/cio';
 import * as cio from '../../src/cio';
 import {
@@ -42,6 +46,27 @@ beforeEach(async () => {
 });
 
 describe('mailing', () => {
+  describe('sendEmail', () => {
+    it('should return Customer.io delivery metadata', async () => {
+      nock('https://api.customer.io').post('/v1/send/email').reply(200, {
+        delivery_id: 'customer-io-delivery-id',
+        queued_at: 1786451696,
+      });
+
+      const delivery = await sendEmail({
+        transactional_message_id: 94,
+        to: 'person@example.com',
+        identifiers: { id: 'user-id' },
+        message_data: {},
+      });
+
+      expect(delivery).toEqual({
+        deliveryId: 'customer-io-delivery-id',
+        queuedAt: '2026-08-11T12:34:56.000Z',
+      });
+    });
+  });
+
   describe('syncSubscription', () => {
     it('sync subscriptions for the given users', async () => {
       let users = await con.getRepository(User).find({

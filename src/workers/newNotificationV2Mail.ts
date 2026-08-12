@@ -142,6 +142,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
+  world_district_level_up: '100',
   live_room_started: '',
   live_room_starting_soon: '',
   streak_freeze_used: '',
@@ -1320,6 +1321,23 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
+  },
+  world_district_level_up: async (con, user, notification) => {
+    return {
+      // The in-app title is already the sentence this email wants, and it is
+      // the only place the districts are composed. Stripped rather than
+      // re-derived, so the two can never drift apart.
+      title: basicHtmlStrip(notification.title),
+      // The line varies with the rung and rotates week to week, and it is
+      // chosen once when the notification is built. Read back rather than
+      // re-picked so the email cannot say something different from the item
+      // already sitting in the reader's notification list.
+      subtitle: notification.description || '',
+      world_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
   },
   live_room_started: async () => {
     return null;

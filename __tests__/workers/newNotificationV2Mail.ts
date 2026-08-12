@@ -70,6 +70,7 @@ import {
   type NotificationOpportunityMatchContext,
   type NotificationWarmIntroContext,
 } from '../../src/notifications';
+import { worldLevelUpLine } from '../../src/common/worldLevelUpCopy';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
@@ -103,6 +104,7 @@ import { OpportunityUserType } from '../../src/entity/opportunities/types';
 import type {
   NotificationRecruiterNewCandidateContext,
   NotificationRecruiterOpportunityLiveContext,
+  NotificationWorldDistrictLevelUpContext,
 } from '../../src/notifications/types';
 import {
   datasetLocationsFixture,
@@ -3176,5 +3178,85 @@ describe('recruiter_opportunity_live notification', () => {
     expect(args.message_data).toEqual({
       opportunity_link: `http://localhost:5002/jobs/${opportunitiesFixture[0].id}`,
     });
+  });
+});
+
+describe('world_district_level_up email', () => {
+  const sendFor = async (
+    districts: { nicheId: string; nicheTitle: string; level: number }[],
+    total: number,
+  ): Promise<SendEmailRequestWithTemplate> => {
+    const ctx: NotificationWorldDistrictLevelUpContext = {
+      userIds: ['1'],
+      districts,
+      total,
+      handle: 'idoshamun',
+      dedupKey: '2026-W33',
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.WorldDistrictLevelUp,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: { id: notificationId, userId: '1' },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    return jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+  };
+
+  it('should set parameters for one district', async () => {
+    const args = await sendFor(
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+      1,
+    );
+
+    expect(args.transactional_message_id).toEqual('100');
+    expect(args.message_data).toEqual({
+      // Both read back from the stored notification rather than re-composed,
+      // so the email and the item in the reader's list cannot word the same
+      // event differently.
+      title: 'Rust just hit L7 in your world',
+      subtitle: worldLevelUpLine({
+        level: 7,
+        niche: 'Rust',
+        seed: '1:2026-W33',
+      }),
+      world_link: expect.stringContaining('/world/idoshamun'),
+    });
+  });
+
+  it('should carry the count when more districts grew than it names', async () => {
+    const args = await sendFor(
+      [
+        { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
+        { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
+      ],
+      4,
+    );
+
+    expect(args.message_data).toMatchObject({
+      title: 'Rust just hit L7, and 3 more districts grew in your world',
+    });
+  });
+
+  it('should send nothing about the world beyond the districts and the link', async () => {
+    const args = await sendFor(
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+      1,
+    );
+
+    // The world's name and its plate are deliberately absent. An email is
+    // forwardable, and the render is the thing worth opening the app for.
+    expect(Object.keys(args.message_data as object).sort()).toEqual([
+      'subtitle',
+      'title',
+      'world_link',
+    ]);
   });
 });

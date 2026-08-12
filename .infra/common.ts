@@ -260,6 +260,10 @@ export const workers: Worker[] = [
     subscription: 'api.content-published',
   },
   {
+    topic: 'yggdrasil.v1.content-published',
+    subscription: 'api.content-published-extract-claims',
+  },
+  {
     topic: 'api.v1.source-member-role-changed',
     subscription: 'api.source-member-role-changed-notification',
   },
@@ -569,6 +573,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.achievement-unlocked',
     subscription: 'api.achievement-unlocked-notification',
+  },
+  {
+    topic: 'api.v1.world-district-level-up',
+    subscription: 'api.world-district-level-up-notification',
   },
   {
     topic: 'api.v1.generate-channel-digest',

@@ -57,6 +57,7 @@ export type Data = {
   meta?: {
     scraped_html?: string;
     cleaned_trafilatura_xml?: string;
+    cleaned?: { resource_location?: string }[];
     translate_title?: {
       translations?: I18nRecord;
     };
@@ -69,6 +70,10 @@ export type Data = {
         profile_image?: string;
       };
     };
+    // Claim ledger triage from bragi's EnrichPostV2, mapped by yggdrasil.
+    // Omitted until that mapping ships.
+    change_signal?: string;
+    change_type?: string;
   };
   content_quality?: PostContentQuality;
   answered_questions?: PostAnsweredQuestion[];

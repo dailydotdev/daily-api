@@ -42,6 +42,7 @@ import {
   type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
+  type NotificationWorldDistrictLevelUpContext,
   type NotificationLiveRoomContext,
   type NotificationInterestBatchContext,
 } from './types';
@@ -53,6 +54,7 @@ import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency, formatMetricValue } from '../common/number';
 import { generateCampaignPostNotification } from '../common/campaign/post';
 import { generateCampaignSquadNotification } from '../common/campaign/source';
+import { worldLevelUpLine } from '../common/worldLevelUpCopy';
 
 const systemTitle = () => undefined;
 const feedbackCancelledTitle = 'Your feedback has been reviewed';
@@ -269,6 +271,33 @@ export const notificationTitleMap: Record<
   feedback_cancelled: () => feedbackCancelledTitle,
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> You earned ${ctx.achievementName}`,
+  // The rung is a number, not its build name. The ladder names twelve rungs for
+  // whoever edits the geometry, and WAYSTONE or ARCANUM is a second vocabulary
+  // to learn before the news means anything. The world counts; so does this.
+  //
+  // Two districts are named and the rest become a count. A push notification
+  // that lists four subjects is read as a digest, and a digest is skimmed.
+  world_district_level_up: (ctx: NotificationWorldDistrictLevelUpContext) => {
+    const [first, second] = ctx.districts;
+    // "just hit" rather than "reached": the same fact, said the way somebody
+    // would say it out loud. Every shape below opens on it, so the sentence
+    // reads the same whether one district moved or nine.
+    const lead = `<b>${first.nicheTitle}</b> just hit <span class="text-theme-color-cabbage">L${first.level}</span>`;
+
+    if (ctx.total <= 1) {
+      return `${lead} in your world`;
+    }
+
+    if (ctx.total === 2 && second) {
+      return `${lead}, and <b>${second.nicheTitle}</b> hit <span class="text-theme-color-cabbage">L${second.level}</span> in your world`;
+    }
+
+    // Counted off the leader rather than the named pair, so a district the
+    // catalogue dropped between the cron and here is still counted, not named.
+    const rest = ctx.total - 1;
+
+    return `${lead}, and ${rest} more district${rest === 1 ? '' : 's'} grew in your world`;
+  },
   digest_ready: () => `<strong>Your personalized digest is ready</strong>`,
   live_room_started: (ctx: NotificationLiveRoomContext) =>
     `<b>${ctx.host.name || ctx.host.username}</b> is live: <b>${ctx.room.topic}</b>`,
@@ -826,6 +855,36 @@ export const generateNotificationMap: Record<
         `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
       )
       .uniqueKey(ctx.userIds[0]);
+  },
+  world_district_level_up: (
+    builder: NotificationBuilder,
+    ctx: NotificationWorldDistrictLevelUpContext,
+  ) => {
+    return (
+      builder
+        .icon(NotificationIcon.World)
+        .referenceWorldDistrict(ctx.districts[0].nicheId)
+        .avatarWorld()
+        // Composed here rather than in the email, so the in-app item and the
+        // email read the same sentence. Seeded by the reader and the week: a
+        // redelivered event repeats itself, the next one does not.
+        .description(
+          worldLevelUpLine({
+            level: ctx.districts[0].level,
+            niche: ctx.districts[0].nicheTitle,
+            seed: `${ctx.userIds[0]}:${ctx.dedupKey}`,
+          }),
+        )
+        // `/world/:handle`, not `/:handle/world` — the world is its own route
+        // rather than a profile tab. Same link `WorldShare` copies.
+        .targetUrl(`${process.env.COMMENTS_PREFIX}/world/${ctx.handle}`)
+        // Reference is the leading niche, so the user has to be in the key:
+        // without it the first reader to reach L7 in Rust would be the only
+        // one who ever could. The week completing it is the same bucket the
+        // per-user rate limit uses, which is what makes a replayed cron window
+        // a no-op here too.
+        .uniqueKey(`${ctx.userIds[0]}:${ctx.dedupKey}`)
+    );
   },
   digest_ready: (
     builder: NotificationBuilder,

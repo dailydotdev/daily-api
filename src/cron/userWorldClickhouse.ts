@@ -12,16 +12,30 @@ import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
 import { UserNicheGrowth } from '../entity/user/UserNicheGrowth';
 import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
+import {
+  districtLevelOf,
+  WORLD_LEVEL_UP_SENT_DISTRICTS,
+} from '../common/worldLadder';
+import { triggerTypedEvent, type PubSubSchema } from '../common/typedPubsub';
 
 type UserWorldCronConfig = Partial<{
   cursor: string;
 }>;
+
+/** A district that crossed a rung in this run. */
+type WorldLevelCrossing = {
+  userId: string;
+  nicheId: string;
+  level: number;
+  reads: number;
+};
 
 /** What RETURNING actually hands back — `date` may be a string or a Date. */
 type RawGrowthRow = Omit<UserWorldDelta, 'date'> & { date: string | Date };
 
 const GROWTH_CHUNK_SIZE = 1000;
 const DISTRICT_CHUNK_SIZE = 500;
+const LEVEL_UP_CHUNK_SIZE = 100;
 
 /**
  * Normalise a date column to 'YYYY-MM-DD'.
@@ -86,6 +100,76 @@ const chunk = <T>(items: T[], size: number): T[][] =>
 
     return acc;
   }, []);
+
+/**
+ * The rung a district just crossed, or null if it stayed where it was.
+ *
+ * Free to compute where it is called: both sides of the comparison are already
+ * in hand for every district the run touched, so this adds no query, no scan
+ * and no second pass over the delta.
+ *
+ * There is deliberately no minimum rung. A first district reaching L2 is the
+ * moment a new reader's world starts existing, and that is the one most worth
+ * pulling them back for. What keeps this from becoming noise is downstream:
+ * everything a reader crossed today folds into ONE notification, and the
+ * notification itself is capped to one per reader per week.
+ */
+const crossingOf = (
+  next: Pick<WorldLevelCrossing, 'userId' | 'nicheId' | 'reads'>,
+  priorReads: number,
+): WorldLevelCrossing | null => {
+  const level = districtLevelOf(next.reads);
+
+  if (level <= districtLevelOf(priorReads)) {
+    return null;
+  }
+
+  return {
+    userId: next.userId,
+    nicheId: next.nicheId,
+    level,
+    reads: next.reads,
+  };
+};
+
+/**
+ * Everything one reader's world did today, as a single event.
+ *
+ * The cron covers whole days in one pass, so a reader routinely crosses rungs
+ * in several districts at once, and a run that has been down for a week crosses
+ * a great many. One event per crossing would land a burst of pushes in the same
+ * second; picking a single winner would throw away the fact that the world grew
+ * in four places, which is a better thing to say than any one of them.
+ *
+ * So they combine. The leaders are ranked highest rung first, ties to more
+ * reads — of two districts arriving on the same rung, the bigger one is the one
+ * they are actually reading — and the rest survive as a count.
+ */
+const foldCrossingsByUser = (
+  crossings: WorldLevelCrossing[],
+): PubSubSchema['api.v1.world-district-level-up'][] => {
+  const byUser = new Map<string, WorldLevelCrossing[]>();
+
+  for (const crossing of crossings) {
+    const seen = byUser.get(crossing.userId);
+
+    if (seen) {
+      seen.push(crossing);
+      continue;
+    }
+
+    byUser.set(crossing.userId, [crossing]);
+  }
+
+  return [...byUser.entries()].map(([userId, all]) => ({
+    userId,
+    districts: all
+      .sort((a, b) => b.level - a.level || b.reads - a.reads)
+      .slice(0, WORLD_LEVEL_UP_SENT_DISTRICTS)
+      .map(({ nicheId, level }) => ({ nicheId, level })),
+    total: all.length,
+  }));
+};
 
 export const userWorldClickhouseCron: Cron = {
   name: 'user-world-clickhouse',
@@ -174,6 +258,10 @@ export const userWorldClickhouseCron: Cron = {
     let inserted: UserWorldDelta[] = [];
     let skipped = 0;
     let missingNiches = 0;
+    // Collected inside the transaction, published after it commits. Publishing
+    // from in there would announce a rung to a reader whose district the
+    // rollback then puts back where it was, and pubsub has no undo.
+    const crossings: WorldLevelCrossing[] = [];
 
     await con.transaction(async (manager) => {
       // 0. Keep only rows whose user AND niche Postgres still has.
@@ -323,6 +411,12 @@ export const userWorldClickhouseCron: Cron = {
           const prior = before.get(`${change.userId}:${change.nicheId}`);
 
           if (!prior) {
+            const crossing = crossingOf(change, 0);
+
+            if (crossing) {
+              crossings.push(crossing);
+            }
+
             return change;
           }
 
@@ -334,7 +428,7 @@ export const userWorldClickhouseCron: Cron = {
           const priorFirst = toDay(prior.firstReadAt);
           const priorLast = toDay(prior.lastReadAt);
 
-          return {
+          const merged = {
             userId: change.userId,
             nicheId: change.nicheId,
             reads: prior.reads + change.reads,
@@ -344,6 +438,14 @@ export const userWorldClickhouseCron: Cron = {
             lastReadAt:
               priorLast > change.lastReadAt ? priorLast : change.lastReadAt,
           };
+
+          const crossing = crossingOf(merged, prior.reads);
+
+          if (crossing) {
+            crossings.push(crossing);
+          }
+
+          return merged;
         });
 
         // Plain overwrite is safe because the totals above are already summed.
@@ -364,10 +466,28 @@ export const userWorldClickhouseCron: Cron = {
       cursor: until.toISOString(),
     });
 
+    const levelUps = foldCrossingsByUser(crossings);
+
+    // Chunked rather than one Promise.all over everything: a busy day is
+    // thousands of readers, and the point of a daily cron is that it has time.
+    for (const batch of chunk(levelUps, LEVEL_UP_CHUNK_SIZE)) {
+      await Promise.all(
+        batch.map((levelUp) =>
+          triggerTypedEvent(logger, 'api.v1.world-district-level-up', levelUp),
+        ),
+      );
+    }
+
     logger.info(
       {
         rows: data.length,
         inserted: inserted.length,
+        // Districts that crossed a rung, against events published. The ratio is
+        // how much the fold is carrying: one event per reader however many of
+        // their districts moved. Neither number is what was delivered — the
+        // weekly cap is applied downstream, when the notification is stored.
+        crossings: crossings.length,
+        levelUps: levelUps.length,
         // Rows dropped because the mirror still lists a user or niche Postgres no
         // longer has. A handful is normal replication lag; a sudden jump means a
         // mirror has fallen behind and worlds are being built from stale membership.

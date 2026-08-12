@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import {
   Bucket,
   DownloadOptions,
@@ -46,6 +47,25 @@ export const downloadFile = async ({
     .download(options);
 
   return result.toString();
+};
+
+export const downloadTextFromUri = async (uri: string): Promise<string> => {
+  const [bucketName, ...objectParts] = uri.replace(/^gs:\/\//, '').split('/');
+  const objectName = objectParts.join('/');
+
+  if (!uri.startsWith('gs://') || !bucketName || !objectName) {
+    throw new Error(`Malformed GCS URI: ${uri}`);
+  }
+
+  const [downloaded] = await new Storage()
+    .bucket(bucketName)
+    .file(objectName)
+    .download();
+  // Producers sometimes store gzipped objects without setting contentEncoding,
+  // so decompressive transcoding never kicks in and we gunzip ourselves.
+  const isGzip = downloaded[0] === 0x1f && downloaded[1] === 0x8b;
+
+  return (isGzip ? gunzipSync(downloaded) : downloaded).toString('utf-8');
 };
 
 export const downloadJsonFile = async <T>({
