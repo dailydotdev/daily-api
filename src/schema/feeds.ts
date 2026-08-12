@@ -866,9 +866,9 @@ export const typeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
-      Only return posts labeled with any of these niche slugs
+      Only return posts labeled with any of these niche ids
       """
-      niches: [String!]
+      nicheIds: [ID!]
     ): PostConnection!
 
     """
@@ -2320,7 +2320,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     userUpvotedFeed: feedResolver(
       (
         ctx,
-        { userId, niches }: { userId: string; niches?: string[] } & FeedArgs,
+        {
+          userId,
+          nicheIds,
+        }: { userId: string; nicheIds?: string[] } & FeedArgs,
         builder,
         alias,
       ) => {
@@ -2333,9 +2336,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             { author: userId, vote: UserVote.Up },
           );
 
-        if (niches?.length) {
+        if (nicheIds?.length) {
           builder.andWhere((subBuilder) =>
-            whereNiches(niches, subBuilder, alias),
+            whereNiches(nicheIds, subBuilder, alias),
           );
         }
 
