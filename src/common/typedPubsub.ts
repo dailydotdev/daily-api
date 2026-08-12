@@ -349,6 +349,8 @@ export type PubSubSchema = {
       nicheId: string;
       /** The rung just reached, on the twelve-step district ladder. */
       level: number;
+      /** Articles left before the next rung. 0 at the top of the ladder. */
+      toNext: number;
     }[];
     /** Districts that levelled up in this run, including the unnamed ones. */
     total: number;

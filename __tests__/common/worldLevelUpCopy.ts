@@ -1,7 +1,7 @@
 import { worldLevelUpLine } from '../../src/common/worldLevelUpCopy';
 
-const line = (level: number, seed = 'u1:2026-W33') =>
-  worldLevelUpLine({ level, seed });
+const line = (level: number, seed = 'u1:2026-W33', toNext = 2) =>
+  worldLevelUpLine({ level, toNext, seed });
 
 describe('worldLevelUpLine', () => {
   it('should be stable for the same reader and week', () => {
@@ -68,6 +68,35 @@ describe('worldLevelUpLine', () => {
     for (let level = 1; level <= 12; level += 1) {
       expect(line(level)).toEqual(expect.any(String));
       expect(line(level).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('should tell a new reader exactly how far the next rung is', () => {
+    // The bottom of the ladder is the one place the number motivates: the next
+    // rung is an article or two away. "Not much there yet" was the old line
+    // here, which is discouraging at precisely the wrong moment.
+    const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((seed) =>
+      line(2, seed, 1),
+    );
+
+    expect(lines).toContain('Read 1 more there and it grows again.');
+  });
+
+  it('should never count down to a rung that does not exist', () => {
+    // Nothing above L12, so the countdown line has to drop out rather than
+    // promise a reader zero more articles.
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      expect(line(12, seed, 0)).not.toMatch(/0 more|Read/);
+    }
+  });
+
+  it('should keep the countdown out of the upper bands', () => {
+    // A district on L10 needs another 320 articles. That number is a reason to
+    // stop reading, so no band above the first may carry it.
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      for (const level of [4, 6, 8, 9, 10, 11]) {
+        expect(line(level, seed, 320)).not.toMatch(/\bmore\b/);
+      }
     }
   });
 

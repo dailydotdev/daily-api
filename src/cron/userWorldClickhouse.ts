@@ -14,6 +14,7 @@ import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
 import {
   districtLevelOf,
+  readsToNextLevel,
   WORLD_LEVEL_UP_SENT_DISTRICTS,
 } from '../common/worldLadder';
 import { triggerTypedEvent, type PubSubSchema } from '../common/typedPubsub';
@@ -166,7 +167,11 @@ const foldCrossingsByUser = (
     districts: all
       .sort((a, b) => b.level - a.level || b.reads - a.reads)
       .slice(0, WORLD_LEVEL_UP_SENT_DISTRICTS)
-      .map(({ nicheId, level }) => ({ nicheId, level })),
+      .map(({ nicheId, level, reads }) => ({
+        nicheId,
+        level,
+        toNext: readsToNextLevel(reads),
+      })),
     total: all.length,
   }));
 };

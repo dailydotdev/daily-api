@@ -257,6 +257,8 @@ export type NotificationWorldDistrictLevelUpContext =
       nicheTitle: string;
       /** The rung just reached, on the twelve-step district ladder. */
       level: number;
+      /** Articles left before the next rung. 0 at the top of the ladder. */
+      toNext: number;
     }[];
     /** Districts that levelled up in total. Anything past the named ones is a count. */
     total: number;

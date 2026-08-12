@@ -1496,8 +1496,8 @@ describe('storeNotificationBundle', () => {
         dedupKey,
       });
 
-    const rust = { nicheId: 'n1', nicheTitle: 'Rust', level: 7 };
-    const go = { nicheId: 'n2', nicheTitle: 'Go', level: 4 };
+    const rust = { nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 };
+    const go = { nicheId: 'n2', nicheTitle: 'Go', level: 4, toNext: 3 };
 
     await con.transaction(async (manager) => {
       await storeNotificationBundleV2(
@@ -1531,8 +1531,8 @@ describe('storeNotificationBundle', () => {
       generateNotificationV2(NotificationType.WorldDistrictLevelUp, {
         userIds: [userId],
         districts: [
-          { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
-          { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
+          { nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 },
+          { nicheId: 'n2', nicheTitle: 'Go', level: 4, toNext: 3 },
         ],
         total,
         handle: 'idoshamun',
@@ -1554,7 +1554,7 @@ describe('storeNotificationBundle', () => {
     const describe_ = (level: number) =>
       generateNotificationV2(NotificationType.WorldDistrictLevelUp, {
         userIds: [userId],
-        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level }],
+        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level, toNext: 2 }],
         total: 1,
         handle: 'idoshamun',
         dedupKey: '2026-W33',
@@ -1574,7 +1574,7 @@ describe('storeNotificationBundle', () => {
       NotificationType.WorldDistrictLevelUp,
       {
         userIds: [userId],
-        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+        districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7, toNext: 8 }],
         total: 2,
         handle: 'idoshamun',
         dedupKey: '2026-W33',

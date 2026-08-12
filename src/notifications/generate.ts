@@ -871,6 +871,7 @@ export const generateNotificationMap: Record<
         .description(
           worldLevelUpLine({
             level: ctx.districts[0].level,
+            toNext: ctx.districts[0].toNext,
             seed: `${ctx.userIds[0]}:${ctx.dedupKey}`,
           }),
         )
