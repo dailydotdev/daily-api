@@ -75,16 +75,6 @@ interface Data {
   notification: ChangeObject<NotificationV2>;
 }
 
-/**
- * Customer.io transactional message id for the world level-up email.
- *
- * Empty until the template is created in Customer.io. Both halves of the email
- * key off this one constant — the id below and the guard in the template data
- * function — so filling it in is the whole switch, and leaving it empty keeps
- * the type wired but silent rather than posting an empty message id.
- */
-const worldDistrictLevelUpTemplateId = '';
-
 export const notificationToTemplateId: Record<NotificationType, string> = {
   source_post_approved: '62',
   source_post_submitted: '61',
@@ -153,7 +143,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
-  world_district_level_up: worldDistrictLevelUpTemplateId,
+  world_district_level_up: '100',
   live_room_started: '',
   live_room_starting_soon: '',
   streak_freeze_used: '',
@@ -1334,14 +1324,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null; // No email for achievement unlocks
   },
   world_district_level_up: async (con, user, notification) => {
-    // Guarded rather than assumed: with no template in Customer.io there is
-    // nothing to render, and `sendEmail` would post an empty
-    // transactional_message_id. Returning null here is what keeps the type
-    // wired but silent until the template exists.
-    if (!worldDistrictLevelUpTemplateId) {
-      return null;
-    }
-
     const settings = await con.getRepository(UserWorldSettings).findOne({
       select: ['name', 'plateUrl', 'private'],
       where: { userId: user.id },

@@ -357,7 +357,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.WorldDistrictLevelUp]: {
-    email: NotificationPreferenceStatus.Muted,
+    email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
 };
