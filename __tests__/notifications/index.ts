@@ -1540,13 +1540,13 @@ describe('storeNotificationBundle', () => {
       }).notification.title;
 
     expect(title(1)).toEqual(
-      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span> in your world',
+      '<b>Rust</b> just hit <span class="text-theme-color-cabbage">L7</span> in your world',
     );
     expect(title(2)).toEqual(
-      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span> and <b>Go</b> reached <span class="text-theme-color-cabbage">L4</span> in your world',
+      '<b>Rust</b> just hit <span class="text-theme-color-cabbage">L7</span>, and <b>Go</b> hit <span class="text-theme-color-cabbage">L4</span> in your world',
     );
     expect(title(4)).toEqual(
-      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span>, and 3 more districts grew in your world',
+      '<b>Rust</b> just hit <span class="text-theme-color-cabbage">L7</span>, and 3 more districts grew in your world',
     );
   });
 
@@ -1565,7 +1565,7 @@ describe('storeNotificationBundle', () => {
     );
 
     expect(actual.notification.title).toEqual(
-      '<b>Rust</b> reached <span class="text-theme-color-cabbage">L7</span>, and 1 more district grew in your world',
+      '<b>Rust</b> just hit <span class="text-theme-color-cabbage">L7</span>, and 1 more district grew in your world',
     );
   });
 

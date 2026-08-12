@@ -69,7 +69,6 @@ import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { Opportunity } from '../entity/opportunities/Opportunity';
-import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -1324,23 +1323,17 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null; // No email for achievement unlocks
   },
   world_district_level_up: async (con, user, notification) => {
-    const settings = await con.getRepository(UserWorldSettings).findOne({
-      select: ['name', 'plateUrl', 'private'],
-      where: { userId: user.id },
-    });
-
     return {
-      title: 'Your world grew',
       // The in-app title is already the sentence this email wants, and it is
       // the only place the districts are composed. Stripped rather than
       // re-derived, so the two can never drift apart.
-      subtitle: basicHtmlStrip(notification.title),
-      world_name: settings?.name || '',
-      // The plate is a render of this reader's own world, captured in their
-      // browser. Absent until they have opened it, and deliberately withheld
-      // for a world they have hidden — an email is forwardable, and a private
-      // world staying private matters more than the picture.
-      world_image: settings?.private ? '' : settings?.plateUrl || '',
+      title: basicHtmlStrip(notification.title),
+      // Static, because the reason to open a world does not change with which
+      // district moved. It credits the reader for the growth and says what a
+      // level actually does: the geometry is rebuilt at every rung, so there
+      // is something new on the ground to go and look at.
+      subtitle:
+        'You read your way there. Every level rebuilds a district into something bigger, so go and see what changed.',
       world_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,

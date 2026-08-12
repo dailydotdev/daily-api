@@ -97,7 +97,6 @@ import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
-import { UserWorldSettings } from '../../src/entity/user/UserWorldSettings';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
@@ -3182,20 +3181,18 @@ describe('recruiter_opportunity_live notification', () => {
 });
 
 describe('world_district_level_up email', () => {
-  const worldCtx = (
+  const sendFor = async (
     districts: { nicheId: string; nicheTitle: string; level: number }[],
     total: number,
-  ): NotificationWorldDistrictLevelUpContext => ({
-    userIds: ['1'],
-    districts,
-    total,
-    handle: 'idoshamun',
-    dedupKey: '2026-W33',
-  });
-
-  const sendFor = async (
-    ctx: NotificationWorldDistrictLevelUpContext,
   ): Promise<SendEmailRequestWithTemplate> => {
+    const ctx: NotificationWorldDistrictLevelUpContext = {
+      userIds: ['1'],
+      districts,
+      total,
+      handle: 'idoshamun',
+      dedupKey: '2026-W33',
+    };
+
     const notificationId = await saveNotificationV2Fixture(
       con,
       NotificationType.WorldDistrictLevelUp,
@@ -3212,72 +3209,49 @@ describe('world_district_level_up email', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
   };
 
-  it('should set parameters for a dressed world', async () => {
-    await con.getRepository(UserWorldSettings).save({
-      userId: '1',
-      name: 'Ferristopia',
-      plateUrl: 'https://media.daily.dev/image/upload/world/plate.jpg',
-    });
-
+  it('should set parameters for one district', async () => {
     const args = await sendFor(
-      worldCtx([{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }], 1),
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+      1,
     );
 
     expect(args.transactional_message_id).toEqual('100');
     expect(args.message_data).toEqual({
-      title: 'Your world grew',
       // Stripped from the in-app title rather than re-composed, so the email
       // and the notification can never word the same event differently.
-      subtitle: 'Rust reached L7 in your world',
-      world_name: 'Ferristopia',
-      world_image: 'https://media.daily.dev/image/upload/world/plate.jpg',
+      title: 'Rust just hit L7 in your world',
+      subtitle:
+        'You read your way there. Every level rebuilds a district into something bigger, so go and see what changed.',
       world_link: expect.stringContaining('/world/idoshamun'),
     });
   });
 
   it('should carry the count when more districts grew than it names', async () => {
     const args = await sendFor(
-      worldCtx(
-        [
-          { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
-          { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
-        ],
-        4,
-      ),
+      [
+        { nicheId: 'n1', nicheTitle: 'Rust', level: 7 },
+        { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
+      ],
+      4,
     );
 
     expect(args.message_data).toMatchObject({
-      subtitle: 'Rust reached L7, and 3 more districts grew in your world',
+      title: 'Rust just hit L7, and 3 more districts grew in your world',
     });
   });
 
-  it('should fall back to an empty name and plate for an undressed world', async () => {
+  it('should send nothing about the world beyond the districts and the link', async () => {
     const args = await sendFor(
-      worldCtx([{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }], 1),
+      [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+      1,
     );
 
-    // Both are conditional blocks in the template, so empty is what makes them
-    // disappear rather than render a broken image.
-    expect(args.message_data).toMatchObject({
-      world_name: '',
-      world_image: '',
-    });
-  });
-
-  it('should withhold the plate of a hidden world', async () => {
-    await con.getRepository(UserWorldSettings).save({
-      userId: '1',
-      name: 'Ferristopia',
-      plateUrl: 'https://media.daily.dev/image/upload/world/plate.jpg',
-      private: true,
-    });
-
-    const args = await sendFor(
-      worldCtx([{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }], 1),
-    );
-
-    // An email is forwardable. The name is the owner's own words and the link
-    // is already gated server-side, but the picture is the world itself.
-    expect(args.message_data).toMatchObject({ world_image: '' });
+    // The world's name and its plate are deliberately absent. An email is
+    // forwardable, and the render is the thing worth opening the app for.
+    expect(Object.keys(args.message_data as object).sort()).toEqual([
+      'subtitle',
+      'title',
+      'world_link',
+    ]);
   });
 });

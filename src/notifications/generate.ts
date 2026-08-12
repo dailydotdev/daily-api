@@ -278,14 +278,17 @@ export const notificationTitleMap: Record<
   // that lists four subjects is read as a digest, and a digest is skimmed.
   world_district_level_up: (ctx: NotificationWorldDistrictLevelUpContext) => {
     const [first, second] = ctx.districts;
-    const lead = `<b>${first.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${first.level}</span>`;
+    // "just hit" rather than "reached": the same fact, said the way somebody
+    // would say it out loud. Every shape below opens on it, so the sentence
+    // reads the same whether one district moved or nine.
+    const lead = `<b>${first.nicheTitle}</b> just hit <span class="text-theme-color-cabbage">L${first.level}</span>`;
 
     if (ctx.total <= 1) {
       return `${lead} in your world`;
     }
 
     if (ctx.total === 2 && second) {
-      return `${lead} and <b>${second.nicheTitle}</b> reached <span class="text-theme-color-cabbage">L${second.level}</span> in your world`;
+      return `${lead}, and <b>${second.nicheTitle}</b> hit <span class="text-theme-color-cabbage">L${second.level}</span> in your world`;
     }
 
     // Counted off the leader rather than the named pair, so a district the
