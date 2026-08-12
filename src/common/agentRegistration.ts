@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { ONE_MONTH_IN_SECONDS } from './constants';
+import { ONE_HOUR_IN_SECONDS } from './constants';
 
 export const MARKDOWN_TOKEN_PREFIX = 'ddm_';
 export const MARKDOWN_TOKEN_AUDIENCE = 'dailydev-markdown';
@@ -21,22 +21,25 @@ export const generateAgentMarkdownToken = (): {
   token: string;
   expiresAt: Date;
 } => {
-  const expiresAt = new Date(Date.now() + ONE_MONTH_IN_SECONDS * 1000);
   const agentId = crypto.randomUUID();
-  const token = jwt.sign(
-    {
-      scope: MARKDOWN_TOKEN_SCOPE,
-    },
-    getMarkdownTokenSecret(),
-    {
-      algorithm: 'HS256',
-      audience: MARKDOWN_TOKEN_AUDIENCE,
-      expiresIn: ONE_MONTH_IN_SECONDS,
-      issuer: MARKDOWN_TOKEN_ISSUER,
-      jwtid: crypto.randomUUID(),
-      subject: agentId,
-    },
-  );
+  const payload: jwt.JwtPayload = {
+    scope: MARKDOWN_TOKEN_SCOPE,
+  };
+  const token = jwt.sign(payload, getMarkdownTokenSecret(), {
+    algorithm: 'HS256',
+    audience: MARKDOWN_TOKEN_AUDIENCE,
+    expiresIn: ONE_HOUR_IN_SECONDS,
+    issuer: MARKDOWN_TOKEN_ISSUER,
+    jwtid: crypto.randomUUID(),
+    mutatePayload: true,
+    subject: agentId,
+  });
+  if (typeof payload.exp !== 'number') {
+    throw new Error('Agent access token is missing an expiration');
+  }
 
-  return { token: `${MARKDOWN_TOKEN_PREFIX}${token}`, expiresAt };
+  return {
+    token: `${MARKDOWN_TOKEN_PREFIX}${token}`,
+    expiresAt: new Date(payload.exp * 1000),
+  };
 };
