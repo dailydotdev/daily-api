@@ -2,12 +2,17 @@ import nock from 'nock';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
+  enrichCompanyForExperience,
   enrichCompanyForUserCompany,
   getGoogleFaviconUrl,
+  isNonOrganizationName,
 } from '../../src/common/companyEnrichment';
 import { Company, CompanyType } from '../../src/entity/Company';
 import { UserCompany } from '../../src/entity/UserCompany';
 import { User } from '../../src/entity/user/User';
+import { UserExperience } from '../../src/entity/user/experiences/UserExperience';
+import { UserExperienceWork } from '../../src/entity/user/experiences/UserExperienceWork';
+import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { usersFixture } from '../fixture/user';
 import { createMockLogger, saveFixtures } from '../helpers';
 
@@ -186,5 +191,143 @@ describe('enrichCompanyForUserCompany', () => {
       error: 'Missing englishName',
     });
     expect(userCompany.companyId).toBeNull();
+  });
+});
+
+describe('isNonOrganizationName', () => {
+  it('matches self-employment phrasings regardless of punctuation', () => {
+    expect(
+      [
+        'Freelance',
+        'self-employed',
+        'Freelance (Self Employed)',
+        'freelance | self-employed',
+        'Self-Employed / Freelance',
+        'N/A',
+      ].every(isNonOrganizationName),
+    ).toBe(true);
+  });
+
+  it('does not match real organizations with similar names', () => {
+    expect(
+      [
+        'Freelancer.com',
+        'Independent University, Bangladesh',
+        'Upwork',
+        'Various Industries Ltd',
+      ].some(isNonOrganizationName),
+    ).toBe(false);
+  });
+});
+
+describe('enrichCompanyForExperience', () => {
+  const saveExperience = (customCompanyName: string) =>
+    con.getRepository(UserExperienceWork).save({
+      userId: '1',
+      title: 'Software Engineer',
+      startedAt: new Date('2020-01-01'),
+      type: UserExperienceType.Work,
+      verified: false,
+      customCompanyName,
+      companyId: null,
+    });
+
+  const enrich = (experienceId: string, customCompanyName: string) =>
+    enrichCompanyForExperience(
+      con,
+      {
+        experienceId,
+        customCompanyName,
+        experienceType: UserExperienceType.Work,
+      },
+      logger,
+    );
+
+  it('links a known domain without checking whether the site is reachable', async () => {
+    // No nock interceptor: any outbound request would throw, so this passing
+    // proves validation was skipped for a company we already store.
+    await saveFixtures(con, Company, [
+      {
+        id: 'tcs',
+        name: 'TCS',
+        image: 'https://daily.dev/tcs.png',
+        domains: ['tcs.com'],
+      },
+    ]);
+    const experience = await saveExperience('Tata Consultancy Services');
+    mockResolveOrganization.mockResolvedValue({
+      englishName: 'Tata Consultancy Services',
+      nativeName: 'Tata Consultancy Services',
+      domain: 'tcs.com',
+    });
+
+    const result = await enrich(experience.id, 'Tata Consultancy Services');
+
+    expect(result).toMatchObject({
+      success: true,
+      linkedToExisting: true,
+      companyId: 'tcs',
+    });
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: experience.id });
+    expect(updated.companyId).toBe('tcs');
+  });
+
+  it('links a stored www domain when the resolved domain is bare', async () => {
+    await saveFixtures(con, Company, [
+      {
+        id: 'cairo',
+        name: 'Cairo University',
+        image: 'https://daily.dev/cu.png',
+        domains: ['www.cu.edu.eg'],
+      },
+    ]);
+    const experience = await saveExperience('Cairo University');
+    mockResolveOrganization.mockResolvedValue({
+      englishName: 'Cairo University',
+      nativeName: 'جامعة القاهرة',
+      domain: 'cu.edu.eg',
+    });
+
+    const result = await enrich(experience.id, 'Cairo University');
+
+    expect(result).toMatchObject({
+      linkedToExisting: true,
+      companyId: 'cairo',
+    });
+  });
+
+  it('creates the company when the domain serves an unverifiable certificate', async () => {
+    nock('https://selfsigned.edu')
+      .get('/')
+      .replyWithError({ message: 'unable to verify the first certificate' });
+    const experience = await saveExperience('Selfsigned University');
+    mockResolveOrganization.mockResolvedValue({
+      englishName: 'Selfsigned University',
+      nativeName: 'Selfsigned University',
+      domain: 'selfsigned.edu',
+    });
+
+    const result = await enrich(experience.id, 'Selfsigned University');
+
+    expect(result).toMatchObject({ success: true, companyCreated: true });
+    const company = await con
+      .getRepository(Company)
+      .findOneByOrFail({ id: result.companyId as string });
+    expect(company.domains).toEqual(['selfsigned.edu']);
+  });
+
+  it('skips non-organization names without calling bragi', async () => {
+    const experience = await saveExperience('Freelance');
+
+    const result = await enrich(experience.id, 'Freelance');
+
+    expect(result).toMatchObject({
+      success: false,
+      skipped: true,
+      error: 'Not an organization',
+    });
+    expect(mockResolveOrganization).not.toHaveBeenCalled();
   });
 });

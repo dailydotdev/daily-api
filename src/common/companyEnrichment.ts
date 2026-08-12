@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { ArrayContains, IsNull } from 'typeorm';
+import { ArrayOverlap, IsNull } from 'typeorm';
 import type { DataSource, EntityManager } from 'typeorm';
 import { getBragiClient } from '../integrations/bragi';
 import { generateShortId } from '../ids';
@@ -8,6 +8,58 @@ import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import { UserCompany } from '../entity/UserCompany';
 import { validateWorkEmailDomain } from './utils';
+
+// Self-employment and placeholder answers people type into the company field.
+// They can never resolve to an organization, so they skip the LLM round trip.
+// Matched on the exact normalized string, never as a prefix: "freelancer.com"
+// and "Independent University, Bangladesh" are real organizations.
+const NON_ORGANIZATION_NAMES = new Set([
+  'confidential',
+  'freelance',
+  'freelance / contract',
+  'freelance / personal projects',
+  'freelance / self employed',
+  'freelance developer',
+  'freelance projects',
+  'freelance self employed',
+  'freelance web developer',
+  'freelancer',
+  'freelancing',
+  'home',
+  'independent consultant',
+  'independent contractor',
+  'independent projects',
+  'multiple companies',
+  'myself',
+  'n/a',
+  'na',
+  'none',
+  'own business',
+  'personal',
+  'personal project',
+  'personal projects',
+  'self employed',
+  'self employed / freelance',
+  'side project',
+  'side projects',
+  'student',
+  'unemployed',
+  'various',
+  'various clients',
+  'various companies',
+]);
+
+// Collapses the punctuation people use to join these phrases ("freelance |
+// self-employed", "Freelance/Self Employed") so one entry covers the variants.
+export const isNonOrganizationName = (name: string): boolean =>
+  NON_ORGANIZATION_NAMES.has(
+    name
+      .toLowerCase()
+      .replace(/[|,()]/g, ' ')
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
 
 const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const FAVICON_SIZE = 128;
@@ -50,25 +102,26 @@ async function tryFetchDomain(
   return response.ok;
 }
 
-function isRetryableError(error: unknown): boolean {
+// A TLS handshake that produced a certificate proves the host resolves and serves
+// HTTPS, which is all this check asks. Chains we cannot verify (missing
+// intermediates, expired or self-signed certs) are common on university and
+// government sites and say nothing about whether the organization is real.
+function isCertificateError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  // SSL/TLS certificate errors are not retryable - they're deterministic
-  if (message.includes('certificate') || message.includes('cert')) {
-    return false;
-  }
-  return true;
+  return message.includes('certificate') || message.includes('cert');
 }
+
+export const getDomainVariants = (domain: string): string[] =>
+  domain.startsWith('www.')
+    ? [domain, domain.slice(4)]
+    : [domain, `www.${domain}`];
 
 async function validateDomain(
   domain: string,
   logger: EnrichmentLogger,
 ): Promise<string | null> {
   // Try the LLM-provided domain first, then the opposite variant
-  const domainsToTry = domain.startsWith('www.')
-    ? [domain, domain.slice(4)]
-    : [domain, `www.${domain}`];
-
-  for (const testDomain of domainsToTry) {
+  for (const testDomain of getDomainVariants(domain)) {
     for (let attempt = 1; attempt <= DOMAIN_CHECK_RETRIES; attempt++) {
       try {
         const isValid = await tryFetchDomain(testDomain, logger);
@@ -78,7 +131,15 @@ async function validateDomain(
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const retryable = isRetryableError(error);
+
+        if (isCertificateError(error)) {
+          logger.debug(
+            { testDomain, errorMessage },
+            'Domain served an unverifiable certificate, treating as reachable',
+          );
+
+          return testDomain;
+        }
 
         logger.debug(
           {
@@ -86,14 +147,9 @@ async function validateDomain(
             attempt,
             maxAttempts: DOMAIN_CHECK_RETRIES,
             errorMessage,
-            retryable,
           },
           'Domain validation attempt failed',
         );
-
-        if (!retryable) {
-          break;
-        }
 
         if (attempt < DOMAIN_CHECK_RETRIES) {
           await sleep(RETRY_DELAY_MS * attempt);
@@ -165,7 +221,7 @@ const getCompanyByDomain = (
   domain: string,
 ): Promise<Company | null> =>
   source.getRepository(Company).findOneBy({
-    domains: ArrayContains([domain]),
+    domains: ArrayOverlap(getDomainVariants(domain)),
   });
 
 const createCompany = async (
@@ -327,6 +383,13 @@ export async function enrichCompanyForUserCompany(
   });
 }
 
+const linkExperienceToCompany = (
+  con: DataSource,
+  experienceId: string,
+  companyId: string,
+) =>
+  con.getRepository(UserExperience).update({ id: experienceId }, { companyId });
+
 /**
  * Enriches a company for a given user experience.
  * Resolves the organization through bragi, validates the domain,
@@ -338,6 +401,11 @@ export async function enrichCompanyForExperience(
   logger: EnrichmentLogger,
 ): Promise<EnrichmentResult> {
   const { experienceId, customCompanyName, experienceType } = params;
+
+  if (isNonOrganizationName(customCompanyName)) {
+    logger.debug({ customCompanyName }, 'Not an organization, skipping');
+    return skippedResult('Not an organization');
+  }
 
   const { englishName, nativeName, domain } = await getOrganizationInfo({
     name: customCompanyName,
@@ -351,20 +419,21 @@ export async function enrichCompanyForExperience(
     return skippedResult('Missing englishName or domain');
   }
 
+  // A domain we already store needs no liveness check - sites behind a WAF
+  // answer 403 to this fetch, which would otherwise strand the experience even
+  // though the company is right there.
+  const existingCompany = await getCompanyByDomain(con, domain);
+
+  if (existingCompany) {
+    await linkExperienceToCompany(con, experienceId, existingCompany.id);
+
+    return linkedResult(existingCompany.id);
+  }
+
   const validatedDomain = await validateDomain(domain, logger);
   if (!validatedDomain) {
     logger.debug({ domain }, 'Domain validation failed');
     return skippedResult(`Domain validation failed for ${domain}`);
-  }
-
-  const existingCompany = await getCompanyByDomain(con, validatedDomain);
-
-  if (existingCompany) {
-    await con
-      .getRepository(UserExperience)
-      .update({ id: experienceId }, { companyId: existingCompany.id });
-
-    return linkedResult(existingCompany.id);
   }
 
   const companyId = await createCompany(con, {
@@ -377,9 +446,7 @@ export async function enrichCompanyForExperience(
         : CompanyType.Company,
   });
 
-  await con
-    .getRepository(UserExperience)
-    .update({ id: experienceId }, { companyId });
+  await linkExperienceToCompany(con, experienceId, companyId);
 
   return createdResult(companyId);
 }

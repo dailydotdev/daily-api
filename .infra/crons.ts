@@ -235,4 +235,9 @@ export const crons: Cron[] = [
     schedule: '13 * * * *',
     activeDeadlineSeconds: 5 * 60,
   },
+  {
+    name: 'backfill-experience-company',
+    schedule: '40 2 * * *',
+    activeDeadlineSeconds: 15 * 60,
+  },
 ];
