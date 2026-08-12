@@ -245,6 +245,28 @@ export type NotificationAchievementContext = NotificationBaseContext & {
   achievementImage: string;
 };
 
+export type NotificationWorldDistrictLevelUpContext =
+  NotificationBaseContext & {
+    /**
+     * The districts the copy names, highest rung first. Never empty, and never
+     * longer than what the copy can carry.
+     */
+    districts: {
+      nicheId: string;
+      /** Titles come from the niche catalogue, never from a client-side casing. */
+      nicheTitle: string;
+      /** The rung just reached, on the twelve-step district ladder. */
+      level: number;
+    }[];
+    /** Districts that levelled up in total. Anything past the named ones is a count. */
+    total: number;
+    /**
+     * What goes in `/world/:handle` — the username, or the id for a reader who
+     * has not set one. Matches the link `WorldShare` hands out.
+     */
+    handle: string;
+  };
+
 export type NotificationLiveRoomContext = NotificationBaseContext & {
   host: Reference<User>;
   room: Reference<LiveRoom>;

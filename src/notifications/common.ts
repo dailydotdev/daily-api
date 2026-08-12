@@ -96,6 +96,7 @@ export enum NotificationType {
   LiveRoomStartingSoon = 'live_room_starting_soon',
   StreakFreezeUsed = 'streak_freeze_used',
   StreakFreezeDepleted = 'streak_freeze_depleted',
+  WorldDistrictLevelUp = 'world_district_level_up',
 }
 
 export enum NotificationPreferenceType {
@@ -355,6 +356,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Muted,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
+  [NotificationType.WorldDistrictLevelUp]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
 };
 
 export const commentReplyNotificationTypes = [
@@ -568,6 +573,7 @@ enum UserNotificationUniqueKey {
   DigestReady = 'digest_ready',
   ScheduledPostPublished = 'scheduled_post_published',
   InterestContentBatch = 'interest_content_batch',
+  WorldLevelUp = 'world_level_up',
 }
 
 const notificationTypeToUniqueKey: Partial<
@@ -581,6 +587,12 @@ const notificationTypeToUniqueKey: Partial<
     UserNotificationUniqueKey.ScheduledPostPublished,
   [NotificationType.InterestContentBatch]:
     UserNotificationUniqueKey.InterestContentBatch,
+  // Paired with a per-week `dedupKey`, this is the whole rate limit: the unique
+  // index on (userId, uniqueKey) means the second world level-up in a calendar
+  // week is dropped by ON CONFLICT DO NOTHING, and since push streams from
+  // user_notification, the dropped one never reaches a device either.
+  [NotificationType.WorldDistrictLevelUp]:
+    UserNotificationUniqueKey.WorldLevelUp,
 };
 
 const fixedUniqueKeyTypes = new Set<NotificationType>([

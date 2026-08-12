@@ -46,6 +46,7 @@ import { experienceCompanyEnrichedNotification } from './experienceCompanyEnrich
 import { recruiterExternalPaymentNotification } from './recruiterExternalPaymentNotification';
 import { reMatchedOpportunityNotification } from './reMatchedOpportunityNotification';
 import { achievementUnlockedNotification } from './achievementUnlockedNotification';
+import { worldDistrictLevelUpNotification } from './worldDistrictLevelUpNotification';
 import { liveRoomStartingSoonNotification } from './liveRoomStartingSoonNotification';
 import { scheduledPostPublishedNotification } from './scheduledPostPublishedNotification';
 import streakFreezeNotification from './streakFreezeNotification';
@@ -141,6 +142,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   recruiterExternalPaymentNotification,
   reMatchedOpportunityNotification,
   achievementUnlockedNotification,
+  worldDistrictLevelUpNotification,
   liveRoomStartingSoonNotification,
   scheduledPostPublishedNotification,
   streakFreezeNotification,

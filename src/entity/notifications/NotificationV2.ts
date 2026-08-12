@@ -21,7 +21,8 @@ export type NotificationReferenceType =
   | 'feedback'
   | 'achievement'
   | 'live_room'
-  | 'interest';
+  | 'interest'
+  | 'world_district';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])

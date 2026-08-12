@@ -65,4 +65,5 @@ export const notificationFlagsSchema = z.object({
   }),
   [NotificationType.LiveRoomStarted]: notificationPreferenceSchema,
   [NotificationType.LiveRoomStartingSoon]: notificationPreferenceSchema,
+  [NotificationType.WorldDistrictLevelUp]: notificationPreferenceSchema,
 });
