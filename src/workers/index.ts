@@ -91,6 +91,7 @@ import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import gearClassify from './gearClassify';
+import extractClaims from './extractClaims';
 import generateChannelDigest from './generateChannelDigest';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
@@ -188,6 +189,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackClassify,
   feedbackUpdatedSlack,
   gearClassify,
+  extractClaims,
   generateChannelDigest,
   newHighlightRealTime,
   contributionActionCompletedRealTime,

@@ -10,6 +10,7 @@ import {
   ClassifyRejectionFeedbackResponse,
   ClassifyUserFeedbackResponse,
   EvaluateChannelHighlightsResponse,
+  ExtractClaimsResponse,
   FeedbackCategory,
   FeedbackClassification,
   FeedbackPlatform,
@@ -146,6 +147,12 @@ export const getBragiClient = (
         evaluateChannelHighlights: async () =>
           new EvaluateChannelHighlightsResponse({
             highlights: [],
+          }),
+        extractClaims: async () =>
+          new ExtractClaimsResponse({
+            id: 'mock-id',
+            model: 'mock-model',
+            claims: [],
           }),
         audienceFit: async () =>
           new AudienceFitResponse({
