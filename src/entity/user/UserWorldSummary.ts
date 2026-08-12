@@ -1,12 +1,9 @@
+import { Index, ViewColumn, ViewEntity } from 'typeorm';
 import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  OneToOne,
-  PrimaryColumn,
-} from 'typeorm';
-import type { User } from './User';
+  WORLD_INDEX_MIN_DISTRICTS,
+  WORLD_INDEX_TOP_NICHES,
+  hiddenNicheSqlList,
+} from '../../common/worldIndex';
 
 /** One entry of a summary's top districts. */
 export type UserWorldSummaryTopNiche = {
@@ -14,52 +11,74 @@ export type UserWorldSummaryTopNiche = {
   reads: number;
 };
 
+export const USER_WORLD_SUMMARY_VIEW = /* sql */ `
+  SELECT
+    "userId",
+    min("districts")::int AS "districts",
+    min("total")::int AS "reads",
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object('nicheId', "nicheId", 'reads', "reads")
+        ORDER BY "position"
+      ) FILTER (WHERE "position" <= ${WORLD_INDEX_TOP_NICHES}),
+      '[]'::jsonb
+    ) AS "topNiches"
+  FROM (
+    SELECT
+      d."userId",
+      d."nicheId",
+      d."reads",
+      row_number() OVER (
+        PARTITION BY d."userId" ORDER BY d."reads" DESC, d."nicheId"
+      ) AS "position",
+      count(*) OVER (PARTITION BY d."userId") AS "districts",
+      sum(d."reads") OVER (PARTITION BY d."userId") AS "total"
+    FROM user_niche_analytics d
+    WHERE d."nicheId" NOT IN (SELECT id FROM niche WHERE slug IN (${hiddenNicheSqlList}))
+      AND NOT EXISTS (
+        SELECT 1 FROM user_world_settings s
+        WHERE s."userId" = d."userId" AND s.private = true
+      )
+  ) world
+  WHERE "districts" >= ${WORLD_INDEX_MIN_DISTRICTS}
+  GROUP BY "userId"
+`;
+
 /**
- * One row per world that is worth listing anywhere, rebuilt by the
- * `world-index` cron.
+ * The worlds worth listing, and the numbers a card shows.
  *
- * Two jobs. It is the ELIGIBILITY set, a row exists only for a world that is
- * public and has cleared `WORLD_INDEX_MIN_DISTRICTS`, so every listing on the
- * index joins it rather than re-deriving who may be shown. And it carries the
- * four numbers every card on the page needs (name comes off the settings row),
- * which would otherwise be an aggregate over the whole of
- * `user_niche_analytics` per world rendered.
+ * Doubles as the eligibility set: a row exists only for a public world that has
+ * cleared `WORLD_INDEX_MIN_DISTRICTS`, so every listing joins this rather than
+ * re-deriving who may be shown.
  *
- * Being absent is the safe direction and being present is not, so privacy is
- * NOT delegated to this table: a world made private after the last rebuild
- * still has a row here for up to a day. Every read path anti-joins
- * `user_world_settings` live on top of this (see `applyWorldIndexPrivacy`).
- * Filtering at build time as well keeps the table small and makes the two
- * checks independent, a bug in either one alone cannot leak a world.
- *
- * The reverse lag is accepted: a world turned public, or a district that just
- * cleared the floor, waits for the next rebuild.
+ * Privacy is not delegated to it. Refreshes are nightly, so a world made
+ * private today still has a row until the next one, and every read path
+ * anti-joins `user_world_settings` live on top (`applyWorldIndexPrivacy`).
+ * Filtering in both places means a bug in either alone cannot leak a world.
  */
-@Entity()
+@ViewEntity({
+  name: 'user_world_summary',
+  materialized: true,
+  expression: USER_WORLD_SUMMARY_VIEW,
+})
+@Index('UQ_user_world_summary_userId', ['userId'], { unique: true })
 @Index('IDX_user_world_summary_reads', ['reads'])
 export class UserWorldSummary {
-  @PrimaryColumn({ type: 'text' })
+  @ViewColumn()
   userId: string;
 
-  /** Districts the world holds, after serving-hidden niches are dropped. */
-  @Column({ type: 'integer' })
+  /** Districts held, after serving-hidden niches are dropped. */
+  @ViewColumn()
   districts: number;
 
   /** Articles read across every district. */
-  @Column({ type: 'integer' })
+  @ViewColumn()
   reads: number;
 
   /**
-   * The largest districts, biggest first, capped at
-   * `WORLD_INDEX_TOP_NICHES`.
-   *
-   * Stored as ids rather than slugs or titles: a niche can be retitled, and a
-   * denormalised copy of the title would then be wrong until the next rebuild.
+   * Largest districts first, capped at `WORLD_INDEX_TOP_NICHES`. Ids rather
+   * than titles, which can be edited.
    */
-  @Column({ type: 'jsonb', default: () => `'[]'::jsonb` })
+  @ViewColumn()
   topNiches: UserWorldSummaryTopNiche[];
-
-  @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user: Promise<User>;
 }

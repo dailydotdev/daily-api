@@ -1,13 +1,9 @@
+import { Index, ViewColumn, ViewEntity } from 'typeorm';
 import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryColumn,
-} from 'typeorm';
-import type { User } from './User';
-import type { Niche } from '../Niche';
+  WORLD_RANK_DEPTH,
+  WORLD_RANK_WEEK_DAYS,
+  hiddenNicheSqlList,
+} from '../../common/worldIndex';
 
 /** The two windows a topic is ranked over. */
 export enum UserNicheRankPeriod {
@@ -15,64 +11,91 @@ export enum UserNicheRankPeriod {
   All = 'all',
 }
 
+const visibleNiche = (alias: string): string =>
+  `${alias}."nicheId" NOT IN (SELECT id FROM niche WHERE slug IN (${hiddenNicheSqlList}))`;
+
+export const USER_NICHE_RANK_VIEW = /* sql */ `
+  SELECT "nicheId", '${UserNicheRankPeriod.All}' AS "period", "userId", "reads", "reads" AS "lifetimeReads"
+  FROM (
+    SELECT
+      d."nicheId",
+      d."userId",
+      d."reads",
+      row_number() OVER (
+        PARTITION BY d."nicheId" ORDER BY d."reads" DESC, d."userId"
+      ) AS "position"
+    FROM user_niche_analytics d
+    INNER JOIN user_world_summary w ON w."userId" = d."userId"
+    WHERE ${visibleNiche('d')}
+  ) ranked
+  WHERE "position" <= ${WORLD_RANK_DEPTH} AND "reads" > 0
+
+  UNION ALL
+
+  SELECT "nicheId", '${UserNicheRankPeriod.Week}' AS "period", "userId", "reads", "lifetimeReads"
+  FROM (
+    SELECT
+      g."nicheId",
+      g."userId",
+      sum(g."reads")::int AS "reads",
+      max(d."reads") AS "lifetimeReads",
+      row_number() OVER (
+        PARTITION BY g."nicheId" ORDER BY sum(g."reads") DESC, g."userId"
+      ) AS "position"
+    FROM user_niche_growth g
+    INNER JOIN user_world_summary w ON w."userId" = g."userId"
+    INNER JOIN user_niche_analytics d
+      ON d."userId" = g."userId" AND d."nicheId" = g."nicheId"
+    WHERE g."date" >= (now() - interval '${WORLD_RANK_WEEK_DAYS} days')::date
+      AND ${visibleNiche('g')}
+    GROUP BY g."nicheId", g."userId"
+  ) ranked
+  WHERE "position" <= ${WORLD_RANK_DEPTH}
+`;
+
 /**
- * One topic's ranking, materialised, one row per (niche, period, reader).
+ * One topic's ranking, one row per (niche, period, reader).
  *
- * Neither period can be ranked live. All time would need
- * `user_niche_analytics` scanned by `nicheId`, which is the reverse of its
- * primary key, plus the eligibility join on every request; a week would need
- * `user_niche_growth`, the largest table in the world feature, aggregated
- * across every reader of the niche before the first row could be returned.
- * Both are per-request costs on a page that is the same for everybody, so both
- * are precomputed once a day instead.
+ * Neither period can be ranked live: all time would scan
+ * `user_niche_analytics` by `nicheId`, the reverse of its key, and a week means
+ * aggregating `user_niche_growth` across every reader of the topic. Both give
+ * the same answer to every visitor.
  *
- * Only the top `WORLD_RANK_DEPTH` of each (niche, period) is kept. That is what
- * keeps this small enough to rebuild whole: depth times two periods times the
- * niche catalogue, against the tens of millions of (reader, niche) pairs the
- * uncapped version would hold. It also matches what the ranking can honestly
- * say, past the cap a placing is an artefact of who else happened to open the
- * topic, and the API returns a null rank there, exactly as `leaderboardPosition`
- * does beyond its own cap.
+ * Only the top `WORLD_RANK_DEPTH` of each (niche, period) is kept, which is
+ * also as deep as a placing means anything. Past the cap the API returns a null
+ * rank, the same shape `leaderboardPosition` uses beyond its own cap.
  *
- * The key leads with `nicheId` because every read is "one topic, one period":
- * the listing is a range scan over the index and the viewer's own row is a
- * point lookup.
+ * The week's window is evaluated at refresh time, so the view is self-contained.
  */
-@Entity()
+@ViewEntity({
+  name: 'user_niche_rank',
+  materialized: true,
+  expression: USER_NICHE_RANK_VIEW,
+})
+@Index('UQ_user_niche_rank_key', ['nicheId', 'period', 'userId'], {
+  unique: true,
+})
 @Index('IDX_user_niche_rank_listing', ['nicheId', 'period', 'reads'])
 export class UserNicheRank {
-  @PrimaryColumn({ type: 'uuid' })
+  @ViewColumn()
   nicheId: string;
 
-  @PrimaryColumn({ type: 'text' })
+  @ViewColumn()
   period: UserNicheRankPeriod;
 
-  @PrimaryColumn({ type: 'text' })
+  @ViewColumn()
   userId: string;
 
   /** Articles read in this niche inside the period. */
-  @Column({ type: 'integer' })
+  @ViewColumn()
   reads: number;
 
   /**
-   * Articles read in this niche over the world's whole life.
-   *
-   * Carried alongside `reads` so a weekly row can still be shown at its level:
-   * a week's reading is a rate and a rate sits on no rung. For the all-time
-   * period the two are equal by construction.
-   *
-   * The count is stored rather than the level. The rungs are a display ladder,
-   * and putting them in the materialisation would freeze every row at the
-   * thresholds that were current when the cron last ran.
+   * Lifetime articles in this niche, carried so a weekly row can still be shown
+   * at its level: a week's reading is a rate and a rate sits on no rung. The
+   * count is stored rather than the level, which would freeze rows at whatever
+   * thresholds were current at refresh.
    */
-  @Column({ type: 'integer' })
+  @ViewColumn()
   lifetimeReads: number;
-
-  @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user: Promise<User>;
-
-  @ManyToOne('Niche', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'nicheId' })
-  niche: Promise<Niche>;
 }
