@@ -260,6 +260,11 @@ export type NotificationWorldDistrictLevelUpContext =
     }[];
     /** Districts that levelled up in total. Anything past the named ones is a count. */
     total: number;
+    /**
+     * What goes in `/world/:handle` — the username, or the id for a reader who
+     * has not set one. Matches the link `WorldShare` hands out.
+     */
+    handle: string;
   };
 
 export type NotificationLiveRoomContext = NotificationBaseContext & {

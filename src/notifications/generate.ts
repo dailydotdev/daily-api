@@ -861,7 +861,9 @@ export const generateNotificationMap: Record<
         .icon(NotificationIcon.World)
         .referenceWorldDistrict(ctx.districts[0].nicheId)
         .avatarWorld()
-        .targetUrl(`${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/world`)
+        // `/world/:handle`, not `/:handle/world` — the world is its own route
+        // rather than a profile tab. Same link `WorldShare` copies.
+        .targetUrl(`${process.env.COMMENTS_PREFIX}/world/${ctx.handle}`)
         // Reference is the leading niche, so the user has to be in the key:
         // without it the first reader to reach L7 in Rust would be the only
         // one who ever could. The week completing it is the same bucket the

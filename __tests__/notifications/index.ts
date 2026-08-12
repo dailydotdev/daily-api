@@ -1492,6 +1492,7 @@ describe('storeNotificationBundle', () => {
         userIds: [userId],
         districts,
         total: districts.length,
+        handle: 'idoshamun',
         dedupKey,
       });
 
@@ -1534,6 +1535,7 @@ describe('storeNotificationBundle', () => {
           { nicheId: 'n2', nicheTitle: 'Go', level: 4 },
         ],
         total,
+        handle: 'idoshamun',
         dedupKey: '2026-W33',
       }).notification.title;
 
@@ -1557,6 +1559,7 @@ describe('storeNotificationBundle', () => {
         userIds: [userId],
         districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
         total: 2,
+        handle: 'idoshamun',
         dedupKey: '2026-W33',
       },
     );

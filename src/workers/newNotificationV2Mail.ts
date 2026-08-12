@@ -69,10 +69,21 @@ import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { Opportunity } from '../entity/opportunities/Opportunity';
+import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
 }
+
+/**
+ * Customer.io transactional message id for the world level-up email.
+ *
+ * Empty until the template is created in Customer.io. Both halves of the email
+ * key off this one constant — the id below and the guard in the template data
+ * function — so filling it in is the whole switch, and leaving it empty keeps
+ * the type wired but silent rather than posting an empty message id.
+ */
+const worldDistrictLevelUpTemplateId = '';
 
 export const notificationToTemplateId: Record<NotificationType, string> = {
   source_post_approved: '62',
@@ -142,7 +153,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   feedback_resolved: '',
   feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
-  world_district_level_up: '', // In-app and push only, for now
+  world_district_level_up: worldDistrictLevelUpTemplateId,
   live_room_started: '',
   live_room_starting_soon: '',
   streak_freeze_used: '',
@@ -1322,8 +1333,37 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   achievement_unlocked: async () => {
     return null; // No email for achievement unlocks
   },
-  world_district_level_up: async () => {
-    return null; // In-app and push only, for now
+  world_district_level_up: async (con, user, notification) => {
+    // Guarded rather than assumed: with no template in Customer.io there is
+    // nothing to render, and `sendEmail` would post an empty
+    // transactional_message_id. Returning null here is what keeps the type
+    // wired but silent until the template exists.
+    if (!worldDistrictLevelUpTemplateId) {
+      return null;
+    }
+
+    const settings = await con.getRepository(UserWorldSettings).findOne({
+      select: ['name', 'plateUrl', 'private'],
+      where: { userId: user.id },
+    });
+
+    return {
+      title: 'Your world grew',
+      // The in-app title is already the sentence this email wants, and it is
+      // the only place the districts are composed. Stripped rather than
+      // re-derived, so the two can never drift apart.
+      subtitle: basicHtmlStrip(notification.title),
+      world_name: settings?.name || '',
+      // The plate is a render of this reader's own world, captured in their
+      // browser. Absent until they have opened it, and deliberately withheld
+      // for a world they have hidden — an email is forwardable, and a private
+      // world staying private matters more than the picture.
+      world_image: settings?.private ? '' : settings?.plateUrl || '',
+      world_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
   },
   live_room_started: async () => {
     return null;

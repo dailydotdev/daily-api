@@ -103,6 +103,7 @@ import { OpportunityUserType } from '../../src/entity/opportunities/types';
 import type {
   NotificationRecruiterNewCandidateContext,
   NotificationRecruiterOpportunityLiveContext,
+  NotificationWorldDistrictLevelUpContext,
 } from '../../src/notifications/types';
 import {
   datasetLocationsFixture,
@@ -3176,5 +3177,33 @@ describe('recruiter_opportunity_live notification', () => {
     expect(args.message_data).toEqual({
       opportunity_link: `http://localhost:5002/jobs/${opportunitiesFixture[0].id}`,
     });
+  });
+});
+
+describe('world_district_level_up email', () => {
+  it('should stay silent while no Customer.io template is configured', async () => {
+    const ctx: NotificationWorldDistrictLevelUpContext = {
+      userIds: ['1'],
+      districts: [{ nicheId: 'n1', nicheTitle: 'Rust', level: 7 }],
+      total: 1,
+      handle: 'idoshamun',
+      dedupKey: '2026-W33',
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.WorldDistrictLevelUp,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: { id: notificationId, userId: '1' },
+    });
+
+    // The id and the template data guard are the same constant. An email sent
+    // with an empty transactional_message_id is a Customer.io error, not a
+    // no-op, so this must send nothing at all.
+    expect(notificationToTemplateId.world_district_level_up).toEqual('');
+    expect(sendEmail).toHaveBeenCalledTimes(0);
   });
 });

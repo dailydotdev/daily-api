@@ -1,8 +1,15 @@
 import type { DataSource } from 'typeorm';
 import { formatInTimeZone } from 'date-fns-tz';
+import { subHours } from 'date-fns';
 import createOrGetConnection from '../../../src/db';
 import { Niche } from '../../../src/entity/Niche';
 import { User } from '../../../src/entity/user/User';
+import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
+} from '../../../src/entity/Achievement';
+import { UserAchievement } from '../../../src/entity/user/UserAchievement';
 import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationWorldDistrictLevelUpContext } from '../../../src/notifications';
 import { worldDistrictLevelUpNotification as worker } from '../../../src/workers/notifications/worldDistrictLevelUpNotification';
@@ -15,6 +22,15 @@ let con: DataSource;
 const nicheRust = '44444444-4444-4444-8444-444444444444';
 const nicheGo = '66666666-6666-4666-8666-666666666666';
 const nicheGone = '55555555-5555-4555-8555-555555555555';
+
+const achievementFixture = {
+  id: '88888888-8888-4888-8888-888888888888',
+  name: 'World test achievement',
+  description: 'Unlocked in a test',
+  image: 'https://daily.dev/achievement.png',
+  type: AchievementType.Instant,
+  eventType: AchievementEventType.ProfileImageUpdate,
+};
 
 const invoke = (
   payload: Parameters<typeof worker.handler>[0],
@@ -42,6 +58,7 @@ describe('worldDistrictLevelUpNotification worker', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    await con.getRepository(UserAchievement).clear();
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Niche, [
       { id: nicheRust, slug: 'rust', title: 'Rust' },
@@ -69,6 +86,30 @@ describe('worldDistrictLevelUpNotification worker', () => {
       { nicheId: nicheRust, nicheTitle: 'Rust', level: 7 },
     ]);
     expect(ctx.total).toBe(1);
+  });
+
+  it('should hand the username to the world route, not the id', async () => {
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    // The route is /world/:handle. Reversed it lands on a profile tab that
+    // does not exist.
+    expect(ctx.handle).toBe('idoshamun');
+  });
+
+  it('should fall back to the id when the reader has no username', async () => {
+    await con.getRepository(User).update({ id: '1' }, { username: null });
+
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    expect(ctx.handle).toBe('1');
   });
 
   it('should name at most two districts and keep the rest as a count', async () => {
@@ -141,6 +182,83 @@ describe('worldDistrictLevelUpNotification worker', () => {
     });
 
     expect(result).toBeUndefined();
+  });
+
+  it('should stand down while the reader is unlocking achievements', async () => {
+    await saveFixtures(con, Achievement, [achievementFixture]);
+    await con.getRepository(UserAchievement).save({
+      userId: '1',
+      achievementId: achievementFixture.id,
+      unlockedAt: subHours(new Date(), 2),
+    });
+
+    const result = await invoke({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should take its turn once the achievement run dries up', async () => {
+    await saveFixtures(con, Achievement, [achievementFixture]);
+    await con.getRepository(UserAchievement).save({
+      userId: '1',
+      achievementId: achievementFixture.id,
+      unlockedAt: subHours(new Date(), 30),
+    });
+
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    expect(ctx.userIds).toEqual(['1']);
+  });
+
+  it('should ignore an achievement the reader has only made progress on', async () => {
+    await saveFixtures(con, Achievement, [achievementFixture]);
+    // Progress without an unlock produces no notification, so there is nothing
+    // to stay out of the way of.
+    await con.getRepository(UserAchievement).save({
+      userId: '1',
+      achievementId: achievementFixture.id,
+      progress: 3,
+      unlockedAt: null,
+    });
+
+    const ctx = await contextOf({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    expect(ctx.userIds).toEqual(['1']);
+  });
+
+  it('should stand down for one reader without touching another', async () => {
+    await saveFixtures(con, Achievement, [achievementFixture]);
+    await con.getRepository(UserAchievement).save({
+      userId: '1',
+      achievementId: achievementFixture.id,
+      unlockedAt: subHours(new Date(), 2),
+    });
+
+    const quiet = await invoke({
+      userId: '1',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+    const other = await invoke({
+      userId: '2',
+      districts: [{ nicheId: nicheRust, level: 7 }],
+      total: 1,
+    });
+
+    expect(quiet).toBeUndefined();
+    expect(other).toHaveLength(1);
   });
 
   it('should do nothing when the user is gone', async () => {
