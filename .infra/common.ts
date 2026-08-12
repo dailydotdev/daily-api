@@ -260,6 +260,10 @@ export const workers: Worker[] = [
     subscription: 'api.content-published',
   },
   {
+    topic: 'yggdrasil.v1.content-published',
+    subscription: 'api.content-published-extract-claims',
+  },
+  {
     topic: 'api.v1.source-member-role-changed',
     subscription: 'api.source-member-role-changed-notification',
   },

@@ -61,8 +61,11 @@ import type {
   generatePersonalContextSchema,
   personalContextGeneratedSchema,
 } from './schema/personalContext';
+import type { Data as ContentPublishedData } from '../workers/postUpdated/types';
 
 export type PubSubSchema = {
+  // Published by yggdrasil, never by us.
+  'yggdrasil.v1.content-published': ContentPublishedData;
   'pub-request': {
     reason: NotificationReason;
     sourceRequest: ChangeObject<SourceRequest>;
