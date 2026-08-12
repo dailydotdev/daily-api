@@ -10,6 +10,7 @@ import {
 import createOrGetConnection from '../../src/db';
 import { UserNicheAnalytics } from '../../src/entity/user/UserNicheAnalytics';
 import { UserNicheGrowth } from '../../src/entity/user/UserNicheGrowth';
+import { UserWorldLevelUp } from '../../src/entity/user/UserWorldLevelUp';
 import { Niche } from '../../src/entity/Niche';
 import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
@@ -54,6 +55,7 @@ beforeEach(async () => {
   // Production always has a cursor once the bulk seed has run; an absent one is
   // the recovery path, exercised explicitly below.
   await setRedisHash(cronConfigRedisKey, { cursor: seedCursor });
+  await con.getRepository(UserWorldLevelUp).clear();
   await con.getRepository(UserNicheAnalytics).clear();
   await con.getRepository(UserNicheGrowth).clear();
   await saveFixtures(con, User, usersFixture);
@@ -412,6 +414,45 @@ describe('userWorldClickhouse cron', () => {
       await runWith(rows);
 
       expect(levelUpCalls()).toHaveLength(1);
+    });
+
+    it('should keep every crossing for the world index, not only the ones it announces', async () => {
+      // Four crossings for one reader: the event names three, the table keeps
+      // all four, because the index asks about districts and not about
+      // notifications.
+      await runWith([
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheAi, reads: 20 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheGo, reads: 3 },
+        { userId: '1', date: '2026-07-01', nicheId: nicheRust, reads: 2 },
+      ]);
+
+      expect(
+        (
+          await con
+            .getRepository(UserWorldLevelUp)
+            .find({ order: { level: 'DESC' } })
+        ).map(({ nicheId, level, reads }) => ({ nicheId, level, reads })),
+      ).toEqual([
+        { nicheId: nicheAi, level: 6, reads: 20 },
+        { nicheId: nicheJs, level: 5, reads: 10 },
+        { nicheId: nicheGo, level: 3, reads: 3 },
+        { nicheId: nicheRust, level: 2, reads: 2 },
+      ]);
+    });
+
+    it('should not re-date a crossing when the window is replayed', async () => {
+      const rows = [
+        { userId: '1', date: '2026-07-01', nicheId: nicheJs, reads: 10 },
+      ];
+
+      await runWith(rows);
+      const [first] = await con.getRepository(UserWorldLevelUp).find();
+
+      await deleteRedisKey(cronConfigRedisKey);
+      await runWith(rows);
+
+      expect(await con.getRepository(UserWorldLevelUp).find()).toEqual([first]);
     });
   });
 });

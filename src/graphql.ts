@@ -25,6 +25,7 @@ import * as contributionEligibilityDirective from './directive/contributionEligi
 import * as feedPlusDirective from './directive/feedPlus';
 import * as urlDirective from './directive/url';
 import * as leaderboard from './schema/leaderboard';
+import * as worldIndex from './schema/worldIndex';
 import * as integrations from './schema/integrations';
 import * as contentPreference from './schema/contentPreference';
 import * as prompts from './schema/prompts';
@@ -96,6 +97,7 @@ export const schema = urlDirective.transformer(
                 devcards.typeDefs,
                 urlShortener.typeDefs,
                 leaderboard.typeDefs,
+                worldIndex.typeDefs,
                 integrations.typeDefs,
                 contentPreference.typeDefs,
                 prompts.typeDefs,
@@ -148,6 +150,7 @@ export const schema = urlDirective.transformer(
                   devcards.resolvers,
                   urlShortener.resolvers,
                   leaderboard.resolvers,
+                  worldIndex.resolvers,
                   integrations.resolvers,
                   contentPreference.resolvers,
                   prompts.resolvers,

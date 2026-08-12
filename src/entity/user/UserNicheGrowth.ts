@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import type { User } from './User';
 import type { Niche } from '../Niche';
 
@@ -16,8 +23,12 @@ import type { Niche } from '../Niche';
  *
  * Key order matches UserNicheAnalytics: userId leads so a user's whole history is
  * one range scan.
+ *
+ * The lone index on `date` is for the reverse question, a window across every
+ * reader, which is what the world index's weekly ranking is built from.
  */
 @Entity()
+@Index('IDX_user_niche_growth_date', ['date'])
 export class UserNicheGrowth {
   @PrimaryColumn({ type: 'text' })
   userId: string;

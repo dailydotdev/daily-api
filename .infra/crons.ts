@@ -142,6 +142,20 @@ export const crons: Cron[] = [
       memory: '1Gi',
     },
   },
+  // Reads the districts and growth rows user-world-clickhouse writes, so it is
+  // scheduled behind that job's deadline rather than beside it.
+  {
+    name: 'world-index',
+    schedule: '30 4 * * *',
+    activeDeadlineSeconds: 3600,
+    limits: {
+      memory: '1Gi',
+    },
+    requests: {
+      cpu: '500m',
+      memory: '512Mi',
+    },
+  },
   {
     name: 'post-analytics-achievements',
     schedule: '2-59/15 * * * *',
