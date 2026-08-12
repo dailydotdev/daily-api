@@ -193,4 +193,26 @@ describe('extractClaims worker', () => {
     expect(mockExtractClaims).toHaveBeenCalled();
     expect(await con.getRepository(ClaimCandidate).count()).toEqual(0);
   });
+
+  it('should not extract again once the post has candidates', async () => {
+    await con.getRepository(ClaimCandidate).save({
+      postId: 'cp1',
+      rawEntityName: 'react',
+      entityAliases: [],
+      entityKind: LedgerEntityKind.Package,
+      changeType: ClaimChangeType.Removal,
+      statement: 'React 19 removes defaultProps.',
+      directness: ClaimDirectness.Announcement,
+      evidence: 'React 19 removes defaultProps.',
+    });
+
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished(),
+    );
+
+    expect(mockExtractClaims).not.toHaveBeenCalled();
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(1);
+  });
 });
