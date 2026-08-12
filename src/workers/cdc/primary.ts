@@ -107,7 +107,7 @@ import {
   triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
-import { DataSource, In, IsNull } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
 import { CommentReport } from '../../entity/CommentReport';
@@ -1743,29 +1743,45 @@ const onPostRelationChange = async (
   }
 };
 
+const MARKETING_CTA_CACHE_BATCH_SIZE = 500;
+
 const onMarketingCtaChange = async (
   con: DataSource,
   data: ChangeMessage<MarketingCta>,
 ) => {
-  if (data.payload.op !== 'u') {
+  if (data.payload.op !== 'u' || !data.payload.after) {
     return;
   }
 
-  const users = await con.getRepository(UserMarketingCta).findBy({
-    marketingCtaId: data.payload.after!.campaignId,
-    readAt: IsNull(),
-  });
+  const { campaignId } = data.payload.after;
+  // Campaigns can have hundreds of thousands of unread assignments, so page
+  // through them instead of materialising every row and spreading them all
+  // into a single unlink call.
+  let lastUserId = '';
 
-  if (users.length > 0) {
+  while (true) {
+    const users = await con
+      .getRepository(UserMarketingCta)
+      .createQueryBuilder('umc')
+      .select('umc."userId"', 'userId')
+      .where('umc."marketingCtaId" = :campaignId', { campaignId })
+      .andWhere('umc."readAt" IS NULL')
+      .andWhere('umc."userId" > :lastUserId', { lastUserId })
+      .orderBy('umc."userId"', 'ASC')
+      .limit(MARKETING_CTA_CACHE_BATCH_SIZE)
+      .getRawMany<{ userId: string }>();
+
+    if (!users.length) {
+      return;
+    }
+
     await deleteRedisKey(
-      ...users.map((user) =>
-        generateStorageKey(
-          StorageTopic.Boot,
-          StorageKey.MarketingCta,
-          user.userId,
-        ),
+      ...users.map(({ userId }) =>
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
       ),
     );
+
+    lastUserId = users[users.length - 1].userId;
   }
 };
 

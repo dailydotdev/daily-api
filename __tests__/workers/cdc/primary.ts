@@ -3373,6 +3373,56 @@ describe('marketing cta', () => {
         ),
       ).toHaveLength(1);
     });
+
+    it('should clear boot cache for assignments spanning multiple pages', async () => {
+      // More than one page of the paginated invalidation, to cover the
+      // keyset-paging boundary rather than a single-batch campaign.
+      const extraUserIds = Array.from(
+        { length: 1200 },
+        (_, index) => `mcta-paging-${index.toString().padStart(5, '0')}`,
+      );
+
+      await saveFixtures(
+        con,
+        User,
+        extraUserIds.map((id) => ({
+          id,
+          username: id,
+          email: `${id}@daily.dev`,
+        })),
+      );
+      await saveFixtures(
+        con,
+        UserMarketingCta,
+        extraUserIds.map((id) => ({
+          marketingCtaId: 'worlds-best-campaign',
+          userId: id,
+          createdAt: new Date('2024-03-13 12:00:00'),
+        })),
+      );
+      for (const id of extraUserIds) {
+        await setRedisObject(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, id),
+          'not null',
+        );
+      }
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: base,
+          before: base,
+          op: 'u',
+          table: 'marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(0);
+    });
   });
 
   describe('on delete', () => {
