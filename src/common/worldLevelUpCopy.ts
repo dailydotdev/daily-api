@@ -25,36 +25,41 @@ type CopyBand = {
 
 const BANDS: CopyBand[] = [
   {
-    // L1-L4: five articles or fewer. The ground has just been claimed.
+    // L1-L4: five articles or fewer. Barely anything on the ground yet, and
+    // the lines say so. Overselling a pile of rocks is how a reader learns to
+    // stop believing the next one.
     upTo: 4,
     lines: [
-      'A few reads ago that was bare rock.',
-      'Small, but it is yours and it is on the map.',
-      'That is another district finding its feet.',
+      "It's mostly rocks so far.",
+      "Tiny, but it's there.",
+      'Every district starts out like this.',
     ],
   },
   {
-    // L5-L8: ten to eighty. It reads as built rather than found.
+    // L5-L8: ten to eighty. Roofs went up at L4, so every rung in this band
+    // has them.
     upTo: 8,
     lines: [
-      'That one has stopped looking like a campsite.',
-      'It has paths and lanterns now. Go and walk them.',
-      'Real buildings, and you read every one of them into place.',
+      "It's got roofs now.",
+      "That one's turning into an actual place.",
+      'Enough reading to fill a town.',
     ],
   },
   {
-    // L9-L11: a hundred and sixty upwards. Visible from across the map.
+    // L9-L11: a hundred and sixty upwards. L9 is where the ladder's own notes
+    // say a district becomes legible from across the map, and nothing above it
+    // gets smaller.
     upTo: 11,
     lines: [
-      'You can pick that district out from across the map now.',
-      'The rungs double as you climb, so that one took some doing.',
-      'It has started growing downward as well as out.',
+      'You can spot that one from anywhere on the map.',
+      "Every rung is double the last, so that's a serious pile of reading.",
+      'Towers and bridges up there now.',
     ],
   },
   {
     // L12, and nothing above it.
     upTo: 12,
-    lines: ['Top of the ladder. There is nothing above it.'],
+    lines: ['Top of the ladder. Nothing above it.'],
   },
 ];
 

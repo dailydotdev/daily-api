@@ -140,23 +140,6 @@ describe('worldDistrictLevelUpNotification worker', () => {
     );
   });
 
-  it('should hold the send until a reasonable hour in the reader timezone', async () => {
-    await con.getRepository(User).update({ id: '1' }, { timezone: 'Etc/UTC' });
-
-    const ctx = await contextOf({
-      userId: '1',
-      districts: [{ nicheId: nicheRust, level: 7 }],
-      total: 1,
-    });
-
-    // The cron runs at 03:00 UTC. Whenever the test happens to run, the send
-    // must land on the configured hour rather than immediately.
-    expect(ctx.sendAtMs).toBeGreaterThan(Date.now());
-    expect(
-      formatInTimeZone(new Date(ctx.sendAtMs as number), 'Etc/UTC', 'HH'),
-    ).toBe('18');
-  });
-
   it('should drop a district the catalogue no longer has, from names and count', async () => {
     const ctx = await contextOf({
       userId: '1',

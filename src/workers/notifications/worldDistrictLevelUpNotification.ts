@@ -7,20 +7,6 @@ import { Niche } from '../../entity/Niche';
 import { User } from '../../entity/user/User';
 import { UserAchievement } from '../../entity/user/UserAchievement';
 import { WORLD_LEVEL_UP_NAMED_DISTRICTS } from '../../common/worldLadder';
-import { DEFAULT_TIMEZONE, secondsUntilNextHourInTimezone } from '../../common';
-
-/**
- * The hour, in the reader's own timezone, this is allowed to reach a device.
- *
- * The world cron runs at 03:00 UTC, which is the middle of the night for a
- * large share of readers and the middle of the working day for the rest.
- * Neither is a moment to ask somebody to go and look at something.
- *
- * Evening rather than morning because 09:00 is the personalized digest's
- * default hour, and two pushes in the same hour compete with each other for the
- * same attention rather than adding up.
- */
-const SEND_HOUR = 18;
 
 /**
  * How recently an unlocked achievement holds this notification back.
@@ -50,10 +36,9 @@ export const worldDistrictLevelUpNotification: TypedNotificationWorker<'api.v1.w
   {
     subscription: 'api.world-district-level-up-notification',
     handler: async ({ userId, districts, total }, con) => {
-      const user = await con.getRepository(User).findOne({
-        select: ['id', 'username', 'timezone'],
-        where: { id: userId },
-      });
+      const user = await con
+        .getRepository(User)
+        .findOne({ select: ['id', 'username'], where: { id: userId } });
 
       if (!user) {
         return;
@@ -114,13 +99,6 @@ export const worldDistrictLevelUpNotification: TypedNotificationWorker<'api.v1.w
         // opening it. ISO week in UTC so the bucket does not depend on where
         // the process happens to be running.
         dedupKey: formatInTimeZone(new Date(), 'Etc/UTC', "RRRR-'W'II"),
-        sendAtMs:
-          Date.now() +
-          secondsUntilNextHourInTimezone({
-            hour: SEND_HOUR,
-            timezone: user.timezone || DEFAULT_TIMEZONE,
-          }) *
-            1000,
       };
 
       return [{ type: NotificationType.WorldDistrictLevelUp, ctx }];

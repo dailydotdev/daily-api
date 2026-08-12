@@ -38,7 +38,7 @@ describe('worldLevelUpLine', () => {
     const tops = ['a', 'b', 'c'].map((seed) => line(12, seed));
 
     expect(new Set(tops)).toEqual(
-      new Set(['Top of the ladder. There is nothing above it.']),
+      new Set(['Top of the ladder. Nothing above it.']),
     );
   });
 

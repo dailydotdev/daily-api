@@ -1564,9 +1564,7 @@ describe('storeNotificationBundle', () => {
     // to be there, and it has to change as the ladder is climbed.
     expect(describe_(2)).toEqual(expect.any(String));
     expect(describe_(2)).not.toEqual(describe_(12));
-    expect(describe_(12)).toEqual(
-      'Top of the ladder. There is nothing above it.',
-    );
+    expect(describe_(12)).toEqual('Top of the ladder. Nothing above it.');
   });
 
   it('should keep the count singular when a single district goes unnamed', () => {
