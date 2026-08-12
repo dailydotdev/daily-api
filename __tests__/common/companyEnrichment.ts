@@ -5,22 +5,27 @@ import {
   enrichCompanyForUserCompany,
   getGoogleFaviconUrl,
 } from '../../src/common/companyEnrichment';
-import { anthropicClient } from '../../src/integrations/anthropic';
 import { Company, CompanyType } from '../../src/entity/Company';
 import { UserCompany } from '../../src/entity/UserCompany';
 import { User } from '../../src/entity/user/User';
 import { usersFixture } from '../fixture/user';
 import { createMockLogger, saveFixtures } from '../helpers';
 
-jest.mock('../../src/integrations/anthropic', () => ({
-  anthropicClient: {
-    createMessage: jest.fn(),
-  },
+const mockResolveOrganization = jest.fn();
+
+jest.mock('../../src/integrations/bragi', () => ({
+  getBragiClient: () => ({
+    garmr: {
+      execute: (fn: () => Promise<unknown>) => fn(),
+    },
+    instance: {
+      resolveOrganization: (...args: unknown[]) =>
+        mockResolveOrganization(...args),
+    },
+  }),
 }));
 
 const logger = createMockLogger();
-const mockCreateMessage = jest.mocked(anthropicClient.createMessage);
-const originalAnthropicApiKey = process.env.ANTHROPIC_API_KEY;
 
 let con: DataSource;
 
@@ -29,14 +34,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  process.env.ANTHROPIC_API_KEY = 'test';
   jest.clearAllMocks();
   nock.cleanAll();
   await saveFixtures(con, User, [usersFixture[0]]);
 });
 
 afterEach(() => {
-  process.env.ANTHROPIC_API_KEY = originalAnthropicApiKey;
   nock.cleanAll();
 });
 
@@ -82,20 +85,15 @@ describe('enrichCompanyForUserCompany', () => {
       companyId: 'existing-company',
     });
     expect(userCompany.companyId).toBe('existing-company');
-    expect(mockCreateMessage).not.toHaveBeenCalled();
+    expect(mockResolveOrganization).not.toHaveBeenCalled();
   });
 
   it('creates new Company when domain is unknown', async () => {
     nock('https://newco.com').get('/').reply(200);
-    mockCreateMessage.mockResolvedValue({
-      content: [
-        {
-          input: {
-            englishName: 'New Co',
-            nativeName: 'New Co Native',
-          },
-        },
-      ],
+    mockResolveOrganization.mockResolvedValue({
+      englishName: 'New Co',
+      nativeName: 'New Co Native',
+      domain: 'newco.com',
     });
     await saveFixtures(con, UserCompany, [
       {
@@ -145,16 +143,17 @@ describe('enrichCompanyForUserCompany', () => {
       type: CompanyType.Company,
     });
     expect(userCompany.companyId).toBe(result.companyId);
-    expect(mockCreateMessage.mock.calls[0][0].messages).toEqual([
-      {
-        role: 'user',
-        content: 'newco.com',
-      },
-    ]);
+    expect(mockResolveOrganization).toHaveBeenCalledWith({
+      input: { case: 'domain', value: 'newco.com' },
+    });
   });
 
-  it('skips when Anthropic client is not configured', async () => {
-    delete process.env.ANTHROPIC_API_KEY;
+  it('skips when the organization cannot be resolved', async () => {
+    mockResolveOrganization.mockResolvedValue({
+      englishName: '',
+      nativeName: '',
+      domain: 'unknown.com',
+    });
     await saveFixtures(con, UserCompany, [
       {
         email: 'person@unknown.com',
@@ -184,9 +183,8 @@ describe('enrichCompanyForUserCompany', () => {
       skipped: true,
       linkedToExisting: false,
       companyCreated: false,
-      error: 'Anthropic client not configured',
+      error: 'Missing englishName',
     });
     expect(userCompany.companyId).toBeNull();
-    expect(mockCreateMessage).not.toHaveBeenCalled();
   });
 });

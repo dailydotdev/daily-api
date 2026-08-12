@@ -324,6 +324,9 @@ export type PubSubSchema = {
       typeof rejectionFeedbackClassificationSchema
     >;
   };
+  'api.v1.experience-company-enrichment': {
+    experienceId: string;
+  };
   'api.v1.experience-company-enriched': {
     experienceId: string;
     userId: string;

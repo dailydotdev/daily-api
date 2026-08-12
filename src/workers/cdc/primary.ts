@@ -184,7 +184,6 @@ import { UserExperienceWork } from '../../entity/user/experiences/UserExperience
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
-import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
 import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
 import { OpportunityUserType } from '../../entity/opportunities/types';
@@ -2665,35 +2664,15 @@ const onUserExperienceChange = async (
     userId: experience.userId,
   });
 
-  // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
+  // Request enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
   if (
     data.payload.op === 'c' &&
     experience.customCompanyName &&
     !experience.companyId
   ) {
-    const enrichmentResult = await enrichCompanyForExperience(
-      con,
-      {
-        experienceId: experience.id,
-        customCompanyName: experience.customCompanyName!,
-        experienceType: experience.type,
-      },
-      logger,
-    );
-
-    // Notify user if enrichment successfully linked a company
-    if (enrichmentResult.success && enrichmentResult.companyId) {
-      const company = await con
-        .getRepository(Company)
-        .findOneBy({ id: enrichmentResult.companyId });
-      if (company) {
-        await triggerTypedEvent(logger, 'api.v1.experience-company-enriched', {
-          experienceId: experience.id,
-          userId: experience.userId,
-          companyId: enrichmentResult.companyId,
-        });
-      }
-    }
+    await triggerTypedEvent(logger, 'api.v1.experience-company-enrichment', {
+      experienceId: experience.id,
+    });
   }
 
   // Work-specific verification logic

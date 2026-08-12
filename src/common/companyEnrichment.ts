@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import { ArrayContains, IsNull } from 'typeorm';
 import type { DataSource, EntityManager } from 'typeorm';
-import { anthropicClient } from '../integrations/anthropic';
+import { getBragiClient } from '../integrations/bragi';
 import { generateShortId } from '../ids';
 import { Company, CompanyType } from '../entity/Company';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
@@ -124,9 +124,9 @@ export type EnrichCompanyForUserCompanyParams = {
 type RepositorySource = DataSource | EntityManager;
 
 type OrganizationInfo = {
-  englishName?: string;
-  nativeName?: string;
-  domain?: string;
+  englishName: string;
+  nativeName: string;
+  domain: string;
 };
 
 type CreateCompanyParams = {
@@ -160,9 +160,6 @@ const createdResult = (companyId: string): EnrichmentResult => ({
   companyId,
 });
 
-const isAnthropicConfigured = (): boolean =>
-  !!anthropicClient && !!process.env.ANTHROPIC_API_KEY;
-
 const getCompanyByDomain = (
   source: RepositorySource,
   domain: string,
@@ -191,67 +188,20 @@ const createCompany = async (
   return companyId;
 };
 
-const getOrganizationInfo = async ({
-  input,
-  includeDomain,
-}: {
-  input: string;
-  includeDomain: boolean;
-}): Promise<OrganizationInfo> => {
-  const properties = {
-    englishName: {
-      type: 'string',
-      description: 'The English name of the organization',
-    },
-    nativeName: {
-      type: 'string',
-      description: 'The name of the organization in its native language',
-    },
-    ...(includeDomain
-      ? {
-          domain: {
-            type: 'string',
-            description:
-              'The web domain of the organization. Return empty string if unknown.',
-          },
-        }
-      : {}),
-  };
+const getOrganizationInfo = async (
+  input: { name: string } | { domain: string },
+): Promise<OrganizationInfo> => {
+  const bragiClient = getBragiClient();
+  const { englishName, nativeName, domain } = await bragiClient.garmr.execute(
+    () =>
+      bragiClient.instance.resolveOrganization(
+        'name' in input
+          ? { input: { case: 'name', value: input.name } }
+          : { input: { case: 'domain', value: input.domain } },
+      ),
+  );
 
-  const res = await anthropicClient.createMessage({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 1024,
-    system: includeDomain
-      ? 'You are a helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.'
-      : 'You are a helpful assistant that returns information about an organization. The user will give you a web domain, and you will return the organization name in both English and its native language.',
-    messages: [
-      {
-        role: 'user',
-        content: input,
-      },
-    ],
-    tools: [
-      {
-        name: 'organization_info',
-        description: includeDomain
-          ? 'Gets information about the given organization'
-          : 'Gets information about the organization for a domain',
-        input_schema: {
-          type: 'object',
-          properties,
-          required: includeDomain
-            ? ['englishName', 'nativeName', 'domain']
-            : ['englishName', 'nativeName'],
-        },
-      },
-    ],
-    tool_choice: {
-      type: 'tool',
-      name: 'organization_info',
-    },
-  });
-
-  return (res.content[0]?.input ?? {}) as OrganizationInfo;
+  return { englishName, nativeName, domain };
 };
 
 const getUserCompanyResult = async (
@@ -332,15 +282,7 @@ export async function enrichCompanyForUserCompany(
     return existingResult;
   }
 
-  if (!isAnthropicConfigured()) {
-    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
-    return skippedResult('Anthropic client not configured');
-  }
-
-  const { englishName, nativeName } = await getOrganizationInfo({
-    input: domain,
-    includeDomain: false,
-  });
+  const { englishName, nativeName } = await getOrganizationInfo({ domain });
 
   if (!englishName) {
     logger.debug({ domain }, 'Missing required organization info englishName');
@@ -387,7 +329,7 @@ export async function enrichCompanyForUserCompany(
 
 /**
  * Enriches a company for a given user experience.
- * Uses Claude AI to extract company info, validates the domain,
+ * Resolves the organization through bragi, validates the domain,
  * and either links to an existing company or creates a new one.
  */
 export async function enrichCompanyForExperience(
@@ -397,14 +339,8 @@ export async function enrichCompanyForExperience(
 ): Promise<EnrichmentResult> {
   const { experienceId, customCompanyName, experienceType } = params;
 
-  if (!isAnthropicConfigured()) {
-    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
-    return skippedResult('Anthropic client not configured');
-  }
-
   const { englishName, nativeName, domain } = await getOrganizationInfo({
-    input: customCompanyName,
-    includeDomain: true,
+    name: customCompanyName,
   });
 
   if (!englishName || !domain) {

@@ -34,6 +34,7 @@ import {
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
+  ResolveOrganizationResponse,
   TopicalDigest,
   TopicalDigestItem,
   UserFeedbackClassification,
@@ -182,6 +183,13 @@ export const getBragiClient = (
             id: 'mock-id',
             category: ProtoGearCategory.OTHER,
             normalizedName: name,
+          }),
+        resolveOrganization: async () =>
+          new ResolveOrganizationResponse({
+            id: 'mock-id',
+            englishName: 'Mock Organization',
+            nativeName: 'Mock Organization',
+            domain: 'mock-organization.com',
           }),
         gitHubProfileTags: async () =>
           new GitHubProfileTagsResponse({
