@@ -54,7 +54,7 @@ export class WorldIndex1786600000000 implements MigrationInterface {
       /* sql */ `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_user_niche_rank_key" ON "user_niche_rank" ("nicheId", "period", "userId")`,
     );
     await queryRunner.query(
-      /* sql */ `CREATE INDEX IF NOT EXISTS "IDX_user_niche_rank_listing" ON "user_niche_rank" ("nicheId", "period", "reads" DESC)`,
+      /* sql */ `CREATE INDEX IF NOT EXISTS "IDX_user_niche_rank_listing" ON "user_niche_rank" ("nicheId", "period", "reads" DESC, "userId" ASC)`,
     );
     await queryRunner.query(
       /* sql */ `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_niche_world_stats_nicheId" ON "niche_world_stats" ("nicheId")`,

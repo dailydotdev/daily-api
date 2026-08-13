@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import graphorm from '../graphorm';
 import { subDays } from 'date-fns';
 import type { EntityManager } from 'typeorm';
 import type { AuthContext, BaseContext, Context } from '../Context';
@@ -16,7 +17,6 @@ import {
   UserWorldSummary,
   type UserWorldSummaryTopNiche,
 } from '../entity/user/UserWorldSummary';
-import { NicheWorldStats } from '../entity/NicheWorldStats';
 import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 import { districtLevelOf } from '../common/worldLadder';
 import {
@@ -417,56 +417,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args,
       ctx: Context,
+      info,
     ): Promise<GQLWorldRankEntry[]> => {
       const { nicheId, period, limit } = worldTopicRankingSchema.parse(args);
 
-      const rows = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        applyWorldIndexPrivacy(
-          queryRunner.manager
-            .createQueryBuilder()
-            .from(UserNicheRank, 'r')
-            .select('u.*')
-            .addSelect('r.reads', 'articles')
-            .addSelect('r."lifetimeReads"', 'lifetimeReads')
-            .addSelect('s.name', 'worldName')
-            // The rank table is rebuilt from the summary in the same run, so
-            // this join is redundant on a healthy rebuild, and is exactly what
-            // holds the floor if a rebuild ever lands half-applied.
-            .innerJoin(UserWorldSummary, 'w', 'w."userId" = r."userId"')
-            .innerJoin(User, 'u', 'u.id = r."userId"')
-            .leftJoin(UserWorldSettings, 's', 's."userId" = r."userId"')
-            .where('r."nicheId" = :nicheId', { nicheId })
-            .andWhere('r.period = :period', { period }),
-          'r."userId"',
-        )
-          // Matches the order the ranking was materialised in, so the placing a
-          // row is shown at is the placing it was given.
-          .orderBy('r.reads', 'DESC')
-          .addOrderBy('r."userId"', 'ASC')
-          .limit(
-            getLimit({
-              limit: limit as number,
-              defaultLimit: 10,
-              max: WORLD_RANK_MAX_LIMIT,
-            }),
+      return graphorm.query<GQLWorldRankEntry>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = applyWorldIndexPrivacy(
+            builder.queryBuilder
+              // The ranking is rebuilt from the summary in the same refresh, so
+              // this join is redundant on a healthy one, and is what holds the
+              // floor if a refresh ever lands half-applied.
+              .innerJoin(
+                UserWorldSummary,
+                'w',
+                `w."userId" = "${builder.alias}"."userId"`,
+              )
+              .where(`"${builder.alias}"."nicheId" = :nicheId`, { nicheId })
+              .andWhere(`"${builder.alias}"."period" = :period`, { period }),
+            `"${builder.alias}"."userId"`,
           )
-          .getRawMany<
-            User & {
-              articles: number;
-              lifetimeReads: number;
-              worldName: string | null;
-            }
-          >(),
-      );
+            // Matches the order the ranking was materialised in, so the placing
+            // a row is shown at is the placing it was given.
+            .orderBy(`"${builder.alias}"."reads"`, 'DESC')
+            .addOrderBy(`"${builder.alias}"."userId"`, 'ASC')
+            .limit(
+              getLimit({
+                limit: limit as number,
+                defaultLimit: 10,
+                max: WORLD_RANK_MAX_LIMIT,
+              }),
+            );
 
-      return rows.map(
-        ({ articles, lifetimeReads, worldName, ...user }, index) => ({
-          rank: index + 1,
-          user,
-          worldName,
-          articles,
-          level: districtLevelOf(lifetimeReads),
-        }),
+          return builder;
+        },
+        true,
       );
     },
 
@@ -537,27 +524,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args,
       ctx: Context,
+      info,
     ): Promise<GQLWorldTopicReaders[]> => {
       const { nicheIds } = worldTopicReadersSchema.parse(args);
 
-      const rows = await queryReadReplica(ctx.con, ({ queryRunner }) => {
-        const builder = queryRunner.manager
-          .createQueryBuilder()
-          .from(NicheWorldStats, 'ns')
-          .select('n.*')
-          .addSelect('ns.readers', 'readers')
-          .innerJoin(Niche, 'n', 'n.id = ns."nicheId"');
+      return graphorm.query<GQLWorldTopicReaders>(
+        ctx,
+        info,
+        (builder) => {
+          if (nicheIds?.length) {
+            builder.queryBuilder.where(
+              `"${builder.alias}"."nicheId" IN (:...nicheIds)`,
+              { nicheIds },
+            );
+          }
 
-        if (nicheIds?.length) {
-          builder.where('ns."nicheId" IN (:...nicheIds)', { nicheIds });
-        }
+          builder.queryBuilder.orderBy(`"${builder.alias}"."readers"`, 'DESC');
 
-        return builder
-          .orderBy('ns.readers', 'DESC')
-          .getRawMany<Niche & { readers: number }>();
-      });
-
-      return rows.map(({ readers, ...niche }) => ({ niche, readers }));
+          return builder;
+        },
+        true,
+      );
     },
 
     /**

@@ -75,7 +75,11 @@ export const USER_NICHE_RANK_VIEW = /* sql */ `
 @Index('UQ_user_niche_rank_key', ['nicheId', 'period', 'userId'], {
   unique: true,
 })
-@Index('IDX_user_niche_rank_listing', ['nicheId', 'period', 'reads'])
+/* Carries `userId` so it matches the listing's full ORDER BY (reads DESC,
+   userId ASC) and the top of a topic comes off the index already sorted. On
+   `reads` alone every tie left a sort behind, and ties are the common case at
+   the shallow end of a ranking. */
+@Index('IDX_user_niche_rank_listing', ['nicheId', 'period', 'reads', 'userId'])
 export class UserNicheRank {
   @ViewColumn()
   nicheId: string;
