@@ -25,6 +25,8 @@ const changeTypeMap: Record<number, ClaimChangeType> = {
   [ProtoClaimChangeType.CONSENSUS_SHIFT]: ClaimChangeType.ConsensusShift,
   [ProtoClaimChangeType.GOTCHA]: ClaimChangeType.Gotcha,
   [ProtoClaimChangeType.SECURITY]: ClaimChangeType.Security,
+  [ProtoClaimChangeType.FIX]: ClaimChangeType.Fix,
+  [ProtoClaimChangeType.PRICING]: ClaimChangeType.Pricing,
 };
 
 const entityKindMap: Record<number, LedgerEntityKind> = {

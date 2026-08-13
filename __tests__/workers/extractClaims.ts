@@ -172,6 +172,34 @@ describe('extractClaims worker', () => {
     });
   });
 
+  it('should map a change type the proto gained after the ledger shipped', async () => {
+    mockExtractClaims.mockResolvedValue(
+      new ExtractClaimsResponse({
+        id: 'op-1',
+        model: 'test',
+        claims: [
+          new ProtoClaim({
+            entityName: 'vercel',
+            entityKind: ProtoClaimEntityKind.SERVICE,
+            changeType: ProtoClaimChangeType.PRICING,
+            statement: 'Vercel raises the price of a Pro seat.',
+            directness: ProtoClaimDirectness.ANNOUNCEMENT,
+            evidence: 'Pro seats now cost more.',
+          }),
+        ],
+      }),
+    );
+
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished(),
+    );
+
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ postId: 'cp1' }),
+    ).toMatchObject({ changeType: ClaimChangeType.Pricing });
+  });
+
   it('should skip posts without a clear change signal', async () => {
     await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
       worker,

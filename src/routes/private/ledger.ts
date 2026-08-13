@@ -6,11 +6,13 @@ import { parseSchema } from './utils';
 import {
   claimCandidateListSchema,
   claimCandidateResolveSchema,
+  claimEvidenceCreateSchema,
   claimStatusUpdateSchema,
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
   ledgerEntityQuerySchema,
+  ledgerEntityUpdateSchema,
 } from '../../common/schema/claimLedger';
 import {
   assertLedgerNamesAvailable,
@@ -94,9 +96,12 @@ const createClaimFromCandidate = async ({
   candidate: ClaimCandidate;
   body: z.infer<typeof claimCandidateResolveSchema>;
 }): Promise<string> => {
-  const entity = await resolveCandidateEntity({ manager, candidate });
+  // An explicit entityId settles what the raw names cannot: a claim about a
+  // child product named after its parent, or names shared by two entities.
+  const entityId =
+    body.entityId ?? (await resolveCandidateEntity({ manager, candidate })).id;
   const claim = await manager.getRepository(Claim).save({
-    entityId: entity.id,
+    entityId,
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement: pickOverride(body.statement, candidate.statement),
     versionScope: pickOverride(body.versionScope, candidate.versionScope),
@@ -175,7 +180,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Claim candidate not found' });
     }
 
-    if (candidate.status !== ClaimCandidateStatus.Pending) {
+    // A post can state several facts at once, so a merged candidate may be
+    // merged again to file the next one, each call spelling out its statement.
+    // Without one, re-resolving stays an accidental double merge.
+    const isSplit =
+      candidate.status === ClaimCandidateStatus.Merged &&
+      body.action === 'merge' &&
+      typeof body.statement !== 'undefined';
+
+    if (candidate.status !== ClaimCandidateStatus.Pending && !isSplit) {
       return res
         .status(400)
         .send({ error: 'Claim candidate is already resolved' });
@@ -207,6 +220,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Claim not found' });
     }
 
+    if (
+      body.entityId &&
+      !(await con.getRepository(LedgerEntity).findOneBy({ id: body.entityId }))
+    ) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
     const claimId = await con.transaction(async (manager) => {
       // Without a claimId the candidate becomes a claim of its own, filed
       // against the ledger entity its names resolve to.
@@ -230,10 +250,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .orIgnore()
         .execute();
 
-      await manager.getRepository(ClaimCandidate).update(candidate.id, {
-        status: ClaimCandidateStatus.Merged,
-        claimId: targetClaimId,
-      });
+      // A split leaves the candidate pointing at the first claim it produced.
+      if (!isSplit) {
+        await manager.getRepository(ClaimCandidate).update(candidate.id, {
+          status: ClaimCandidateStatus.Merged,
+          claimId: targetClaimId,
+        });
+      }
 
       return targetClaimId;
     });
@@ -293,6 +316,57 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     });
 
     return res.status(201).send(entity);
+  });
+
+  // Only the fields the reviewer sends change, so a null clears a nullable
+  // column while an absent key leaves it alone.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityUpdateSchema>;
+  }>('/entities/update', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityUpdateSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const entity = await con
+      .getRepository(LedgerEntity)
+      .findOneBy({ id: body.entityId });
+
+    if (!entity) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    const update = {
+      ...(typeof body.canonicalName !== 'undefined' && {
+        canonicalName: body.canonicalName,
+      }),
+      ...(typeof body.kind !== 'undefined' && { kind: body.kind }),
+      ...(typeof body.keywordValue !== 'undefined' && {
+        keywordValue: body.keywordValue,
+      }),
+      ...(typeof body.parentId !== 'undefined' && { parentId: body.parentId }),
+    };
+
+    if (!Object.keys(update).length) {
+      return res.status(200).send(entity);
+    }
+
+    if (typeof body.canonicalName !== 'undefined') {
+      await assertLedgerNamesAvailable({
+        con,
+        names: [body.canonicalName],
+        excludeId: entity.id,
+      });
+    }
+
+    await con.getRepository(LedgerEntity).update(entity.id, update);
+
+    return res.status(200).send({ ...entity, ...update });
   });
 
   fastify.post<{
@@ -358,6 +432,45 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     return res.status(200).send({ success: true });
+  });
+
+  // Evidence a reviewer verified against a primary source: no post backs it,
+  // so the url and its source class are all the proof there is.
+  fastify.post<{
+    Body: z.infer<typeof claimEvidenceCreateSchema>;
+  }>('/claims/evidence', async (req, res) => {
+    const body = parseSchema({
+      schema: claimEvidenceCreateSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+
+    if (!(await con.getRepository(Claim).findOneBy({ id: body.claimId }))) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
+    if (
+      await con
+        .getRepository(ClaimEvidence)
+        .findOneBy({ claimId: body.claimId, url: body.url })
+    ) {
+      throw new ConflictError('Claim already cites this url as evidence');
+    }
+
+    const evidence = await con.getRepository(ClaimEvidence).save({
+      claimId: body.claimId,
+      postId: null,
+      url: body.url,
+      sourceClass: body.sourceClass,
+      publishedAt: body.publishedAt ?? null,
+    });
+
+    return res.status(201).send(evidence);
   });
 
   fastify.get<{
