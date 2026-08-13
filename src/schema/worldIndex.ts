@@ -39,7 +39,6 @@ import {
 } from '../common/schema/worldIndex';
 import { UserDomainRank } from '../entity/user/UserDomainRank';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
-import { SourceMemberRoles } from '../roles';
 
 export type GQLWorldTopic = {
   niche: Niche;
@@ -907,15 +906,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
 
     /**
-     * The worlds of people the viewer already has a relationship with.
+     * The worlds of people the viewer follows.
      *
-     * Follows and squads are one list rather than two sections: from the
-     * page's side both answer "people I know", and a reader who is both
-     * followed and a squadmate should appear once.
+     * Follows only. Sharing a squad is not a statement about a person the way
+     * following one is: a large squad would flood the section with people the
+     * viewer never chose, and drown the handful they did.
      *
-     * The candidates are a semi-join rather than a fetched id list. A follow
-     * list runs to five thousand and a large squad to far more, and neither
-     * needs to travel to Node to be intersected with the worlds worth listing.
+     * The candidates are a semi-join rather than a fetched id list, since a
+     * follow list runs to thousands and does not need to travel to Node to be
+     * intersected with the worlds worth listing.
      */
     followedWorlds: async (
       _,
@@ -936,13 +935,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                 AND cp.type = 'user'
                 AND cp.status IN (:...followStatuses)
                 AND cp."feedId" = :userId
-              UNION
-              SELECT theirs."userId" FROM source_member theirs
-              WHERE theirs.role != :blocked
-                AND theirs."sourceId" IN (
-                  SELECT mine."sourceId" FROM source_member mine
-                  WHERE mine."userId" = :userId AND mine.role != :blocked
-                )
             )`,
             {
               userId,
@@ -950,7 +942,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
                 ContentPreferenceStatus.Follow,
                 ContentPreferenceStatus.Subscribed,
               ],
-              blocked: SourceMemberRoles.Blocked,
             },
           )
           .orderBy('w.reads', 'DESC')
