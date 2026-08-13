@@ -138,6 +138,38 @@ describe('private ledger routes', () => {
     expect(entity?.aliases).toEqual([]);
   });
 
+  it('should look up entities by canonical name and by alias', async () => {
+    await seedHierarchy();
+    const lookup = (name: string) =>
+      request(app.server)
+        .get('/p/ledger/entities')
+        .query({ name })
+        .set(serviceHeaders)
+        .expect(200);
+
+    const { body: byAlias } = await lookup('NextJS');
+    const { body: byCanonical } = await lookup('next.js app router');
+    const { body: noMatch } = await lookup('Svelte');
+
+    expect(byAlias.entities).toEqual([
+      {
+        id: parentEntityId,
+        canonicalName: 'Next.js',
+        kind: LedgerEntityKind.Package,
+        aliases: ['nextjs'],
+        parentId: null,
+      },
+    ]);
+    expect(byCanonical.entities).toEqual([
+      expect.objectContaining({
+        id: childEntityId,
+        canonicalName: 'Next.js App Router',
+        parentId: parentEntityId,
+      }),
+    ]);
+    expect(noMatch.entities).toEqual([]);
+  });
+
   it('should list pending candidates', async () => {
     await seedCandidate();
 
@@ -192,6 +224,73 @@ describe('private ledger routes', () => {
       status: ClaimCandidateStatus.Merged,
       claimId: body.claimId,
     });
+  });
+
+  it('should apply reviewer overrides to the created claim and keep the candidate intact', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        changeType: ClaimChangeType.Gotcha,
+        statement: 'Next.js 16 marks the pages router as deprecated.',
+        versionScope: null,
+        sunsetDate: '2026-10-01',
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({
+      changeType: ClaimChangeType.Gotcha,
+      statement: 'Next.js 16 marks the pages router as deprecated.',
+      versionScope: null,
+      effectiveDate: '2026-04-01',
+      sunsetDate: '2026-10-01',
+    });
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Merged,
+      claimId: body.claimId,
+      changeType: ClaimChangeType.Deprecation,
+      statement: 'Next.js deprecates the pages router.',
+      versionScope: '>= 16',
+      sunsetDate: null,
+    });
+  });
+
+  it('should reject overrides when merging into an existing claim', async () => {
+    await seedHierarchy();
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        claimId,
+        changeType: ClaimChangeType.Gotcha,
+      })
+      .expect(400);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
+  });
+
+  it('should reject an override with an unknown change type', async () => {
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', changeType: 'rewrite' })
+      .expect(400);
+
+    expect(await con.getRepository(Claim).count()).toEqual(0);
   });
 
   it('should take evidence from a non-article post', async () => {

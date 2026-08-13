@@ -10,6 +10,7 @@ import {
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
+  ledgerEntityQuerySchema,
 } from '../../common/schema/claimLedger';
 import {
   assertLedgerNamesAvailable,
@@ -78,21 +79,29 @@ const findEvidenceSource = ({
     .where('p.id = :postId', { postId })
     .getRawOne<{ url: string | null; publishedAt: Date | null }>();
 
+const pickOverride = <T>(override: T | undefined, original: T): T =>
+  typeof override === 'undefined' ? original : override;
+
+// Reviewer overrides shape the claim only: the candidate keeps the extractor's
+// original output, so the candidate-to-claim delta stays usable as ground truth
+// for measuring extraction defects.
 const createClaimFromCandidate = async ({
   manager,
   candidate,
+  body,
 }: {
   manager: EntityManager;
   candidate: ClaimCandidate;
+  body: z.infer<typeof claimCandidateResolveSchema>;
 }): Promise<string> => {
   const entity = await resolveCandidateEntity({ manager, candidate });
   const claim = await manager.getRepository(Claim).save({
     entityId: entity.id,
-    changeType: candidate.changeType,
-    statement: candidate.statement,
-    versionScope: candidate.versionScope,
-    effectiveDate: candidate.effectiveDate,
-    sunsetDate: candidate.sunsetDate,
+    changeType: pickOverride(body.changeType, candidate.changeType),
+    statement: pickOverride(body.statement, candidate.statement),
+    versionScope: pickOverride(body.versionScope, candidate.versionScope),
+    effectiveDate: pickOverride(body.effectiveDate, candidate.effectiveDate),
+    sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
   });
 
   return claim.id;
@@ -203,7 +212,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       // against the ledger entity its names resolve to.
       const targetClaimId =
         body.claimId ??
-        (await createClaimFromCandidate({ manager, candidate }));
+        (await createClaimFromCandidate({ manager, candidate, body }));
 
       // Re-merging the same post into the same claim is a no-op, guarded by the
       // unique index on (claimId, url).
@@ -230,6 +239,31 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     });
 
     return res.status(200).send({ claimId });
+  });
+
+  // A name can straddle several entities, so the lookup answers with every
+  // match and leaves picking one to the reviewer.
+  fastify.get<{
+    Querystring: z.infer<typeof ledgerEntityQuerySchema>;
+  }>('/entities', async (req, res) => {
+    const query = parseSchema({
+      schema: ledgerEntityQuerySchema,
+      value: req.query,
+      res,
+    });
+    if (!query) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const entities = await queryReadReplica(con, ({ queryRunner }) =>
+      findLedgerEntitiesByName({
+        con: queryRunner.manager,
+        names: [query.name],
+      }),
+    );
+
+    return res.status(200).send({ entities });
   });
 
   fastify.post<{

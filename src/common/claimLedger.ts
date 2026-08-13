@@ -16,7 +16,13 @@ export const findLedgerEntitiesByName = ({
   return con
     .getRepository(LedgerEntity)
     .createQueryBuilder('le')
-    .select(['le.id', 'le.canonicalName', 'le.aliases'])
+    .select([
+      'le.id',
+      'le.canonicalName',
+      'le.kind',
+      'le.aliases',
+      'le.parentId',
+    ])
     .where('lower(le."canonicalName") = ANY(:names)', { names: normalized })
     .orWhere(
       'EXISTS (SELECT 1 FROM unnest(le."aliases") alias WHERE lower(alias) = ANY(:names))',

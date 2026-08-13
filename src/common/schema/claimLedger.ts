@@ -1,5 +1,5 @@
 import z from 'zod';
-import { ClaimStatus } from '../../entity/claim/Claim';
+import { ClaimChangeType, ClaimStatus } from '../../entity/claim/Claim';
 import { ClaimCandidateStatus } from '../../entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../../entity/claim/LedgerEntity';
 import { ClaimEvidenceSourceClass } from '../../entity/claim/ClaimEvidence';
@@ -16,6 +16,14 @@ export const claimCandidateListSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+const claimOverrideKeys = [
+  'changeType',
+  'statement',
+  'versionScope',
+  'effectiveDate',
+  'sunsetDate',
+] as const;
+
 export const claimCandidateResolveSchema = z
   .object({
     candidateId: z.uuid(),
@@ -25,11 +33,29 @@ export const claimCandidateResolveSchema = z
       .enum(enumValues(ClaimEvidenceSourceClass))
       .default(ClaimEvidenceSourceClass.Community),
     url: z.url().nullish(),
+    changeType: z.enum(enumValues(ClaimChangeType)).optional(),
+    statement: z.string().trim().min(1).max(1000).optional(),
+    versionScope: z.string().trim().min(1).max(200).nullish(),
+    effectiveDate: z.iso.date().nullish(),
+    sunsetDate: z.iso.date().nullish(),
   })
   .refine(({ action, claimId }) => action === 'merge' || !claimId, {
     error: 'claimId is only valid when merging',
     path: ['claimId'],
-  });
+  })
+  .refine(
+    (body) =>
+      (body.action === 'merge' && !body.claimId) ||
+      claimOverrideKeys.every((key) => typeof body[key] === 'undefined'),
+    {
+      error: 'Overrides are only valid when merging into a new claim',
+      path: ['claimId'],
+    },
+  );
+
+export const ledgerEntityQuerySchema = z.object({
+  name: entityName,
+});
 
 export const ledgerEntityCreateSchema = z.object({
   canonicalName: entityName,
