@@ -78,7 +78,16 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
     // not an implicit side effect of the topic. Checked before the GCS fetch so
     // repeat deliveries cost nothing. Reads the primary: a replica lag here
     // would let a redelivery slip through.
-    if (await con.getRepository(ClaimCandidate).existsBy({ postId })) {
+    // Reads the statements rather than a bare existence flag so the same query
+    // also seeds the dedupe below, keeping the write path at one read per post.
+    const filed = await con
+      .getRepository(ClaimCandidate)
+      .createQueryBuilder('cc')
+      .select('cc.statement', 'statement')
+      .where('cc."postId" = :postId', { postId })
+      .getRawMany<{ statement: string }>();
+
+    if (filed.length) {
       return;
     }
 
@@ -114,14 +123,28 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
         }),
       );
 
+      // Bragi states one fact twice often enough that unfiltered inserts hand
+      // reviewers the same candidate twice, so a statement already filed for
+      // the post, or already taken from this response, files nothing.
+      const statements = new Set(
+        filed.map(({ statement }) => statement.trim()),
+      );
+
       const candidates = response.claims.reduce<Partial<ClaimCandidate>[]>(
         (acc, claim) => {
           const changeType = changeTypeMap[claim.changeType];
+          const statement = claim.statement.trim();
 
-          if (!changeType || !claim.entityName || !claim.statement) {
+          if (
+            !changeType ||
+            !claim.entityName ||
+            !statement ||
+            statements.has(statement)
+          ) {
             return acc;
           }
 
+          statements.add(statement);
           acc.push({
             postId,
             rawEntityName: claim.entityName,
@@ -129,7 +152,7 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             entityKind:
               entityKindMap[claim.entityKind] ?? LedgerEntityKind.Other,
             changeType,
-            statement: claim.statement,
+            statement,
             versionScope: claim.versionScope || null,
             effectiveDate: toDateColumn(claim.effectiveDate),
             sunsetDate: toDateColumn(claim.sunsetDate),

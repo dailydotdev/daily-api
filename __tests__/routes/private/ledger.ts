@@ -202,6 +202,20 @@ describe('private ledger routes', () => {
     });
   });
 
+  it('should reject an entity update carrying a field the route cannot apply', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId, aliases: ['app router'] })
+      .expect(400);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({ aliases: [] });
+  });
+
   it('should reject a rename that collides with another entity name', async () => {
     await seedHierarchy();
 
@@ -535,6 +549,117 @@ describe('private ledger routes', () => {
     expect(
       await con.getRepository(Claim).findOneBy({ id: claimId }),
     ).toMatchObject({ status: ClaimStatus.Verified });
+  });
+
+  it('should amend only the claim fields given and clear the ones sent as null', async () => {
+    await seedHierarchy();
+    const update = (body: Record<string, unknown>) =>
+      request(app.server)
+        .post('/p/ledger/claims/update')
+        .set(serviceHeaders)
+        .send({ claimId, ...body })
+        .expect(200);
+
+    await update({
+      statement: 'App Router changes caching defaults in 16.',
+      versionScope: '>= 16',
+    });
+    await update({ effectiveDate: null });
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({
+      statement: 'App Router changes caching defaults in 16.',
+      versionScope: '>= 16',
+      effectiveDate: null,
+      changeType: ClaimChangeType.Breaking,
+      status: ClaimStatus.Corroborated,
+    });
+  });
+
+  it('should link a claim to the claim that supersedes it and unlink it again', async () => {
+    await seedHierarchy();
+    const reversal = await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Breaking,
+      statement: 'App Router caching defaults stay as they are for now.',
+      effectiveDate: '2026-06-01',
+    });
+    const supersede = (supersededByClaimId: string | null) =>
+      request(app.server)
+        .post('/p/ledger/claims/update')
+        .set(serviceHeaders)
+        .send({ claimId, supersededByClaimId })
+        .expect(200);
+
+    await supersede(reversal.id);
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ supersededByClaimId: reversal.id });
+
+    await supersede(null);
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ supersededByClaimId: null });
+  });
+
+  it('should reject a claim superseded by itself', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/update')
+      .set(serviceHeaders)
+      .send({ claimId, supersededByClaimId: claimId })
+      .expect(400);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ supersededByClaimId: null });
+  });
+
+  it('should reclassify the source class of evidence the claim cites', async () => {
+    await seedHierarchy();
+    await con.getRepository(ClaimEvidence).save({
+      claimId,
+      postId: postsFixture[0].id,
+      url: 'https://vercel.com/changelog/app-router-caching',
+      sourceClass: ClaimEvidenceSourceClass.Community,
+    });
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence/update')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://vercel.com/changelog/app-router-caching',
+        sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(ClaimEvidence).findOneBy({
+        url: 'https://vercel.com/changelog/app-router-caching',
+      }),
+    ).toMatchObject({
+      claimId,
+      sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+    });
+  });
+
+  it('should not reclassify a url the claim does not cite', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence/update')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://vercel.com/changelog/unrelated',
+        sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+      })
+      .expect(404);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
   });
 
   it('should serve claims of child entities when queried by a parent alias', async () => {
