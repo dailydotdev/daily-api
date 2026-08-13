@@ -58,6 +58,8 @@ export type Data = {
     scraped_html?: string;
     cleaned_trafilatura_xml?: string;
     cleaned?: { resource_location?: string }[];
+    // Raw scrape in GCS: page HTML for articles, caption text for YouTube.
+    scraped?: { resource_location?: string };
     translate_title?: {
       translations?: I18nRecord;
     };
