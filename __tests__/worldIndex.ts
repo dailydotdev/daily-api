@@ -722,7 +722,7 @@ describe('query followedWorlds', () => {
   it('requires authentication', () =>
     testQueryErrorCode(client, { query: FOLLOWED_QUERY }, 'UNAUTHENTICATED'));
 
-  it('returns the worlds of people the viewer follows and shares a squad with', async () => {
+  it('returns the worlds of people the viewer follows', async () => {
     loggedUser = '1';
     await con.getRepository(ContentPreferenceUser).save({
       userId: '1',
@@ -731,6 +731,19 @@ describe('query followedWorlds', () => {
       feedId: '1',
       status: ContentPreferenceStatus.Follow,
     });
+
+    const res = await client.query(FOLLOWED_QUERY);
+
+    // User 1 is the viewer; nobody else here is followed.
+    expect(
+      res.data.followedWorlds.map(
+        (world: { user: { id: string } }) => world.user.id,
+      ),
+    ).toEqual(['2']);
+  });
+
+  it('does not return a squadmate the viewer has not followed', async () => {
+    loggedUser = '1';
     await con.getRepository(SourceMember).save([
       {
         sourceId: 'a',
@@ -748,12 +761,7 @@ describe('query followedWorlds', () => {
 
     const res = await client.query(FOLLOWED_QUERY);
 
-    // User 4 is neither followed nor a squadmate; user 1 is the viewer.
-    expect(
-      res.data.followedWorlds.map(
-        (world: { user: { id: string } }) => world.user.id,
-      ),
-    ).toEqual(['2', '3']);
+    expect(res.data.followedWorlds).toEqual([]);
   });
 
   it('never returns a private world, even from a direct follow', async () => {
