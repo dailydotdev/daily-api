@@ -1,24 +1,18 @@
 import fastify, { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import CIORequest from 'customerio-node/dist/lib/request';
-import { retryFetch } from '../../src/integrations/retry';
 import digestEmailPreview, {
   prepareDigestEmailHtml,
 } from '../../src/routes/private/digestEmailPreview';
 
 jest.mock('customerio-node/dist/lib/request');
-jest.mock('../../src/integrations/retry', () => ({
-  retryFetch: jest.fn(),
-}));
 
 const mockGetArchivedMessage = jest.fn();
 const mockCIORequest = CIORequest as jest.MockedClass<typeof CIORequest>;
-const mockRetryFetch = retryFetch as jest.MockedFunction<typeof retryFetch>;
 
 let app: FastifyInstance;
 const originalDigestSecret = process.env.PERSONALIZED_DIGEST_SECRET;
 const originalCioAppKey = process.env.CIO_APP_KEY;
-const originalScraperUrl = process.env.SCRAPER_URL;
 
 beforeAll(async () => {
   app = fastify();
@@ -39,11 +33,6 @@ afterAll(async () => {
   } else {
     process.env.CIO_APP_KEY = originalCioAppKey;
   }
-  if (typeof originalScraperUrl === 'undefined') {
-    delete process.env.SCRAPER_URL;
-  } else {
-    process.env.SCRAPER_URL = originalScraperUrl;
-  }
   await app.close();
 });
 
@@ -51,7 +40,6 @@ beforeEach(() => {
   jest.resetAllMocks();
   process.env.PERSONALIZED_DIGEST_SECRET = 'digest-secret';
   process.env.CIO_APP_KEY = 'cio-key';
-  process.env.SCRAPER_URL = 'http://scraper';
   mockCIORequest.mockImplementation(
     () =>
       ({
@@ -70,7 +58,7 @@ describe('POST /p/digest/email-preview', () => {
     expect(mockGetArchivedMessage).not.toHaveBeenCalled();
   });
 
-  it('renders an archived message without its tracking pixel', async () => {
+  it('returns archived HTML without its tracking pixel', async () => {
     mockGetArchivedMessage.mockResolvedValue({
       body: `
         <body>
@@ -79,10 +67,6 @@ describe('POST /p/digest/email-preview', () => {
         </body>
       `,
     });
-    mockRetryFetch.mockResolvedValue({
-      buffer: jest.fn().mockResolvedValue(Buffer.from('png')),
-    } as never);
-
     const response = await request(app.server)
       .post('/p/digest/email-preview')
       .set('authorization', 'Bearer digest-secret')
@@ -90,18 +74,12 @@ describe('POST /p/digest/email-preview', () => {
       .expect(200);
 
     expect(response.headers).toMatchObject({
-      'content-type': 'image/png',
+      'content-type': expect.stringContaining('application/json'),
       'cache-control': 'private, no-store',
       pragma: 'no-cache',
     });
-    expect(mockRetryFetch).toHaveBeenCalledWith(
-      'http://scraper/screenshot',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.not.stringContaining('https://track.test/open'),
-      }),
-      { retries: 1 },
-    );
+    expect(response.body.html).toContain('https://images.test/creative.png');
+    expect(response.body.html).not.toContain('https://track.test/open');
   });
 });
 
@@ -115,6 +93,8 @@ describe('prepareDigestEmailHtml', () => {
           <img src="https://track.test/open-style" style="height: 1px; width: 1px; display: none">
           <script>window.location = 'https://example.com'</script>
           <iframe src="https://example.com"></iframe>
+          <form action="https://example.com"><button>Submit</button></form>
+          <meta http-equiv="refresh" content="0;https://example.com">
         </body>
       </html>
     `);
@@ -123,5 +103,7 @@ describe('prepareDigestEmailHtml', () => {
     expect(html).not.toContain('https://track.test/open');
     expect(html).not.toContain('<script');
     expect(html).not.toContain('<iframe');
+    expect(html).not.toContain('<form');
+    expect(html).not.toContain('http-equiv="refresh"');
   });
 });
