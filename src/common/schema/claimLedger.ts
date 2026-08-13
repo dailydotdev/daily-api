@@ -106,6 +106,18 @@ export const claimUpdateSchema = z.strictObject({
   supersededByClaimId: z.uuid().nullish(),
 });
 
+// Concurrent review files the same fact twice, so the duplicate is absorbed
+// into the claim that keeps it instead of being rejected with its evidence.
+export const claimMergeSchema = z
+  .strictObject({
+    fromClaimId: z.uuid(),
+    intoClaimId: z.uuid(),
+  })
+  .refine(({ fromClaimId, intoClaimId }) => fromClaimId !== intoClaimId, {
+    error: 'A claim cannot be merged into itself',
+    path: ['intoClaimId'],
+  });
+
 // Evidence a reviewer found outside the feed, so it carries no post.
 export const claimEvidenceCreateSchema = z.strictObject({
   claimId: z.uuid(),

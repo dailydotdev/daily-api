@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type z from 'zod';
 import type { DataSource, EntityManager } from 'typeorm';
+import { In } from 'typeorm';
 import createOrGetConnection from '../../db';
 import { parseSchema } from './utils';
 import {
@@ -8,6 +9,7 @@ import {
   claimCandidateResolveSchema,
   claimEvidenceCreateSchema,
   claimEvidenceUpdateSchema,
+  claimMergeSchema,
   claimStatusUpdateSchema,
   claimUpdateSchema,
   claimsQuerySchema,
@@ -148,7 +150,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       .getRepository(ClaimCandidate)
       .createQueryBuilder('cc')
       .where('cc.status = :status', { status: query.status })
+      // Candidates land in bulk with the same timestamp, so offset paging needs
+      // a total order or a page boundary can repeat or skip a row.
       .orderBy('cc."createdAt"', 'DESC')
+      .addOrderBy('cc.id', 'DESC')
       .limit(query.limit)
       .offset(query.offset);
 
@@ -183,14 +188,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     // A post can state several facts at once, so a merged candidate may be
-    // merged again to file the next one, each call spelling out its statement.
-    // Without one, re-resolving stays an accidental double merge.
-    const isSplit =
+    // merged again: a statement files the next fact as a claim of its own, a
+    // claimId cites the same post as evidence for a claim that already exists.
+    // Without either, re-resolving stays an accidental double merge.
+    const isReMerge =
       candidate.status === ClaimCandidateStatus.Merged &&
       body.action === 'merge' &&
-      typeof body.statement !== 'undefined';
+      (typeof body.statement !== 'undefined' || !!body.claimId);
 
-    if (candidate.status !== ClaimCandidateStatus.Pending && !isSplit) {
+    if (candidate.status !== ClaimCandidateStatus.Pending && !isReMerge) {
       return res
         .status(400)
         .send({ error: 'Claim candidate is already resolved' });
@@ -252,8 +258,8 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .orIgnore()
         .execute();
 
-      // A split leaves the candidate pointing at the first claim it produced.
-      if (!isSplit) {
+      // A re-merge leaves the candidate pointing at the first claim it produced.
+      if (!isReMerge) {
         await manager.getRepository(ClaimCandidate).update(candidate.id, {
           status: ClaimCandidateStatus.Merged,
           claimId: targetClaimId,
@@ -364,6 +370,24 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         names: [body.canonicalName],
         excludeId: entity.id,
       });
+    }
+
+    if (body.parentId) {
+      if (body.parentId === entity.id) {
+        return res
+          .status(400)
+          .send({ error: 'A ledger entity cannot be its own parent' });
+      }
+
+      if (
+        !(await con
+          .getRepository(LedgerEntity)
+          .findOneBy({ id: body.parentId }))
+      ) {
+        return res
+          .status(404)
+          .send({ error: 'Parent ledger entity not found' });
+      }
     }
 
     await con.getRepository(LedgerEntity).update(entity.id, update);
@@ -508,6 +532,87 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     return res.status(200).send({ ...claim, ...update });
   });
 
+  // Two reviewers filing the same fact leave a duplicate claim holding evidence
+  // of its own, so the duplicate is absorbed: everything cited against it moves
+  // to the claim that keeps it, and the emptied one is marked as absorbed.
+  fastify.post<{
+    Body: z.infer<typeof claimMergeSchema>;
+  }>('/claims/merge', async (req, res) => {
+    const body = parseSchema({
+      schema: claimMergeSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const [from, into] = await Promise.all([
+      con.getRepository(Claim).findOneBy({ id: body.fromClaimId }),
+      con.getRepository(Claim).findOneBy({ id: body.intoClaimId }),
+    ]);
+
+    if (!from || !into) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
+    if (into.supersededByClaimId === from.id) {
+      return res.status(400).send({
+        error: 'The claim kept is superseded by the claim being merged',
+      });
+    }
+
+    await con.transaction(async (manager) => {
+      const evidenceRepo = manager.getRepository(ClaimEvidence);
+      const [absorbed, cited] = await Promise.all([
+        evidenceRepo.find({
+          select: ['id', 'url'],
+          where: { claimId: from.id },
+        }),
+        evidenceRepo.find({ select: ['url'], where: { claimId: into.id } }),
+      ]);
+
+      // The kept claim may already cite a url, and (claimId, url) is unique, so
+      // the duplicate row is dropped instead of moved.
+      const taken = new Set(cited.map(({ url }) => url));
+      const duplicated = absorbed
+        .filter(({ url }) => taken.has(url))
+        .map(({ id }) => id);
+      const moved = absorbed
+        .filter(({ url }) => !taken.has(url))
+        .map(({ id }) => id);
+
+      if (duplicated.length) {
+        await evidenceRepo.delete({ id: In(duplicated) });
+      }
+
+      if (moved.length) {
+        await evidenceRepo.update({ id: In(moved) }, { claimId: into.id });
+      }
+
+      await manager
+        .getRepository(ClaimCandidate)
+        .update({ claimId: from.id }, { claimId: into.id });
+
+      // Claims pointing at the duplicate keep their successor, so they are
+      // repointed before the duplicate takes its own superseder.
+      await manager
+        .getRepository(Claim)
+        .update(
+          { supersededByClaimId: from.id },
+          { supersededByClaimId: into.id },
+        );
+
+      await manager.getRepository(Claim).update(from.id, {
+        status: ClaimStatus.Rejected,
+        supersededByClaimId: into.id,
+      });
+    });
+
+    return res.status(200).send({ success: true });
+  });
+
   // Evidence a reviewer verified against a primary source: no post backs it,
   // so the url and its source class are all the proof there is.
   fastify.post<{
@@ -635,6 +740,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .groupBy('c.id')
         .addGroupBy('le."canonicalName"')
         .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
+        .addOrderBy('c.id', 'DESC')
         .getRawMany();
     });
 
