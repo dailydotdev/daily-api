@@ -25,6 +25,7 @@ import outbound from './outbound';
 import betterAuth from './betterAuth';
 import agents from './agents';
 import emailTracking from './emailTracking';
+import digestEmailPreview from './digestEmailPreview';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -49,6 +50,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(emailTracking, { prefix: '/em/t' });
+  fastify.register(digestEmailPreview, { prefix: '/digest/email-preview' });
   fastify.register(devcards, { prefix: '/devcards' });
   fastify.register(shareImages, { prefix: '/og' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
