@@ -170,6 +170,95 @@ describe('private ledger routes', () => {
     expect(noMatch.entities).toEqual([]);
   });
 
+  it('should update only the fields given and clear the ones sent as null', async () => {
+    await seedHierarchy();
+    const update = (body: Record<string, unknown>) =>
+      request(app.server)
+        .post('/p/ledger/entities/update')
+        .set(serviceHeaders)
+        .send({ entityId: childEntityId, ...body })
+        .expect(200);
+
+    await update({
+      canonicalName: 'Next.js App Directory',
+      keywordValue: 'app-router',
+    });
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({
+      canonicalName: 'Next.js App Directory',
+      keywordValue: 'app-router',
+      kind: LedgerEntityKind.Package,
+      parentId: parentEntityId,
+    });
+
+    await update({ parentId: null });
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({
+      canonicalName: 'Next.js App Directory',
+      keywordValue: 'app-router',
+      parentId: null,
+    });
+  });
+
+  it('should reject a rename that collides with another entity name', async () => {
+    await seedHierarchy();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId, canonicalName: 'NEXTJS' })
+      .expect(409);
+
+    expect(body.error).toContain('already in use');
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({ canonicalName: 'Next.js App Router' });
+  });
+
+  it('should record reviewer evidence that has no post behind it', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://www.postgresql.org/docs/release/18.0/',
+        sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+        publishedAt: '2026-05-08T10:00:00.000Z',
+      })
+      .expect(201);
+
+    expect(
+      await con.getRepository(ClaimEvidence).findOneBy({
+        url: 'https://www.postgresql.org/docs/release/18.0/',
+      }),
+    ).toMatchObject({
+      claimId,
+      postId: null,
+      sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+      publishedAt: new Date('2026-05-08T10:00:00.000Z'),
+    });
+  });
+
+  it('should reject evidence the claim already cites', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://nextjs.org/blog/caching',
+        sourceClass: ClaimEvidenceSourceClass.Manual,
+      })
+      .expect(409);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
+  });
+
   it('should list pending candidates', async () => {
     await seedCandidate();
 
@@ -324,6 +413,99 @@ describe('private ledger routes', () => {
 
     expect(await con.getRepository(Claim).count()).toEqual(1);
     expect(await con.getRepository(ClaimEvidence).count()).toEqual(2);
+  });
+
+  it('should attach the claim to the entity given as an override', async () => {
+    await seedHierarchy();
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', entityId: childEntityId })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ entityId: childEntityId });
+    expect(await con.getRepository(LedgerEntity).count()).toEqual(2);
+  });
+
+  it('should reject an entity override when merging into an existing claim', async () => {
+    await seedHierarchy();
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', claimId, entityId: parentEntityId })
+      .expect(400);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
+  });
+
+  it('should reject an entity override that matches no ledger entity', async () => {
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', entityId: parentEntityId })
+      .expect(404);
+
+    expect(await con.getRepository(Claim).count()).toEqual(0);
+  });
+
+  it('should file another claim when re-resolving a merged candidate with a statement', async () => {
+    await seedCandidate();
+    const { body: first } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    const { body: second } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        statement: 'Next.js 16 removes the legacy image component.',
+      })
+      .expect(200);
+
+    const claims = await con.getRepository(Claim).find();
+    expect(second.claimId).not.toEqual(first.claimId);
+    expect(claims).toHaveLength(2);
+    expect(new Set(claims.map(({ entityId }) => entityId)).size).toEqual(1);
+    expect(
+      await con.getRepository(ClaimEvidence).findOneBy({
+        claimId: second.claimId,
+      }),
+    ).toMatchObject({ postId: postsFixture[0].id, url: postsFixture[0].url });
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Merged,
+      claimId: first.claimId,
+    });
+  });
+
+  it('should reject re-resolving a merged candidate without a statement', async () => {
+    await seedCandidate();
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(400);
+
+    expect(await con.getRepository(Claim).count()).toEqual(1);
   });
 
   it('should leave no claim behind when denying a candidate', async () => {

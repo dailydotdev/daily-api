@@ -19,6 +19,8 @@ export enum ClaimChangeType {
   ConsensusShift = 'consensus_shift',
   Gotcha = 'gotcha',
   Security = 'security',
+  Fix = 'fix',
+  Pricing = 'pricing',
 }
 
 export enum ClaimStatus {

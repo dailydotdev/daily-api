@@ -6,6 +6,7 @@ import { ClaimEvidenceSourceClass } from '../../entity/claim/ClaimEvidence';
 import { enumValues } from './utils';
 
 const entityName = z.string().trim().min(1).max(200);
+const keywordValue = z.string().trim().min(1).max(200);
 
 export const claimCandidateListSchema = z.object({
   status: z
@@ -22,6 +23,7 @@ const claimOverrideKeys = [
   'versionScope',
   'effectiveDate',
   'sunsetDate',
+  'entityId',
 ] as const;
 
 export const claimCandidateResolveSchema = z
@@ -38,6 +40,7 @@ export const claimCandidateResolveSchema = z
     versionScope: z.string().trim().min(1).max(200).nullish(),
     effectiveDate: z.iso.date().nullish(),
     sunsetDate: z.iso.date().nullish(),
+    entityId: z.uuid().optional(),
   })
   .refine(({ action, claimId }) => action === 'merge' || !claimId, {
     error: 'claimId is only valid when merging',
@@ -61,7 +64,16 @@ export const ledgerEntityCreateSchema = z.object({
   canonicalName: entityName,
   kind: z.enum(enumValues(LedgerEntityKind)),
   aliases: z.array(entityName).max(50).default([]),
-  keywordValue: z.string().trim().min(1).max(200).nullish(),
+  keywordValue: keywordValue.nullish(),
+  parentId: z.uuid().nullish(),
+});
+
+// Aliases keep their own route, so a rename never has to restate them.
+export const ledgerEntityUpdateSchema = z.object({
+  entityId: z.uuid(),
+  canonicalName: entityName.optional(),
+  kind: z.enum(enumValues(LedgerEntityKind)).optional(),
+  keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
 });
 
@@ -77,6 +89,14 @@ export const claimStatusUpdateSchema = z.object({
     ClaimStatus.Verified,
     ClaimStatus.Rejected,
   ]),
+});
+
+// Evidence a reviewer found outside the feed, so it carries no post.
+export const claimEvidenceCreateSchema = z.object({
+  claimId: z.uuid(),
+  url: z.url(),
+  sourceClass: z.enum(enumValues(ClaimEvidenceSourceClass)),
+  publishedAt: z.coerce.date().nullish(),
 });
 
 export const claimsQuerySchema = z.object({
