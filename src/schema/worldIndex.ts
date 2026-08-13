@@ -30,11 +30,14 @@ import {
 import { getLimit } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
+  worldDomainRankingSchema,
+  worldDomainRankPositionSchema,
   worldIndexSectionSchema,
   worldTopicRankingSchema,
   worldTopicRankPositionSchema,
   worldTopicReadersSchema,
 } from '../common/schema/worldIndex';
+import { UserDomainRank } from '../entity/user/UserDomainRank';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { SourceMemberRoles } from '../roles';
 
@@ -69,6 +72,18 @@ export type GQLWorldRankPosition = {
 
 export type GQLWorldTopicReaders = {
   niche: Niche;
+  readers: number;
+};
+
+export type GQLWorldDomainRankEntry = {
+  rank: number;
+  user: GQLUser;
+  worldName: string | null;
+  articles: number;
+};
+
+export type GQLWorldDomainReaders = {
+  domain: string;
   readers: number;
 };
 
@@ -188,6 +203,56 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  A field of reading, one step up from a topic. Six of them cover the taxonomy
+  """
+  enum NicheDomain {
+    ai
+    web
+    systems
+    cloud
+    security
+    craft
+  }
+
+  """
+  One row of a domain's ranking. No level: a rung belongs to a single topic,
+  and a total across a domain sits on none of them
+  """
+  type WorldDomainRankEntry {
+    """
+    Placing inside the domain, best first
+    """
+    rank: Int!
+    """
+    The reader
+    """
+    user: User!
+    """
+    What the owner calls their world, or null when nobody has named it
+    """
+    worldName: String
+    """
+    Articles read across the whole domain inside the period
+    """
+    articles: Int!
+  }
+
+  """
+  How many listed worlds have read anything in a domain. Counted once per
+  reader, not summed over the domain's topics
+  """
+  type WorldDomainReaders {
+    """
+    The domain
+    """
+    domain: NicheDomain!
+    """
+    Listed worlds that have read anything in it
+    """
+    readers: Int!
+  }
+
+  """
   How many listed worlds have read a topic at all
   """
   type WorldTopicReaders {
@@ -267,6 +332,45 @@ export const typeDefs = /* GraphQL */ `
       """
       nicheIds: [ID!]
     ): [WorldTopicReaders!]! @cacheControl(maxAge: 600)
+
+    """
+    One domain's ranking, best first. Aggregated across the domain's topics
+    before any depth cap, so a broad reader places where a per-topic board
+    would never show them
+    """
+    worldDomainRanking(
+      """
+      The domain to rank
+      """
+      domain: NicheDomain!
+      """
+      Which window to score over
+      """
+      period: WorldRankPeriod!
+      """
+      Rows to return
+      """
+      limit: Int
+    ): [WorldDomainRankEntry!]! @cacheControl(maxAge: 600)
+
+    """
+    Where the viewer stands in one domain
+    """
+    worldDomainRankPosition(
+      """
+      The domain to place the viewer in
+      """
+      domain: NicheDomain!
+      """
+      Which window to score over
+      """
+      period: WorldRankPeriod!
+    ): WorldRankPosition! @auth
+
+    """
+    How many listed worlds have read each domain
+    """
+    worldDomainReaders: [WorldDomainReaders!]! @cacheControl(maxAge: 600)
 
     """
     Worlds whose district cleared a rung in roughly the last day
@@ -411,6 +515,54 @@ const viewerArticles = async ({
   return { articles: week?.reads ?? 0, lifetime };
 };
 
+/**
+ * The viewer's own total across a domain, when the ranking does not hold them.
+ *
+ * Keyed on the viewer, which is the direction the world tables are built for:
+ * their districts are a range scan on the front of a primary key. Ranking that
+ * total against everybody is the expensive half, and the view already answered
+ * it.
+ */
+const domainArticles = async ({
+  manager,
+  userId,
+  domain,
+  period,
+}: {
+  manager: EntityManager;
+  userId: string;
+  domain: string;
+  period: UserNicheRankPeriod;
+}): Promise<number> => {
+  if (period === UserNicheRankPeriod.All) {
+    const total = await manager
+      .createQueryBuilder()
+      .from(UserNicheAnalytics, 'd')
+      .select('COALESCE(SUM(d.reads), 0)::int', 'reads')
+      .innerJoin(Niche, 'n', 'n.id = d."nicheId"')
+      .where('d."userId" = :userId', { userId })
+      .andWhere('n.domain = :domain', { domain })
+      .getRawOne<{ reads: number }>();
+
+    return total?.reads ?? 0;
+  }
+
+  const since = subDays(new Date(), WORLD_RANK_WEEK_DAYS)
+    .toISOString()
+    .slice(0, 10);
+  const week = await manager
+    .createQueryBuilder()
+    .from(UserNicheGrowth, 'g')
+    .select('COALESCE(SUM(g.reads), 0)::int', 'reads')
+    .innerJoin(Niche, 'n', 'n.id = g."nicheId"')
+    .where('g."userId" = :userId', { userId })
+    .andWhere('n.domain = :domain', { domain })
+    .andWhere('g.date >= :since', { since })
+    .getRawOne<{ reads: number }>();
+
+  return week?.reads ?? 0;
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     worldTopicRanking: async (
@@ -518,6 +670,115 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           cappedAt: WORLD_RANK_DEPTH,
         };
       });
+    },
+
+    worldDomainRanking: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLWorldDomainRankEntry[]> => {
+      const { domain, period, limit } = worldDomainRankingSchema.parse(args);
+
+      return graphorm.query<GQLWorldDomainRankEntry>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = applyWorldIndexPrivacy(
+            builder.queryBuilder
+              .innerJoin(
+                UserWorldSummary,
+                'w',
+                `w."userId" = "${builder.alias}"."userId"`,
+              )
+              .where(`"${builder.alias}"."domain" = :domain`, { domain })
+              .andWhere(`"${builder.alias}"."period" = :period`, { period }),
+            `"${builder.alias}"."userId"`,
+          )
+            .orderBy(`"${builder.alias}"."reads"`, 'DESC')
+            .addOrderBy(`"${builder.alias}"."userId"`, 'ASC')
+            .limit(
+              getLimit({
+                limit: limit as number,
+                defaultLimit: 10,
+                max: WORLD_RANK_MAX_LIMIT,
+              }),
+            );
+
+          return builder;
+        },
+        true,
+      );
+    },
+
+    /**
+     * The viewer's placing in a domain.
+     *
+     * `level` is always 0 here. A rung belongs to one district on the ladder,
+     * and a total across a domain sits on none of them, so the field is
+     * answered rather than guessed at. `articles` is the real total either way.
+     */
+    worldDomainRankPosition: async (
+      _,
+      args,
+      ctx: AuthContext,
+    ): Promise<GQLWorldRankPosition> => {
+      const { domain, period } = worldDomainRankPositionSchema.parse(args);
+      const { userId } = ctx;
+
+      return queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const { manager } = queryRunner;
+        const own = await manager
+          .getRepository(UserDomainRank)
+          .findOne({ where: { domain, period, userId }, select: ['reads'] });
+
+        if (!own) {
+          return {
+            rank: null,
+            articles: await domainArticles({ manager, userId, domain, period }),
+            level: 0,
+            cappedAt: WORLD_RANK_DEPTH,
+          };
+        }
+
+        // Strict `>`, so readers tied on a count share the best placing between
+        // them rather than being split on an arbitrary tiebreak.
+        const outranking = await applyWorldIndexPrivacy(
+          manager
+            .createQueryBuilder()
+            .from(UserDomainRank, 'r')
+            .select('COUNT(1)::int', 'count')
+            .where('r."domain" = :domain', { domain })
+            .andWhere('r.period = :period', { period })
+            .andWhere('r.reads > :reads', { reads: own.reads }),
+          'r."userId"',
+        ).getRawOne<{ count: number }>();
+
+        return {
+          rank: (outranking?.count ?? 0) + 1,
+          articles: own.reads,
+          level: 0,
+          cappedAt: WORLD_RANK_DEPTH,
+        };
+      });
+    },
+
+    worldDomainReaders: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLWorldDomainReaders[]> => {
+      return graphorm.query<GQLWorldDomainReaders>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.orderBy(`"${builder.alias}"."readers"`, 'DESC');
+
+          return builder;
+        },
+        true,
+      );
     },
 
     worldTopicReaders: async (

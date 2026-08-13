@@ -11,8 +11,10 @@ import {
   saveFixtures,
   testQueryErrorCode,
 } from './helpers';
-import { Niche, NicheBucketGroup } from '../src/entity/Niche';
+import { Niche, NicheBucketGroup, NicheDomain } from '../src/entity/Niche';
 import { NicheWorldStats } from '../src/entity/NicheWorldStats';
+import { DomainWorldStats } from '../src/entity/DomainWorldStats';
+import { UserDomainRank } from '../src/entity/user/UserDomainRank';
 import { Feed, Source, User } from '../src/entity';
 import { SourceMember } from '../src/entity/SourceMember';
 import { UserNicheAnalytics } from '../src/entity/user/UserNicheAnalytics';
@@ -79,7 +81,13 @@ const filler = (
  * into the next. Not CONCURRENTLY: that buys nothing on a fixture-sized view.
  */
 const refreshIndexViews = async (): Promise<void> => {
-  for (const view of [UserWorldSummary, UserNicheRank, NicheWorldStats]) {
+  for (const view of [
+    UserWorldSummary,
+    UserNicheRank,
+    NicheWorldStats,
+    UserDomainRank,
+    DomainWorldStats,
+  ]) {
     await con.query(
       `REFRESH MATERIALIZED VIEW ${con.getRepository(view).metadata.tableName}`,
     );
@@ -110,30 +118,35 @@ beforeEach(async () => {
       slug: 'js_ts',
       title: 'JavaScript / TypeScript',
       bucketGroup: NicheBucketGroup.Ecosystem,
+      domain: NicheDomain.Web,
     },
     {
       id: nicheAi,
       slug: 'ai_llm',
       title: 'LLMs',
       bucketGroup: NicheBucketGroup.Theme,
+      domain: NicheDomain.Ai,
     },
     {
       id: nicheGo,
       slug: 'go',
       title: 'Go',
       bucketGroup: NicheBucketGroup.Ecosystem,
+      domain: NicheDomain.Cloud,
     },
     {
       id: nicheRust,
       slug: 'rust',
       title: 'Rust',
       bucketGroup: NicheBucketGroup.Ecosystem,
+      domain: NicheDomain.Systems,
     },
     {
       id: nicheChain,
       slug: 'blockchain',
       title: 'Blockchain',
       bucketGroup: NicheBucketGroup.Theme,
+      domain: NicheDomain.Ai,
     },
   ]);
 });
@@ -776,5 +789,297 @@ describe('query followedWorlds', () => {
     const res = await client.query(FOLLOWED_QUERY);
 
     expect(res.data.followedWorlds).toEqual([]);
+  });
+});
+
+/**
+ * Two districts outside the AI domain, so a world clears the listing floor
+ * without changing the domain under test. `filler` cannot be used here: it
+ * leads with `ai_llm`, which these fixtures set explicitly.
+ */
+const outsideAi = (userId: string): DeepPartial<UserNicheAnalytics>[] =>
+  [nicheGo, nicheRust].map((nicheId) => ({
+    userId,
+    nicheId,
+    reads: 1,
+    firstReadAt: day(30),
+    lastReadAt: day(1),
+    activeDays: 1,
+  }));
+
+const DOMAIN_RANKING_QUERY = /* GraphQL */ `
+  query WorldDomainRanking(
+    $domain: NicheDomain!
+    $period: WorldRankPeriod!
+    $limit: Int
+  ) {
+    worldDomainRanking(domain: $domain, period: $period, limit: $limit) {
+      rank
+      articles
+      worldName
+      user {
+        id
+      }
+    }
+  }
+`;
+
+const domainRanked = (domain: string, period: string, limit?: number) =>
+  client
+    .query(DOMAIN_RANKING_QUERY, { variables: { domain, period, limit } })
+    .then((res) =>
+      res.data.worldDomainRanking.map(
+        (row: { rank: number; user: { id: string }; articles: number }) => [
+          row.rank,
+          row.user.id,
+          row.articles,
+        ],
+      ),
+    );
+
+describe('query worldDomainRanking', () => {
+  /**
+   * Two readers of the AI domain who disagree with every niche board in it.
+   *
+   * User 2 is deeper than user 1 in `ai_llm` alone, so the niche ranking puts
+   * them first. User 1 also reads the domain's other niche, and across the
+   * domain reads more. This is the case a client-side merge of niche boards
+   * cannot get right.
+   */
+  const saveDomainFixtures = async () => {
+    await saveFixtures(con, UserNicheAnalytics, [
+      {
+        userId: '1',
+        nicheId: nicheAi,
+        reads: 100,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      {
+        userId: '1',
+        nicheId: nicheChain,
+        reads: 400,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      {
+        userId: '2',
+        nicheId: nicheAi,
+        reads: 180,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      ...outsideAi('1'),
+      ...outsideAi('2'),
+    ]);
+    await refreshIndexViews();
+  };
+
+  it('ranks a domain by the sum across its topics, not by any one of them', async () => {
+    await saveFixtures(con, UserNicheAnalytics, [
+      {
+        userId: '1',
+        nicheId: nicheAi,
+        reads: 100,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      {
+        userId: '2',
+        nicheId: nicheAi,
+        reads: 180,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      ...outsideAi('1'),
+      ...outsideAi('2'),
+    ]);
+    await refreshIndexViews();
+
+    // Only one niche carries the domain here, so the two boards agree.
+    expect(await domainRanked('ai', 'all')).toEqual([
+      [1, '2', 180],
+      [2, '1', 100],
+    ]);
+  });
+
+  it('leaves a serving-hidden topic out of the domain total', async () => {
+    await saveDomainFixtures();
+
+    // `blockchain` is hidden at serving time and shares the AI domain, so
+    // user 1's 400 reads there must not count towards it.
+    expect(await domainRanked('ai', 'all')).toEqual([
+      [1, '2', 180],
+      [2, '1', 100],
+    ]);
+  });
+
+  it('never returns a private world', async () => {
+    await saveDomainFixtures();
+    await con
+      .getRepository(UserWorldSettings)
+      .save({ userId: '2', private: true });
+
+    expect(await domainRanked('ai', 'all')).toEqual([[1, '1', 100]]);
+  });
+
+  it('does not return a world below the district floor', async () => {
+    await saveDomainFixtures();
+    await dropBelowFloor('2');
+    await refreshIndexViews();
+
+    expect(await domainRanked('ai', 'all')).toEqual([[1, '1', 100]]);
+  });
+
+  it('scores the week off the growth log rather than the districts', async () => {
+    await saveDomainFixtures();
+    await saveFixtures(con, UserNicheGrowth, [
+      { userId: '1', date: day(2), nicheId: nicheAi, reads: 30 },
+      { userId: '2', date: day(2), nicheId: nicheAi, reads: 4 },
+    ]);
+    await refreshIndexViews();
+
+    // Reversed against all time, which is the whole point of the two periods.
+    expect(await domainRanked('ai', 'week')).toEqual([
+      [1, '1', 30],
+      [2, '2', 4],
+    ]);
+  });
+});
+
+describe('query worldDomainRankPosition', () => {
+  const POSITION = /* GraphQL */ `
+    query WorldDomainRankPosition(
+      $domain: NicheDomain!
+      $period: WorldRankPeriod!
+    ) {
+      worldDomainRankPosition(domain: $domain, period: $period) {
+        rank
+        articles
+        cappedAt
+      }
+    }
+  `;
+
+  it('requires authentication', () =>
+    testQueryErrorCode(
+      client,
+      { query: POSITION, variables: { domain: 'ai', period: 'all' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('places the viewer on their domain total', async () => {
+    await saveFixtures(con, UserNicheAnalytics, [
+      {
+        userId: '1',
+        nicheId: nicheAi,
+        reads: 100,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      {
+        userId: '2',
+        nicheId: nicheAi,
+        reads: 180,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 40,
+      },
+      ...outsideAi('1'),
+      ...outsideAi('2'),
+    ]);
+    await refreshIndexViews();
+    loggedUser = '1';
+
+    const res = await client.query(POSITION, {
+      variables: { domain: 'ai', period: 'all' },
+    });
+
+    expect(res.data.worldDomainRankPosition).toEqual({
+      rank: 2,
+      articles: 100,
+      cappedAt: WORLD_RANK_DEPTH,
+    });
+  });
+
+  it('answers a real total for a viewer the ranking does not hold', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, UserNicheAnalytics, [
+      {
+        userId: '1',
+        nicheId: nicheAi,
+        reads: 7,
+        firstReadAt: day(30),
+        lastReadAt: day(1),
+        activeDays: 3,
+      },
+    ]);
+
+    const res = await client.query(POSITION, {
+      variables: { domain: 'ai', period: 'all' },
+    });
+
+    // Below the district floor, so unranked, but the count is still theirs.
+    expect(res.data.worldDomainRankPosition).toEqual({
+      rank: null,
+      articles: 7,
+      cappedAt: WORLD_RANK_DEPTH,
+    });
+  });
+});
+
+describe('query worldDomainReaders', () => {
+  it('counts a reader once per domain, not once per topic', async () => {
+    await saveFixtures(con, UserNicheAnalytics, [
+      // One reader with a district in three domains, so `cloud` must count them
+      // exactly once however many topics of it they read.
+      {
+        userId: '1',
+        nicheId: nicheGo,
+        reads: 40,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 20,
+      },
+      {
+        userId: '1',
+        nicheId: nicheAi,
+        reads: 5,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 5,
+      },
+      {
+        userId: '1',
+        nicheId: nicheRust,
+        reads: 3,
+        firstReadAt: day(300),
+        lastReadAt: day(1),
+        activeDays: 3,
+      },
+    ]);
+    await refreshIndexViews();
+
+    const res = await client.query(/* GraphQL */ `
+      query {
+        worldDomainReaders {
+          domain
+          readers
+        }
+      }
+    `);
+    const byDomain = Object.fromEntries(
+      res.data.worldDomainReaders.map(
+        (row: { domain: string; readers: number }) => [row.domain, row.readers],
+      ),
+    );
+
+    expect(byDomain.cloud).toBe(1);
   });
 });

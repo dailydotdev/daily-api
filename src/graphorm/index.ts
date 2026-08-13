@@ -772,6 +772,38 @@ const obj = new GraphORM({
       },
     },
   },
+  WorldDomainReaders: {
+    from: 'DomainWorldStats',
+  },
+  WorldDomainRankEntry: {
+    from: 'UserDomainRank',
+    requiredColumns: ['userId', 'reads'],
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      articles: {
+        select: (_, alias) => `"${alias}"."reads"`,
+      },
+      worldName: {
+        select: (_, alias, qb) =>
+          qb
+            .select('s.name')
+            .from(UserWorldSettings, 's')
+            .where(`s."userId" = "${alias}"."userId"`),
+      },
+      // Always read as "one domain, one period", so the window covers exactly
+      // that domain and the placing is the real one.
+      rank: {
+        select: (_, alias) =>
+          `row_number() OVER (ORDER BY "${alias}"."reads" DESC, "${alias}"."userId" ASC)`,
+      },
+    },
+  },
   WorldTopicReaders: {
     from: 'NicheWorldStats',
     fields: {

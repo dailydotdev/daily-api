@@ -12,6 +12,27 @@ export enum NicheBucketGroup {
 }
 
 /**
+ * The six groups a niche belongs to.
+ *
+ * Coarser than `bucketGroup`, and for a different job: bucket group tells the
+ * feed diversifier how to spread a feed, a domain is what a reader recognises
+ * as a field they read in.
+ *
+ * The values say what they are rather than borrowing the renderer's names for
+ * the same six groups ("swarm", "forge"). Those belong to a world's scenery,
+ * and this is a column other services read and a value that appears in the
+ * public schema.
+ */
+export enum NicheDomain {
+  Ai = 'ai',
+  Web = 'web',
+  Systems = 'systems',
+  Cloud = 'cloud',
+  Security = 'security',
+  Craft = 'craft',
+}
+
+/**
  * Catalog of post niches used by the feed diversifier.
  *
  * A niche represents the mental category a user uses when saying
@@ -42,6 +63,15 @@ export class Niche {
     default: NicheBucketGroup.Theme,
   })
   bucketGroup: NicheBucketGroup;
+
+  /**
+   * Null for a niche the taxonomy has not placed yet. Such a niche is still
+   * ranked on its own; it simply cannot appear in a domain's ranking, which is
+   * the safe direction to fail in.
+   */
+  @Column({ type: 'text', nullable: true })
+  @Index('IDX_niche_domain')
+  domain: NicheDomain | null;
 
   @Column({ default: () => 'now()' })
   createdAt: Date;
