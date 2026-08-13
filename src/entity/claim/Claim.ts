@@ -65,6 +65,11 @@ export class Claim {
   @Column({ type: 'uuid', nullable: true, default: null })
   supersededByEntityId: string | null;
 
+  // An announce-then-reverse pair leaves both claims true of their own moment,
+  // so the reversed one is linked to its successor instead of being rejected.
+  @Column({ type: 'uuid', nullable: true, default: null })
+  supersededByClaimId: string | null;
+
   @Column({ type: 'text', default: ClaimStatus.Candidate })
   status: ClaimStatus;
 
@@ -85,4 +90,11 @@ export class Claim {
     foreignKeyConstraintName: 'FK_claim_superseded_by_entity_id',
   })
   supersededByEntity: Promise<LedgerEntity | null>;
+
+  @ManyToOne('Claim', { lazy: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'supersededByClaimId',
+    foreignKeyConstraintName: 'FK_claim_superseded_by_claim_id',
+  })
+  supersededByClaim: Promise<Claim | null>;
 }

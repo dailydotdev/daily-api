@@ -201,6 +201,50 @@ describe('extractClaims worker', () => {
     ).toMatchObject({ changeType: ClaimChangeType.Pricing });
   });
 
+  it('should file one candidate when the response states the same fact twice', async () => {
+    const duplicated = {
+      entityName: 'react',
+      entityKind: ProtoClaimEntityKind.PACKAGE,
+      changeType: ProtoClaimChangeType.REMOVAL,
+      statement: 'React 19 removes defaultProps for function components.',
+      directness: ProtoClaimDirectness.ANNOUNCEMENT,
+      evidence: 'React 19 removes defaultProps.',
+    };
+    mockExtractClaims.mockResolvedValue(
+      new ExtractClaimsResponse({
+        id: 'op-1',
+        model: 'test',
+        claims: [
+          new ProtoClaim(duplicated),
+          new ProtoClaim({
+            ...duplicated,
+            statement: `  ${duplicated.statement}  `,
+            evidence: 'defaultProps are gone.',
+          }),
+          new ProtoClaim({
+            ...duplicated,
+            changeType: ProtoClaimChangeType.NEW_CAPABILITY,
+            statement: 'React 19 adds the use hook.',
+          }),
+        ],
+      }),
+    );
+
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished(),
+    );
+
+    expect(
+      (await con.getRepository(ClaimCandidate).find())
+        .map(({ statement }) => statement)
+        .sort(),
+    ).toEqual([
+      'React 19 adds the use hook.',
+      'React 19 removes defaultProps for function components.',
+    ]);
+  });
+
   it('should extract a tweet from its inline text when there is no cleaned artifact', async () => {
     await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
       worker,

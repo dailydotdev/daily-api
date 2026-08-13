@@ -7,7 +7,9 @@ import {
   claimCandidateListSchema,
   claimCandidateResolveSchema,
   claimEvidenceCreateSchema,
+  claimEvidenceUpdateSchema,
   claimStatusUpdateSchema,
+  claimUpdateSchema,
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
@@ -434,6 +436,78 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     return res.status(200).send({ success: true });
   });
 
+  // A contradicted field is nulled and the claim kept: rejecting a claim that
+  // is true costs the ledger the fact, so only the field that moved changes.
+  fastify.post<{
+    Body: z.infer<typeof claimUpdateSchema>;
+  }>('/claims/update', async (req, res) => {
+    const body = parseSchema({
+      schema: claimUpdateSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const claim = await con
+      .getRepository(Claim)
+      .findOneBy({ id: body.claimId });
+
+    if (!claim) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
+    const update = {
+      ...(typeof body.changeType !== 'undefined' && {
+        changeType: body.changeType,
+      }),
+      ...(typeof body.statement !== 'undefined' && {
+        statement: body.statement,
+      }),
+      ...(typeof body.versionScope !== 'undefined' && {
+        versionScope: body.versionScope,
+      }),
+      ...(typeof body.effectiveDate !== 'undefined' && {
+        effectiveDate: body.effectiveDate,
+      }),
+      ...(typeof body.sunsetDate !== 'undefined' && {
+        sunsetDate: body.sunsetDate,
+      }),
+      ...(typeof body.supersededByEntityId !== 'undefined' && {
+        supersededByEntityId: body.supersededByEntityId,
+      }),
+      ...(typeof body.supersededByClaimId !== 'undefined' && {
+        supersededByClaimId: body.supersededByClaimId,
+      }),
+    };
+
+    if (!Object.keys(update).length) {
+      return res.status(200).send(claim);
+    }
+
+    if (body.supersededByClaimId) {
+      if (body.supersededByClaimId === claim.id) {
+        return res
+          .status(400)
+          .send({ error: 'A claim cannot supersede itself' });
+      }
+
+      if (
+        !(await con
+          .getRepository(Claim)
+          .findOneBy({ id: body.supersededByClaimId }))
+      ) {
+        return res.status(404).send({ error: 'Superseding claim not found' });
+      }
+    }
+
+    await con.getRepository(Claim).update(claim.id, update);
+
+    return res.status(200).send({ ...claim, ...update });
+  });
+
   // Evidence a reviewer verified against a primary source: no post backs it,
   // so the url and its source class are all the proof there is.
   fastify.post<{
@@ -471,6 +545,36 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     });
 
     return res.status(201).send(evidence);
+  });
+
+  // A post crawled off a vendor blog enters as community evidence, so a
+  // reviewer who verifies it is the primary source promotes the row in place:
+  // corroboration counts across source classes, not across urls.
+  fastify.post<{
+    Body: z.infer<typeof claimEvidenceUpdateSchema>;
+  }>('/claims/evidence/update', async (req, res) => {
+    const body = parseSchema({
+      schema: claimEvidenceUpdateSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const { affected } = await con
+      .getRepository(ClaimEvidence)
+      .update(
+        { claimId: body.claimId, url: body.url },
+        { sourceClass: body.sourceClass },
+      );
+
+    if (!affected) {
+      return res.status(404).send({ error: 'Claim evidence not found' });
+    }
+
+    return res.status(200).send({ success: true });
   });
 
   fastify.get<{
@@ -516,6 +620,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'c."effectiveDate" AS "effectiveDate"',
           'c."sunsetDate" AS "sunsetDate"',
           'c."supersededByEntityId" AS "supersededByEntityId"',
+          'c."supersededByClaimId" AS "supersededByClaimId"',
           'c.status AS status',
           `COALESCE(json_agg(json_build_object('url', ce.url, 'postId', ce."postId", 'sourceClass', ce."sourceClass", 'publishedAt', ce."publishedAt")) FILTER (WHERE ce.id IS NOT NULL), '[]') AS evidence`,
         ])

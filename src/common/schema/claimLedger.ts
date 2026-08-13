@@ -7,8 +7,10 @@ import { enumValues } from './utils';
 
 const entityName = z.string().trim().min(1).max(200);
 const keywordValue = z.string().trim().min(1).max(200);
+const statement = z.string().trim().min(1).max(1000);
+const versionScope = z.string().trim().min(1).max(200);
 
-export const claimCandidateListSchema = z.object({
+export const claimCandidateListSchema = z.strictObject({
   status: z
     .enum(enumValues(ClaimCandidateStatus))
     .default(ClaimCandidateStatus.Pending),
@@ -27,7 +29,7 @@ const claimOverrideKeys = [
 ] as const;
 
 export const claimCandidateResolveSchema = z
-  .object({
+  .strictObject({
     candidateId: z.uuid(),
     action: z.literal(['merge', 'deny']),
     claimId: z.uuid().nullish(),
@@ -36,8 +38,8 @@ export const claimCandidateResolveSchema = z
       .default(ClaimEvidenceSourceClass.Community),
     url: z.url().nullish(),
     changeType: z.enum(enumValues(ClaimChangeType)).optional(),
-    statement: z.string().trim().min(1).max(1000).optional(),
-    versionScope: z.string().trim().min(1).max(200).nullish(),
+    statement: statement.optional(),
+    versionScope: versionScope.nullish(),
     effectiveDate: z.iso.date().nullish(),
     sunsetDate: z.iso.date().nullish(),
     entityId: z.uuid().optional(),
@@ -56,11 +58,11 @@ export const claimCandidateResolveSchema = z
     },
   );
 
-export const ledgerEntityQuerySchema = z.object({
+export const ledgerEntityQuerySchema = z.strictObject({
   name: entityName,
 });
 
-export const ledgerEntityCreateSchema = z.object({
+export const ledgerEntityCreateSchema = z.strictObject({
   canonicalName: entityName,
   kind: z.enum(enumValues(LedgerEntityKind)),
   aliases: z.array(entityName).max(50).default([]),
@@ -69,7 +71,7 @@ export const ledgerEntityCreateSchema = z.object({
 });
 
 // Aliases keep their own route, so a rename never has to restate them.
-export const ledgerEntityUpdateSchema = z.object({
+export const ledgerEntityUpdateSchema = z.strictObject({
   entityId: z.uuid(),
   canonicalName: entityName.optional(),
   kind: z.enum(enumValues(LedgerEntityKind)).optional(),
@@ -77,12 +79,12 @@ export const ledgerEntityUpdateSchema = z.object({
   parentId: z.uuid().nullish(),
 });
 
-export const ledgerEntityAliasSchema = z.object({
+export const ledgerEntityAliasSchema = z.strictObject({
   entityId: z.uuid(),
   alias: entityName,
 });
 
-export const claimStatusUpdateSchema = z.object({
+export const claimStatusUpdateSchema = z.strictObject({
   claimId: z.uuid(),
   status: z.literal([
     ClaimStatus.Corroborated,
@@ -91,15 +93,36 @@ export const claimStatusUpdateSchema = z.object({
   ]),
 });
 
+// A merged claim still moves: a date the vendor later revises, a fact a newer
+// claim reverses. Only the fields sent change, and a null clears a nullable one.
+export const claimUpdateSchema = z.strictObject({
+  claimId: z.uuid(),
+  changeType: z.enum(enumValues(ClaimChangeType)).optional(),
+  statement: statement.optional(),
+  versionScope: versionScope.nullish(),
+  effectiveDate: z.iso.date().nullish(),
+  sunsetDate: z.iso.date().nullish(),
+  supersededByEntityId: z.uuid().nullish(),
+  supersededByClaimId: z.uuid().nullish(),
+});
+
 // Evidence a reviewer found outside the feed, so it carries no post.
-export const claimEvidenceCreateSchema = z.object({
+export const claimEvidenceCreateSchema = z.strictObject({
   claimId: z.uuid(),
   url: z.url(),
   sourceClass: z.enum(enumValues(ClaimEvidenceSourceClass)),
   publishedAt: z.coerce.date().nullish(),
 });
 
-export const claimsQuerySchema = z.object({
+// A crawled vendor post enters as community evidence, so verifying it is the
+// primary source reclassifies the row the claim already cites.
+export const claimEvidenceUpdateSchema = z.strictObject({
+  claimId: z.uuid(),
+  url: z.url(),
+  sourceClass: z.enum(enumValues(ClaimEvidenceSourceClass)),
+});
+
+export const claimsQuerySchema = z.strictObject({
   entities: z
     .union([z.string(), z.array(z.string())])
     .transform((value) =>
