@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { RegionUS } from 'customerio-node';
 import CIORequest from 'customerio-node/dist/lib/request';
 import { CustomerIORequestError } from 'customerio-node/dist/lib/utils';
-import { retryFetch } from '../integrations/retry';
+import { retryFetch } from '../../integrations/retry';
 
 class ArchivedMessageUnavailableError extends Error {}
 

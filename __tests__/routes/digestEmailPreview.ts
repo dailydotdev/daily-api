@@ -4,7 +4,7 @@ import CIORequest from 'customerio-node/dist/lib/request';
 import { retryFetch } from '../../src/integrations/retry';
 import digestEmailPreview, {
   prepareDigestEmailHtml,
-} from '../../src/routes/digestEmailPreview';
+} from '../../src/routes/private/digestEmailPreview';
 
 jest.mock('customerio-node/dist/lib/request');
 jest.mock('../../src/integrations/retry', () => ({
@@ -22,7 +22,9 @@ const originalScraperUrl = process.env.SCRAPER_URL;
 
 beforeAll(async () => {
   app = fastify();
-  await app.register(digestEmailPreview, { prefix: '/digest/email-preview' });
+  await app.register(digestEmailPreview, {
+    prefix: '/p/digest/email-preview',
+  });
   await app.ready();
 });
 
@@ -58,10 +60,10 @@ beforeEach(() => {
   );
 });
 
-describe('POST /digest/email-preview', () => {
+describe('POST /p/digest/email-preview', () => {
   it('requires the digest service credential', async () => {
     await request(app.server)
-      .post('/digest/email-preview')
+      .post('/p/digest/email-preview')
       .send({ deliveryId: 'delivery-id' })
       .expect(401, { message: 'unauthorized' });
 
@@ -82,7 +84,7 @@ describe('POST /digest/email-preview', () => {
     } as never);
 
     const response = await request(app.server)
-      .post('/digest/email-preview')
+      .post('/p/digest/email-preview')
       .set('authorization', 'Bearer digest-secret')
       .send({ deliveryId: 'delivery-id' })
       .expect(200);
