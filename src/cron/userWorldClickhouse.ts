@@ -10,6 +10,7 @@ import {
 } from '../common/schema/userWorld';
 import { UserNicheAnalytics } from '../entity/user/UserNicheAnalytics';
 import { UserNicheGrowth } from '../entity/user/UserNicheGrowth';
+import { UserWorldLevelUp } from '../entity/user/UserWorldLevelUp';
 import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
 import {
@@ -458,6 +459,28 @@ export const userWorldClickhouseCron: Cron = {
             ['reads', 'firstReadAt', 'lastReadAt', 'activeDays'],
             ['userId', 'nicheId'],
           )
+          .execute();
+      }
+
+      // Kept, not only announced. The world index lists districts that crossed
+      // a rung in the last day, and this is the only place a crossing is known
+      // for free: both sides of the comparison are already in hand. Deriving it
+      // on the way out means re-reading the growth log for every reader who read
+      // anything, against thresholds that may have moved since.
+      //
+      // Inside the transaction, unlike the pubsub events: this is a fact about
+      // the districts this run wrote, so a rollback has to take it with it. A
+      // notification cannot be unsent, which is why those wait for the commit.
+      for (const batch of chunk(crossings, DISTRICT_CHUNK_SIZE)) {
+        await manager
+          .createQueryBuilder()
+          .insert()
+          .into(UserWorldLevelUp)
+          .values(batch)
+          // A district reaches a given rung once. A replayed window therefore
+          // re-lists nothing, and does not refresh the date on a crossing that
+          // already happened.
+          .orIgnore()
           .execute();
       }
     });

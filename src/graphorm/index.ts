@@ -109,6 +109,8 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
+import { districtLevelOf } from '../common/worldLadder';
+import { UserWorldSettings } from '../entity/user/UserWorldSettings';
 
 type PostGraphormContext = Context & {
   includeInvisiblePosts?: boolean;
@@ -767,6 +769,52 @@ const obj = new GraphORM({
             .select('us."topReaderBadges"')
             .from(UserStats, 'us')
             .where(`us."id" = ${alias}."userId"`),
+      },
+    },
+  },
+  WorldTopicReaders: {
+    from: 'NicheWorldStats',
+    fields: {
+      niche: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'nicheId',
+        },
+      },
+    },
+  },
+  WorldRankEntry: {
+    from: 'UserNicheRank',
+    requiredColumns: ['userId', 'reads'],
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      articles: {
+        select: (_, alias) => `"${alias}"."reads"`,
+      },
+      level: {
+        select: (_, alias) => `"${alias}"."lifetimeReads"`,
+        transform: districtLevelOf,
+      },
+      worldName: {
+        select: (_, alias, qb) =>
+          qb
+            .select('s.name')
+            .from(UserWorldSettings, 's')
+            .where(`s."userId" = "${alias}"."userId"`),
+      },
+      // Always read as "one topic, one period", so the window covers exactly
+      // that topic and the placing is the real one rather than a position
+      // inside the page.
+      rank: {
+        select: (_, alias) =>
+          `row_number() OVER (ORDER BY "${alias}"."reads" DESC, "${alias}"."userId" ASC)`,
       },
     },
   },
