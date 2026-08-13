@@ -32,3 +32,8 @@ export const worldDomainRankPositionSchema = z.object({
   domain: z.enum(enumValues(NicheDomain)),
   period: z.enum(enumValues(UserNicheRankPeriod)),
 });
+
+export const followedWorldsSchema = z.object({
+  first: z.number().int().nullish(),
+  after: z.string().nullish(),
+});

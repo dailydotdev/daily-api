@@ -29,6 +29,8 @@ import {
 } from '../common/worldIndex';
 import { getLimit } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
+import type { Connection } from 'graphql-relay';
+import { offsetToCursor } from 'graphql-relay';
 import {
   worldDomainRankingSchema,
   worldDomainRankPositionSchema,
@@ -36,7 +38,9 @@ import {
   worldTopicRankingSchema,
   worldTopicRankPositionSchema,
   worldTopicReadersSchema,
+  followedWorldsSchema,
 } from '../common/schema/worldIndex';
+import { offsetPageGenerator } from './common';
 import { UserDomainRank } from '../entity/user/UserDomainRank';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
@@ -147,6 +151,16 @@ export const typeDefs = /* GraphQL */ `
     The largest topics, biggest first, what a card is actually about
     """
     topTopics: [WorldTopic!]!
+  }
+
+  type IndexedWorldEdge {
+    node: IndexedWorld!
+    cursor: String!
+  }
+
+  type IndexedWorldConnection {
+    pageInfo: PageInfo!
+    edges: [IndexedWorldEdge!]!
   }
 
   """
@@ -382,15 +396,18 @@ export const typeDefs = /* GraphQL */ `
     ): [WorldLevelUp!]! @cacheControl(maxAge: 600)
 
     """
-    Worlds belonging to the people the viewer follows, and to everyone they
-    share a squad with
+    Worlds belonging to the people the viewer follows
     """
     followedWorlds(
       """
       Worlds to return
       """
-      limit: Int
-    ): [IndexedWorld!]! @auth
+      first: Int
+      """
+      Cursor of the last world already seen
+      """
+      after: String
+    ): IndexedWorldConnection! @auth
   }
 `;
 
@@ -561,6 +578,13 @@ const domainArticles = async ({
 
   return week?.reads ?? 0;
 };
+
+/* A follow list is read from the top and rarely deeply, so pages are small and
+   the ceiling is the same one every other section here answers to. */
+const followedWorldsPage = offsetPageGenerator<GQLIndexedWorld>(
+  WORLD_INDEX_SECTION_LIMIT,
+  WORLD_RANK_MAX_LIMIT,
+);
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
@@ -920,9 +944,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       _,
       args,
       ctx: AuthContext,
-    ): Promise<GQLIndexedWorld[]> => {
-      const { limit } = worldIndexSectionSchema.parse(args);
+    ): Promise<Connection<GQLIndexedWorld>> => {
+      const { first, after } = followedWorldsSchema.parse(args);
       const { userId } = ctx;
+      const page = followedWorldsPage.connArgsToPage({ first, after });
 
       return queryReadReplica(ctx.con, async ({ queryRunner }) => {
         const { manager } = queryRunner;
@@ -944,18 +969,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               ],
             },
           )
+          /* Stable across pages because the second key is unique: the views
+             this reads are rebuilt nightly, so a page boundary cannot shift
+             under a reader mid-scroll. */
           .orderBy('w.reads', 'DESC')
           .addOrderBy('w."userId"', 'ASC')
-          .limit(
-            getLimit({
-              limit: limit as number,
-              defaultLimit: WORLD_INDEX_SECTION_LIMIT,
-              max: WORLD_RANK_MAX_LIMIT,
-            }),
-          )
+          .offset(page.offset)
+          // One extra row is how the connection knows there is another page
+          // without counting the whole follow list.
+          .limit(page.limit + 1)
           .getRawMany<RawIndexedWorld>();
 
-        return withTopTopics(manager, rows);
+        const hasNextPage = rows.length > page.limit;
+        const worlds = await withTopTopics(manager, rows.slice(0, page.limit));
+
+        return {
+          pageInfo: {
+            hasNextPage,
+            hasPreviousPage: page.offset > 0,
+            startCursor: offsetToCursor(page.offset),
+            endCursor: offsetToCursor(page.offset + worlds.length - 1),
+          },
+          edges: worlds.map((node, index) => ({
+            node,
+            cursor: offsetToCursor(page.offset + index),
+          })),
+        };
       });
     },
   },

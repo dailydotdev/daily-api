@@ -704,15 +704,33 @@ describe('query worldRecentLevelUps', () => {
 
 describe('query followedWorlds', () => {
   const FOLLOWED_QUERY = /* GraphQL */ `
-    query FollowedWorlds {
-      followedWorlds {
-        articles
-        user {
-          id
+    query FollowedWorlds($first: Int, $after: String) {
+      followedWorlds(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            articles
+            user {
+              id
+            }
+          }
         }
       }
     }
   `;
+
+  const followedIds = async (variables?: {
+    first?: number;
+    after?: string;
+  }): Promise<string[]> => {
+    const res = await client.query(FOLLOWED_QUERY, { variables });
+    return res.data.followedWorlds.edges.map(
+      (edge: { node: { user: { id: string } } }) => edge.node.user.id,
+    );
+  };
 
   beforeEach(async () => {
     await saveRankingFixtures();
@@ -732,14 +750,8 @@ describe('query followedWorlds', () => {
       status: ContentPreferenceStatus.Follow,
     });
 
-    const res = await client.query(FOLLOWED_QUERY);
-
     // User 1 is the viewer; nobody else here is followed.
-    expect(
-      res.data.followedWorlds.map(
-        (world: { user: { id: string } }) => world.user.id,
-      ),
-    ).toEqual(['2']);
+    expect(await followedIds()).toEqual(['2']);
   });
 
   it('does not return a squadmate the viewer has not followed', async () => {
@@ -759,9 +771,56 @@ describe('query followedWorlds', () => {
       },
     ]);
 
-    const res = await client.query(FOLLOWED_QUERY);
+    expect(await followedIds()).toEqual([]);
+  });
 
-    expect(res.data.followedWorlds).toEqual([]);
+  it('pages through the follow list with a cursor', async () => {
+    loggedUser = '1';
+    await con.getRepository(ContentPreferenceUser).save(
+      ['2', '3', '4'].map((referenceId) => ({
+        userId: '1',
+        referenceId,
+        referenceUserId: referenceId,
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+      })),
+    );
+
+    const first = await client.query(FOLLOWED_QUERY, {
+      variables: { first: 2 },
+    });
+    const firstIds = first.data.followedWorlds.edges.map(
+      (edge: { node: { user: { id: string } } }) => edge.node.user.id,
+    );
+
+    expect(firstIds).toHaveLength(2);
+    expect(first.data.followedWorlds.pageInfo.hasNextPage).toBe(true);
+
+    const rest = await followedIds({
+      first: 2,
+      after: first.data.followedWorlds.pageInfo.endCursor,
+    });
+
+    // The second page continues where the first stopped, with no repeats.
+    expect(rest).toHaveLength(1);
+    expect(firstIds).not.toContain(rest[0]);
+    expect([...firstIds, ...rest].sort()).toEqual(['2', '3', '4']);
+  });
+
+  it('reports no next page when the last page is exactly full', async () => {
+    loggedUser = '1';
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      referenceId: '2',
+      referenceUserId: '2',
+      feedId: '1',
+      status: ContentPreferenceStatus.Follow,
+    });
+
+    const res = await client.query(FOLLOWED_QUERY, { variables: { first: 1 } });
+
+    expect(res.data.followedWorlds.edges).toHaveLength(1);
+    expect(res.data.followedWorlds.pageInfo.hasNextPage).toBe(false);
   });
 
   it('never returns a private world, even from a direct follow', async () => {
@@ -777,9 +836,7 @@ describe('query followedWorlds', () => {
       status: ContentPreferenceStatus.Follow,
     });
 
-    const res = await client.query(FOLLOWED_QUERY);
-
-    expect(res.data.followedWorlds).toEqual([]);
+    expect(await followedIds()).toEqual([]);
   });
 
   it('does not return a followed world that is below the district floor', async () => {
@@ -794,9 +851,7 @@ describe('query followedWorlds', () => {
       status: ContentPreferenceStatus.Follow,
     });
 
-    const res = await client.query(FOLLOWED_QUERY);
-
-    expect(res.data.followedWorlds).toEqual([]);
+    expect(await followedIds()).toEqual([]);
   });
 });
 
