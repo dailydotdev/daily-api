@@ -1425,6 +1425,11 @@ export const typeDefs = /* GraphQL */ `
     """
     title: String!
     """
+    The field of reading this topic sits in, or null if the taxonomy has not
+    placed it yet
+    """
+    domain: NicheDomain
+    """
     Whether the niche is a stack ecosystem or a cross-stack theme
     """
     bucketGroup: String!

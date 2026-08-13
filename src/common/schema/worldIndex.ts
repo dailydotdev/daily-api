@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { enumValues } from './utils';
 import { UserNicheRankPeriod } from '../../entity/user/UserNicheRank';
+import { NicheDomain } from '../../entity/Niche';
 
 export const worldTopicRankingSchema = z.object({
   nicheId: z.uuid(),
@@ -19,4 +20,15 @@ export const worldTopicReadersSchema = z.object({
 
 export const worldIndexSectionSchema = z.object({
   limit: z.number().int().nullish(),
+});
+
+export const worldDomainRankingSchema = z.object({
+  domain: z.enum(enumValues(NicheDomain)),
+  period: z.enum(enumValues(UserNicheRankPeriod)),
+  limit: z.number().int().nullish(),
+});
+
+export const worldDomainRankPositionSchema = z.object({
+  domain: z.enum(enumValues(NicheDomain)),
+  period: z.enum(enumValues(UserNicheRankPeriod)),
 });

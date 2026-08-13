@@ -1,6 +1,8 @@
 import type { Cron } from './cron';
 import { WORLD_LEVEL_UP_RETENTION_DAYS } from '../common/worldIndex';
+import { DomainWorldStats } from '../entity/DomainWorldStats';
 import { NicheWorldStats } from '../entity/NicheWorldStats';
+import { UserDomainRank } from '../entity/user/UserDomainRank';
 import { UserNicheRank } from '../entity/user/UserNicheRank';
 import { UserWorldSummary } from '../entity/user/UserWorldSummary';
 
@@ -15,7 +17,13 @@ import { UserWorldSummary } from '../entity/user/UserWorldSummary';
  * Runs after `user-world-clickhouse`, whose districts and growth rows are the
  * input.
  */
-const refreshOrder = [UserWorldSummary, UserNicheRank, NicheWorldStats];
+const refreshOrder = [
+  UserWorldSummary,
+  UserNicheRank,
+  NicheWorldStats,
+  UserDomainRank,
+  DomainWorldStats,
+];
 
 export const worldIndexCron: Cron = {
   name: 'world-index',
