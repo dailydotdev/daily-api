@@ -19,6 +19,7 @@ import { kvasir } from './private/kvasir';
 import contributions from './private/contributions';
 import companyVerification from './private/companyVerification';
 import ledger from './private/ledger';
+import digestEmailPreview from './private/digestEmailPreview';
 import rpc from './private/rpc';
 import { createWorkerJobRpc } from './private/workerJobRpc';
 import { connectRpcPlugin, baseRpcContext } from '../common/connectRpc';
@@ -68,6 +69,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(contributions, { prefix: '/contributions' });
   fastify.register(companyVerification, { prefix: '/company-verification' });
   fastify.register(ledger, { prefix: '/ledger' });
+  fastify.register(digestEmailPreview, { prefix: '/digest/email-preview' });
 
   fastify.post<{ Body: AddUserDataPost }>('/newUser', async (req, res) => {
     if (!req.service) {
