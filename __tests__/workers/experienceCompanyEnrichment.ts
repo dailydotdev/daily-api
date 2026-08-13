@@ -141,6 +141,47 @@ describe('experienceCompanyEnrichment worker', () => {
     expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
+  it('respects an enrichment the user removed on purpose', async () => {
+    const experience = await saveExperience({
+      flags: { removedEnrichment: true },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.experience-company-enrichment'>(
+      worker,
+      { experienceId: experience.id },
+    );
+
+    expect(mockResolveOrganization).not.toHaveBeenCalled();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('passes the domain the user typed through to enrichment', async () => {
+    await saveFixtures(con, Company, [
+      {
+        id: 'sharp-co',
+        name: 'Sharp Software Solutions',
+        image: 'https://daily.dev/sharp.png',
+        domains: ['sharpsoftwaresolutions.net'],
+      },
+    ]);
+    const experience = await saveExperience({
+      customCompanyName: 'Sharp Software Solutions',
+      flags: { customDomain: 'sharpsoftwaresolutions.net' },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.experience-company-enrichment'>(
+      worker,
+      { experienceId: experience.id },
+    );
+
+    const enriched = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: experience.id });
+
+    expect(enriched.companyId).toBe('sharp-co');
+    expect(mockResolveOrganization).not.toHaveBeenCalled();
+  });
+
   it('does not notify when the organization cannot be resolved', async () => {
     mockResolveOrganization.mockResolvedValue({
       englishName: '',

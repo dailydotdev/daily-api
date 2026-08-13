@@ -24,6 +24,7 @@ import {
 
 import { Code, ConnectError } from '@connectrpc/connect';
 import { getBragiClient } from '../integrations/bragi';
+import { syncVerifiedUserWorkExperiences } from '../common/companyEnrichment';
 import { Keyword, KeywordStatus } from '../entity/Keyword';
 import type { z } from 'zod';
 import { onboardingDiscoverPostsInputSchema } from '../common/schema/onboardingDiscoverPosts';
@@ -187,7 +188,6 @@ import {
 import { SERVING_HIDDEN_NICHE_SLUGS } from '../common/clickhouse/worldRules';
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
-import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import { generateVerifyCode } from '../ids';
 import {
   addClaimableItemsToUser,
@@ -2555,28 +2555,6 @@ const getUserCompanies = async (
     },
     true,
   );
-};
-
-/**
- * Ensure the user's Work experiences for a given company are marked verified,
- * mirroring a verified UserCompany record. This closes the gap where verifying
- * a company email (a `verified` flip that does not change `companyId`) never
- * propagated to `UserExperienceWork.verified` via CDC, leaving the profile UI
- * showing the experience as unverified while the backend already considers the
- * email verified.
- */
-const syncVerifiedUserWorkExperiences = async (
-  con: DataSource,
-  userId: string,
-  companyId: string | null,
-): Promise<void> => {
-  if (!companyId) {
-    return;
-  }
-
-  await con
-    .getRepository(UserExperienceWork)
-    .update({ userId, companyId, verified: false }, { verified: true });
 };
 
 interface ClearImagePreset {

@@ -5,6 +5,7 @@ import { getBragiClient } from '../integrations/bragi';
 import { generateShortId } from '../ids';
 import { Company, CompanyType } from '../entity/Company';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
+import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import { UserCompany } from '../entity/UserCompany';
 import { validateWorkEmailDomain } from './utils';
@@ -169,6 +170,7 @@ export type EnrichCompanyParams = {
   experienceId: string;
   customCompanyName: string;
   experienceType: UserExperienceType;
+  customDomain?: string | null;
 };
 
 export type EnrichCompanyForUserCompanyParams = {
@@ -391,6 +393,40 @@ const linkExperienceToCompany = (
   con.getRepository(UserExperience).update({ id: experienceId }, { companyId });
 
 /**
+ * Marks the user's Work experiences at a company verified, mirroring a verified
+ * UserCompany record.
+ *
+ * Enrichment resolves a UserCompany's companyId asynchronously, so it commonly
+ * lands after the user has already entered their verification code. The
+ * mutation that flips `verified` has a null companyId at that point and CDC
+ * only reacts to a verified transition, so without this nothing ever revisits
+ * the experience.
+ */
+export const syncVerifiedUserWorkExperiences = async (
+  con: RepositorySource,
+  userId: string,
+  companyId: string | null,
+): Promise<void> => {
+  if (!companyId) {
+    return;
+  }
+
+  // Callers include the enrichment worker, which runs for unverified records
+  // too - it fires when the email is added, before any code is entered.
+  const isVerified = await con
+    .getRepository(UserCompany)
+    .existsBy({ userId, companyId, verified: true });
+
+  if (!isVerified) {
+    return;
+  }
+
+  await con
+    .getRepository(UserExperienceWork)
+    .update({ userId, companyId, verified: false }, { verified: true });
+};
+
+/**
  * Enriches a company for a given user experience.
  * Resolves the organization through bragi, validates the domain,
  * and either links to an existing company or creates a new one.
@@ -400,11 +436,29 @@ export async function enrichCompanyForExperience(
   params: EnrichCompanyParams,
   logger: EnrichmentLogger,
 ): Promise<EnrichmentResult> {
-  const { experienceId, customCompanyName, experienceType } = params;
+  const { experienceId, customCompanyName, experienceType, customDomain } =
+    params;
 
   if (isNonOrganizationName(customCompanyName)) {
     logger.debug({ customCompanyName }, 'Not an organization, skipping');
     return skippedResult('Not an organization');
+  }
+
+  // The user typed this domain themselves, so it beats asking a model to guess
+  // one from the name. Only ever used to link an existing company - creating
+  // from unvalidated user input would let a typo mint a company row.
+  if (customDomain) {
+    const companyByCustomDomain = await getCompanyByDomain(con, customDomain);
+
+    if (companyByCustomDomain) {
+      await linkExperienceToCompany(
+        con,
+        experienceId,
+        companyByCustomDomain.id,
+      );
+
+      return linkedResult(companyByCustomDomain.id);
+    }
   }
 
   const { englishName, nativeName, domain } = await getOrganizationInfo({

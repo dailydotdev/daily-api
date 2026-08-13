@@ -318,6 +318,62 @@ describe('enrichCompanyForExperience', () => {
     expect(company.domains).toEqual(['selfsigned.edu']);
   });
 
+  it('links via the domain the user typed, without asking bragi', async () => {
+    await saveFixtures(con, Company, [
+      {
+        id: 'sharp',
+        name: 'Sharp Software Solutions',
+        image: 'https://daily.dev/sharp.png',
+        domains: ['sharpsoftwaresolutions.net'],
+      },
+    ]);
+    const experience = await saveExperience('Sharp Software Solutions');
+
+    const result = await enrichCompanyForExperience(
+      con,
+      {
+        experienceId: experience.id,
+        customCompanyName: 'Sharp Software Solutions',
+        experienceType: UserExperienceType.Work,
+        customDomain: 'sharpsoftwaresolutions.net',
+      },
+      logger,
+    );
+
+    expect(result).toMatchObject({
+      linkedToExisting: true,
+      companyId: 'sharp',
+    });
+    expect(mockResolveOrganization).not.toHaveBeenCalled();
+  });
+
+  it('never creates a company from the typed domain, since it is unvalidated input', async () => {
+    mockResolveOrganization.mockResolvedValue({
+      englishName: '',
+      nativeName: '',
+      domain: '',
+    });
+    const experience = await saveExperience('Typo Inc');
+
+    const result = await enrichCompanyForExperience(
+      con,
+      {
+        experienceId: experience.id,
+        customCompanyName: 'Typo Inc',
+        experienceType: UserExperienceType.Work,
+        customDomain: 'goggle.com',
+      },
+      logger,
+    );
+
+    expect(result.companyCreated).toBe(false);
+    expect(
+      await con.getRepository(Company).findOneBy({ domains: ['goggle.com'] }),
+    ).toBeNull();
+    // falls through to bragi rather than minting a company from a typo
+    expect(mockResolveOrganization).toHaveBeenCalled();
+  });
+
   it('skips non-organization names without calling bragi', async () => {
     const experience = await saveExperience('Freelance');
 

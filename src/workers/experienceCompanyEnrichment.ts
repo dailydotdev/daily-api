@@ -17,6 +17,9 @@ const worker: TypedWorker<'api.v1.experience-company-enrichment'> = {
       !experience ||
       experience.companyId ||
       !experience.customCompanyName ||
+      // The user removed this company on purpose; re-linking it would override
+      // an explicit choice.
+      experience.flags?.removedEnrichment ||
       ![UserExperienceType.Work, UserExperienceType.Education].includes(
         experience.type,
       )
@@ -30,6 +33,7 @@ const worker: TypedWorker<'api.v1.experience-company-enrichment'> = {
         experienceId,
         customCompanyName: experience.customCompanyName,
         experienceType: experience.type,
+        customDomain: experience.flags?.customDomain,
       },
       logger,
     );
