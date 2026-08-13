@@ -34,22 +34,22 @@ export class WorldDomainIndex1786700000000 implements MigrationInterface {
      * which is the safe direction: its own niche board is unaffected.
      */
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'swarm' WHERE slug IN ('ai_llm', 'ai_agents', 'ai_infra', 'ml_ds', 'data_eng', 'ai_safety', 'python')`,
+      /* sql */ `UPDATE niche SET domain = 'ai' WHERE slug IN ('ai_llm', 'ai_agents', 'ai_infra', 'ml_ds', 'data_eng', 'ai_safety', 'python')`,
     );
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'frame' WHERE slug IN ('js_ts', 'css_design', 'android', 'ios_apple', 'jvm', 'dotnet', 'php', 'ruby')`,
+      /* sql */ `UPDATE niche SET domain = 'web' WHERE slug IN ('js_ts', 'css_design', 'android', 'ios_apple', 'jvm', 'dotnet', 'php', 'ruby')`,
     );
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'forge' WHERE slug IN ('c_cpp', 'rust', 'linux_os', 'embedded', 'gamedev', 'niche_langs')`,
+      /* sql */ `UPDATE niche SET domain = 'systems' WHERE slug IN ('c_cpp', 'rust', 'linux_os', 'embedded', 'gamedev', 'niche_langs')`,
     );
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'ship' WHERE slug IN ('k8s', 'cloud', 'go', 'ci_devex', 'observability', 'databases', 'distributed_arch', 'selfhost')`,
+      /* sql */ `UPDATE niche SET domain = 'cloud' WHERE slug IN ('k8s', 'cloud', 'go', 'ci_devex', 'observability', 'databases', 'distributed_arch', 'selfhost')`,
     );
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'bastion' WHERE slug IN ('sec_appsec', 'sec_crypto', 'sec_threats')`,
+      /* sql */ `UPDATE niche SET domain = 'security' WHERE slug IN ('sec_appsec', 'sec_crypto', 'sec_threats')`,
     );
     await queryRunner.query(
-      /* sql */ `UPDATE niche SET domain = 'quarter' WHERE slug IN ('devtools', 'git_vcs', 'software_craft', 'cs_fundamentals', 'career', 'eng_mgmt', 'industry_news', 'other')`,
+      /* sql */ `UPDATE niche SET domain = 'craft' WHERE slug IN ('devtools', 'git_vcs', 'software_craft', 'cs_fundamentals', 'career', 'eng_mgmt', 'industry_news', 'other')`,
     );
 
     await queryRunner.query(

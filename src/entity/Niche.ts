@@ -12,20 +12,24 @@ export enum NicheBucketGroup {
 }
 
 /**
- * The six groups a niche belongs to, as the world's taxonomy draws them.
+ * The six groups a niche belongs to.
  *
  * Coarser than `bucketGroup`, and for a different job: bucket group tells the
  * feed diversifier how to spread a feed, a domain is what a reader recognises
- * as a field they read in. The ids are the realm ids in the renderer's
- * `engine/taxonomy.js`, so the two stay traceable to each other.
+ * as a field they read in.
+ *
+ * The values say what they are rather than borrowing the renderer's names for
+ * the same six groups ("swarm", "forge"). Those belong to a world's scenery,
+ * and this is a column other services read and a value that appears in the
+ * public schema.
  */
 export enum NicheDomain {
-  AiData = 'swarm',
-  WebMobile = 'frame',
-  Systems = 'forge',
-  CloudInfra = 'ship',
-  Security = 'bastion',
-  CraftCareer = 'quarter',
+  Ai = 'ai',
+  Web = 'web',
+  Systems = 'systems',
+  Cloud = 'cloud',
+  Security = 'security',
+  Craft = 'craft',
 }
 
 /**

@@ -206,12 +206,12 @@ export const typeDefs = /* GraphQL */ `
   A field of reading, one step up from a topic. Six of them cover the taxonomy
   """
   enum NicheDomain {
-    swarm
-    frame
-    forge
-    ship
-    bastion
-    quarter
+    ai
+    web
+    systems
+    cloud
+    security
+    craft
   }
 
   """

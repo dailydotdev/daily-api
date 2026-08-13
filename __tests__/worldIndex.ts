@@ -118,21 +118,21 @@ beforeEach(async () => {
       slug: 'js_ts',
       title: 'JavaScript / TypeScript',
       bucketGroup: NicheBucketGroup.Ecosystem,
-      domain: NicheDomain.WebMobile,
+      domain: NicheDomain.Web,
     },
     {
       id: nicheAi,
       slug: 'ai_llm',
       title: 'LLMs',
       bucketGroup: NicheBucketGroup.Theme,
-      domain: NicheDomain.AiData,
+      domain: NicheDomain.Ai,
     },
     {
       id: nicheGo,
       slug: 'go',
       title: 'Go',
       bucketGroup: NicheBucketGroup.Ecosystem,
-      domain: NicheDomain.CloudInfra,
+      domain: NicheDomain.Cloud,
     },
     {
       id: nicheRust,
@@ -146,7 +146,7 @@ beforeEach(async () => {
       slug: 'blockchain',
       title: 'Blockchain',
       bucketGroup: NicheBucketGroup.Theme,
-      domain: NicheDomain.AiData,
+      domain: NicheDomain.Ai,
     },
   ]);
 });
@@ -902,7 +902,7 @@ describe('query worldDomainRanking', () => {
     await refreshIndexViews();
 
     // Only one niche carries the domain here, so the two boards agree.
-    expect(await domainRanked('swarm', 'all')).toEqual([
+    expect(await domainRanked('ai', 'all')).toEqual([
       [1, '2', 180],
       [2, '1', 100],
     ]);
@@ -913,7 +913,7 @@ describe('query worldDomainRanking', () => {
 
     // `blockchain` is hidden at serving time and shares the AI domain, so
     // user 1's 400 reads there must not count towards it.
-    expect(await domainRanked('swarm', 'all')).toEqual([
+    expect(await domainRanked('ai', 'all')).toEqual([
       [1, '2', 180],
       [2, '1', 100],
     ]);
@@ -925,7 +925,7 @@ describe('query worldDomainRanking', () => {
       .getRepository(UserWorldSettings)
       .save({ userId: '2', private: true });
 
-    expect(await domainRanked('swarm', 'all')).toEqual([[1, '1', 100]]);
+    expect(await domainRanked('ai', 'all')).toEqual([[1, '1', 100]]);
   });
 
   it('does not return a world below the district floor', async () => {
@@ -933,7 +933,7 @@ describe('query worldDomainRanking', () => {
     await dropBelowFloor('2');
     await refreshIndexViews();
 
-    expect(await domainRanked('swarm', 'all')).toEqual([[1, '1', 100]]);
+    expect(await domainRanked('ai', 'all')).toEqual([[1, '1', 100]]);
   });
 
   it('scores the week off the growth log rather than the districts', async () => {
@@ -945,7 +945,7 @@ describe('query worldDomainRanking', () => {
     await refreshIndexViews();
 
     // Reversed against all time, which is the whole point of the two periods.
-    expect(await domainRanked('swarm', 'week')).toEqual([
+    expect(await domainRanked('ai', 'week')).toEqual([
       [1, '1', 30],
       [2, '2', 4],
     ]);
@@ -969,7 +969,7 @@ describe('query worldDomainRankPosition', () => {
   it('requires authentication', () =>
     testQueryErrorCode(
       client,
-      { query: POSITION, variables: { domain: 'swarm', period: 'all' } },
+      { query: POSITION, variables: { domain: 'ai', period: 'all' } },
       'UNAUTHENTICATED',
     ));
 
@@ -998,7 +998,7 @@ describe('query worldDomainRankPosition', () => {
     loggedUser = '1';
 
     const res = await client.query(POSITION, {
-      variables: { domain: 'swarm', period: 'all' },
+      variables: { domain: 'ai', period: 'all' },
     });
 
     expect(res.data.worldDomainRankPosition).toEqual({
@@ -1022,7 +1022,7 @@ describe('query worldDomainRankPosition', () => {
     ]);
 
     const res = await client.query(POSITION, {
-      variables: { domain: 'swarm', period: 'all' },
+      variables: { domain: 'ai', period: 'all' },
     });
 
     // Below the district floor, so unranked, but the count is still theirs.
@@ -1037,7 +1037,7 @@ describe('query worldDomainRankPosition', () => {
 describe('query worldDomainReaders', () => {
   it('counts a reader once per domain, not once per topic', async () => {
     await saveFixtures(con, UserNicheAnalytics, [
-      // One reader with a district in three domains, so `ship` must count them
+      // One reader with a district in three domains, so `cloud` must count them
       // exactly once however many topics of it they read.
       {
         userId: '1',
@@ -1080,6 +1080,6 @@ describe('query worldDomainReaders', () => {
       ),
     );
 
-    expect(byDomain.ship).toBe(1);
+    expect(byDomain.cloud).toBe(1);
   });
 });
