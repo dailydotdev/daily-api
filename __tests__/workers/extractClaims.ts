@@ -26,6 +26,7 @@ import {
   ClaimDirectness,
 } from '../../src/entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../../src/entity/claim/LedgerEntity';
+import { PostType } from '../../src/entity/posts/Post';
 import { Source } from '../../src/entity/Source';
 import { sourcesFixture } from '../fixture/source';
 import * as bragiClients from '../../src/integrations/bragi/clients';
@@ -198,6 +199,80 @@ describe('extractClaims worker', () => {
     expect(
       await con.getRepository(ClaimCandidate).findOneBy({ postId: 'cp1' }),
     ).toMatchObject({ changeType: ClaimChangeType.Pricing });
+  });
+
+  it('should extract a tweet from its inline text when there is no cleaned artifact', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.SocialTwitter,
+        title: undefined,
+        url: 'https://x.com/openaidevs/status/1',
+        extra: { content: 'GPT-4o is deprecated in the API on 2026-09-01.' },
+        meta: { change_signal: 'clear' },
+      }),
+    );
+
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: 'cp1',
+        title: 'GPT-4o is deprecated in the API on 2026-09-01.',
+        contentFormat: ContentFormat.Markdown,
+        content: 'GPT-4o is deprecated in the API on 2026-09-01.',
+      }),
+    );
+  });
+
+  it('should extract a thread from its reassembled text', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.SocialTwitter,
+        title: undefined,
+        url: 'https://x.com/openaidevs/status/1',
+        extra: {
+          content: 'Shipping today:',
+          thread_tweets: [
+            { tweet_id: '2', content: 'GPT-4o retires 2026-09-01.' },
+          ],
+        },
+        meta: { change_signal: 'clear' },
+      } as Partial<Data>),
+    );
+
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentFormat: ContentFormat.Markdown,
+        content: 'Shipping today:\n\nGPT-4o retires 2026-09-01.',
+      }),
+    );
+  });
+
+  it('should skip freeform posts so private squad content stays out', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.Freeform,
+        extra: { content: 'We hit a breaking change in the internal SDK.' },
+        meta: { change_signal: 'clear' },
+      }),
+    );
+
+    expect(mockExtractClaims).not.toHaveBeenCalled();
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(0);
+  });
+
+  it('should skip posts with neither a cleaned artifact nor inline text', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.VideoYouTube,
+        meta: { change_signal: 'clear' },
+      }),
+    );
+
+    expect(mockExtractClaims).not.toHaveBeenCalled();
   });
 
   it('should skip posts without a clear change signal', async () => {

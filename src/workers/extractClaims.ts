@@ -11,9 +11,15 @@ import {
   ClaimDirectness,
 } from '../entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../entity/claim/LedgerEntity';
+import { PostType } from '../entity/posts/Post';
 import { Source } from '../entity/Source';
 import { downloadTextFromUri } from '../common/googleCloud';
+import {
+  isTwitterSocialType,
+  mapTwitterSocialPayload,
+} from '../common/twitterSocial';
 import { getBragiClient } from '../integrations/bragi/clients';
+import type { Data } from './postUpdated/types';
 
 const changeTypeMap: Record<number, ClaimChangeType> = {
   [ProtoClaimChangeType.BREAKING]: ClaimChangeType.Breaking,
@@ -46,6 +52,44 @@ const directnessMap: Record<number, ClaimDirectness> = {
   [ProtoClaimDirectness.FIRSTHAND]: ClaimDirectness.Firsthand,
 };
 
+// Only articles get a cleaned artifact in GCS. Tweets, collections and video
+// posts carry their text on the payload itself, so without this fallback every
+// non-article the triage flags is dropped silently — which is what kept the
+// ledger article-only for its first year. Freeform is deliberately excluded:
+// squad posts can be private, and the ledger has no privacy model yet.
+const inlineTextTypes: string[] = [
+  PostType.SocialTwitter,
+  PostType.Collection,
+  PostType.VideoYouTube,
+];
+
+const resolveInlineText = (
+  data: Data,
+): { title: string; content: string } | null => {
+  if (!inlineTextTypes.includes(data.content_type ?? '')) {
+    return null;
+  }
+
+  if (!isTwitterSocialType(data.content_type)) {
+    const content = data.extra?.content?.trim();
+
+    return content ? { title: data.title ?? '', content } : null;
+  }
+
+  try {
+    // A thread keeps its root tweet in the title and the rest in content, so
+    // the shared mapper is the only place that reassembles the whole text.
+    const { fields } = mapTwitterSocialPayload({ data });
+    const content = fields.content?.trim() || fields.title?.trim();
+
+    return content ? { title: fields.title ?? '', content } : null;
+  } catch {
+    // postUpdated maps the same payload and fails loudly on it, so a malformed
+    // tweet has no post to attach claims to either way.
+    return null;
+  }
+};
+
 // Bragi emits YYYY-MM or YYYY-MM-DD, and "" when the post does not state it.
 const toDateColumn = (value: string): string | null => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -65,8 +109,12 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
 
     const postId = data.post_id;
     const resourceLocation = data.meta?.cleaned?.[0]?.resource_location;
+    const cleanedUri = resourceLocation?.startsWith('gs://')
+      ? resourceLocation
+      : null;
+    const inlineText = cleanedUri ? null : resolveInlineText(data);
 
-    if (!postId || !resourceLocation?.startsWith('gs://')) {
+    if (!postId || (!cleanedUri && !inlineText)) {
       return;
     }
 
@@ -86,7 +134,9 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
 
     try {
       // Passed to bragi verbatim: evidence spans must match the post exactly.
-      const content = await downloadTextFromUri(resourceLocation);
+      const content = cleanedUri
+        ? await downloadTextFromUri(cleanedUri)
+        : inlineText?.content;
 
       if (!content) {
         return;
@@ -105,8 +155,10 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
       const response = await bragiClient.garmr.execute(() =>
         bragiClient.instance.extractClaims({
           postId,
-          title: data.title ?? '',
-          contentFormat: ContentFormat.XML,
+          title: inlineText?.title ?? data.title ?? '',
+          contentFormat: cleanedUri
+            ? ContentFormat.XML
+            : ContentFormat.Markdown,
           content,
           url: data.url,
           source: source?.name ?? data.source_id ?? '',
