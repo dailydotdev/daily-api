@@ -26,6 +26,7 @@ import {
   ClaimDirectness,
 } from '../../src/entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../../src/entity/claim/LedgerEntity';
+import { PostType } from '../../src/entity/posts/Post';
 import { Source } from '../../src/entity/Source';
 import { sourcesFixture } from '../fixture/source';
 import * as bragiClients from '../../src/integrations/bragi/clients';
@@ -242,6 +243,115 @@ describe('extractClaims worker', () => {
       'React 19 adds the use hook.',
       'React 19 removes defaultProps for function components.',
     ]);
+  });
+
+  it('should extract a tweet from its inline text when there is no cleaned artifact', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.SocialTwitter,
+        title: undefined,
+        url: 'https://x.com/openaidevs/status/1',
+        extra: { content: 'GPT-4o is deprecated in the API on 2026-09-01.' },
+        meta: { change_signal: 'clear' },
+      }),
+    );
+
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: 'cp1',
+        title: 'GPT-4o is deprecated in the API on 2026-09-01.',
+        contentFormat: ContentFormat.Markdown,
+        content: 'GPT-4o is deprecated in the API on 2026-09-01.',
+      }),
+    );
+  });
+
+  it('should extract a thread from its reassembled text', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.SocialTwitter,
+        title: undefined,
+        url: 'https://x.com/openaidevs/status/1',
+        extra: {
+          content: 'Shipping today:',
+          thread_tweets: [
+            { tweet_id: '2', content: 'GPT-4o retires 2026-09-01.' },
+          ],
+        },
+        meta: { change_signal: 'clear' },
+      } as Partial<Data>),
+    );
+
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentFormat: ContentFormat.Markdown,
+        content: 'Shipping today:\n\nGPT-4o retires 2026-09-01.',
+      }),
+    );
+  });
+
+  it('should skip freeform posts so private squad content stays out', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.Freeform,
+        extra: { content: 'We hit a breaking change in the internal SDK.' },
+        meta: { change_signal: 'clear' },
+      }),
+    );
+
+    expect(mockExtractClaims).not.toHaveBeenCalled();
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(0);
+  });
+
+  it('should extract a video from its scraped captions', async () => {
+    // Article XML is stored gzipped; captions are written to their own bucket
+    // as plain text, so this exercises the uncompressed path too.
+    const captions = 'In Next.js 16 the app directory is no longer optional.';
+    mockDownload.mockResolvedValue([Buffer.from(captions)]);
+
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        content_type: PostType.VideoYouTube,
+        title: 'What changed in Next.js 16',
+        meta: {
+          change_signal: 'clear',
+          scraped: {
+            resource_location:
+              'gs://daily-dev-yggdrasil-scraped-captions/cp1.txt',
+          },
+        },
+      }),
+    );
+
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'What changed in Next.js 16',
+        contentFormat: ContentFormat.Markdown,
+        content: captions,
+      }),
+    );
+  });
+
+  it('should not fall back to the raw page scrape for an article', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        meta: {
+          change_signal: 'clear',
+          scraped: {
+            resource_location:
+              'gs://daily-dev-yggdrasil-scraped-content/cp1.html',
+          },
+        },
+      }),
+    );
+
+    expect(mockExtractClaims).not.toHaveBeenCalled();
   });
 
   it('should skip posts without a clear change signal', async () => {
