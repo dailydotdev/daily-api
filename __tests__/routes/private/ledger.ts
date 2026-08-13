@@ -40,6 +40,7 @@ const parentEntityId = '11111111-1111-4111-8111-111111111111';
 const childEntityId = '11111111-1111-4111-8111-111111111112';
 const candidateId = '22222222-2222-4222-8222-222222222221';
 const claimId = '33333333-3333-4333-8333-333333333331';
+const duplicateClaimId = '33333333-3333-4333-8333-333333333332';
 
 beforeAll(async () => {
   app = await appFunc();
@@ -101,6 +102,38 @@ const seedHierarchy = async () => {
     sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
   });
 };
+
+// The same fact filed twice by two reviewers, the second copy citing one url
+// the first already has and one it does not.
+const seedDuplicateClaim = async () => {
+  await con.getRepository(Claim).save({
+    id: duplicateClaimId,
+    entityId: childEntityId,
+    changeType: ClaimChangeType.Breaking,
+    statement: 'App Router changed its caching defaults.',
+    effectiveDate: '2026-05-02',
+  });
+  await con.getRepository(ClaimEvidence).save([
+    {
+      claimId: duplicateClaimId,
+      postId: postsFixture[0].id,
+      url: 'https://nextjs.org/blog/caching',
+      sourceClass: ClaimEvidenceSourceClass.Community,
+    },
+    {
+      claimId: duplicateClaimId,
+      postId: postsFixture[1].id,
+      url: 'https://vercel.com/changelog/app-router-caching',
+      sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
+    },
+  ]);
+};
+
+const mergeClaims = (body: Record<string, unknown>) =>
+  request(app.server)
+    .post('/p/ledger/claims/merge')
+    .set(serviceHeaders)
+    .send(body);
 
 describe('private ledger routes', () => {
   it('should return not found when not authorized', () =>
@@ -231,6 +264,37 @@ describe('private ledger routes', () => {
     ).toMatchObject({ canonicalName: 'Next.js App Router' });
   });
 
+  it('should reject a parent that matches no ledger entity', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({
+        entityId: childEntityId,
+        parentId: '11111111-1111-4111-8111-111111111119',
+      })
+      .expect(404);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({ parentId: parentEntityId });
+  });
+
+  it('should reject an entity parented to itself', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId, parentId: childEntityId })
+      .expect(400);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: childEntityId }),
+    ).toMatchObject({ parentId: parentEntityId });
+  });
+
   it('should record reviewer evidence that has no post behind it', async () => {
     await seedHierarchy();
 
@@ -284,6 +348,39 @@ describe('private ledger routes', () => {
 
     expect(body.candidates).toHaveLength(1);
     expect(body.candidates[0].id).toEqual(candidateId);
+  });
+
+  it('should page candidates sharing a timestamp without skipping or repeating rows', async () => {
+    const createdAt = new Date('2026-05-01T10:00:00.000Z');
+    await con.getRepository(ClaimCandidate).save(
+      Array.from({ length: 6 }, (_, index) => ({
+        createdAt,
+        postId: postsFixture[0].id as string,
+        rawEntityName: 'Next.js',
+        entityAliases: [],
+        entityKind: LedgerEntityKind.Package,
+        changeType: ClaimChangeType.Release,
+        statement: `Next.js ships change ${index}.`,
+        directness: ClaimDirectness.Announcement,
+        evidence: 'the release notes',
+      })),
+    );
+
+    const pages = await Promise.all(
+      [0, 2, 4].map((offset) =>
+        request(app.server)
+          .get('/p/ledger/candidates')
+          .query({ limit: 2, offset })
+          .set(serviceHeaders)
+          .expect(200),
+      ),
+    );
+    const ids: string[] = pages.flatMap(({ body }) =>
+      body.candidates.map(({ id }: { id: string }) => id),
+    );
+
+    expect(new Set(ids).size).toEqual(6);
+    expect(ids).toEqual([...ids].sort().reverse());
   });
 
   it('should create a claim with evidence when merging a candidate', async () => {
@@ -505,6 +602,38 @@ describe('private ledger routes', () => {
     });
   });
 
+  it('should cite a merged candidate as evidence for an existing claim', async () => {
+    await seedHierarchy();
+    await seedCandidate();
+    const { body: first } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', claimId })
+      .expect(200);
+
+    expect(await con.getRepository(Claim).count()).toEqual(2);
+    expect(
+      await con
+        .getRepository(ClaimEvidence)
+        .findOneBy({ claimId, url: postsFixture[0].url as string }),
+    ).toMatchObject({
+      postId: postsFixture[0].id,
+      sourceClass: ClaimEvidenceSourceClass.Community,
+    });
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Merged,
+      claimId: first.claimId,
+    });
+  });
+
   it('should reject re-resolving a merged candidate without a statement', async () => {
     await seedCandidate();
     await request(app.server)
@@ -617,6 +746,82 @@ describe('private ledger routes', () => {
     ).toMatchObject({ supersededByClaimId: null });
   });
 
+  it('should absorb a duplicate claim into the claim that keeps it', async () => {
+    await seedHierarchy();
+    await seedDuplicateClaim();
+    await seedCandidate();
+    await con.getRepository(ClaimCandidate).update(candidateId, {
+      status: ClaimCandidateStatus.Merged,
+      claimId: duplicateClaimId,
+    });
+    const reversal = await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Breaking,
+      statement: 'App Router keeps its caching defaults after all.',
+      supersededByClaimId: duplicateClaimId,
+    });
+
+    await mergeClaims({
+      fromClaimId: duplicateClaimId,
+      intoClaimId: claimId,
+    }).expect(200);
+
+    const kept = await con.getRepository(ClaimEvidence).findBy({ claimId });
+    expect(kept.map(({ url }) => url).sort()).toEqual([
+      'https://nextjs.org/blog/caching',
+      'https://vercel.com/changelog/app-router-caching',
+    ]);
+    expect(
+      await con
+        .getRepository(ClaimEvidence)
+        .countBy({ claimId: duplicateClaimId }),
+    ).toEqual(0);
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({ claimId });
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: reversal.id }),
+    ).toMatchObject({ supersededByClaimId: claimId });
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: duplicateClaimId }),
+    ).toMatchObject({
+      status: ClaimStatus.Rejected,
+      supersededByClaimId: claimId,
+    });
+  });
+
+  it('should reject merging a claim into one it already supersedes', async () => {
+    await seedHierarchy();
+    await seedDuplicateClaim();
+    await con
+      .getRepository(Claim)
+      .update(claimId, { supersededByClaimId: duplicateClaimId });
+
+    await mergeClaims({
+      fromClaimId: duplicateClaimId,
+      intoClaimId: claimId,
+    }).expect(400);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: duplicateClaimId }),
+    ).toMatchObject({
+      status: ClaimStatus.Candidate,
+      supersededByClaimId: null,
+    });
+  });
+
+  it('should reject merging a claim into itself', async () => {
+    await seedHierarchy();
+
+    await mergeClaims({ fromClaimId: claimId, intoClaimId: claimId }).expect(
+      400,
+    );
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ status: ClaimStatus.Corroborated });
+  });
+
   it('should reclassify the source class of evidence the claim cites', async () => {
     await seedHierarchy();
     await con.getRepository(ClaimEvidence).save({
@@ -684,6 +889,29 @@ describe('private ledger routes', () => {
         sourceClass: ClaimEvidenceSourceClass.VendorChangelog,
       }),
     ]);
+  });
+
+  it('should serve the claim that supersedes a claim it returns', async () => {
+    await seedHierarchy();
+    const reversal = await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Breaking,
+      statement: 'App Router keeps its caching defaults after all.',
+      effectiveDate: '2026-06-01',
+    });
+    await con
+      .getRepository(Claim)
+      .update(claimId, { supersededByClaimId: reversal.id });
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/claims')
+      .query({ entities: 'nextjs', since: '2026-01-01' })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(
+      body.claims.find(({ id }: { id: string }) => id === claimId),
+    ).toMatchObject({ supersededByClaimId: reversal.id });
   });
 
   it('should exclude claims below the requested minimum status', async () => {
