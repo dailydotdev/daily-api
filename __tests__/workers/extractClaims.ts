@@ -263,12 +263,47 @@ describe('extractClaims worker', () => {
     expect(await con.getRepository(ClaimCandidate).count()).toEqual(0);
   });
 
-  it('should skip posts with neither a cleaned artifact nor inline text', async () => {
+  it('should extract a video from its scraped captions', async () => {
+    // Article XML is stored gzipped; captions are written to their own bucket
+    // as plain text, so this exercises the uncompressed path too.
+    const captions = 'In Next.js 16 the app directory is no longer optional.';
+    mockDownload.mockResolvedValue([Buffer.from(captions)]);
+
     await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
       worker,
       contentPublished({
         content_type: PostType.VideoYouTube,
-        meta: { change_signal: 'clear' },
+        title: 'What changed in Next.js 16',
+        meta: {
+          change_signal: 'clear',
+          scraped: {
+            resource_location:
+              'gs://daily-dev-yggdrasil-scraped-captions/cp1.txt',
+          },
+        },
+      }),
+    );
+
+    expect(mockExtractClaims).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'What changed in Next.js 16',
+        contentFormat: ContentFormat.Markdown,
+        content: captions,
+      }),
+    );
+  });
+
+  it('should not fall back to the raw page scrape for an article', async () => {
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished({
+        meta: {
+          change_signal: 'clear',
+          scraped: {
+            resource_location:
+              'gs://daily-dev-yggdrasil-scraped-content/cp1.html',
+          },
+        },
       }),
     );
 

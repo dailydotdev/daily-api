@@ -52,16 +52,13 @@ const directnessMap: Record<number, ClaimDirectness> = {
   [ProtoClaimDirectness.FIRSTHAND]: ClaimDirectness.Firsthand,
 };
 
-// Only articles get a cleaned artifact in GCS. Tweets, collections and video
-// posts carry their text on the payload itself, so without this fallback every
-// non-article the triage flags is dropped silently — which is what kept the
-// ledger article-only for its first year. Freeform is deliberately excluded:
-// squad posts can be private, and the ledger has no privacy model yet.
-const inlineTextTypes: string[] = [
-  PostType.SocialTwitter,
-  PostType.Collection,
-  PostType.VideoYouTube,
-];
+// Only articles are cleaned into XML, so requiring one dropped every other type
+// the triage flagged — which is what kept the ledger article-only for its first
+// year. The rest still have text, just somewhere else: YouTube captions are
+// scraped into their own GCS bucket as plain text, while tweets and collections
+// carry theirs on the payload. Freeform is deliberately excluded: squad posts
+// can be private, and the ledger has no privacy model yet.
+const inlineTextTypes: string[] = [PostType.SocialTwitter, PostType.Collection];
 
 const resolveInlineText = (
   data: Data,
@@ -90,6 +87,48 @@ const resolveInlineText = (
   }
 };
 
+type ContentSource = {
+  uri: string | null;
+  content: string | null;
+  title: string;
+  contentFormat: ContentFormat;
+};
+
+const resolveContentSource = (data: Data): ContentSource | null => {
+  const cleaned = data.meta?.cleaned?.[0]?.resource_location;
+
+  if (cleaned?.startsWith('gs://')) {
+    return {
+      uri: cleaned,
+      content: null,
+      title: data.title ?? '',
+      contentFormat: ContentFormat.XML,
+    };
+  }
+
+  // Only for video: the article scrape under the same key is raw page HTML,
+  // which bragi would have to clean again — the cleaned XML above is better.
+  const scraped = data.meta?.scraped?.resource_location;
+
+  if (
+    data.content_type === PostType.VideoYouTube &&
+    scraped?.startsWith('gs://')
+  ) {
+    return {
+      uri: scraped,
+      content: null,
+      title: data.title ?? '',
+      contentFormat: ContentFormat.Markdown,
+    };
+  }
+
+  const inline = resolveInlineText(data);
+
+  return inline
+    ? { uri: null, ...inline, contentFormat: ContentFormat.Markdown }
+    : null;
+};
+
 // Bragi emits YYYY-MM or YYYY-MM-DD, and "" when the post does not state it.
 const toDateColumn = (value: string): string | null => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -108,13 +147,9 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
     }
 
     const postId = data.post_id;
-    const resourceLocation = data.meta?.cleaned?.[0]?.resource_location;
-    const cleanedUri = resourceLocation?.startsWith('gs://')
-      ? resourceLocation
-      : null;
-    const inlineText = cleanedUri ? null : resolveInlineText(data);
+    const contentSource = resolveContentSource(data);
 
-    if (!postId || (!cleanedUri && !inlineText)) {
+    if (!postId || !contentSource) {
       return;
     }
 
@@ -134,9 +169,9 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
 
     try {
       // Passed to bragi verbatim: evidence spans must match the post exactly.
-      const content = cleanedUri
-        ? await downloadTextFromUri(cleanedUri)
-        : inlineText?.content;
+      const content = contentSource.uri
+        ? await downloadTextFromUri(contentSource.uri)
+        : contentSource.content;
 
       if (!content) {
         return;
@@ -155,10 +190,8 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
       const response = await bragiClient.garmr.execute(() =>
         bragiClient.instance.extractClaims({
           postId,
-          title: inlineText?.title ?? data.title ?? '',
-          contentFormat: cleanedUri
-            ? ContentFormat.XML
-            : ContentFormat.Markdown,
+          title: contentSource.title,
+          contentFormat: contentSource.contentFormat,
           content,
           url: data.url,
           source: source?.name ?? data.source_id ?? '',
