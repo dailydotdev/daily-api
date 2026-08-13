@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { RegionUS } from 'customerio-node';
 import CIORequest from 'customerio-node/dist/lib/request';
 import { CustomerIORequestError } from 'customerio-node/dist/lib/utils';
-import { retryFetch } from '../../integrations/retry';
 
 class ArchivedMessageUnavailableError extends Error {}
 
@@ -40,9 +39,18 @@ const isTrackingPixel = (image: {
 export const prepareDigestEmailHtml = (html: string): string => {
   const root = parse(html);
 
-  root.querySelectorAll('script, iframe, object, embed').forEach((element) => {
-    element.remove();
-  });
+  root
+    .querySelectorAll('script, iframe, object, embed, form, base')
+    .forEach((element) => {
+      element.remove();
+    });
+  root
+    .querySelectorAll('meta')
+    .filter(
+      (element) =>
+        element.getAttribute('http-equiv')?.toLowerCase() === 'refresh',
+    )
+    .forEach((element) => element.remove());
   root
     .querySelectorAll('img')
     .filter(isTrackingPixel)
@@ -81,7 +89,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(401).send({ message: 'unauthorized' });
     }
 
-    if (!process.env.CIO_APP_KEY || !process.env.SCRAPER_URL) {
+    if (!process.env.CIO_APP_KEY) {
       return unavailableResponse(res);
     }
 
@@ -91,24 +99,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     try {
-      const html = prepareDigestEmailHtml(
-        await getArchivedMessageBody(input.data.deliveryId),
-      );
-      const response = await retryFetch(
-        `${process.env.SCRAPER_URL}/screenshot`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ content: html, selector: 'body' }),
-        },
-        { retries: 1 },
-      );
-
       return res
-        .type('image/png')
         .header('cache-control', 'private, no-store')
         .header('pragma', 'no-cache')
-        .send(await response.buffer());
+        .send({
+          html: prepareDigestEmailHtml(
+            await getArchivedMessageBody(input.data.deliveryId),
+          ),
+        });
     } catch (error) {
       if (
         error instanceof ArchivedMessageUnavailableError ||
@@ -126,10 +124,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         }
       }
 
-      req.log.error({ err: error }, 'failed to render digest email preview');
+      req.log.error({ err: error }, 'failed to retrieve digest email preview');
       return res
         .status(502)
-        .send({ message: 'failed to render digest email preview' });
+        .send({ message: 'failed to retrieve digest email preview' });
     }
   });
 }
