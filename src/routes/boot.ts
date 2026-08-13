@@ -4,10 +4,8 @@ import {
   FastifyRequest,
   RouteHandler,
 } from 'fastify';
-import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
 import { DataSource, QueryRunner } from 'typeorm';
-import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import {
@@ -101,7 +99,7 @@ import {
 } from '../common/profile/completion';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
-import { asyncRetry } from '../integrations/retry';
+import { getBetterAuthSessionForRequest } from '../common/betterAuth';
 import {
   skadiEngagementClient,
   type EngagementCreative,
@@ -130,22 +128,6 @@ export type Experimentation = {
 export type Geo = {
   region?: string;
   continent?: Continent;
-};
-
-type BetterAuthSession = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null;
-  };
-  session: {
-    id: string;
-    userId: string;
-    expiresAt: Date;
-    token: string;
-  };
 };
 
 interface ComputedAlerts {
@@ -1159,15 +1141,7 @@ export const getBootData = async (
   if (baSessionCookie) {
     let sessionInvalid = false;
     try {
-      const session = (await asyncRetry(
-        () =>
-          getBetterAuth().api.getSession({
-            headers: fromNodeHeaders(
-              req.headers as Record<string, string | string[] | undefined>,
-            ),
-          }),
-        { retries: 3 },
-      )) as BetterAuthSession | null;
+      const session = await getBetterAuthSessionForRequest(req);
 
       if (session) {
         const cookieKey = cookies.authSession.key;

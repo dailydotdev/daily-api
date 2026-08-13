@@ -27,6 +27,8 @@ import agents from './agents';
 import emailTracking from './emailTracking';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { cookies } from '../cookies';
+import { getBetterAuthSessionForRequest } from '../common/betterAuth';
 
 const llmTxt = readFileSync(join(__dirname, 'llms.txt'), 'utf-8');
 const favicon = readFileSync(join(__dirname, 'favicon.ico'));
@@ -122,6 +124,24 @@ https://daily.dev`,
 
   fastify.get('/id', (req, res) => {
     return res.status(200).send(req.userId);
+  });
+
+  fastify.get('/me', async (req, res) => {
+    const session =
+      !req.userId && req.cookies[cookies.authSession.key]
+        ? await getBetterAuthSessionForRequest(req)
+        : null;
+    const userId = req.userId ?? session?.user.id;
+    const redirectUrl = new URL(
+      userId ? `/${encodeURIComponent(userId)}` : '/',
+      process.env.COMMENTS_PREFIX,
+    );
+
+    return res
+      .header('Cache-Control', 'private, no-store')
+      .header('Vary', 'Cookie')
+      .status(302)
+      .redirect(redirectUrl.toString());
   });
 
   // Debugging endpoint
