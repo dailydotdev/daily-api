@@ -11,6 +11,13 @@ const requestSchema = z.object({
   deliveryId: z.string().trim().min(1).max(255),
 });
 
+const archivedMessageResponseSchema = z.object({
+  archived_message: z.object({
+    body: z.string().optional(),
+    hide_body: z.boolean().optional(),
+  }),
+});
+
 const isOnePixelValue = (value: string | undefined): boolean =>
   /^1(?:\.0+)?(?:px)?$/i.test(value?.trim() ?? '');
 
@@ -66,9 +73,15 @@ const getArchivedMessageBody = async (deliveryId: string): Promise<string> => {
   const response = await request.get(
     `${RegionUS.apiUrl}/messages/${encodeURIComponent(deliveryId)}/archived_message`,
   );
-  const body = response.body;
+  const parsed = archivedMessageResponseSchema.safeParse(response);
+  const body = parsed.success ? parsed.data.archived_message.body : undefined;
 
-  if (response.hide_body === true || typeof body !== 'string' || !body.trim()) {
+  if (
+    !parsed.success ||
+    parsed.data.archived_message.hide_body === true ||
+    typeof body !== 'string' ||
+    !body.trim()
+  ) {
     throw new ArchivedMessageUnavailableError();
   }
 
