@@ -60,12 +60,15 @@ describe('POST /p/digest/email-preview', () => {
 
   it('returns archived HTML without its tracking pixel', async () => {
     mockGetArchivedMessage.mockResolvedValue({
-      body: `
-        <body>
-          <img src="https://images.test/creative.png" width="600" height="200">
-          <img src="https://track.test/open" width="1" height="1">
-        </body>
-      `,
+      archived_message: {
+        body: `
+          <body>
+            <img src="https://images.test/creative.png" width="600" height="200">
+            <img src="https://track.test/open" width="1" height="1">
+          </body>
+        `,
+        hide_body: false,
+      },
     });
     const response = await request(app.server)
       .post('/p/digest/email-preview')
@@ -80,6 +83,18 @@ describe('POST /p/digest/email-preview', () => {
     });
     expect(response.body.html).toContain('https://images.test/creative.png');
     expect(response.body.html).not.toContain('https://track.test/open');
+  });
+
+  it('returns not found when Customer.io hides the archived body', async () => {
+    mockGetArchivedMessage.mockResolvedValue({
+      archived_message: { hide_body: true },
+    });
+
+    await request(app.server)
+      .post('/p/digest/email-preview')
+      .set('authorization', 'Bearer digest-secret')
+      .send({ deliveryId: 'delivery-id' })
+      .expect(404, { message: 'archived digest email is not available' });
   });
 });
 
