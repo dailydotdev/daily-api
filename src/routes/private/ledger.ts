@@ -8,6 +8,7 @@ import {
   claimCandidateListSchema,
   claimCandidateResolveSchema,
   claimEvidenceCreateSchema,
+  claimEvidenceDeleteSchema,
   claimEvidenceUpdateSchema,
   claimMergeSchema,
   claimStatusUpdateSchema,
@@ -15,6 +16,7 @@ import {
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
+  ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
   ledgerEntityUpdateSchema,
 } from '../../common/schema/claimLedger';
@@ -33,6 +35,7 @@ import { LedgerEntity } from '../../entity/claim/LedgerEntity';
 import { Post } from '../../entity/posts/Post';
 import { ConflictError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
+import { getDiscussionLink } from '../../common/links';
 
 const statusRank = [
   ClaimStatus.Candidate,
@@ -81,9 +84,14 @@ const findEvidenceSource = ({
     .getRepository(Post)
     .createQueryBuilder('p')
     .select('p."url"', 'url')
+    .addSelect('p."slug"', 'slug')
     .addSelect('p."publishedAt"', 'publishedAt')
     .where('p.id = :postId', { postId })
-    .getRawOne<{ url: string | null; publishedAt: Date | null }>();
+    .getRawOne<{
+      url: string | null;
+      slug: string;
+      publishedAt: Date | null;
+    }>();
 
 const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
@@ -187,19 +195,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Claim candidate not found' });
     }
 
-    // A post can state several facts at once, so a merged candidate may be
-    // merged again: a statement files the next fact as a claim of its own, a
-    // claimId cites the same post as evidence for a claim that already exists.
-    // Without either, re-resolving stays an accidental double merge.
-    const isReMerge =
-      candidate.status === ClaimCandidateStatus.Merged &&
-      body.action === 'merge' &&
-      (typeof body.statement !== 'undefined' || !!body.claimId);
+    // A post can state several facts at once, so a merged candidate splits into
+    // a second claim, but only when the reviewer asks for it: every other
+    // re-resolve is a runner replaying its own work and would duplicate a claim
+    // or pile redundant evidence onto one.
+    const isSplit =
+      candidate.status === ClaimCandidateStatus.Merged && body.split === true;
 
-    if (candidate.status !== ClaimCandidateStatus.Pending && !isReMerge) {
-      return res
-        .status(400)
-        .send({ error: 'Claim candidate is already resolved' });
+    if (candidate.status !== ClaimCandidateStatus.Pending && !isSplit) {
+      throw new ConflictError('Claim candidate is already resolved');
     }
 
     if (body.action === 'deny') {
@@ -211,14 +215,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     // Merging cites the candidate's post as evidence, so it needs a url: the
-    // post's own, or one the reviewer supplies when the post carries none.
+    // one the reviewer supplies, the post's own, or the post's permalink for the
+    // post types that carry no url of their own.
     const source = await findEvidenceSource({ con, postId: candidate.postId });
-    const url = body.url ?? source?.url;
+    const url =
+      body.url ??
+      source?.url ??
+      (source ? getDiscussionLink(source.slug) : null);
 
     if (!url) {
-      return res
-        .status(400)
-        .send({ error: 'Evidence url is required when the post has none' });
+      return res.status(404).send({ error: 'Claim candidate post not found' });
     }
 
     if (
@@ -258,8 +264,8 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .orIgnore()
         .execute();
 
-      // A re-merge leaves the candidate pointing at the first claim it produced.
-      if (!isReMerge) {
+      // A split leaves the candidate pointing at the first claim it produced.
+      if (!isSplit) {
         await manager.getRepository(ClaimCandidate).update(candidate.id, {
           status: ClaimCandidateStatus.Merged,
           claimId: targetClaimId,
@@ -422,18 +428,129 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       excludeId: entity.id,
     });
 
-    if (
-      entity.aliases.some(
-        (alias) => alias.toLowerCase() === body.alias.toLowerCase(),
-      )
-    ) {
-      return res.status(200).send({ aliases: entity.aliases });
+    // Two reviewers aliasing the same entity at once each wrote back the array
+    // they had read, so one alias was lost: the append and its dedupe both
+    // happen in the row's own update instead.
+    const { affected, raw } = await con
+      .getRepository(LedgerEntity)
+      .createQueryBuilder()
+      .update()
+      .set({
+        aliases: () =>
+          `CASE WHEN EXISTS (SELECT 1 FROM unnest(aliases) existing WHERE lower(existing) = lower(:alias)) THEN aliases ELSE aliases || ARRAY[:alias]::text[] END`,
+      })
+      .where({ id: entity.id })
+      .setParameter('alias', body.alias)
+      .returning('aliases')
+      .execute();
+
+    if (!affected) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    const aliases = [...entity.aliases, body.alias];
-    await con.getRepository(LedgerEntity).update(entity.id, { aliases });
+    return res.status(200).send({ aliases: raw[0].aliases });
+  });
 
-    return res.status(200).send({ aliases });
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityAliasSchema>;
+  }>('/entities/alias/remove', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityAliasSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const { affected, raw } = await con
+      .getRepository(LedgerEntity)
+      .createQueryBuilder()
+      .update()
+      .set({
+        aliases: () =>
+          `ARRAY(SELECT existing FROM unnest(aliases) existing WHERE lower(existing) <> lower(:alias))`,
+      })
+      .where({ id: body.entityId })
+      .setParameter('alias', body.alias)
+      .returning('aliases')
+      .execute();
+
+    if (!affected) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    return res.status(200).send({ aliases: raw[0].aliases });
+  });
+
+  // Extraction can file one artifact as two entities, so the duplicate is
+  // absorbed: its claims, children and every name it answered to move to the
+  // entity that keeps them, and the emptied row is dropped.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityMergeSchema>;
+  }>('/entities/merge', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityMergeSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const [from, into] = await Promise.all([
+      con.getRepository(LedgerEntity).findOneBy({ id: body.fromEntityId }),
+      con.getRepository(LedgerEntity).findOneBy({ id: body.intoEntityId }),
+    ]);
+
+    if (!from || !into) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    await con.transaction(async (manager) => {
+      const entityRepo = manager.getRepository(LedgerEntity);
+      const claimRepo = manager.getRepository(Claim);
+
+      await claimRepo.update({ entityId: from.id }, { entityId: into.id });
+      await claimRepo.update(
+        { supersededByEntityId: from.id },
+        { supersededByEntityId: into.id },
+      );
+      await entityRepo.update({ parentId: from.id }, { parentId: into.id });
+
+      // A name the duplicate answered to may already belong to a third entity,
+      // and every name in the ledger is unique, so that one is dropped.
+      const names = [from.canonicalName, ...from.aliases];
+      const owners = await findLedgerEntitiesByName({ con: manager, names });
+      const unavailable = new Set(
+        owners
+          .filter(({ id }) => id !== from.id && id !== into.id)
+          .flatMap((owner) => [owner.canonicalName, ...owner.aliases])
+          .map((name) => name.toLowerCase()),
+      );
+      const kept = new Set(
+        [into.canonicalName, ...into.aliases].map((name) => name.toLowerCase()),
+      );
+      const aliases = [...into.aliases];
+
+      names.forEach((name) => {
+        const normalized = name.toLowerCase();
+
+        if (kept.has(normalized) || unavailable.has(normalized)) {
+          return;
+        }
+
+        kept.add(normalized);
+        aliases.push(name);
+      });
+
+      await entityRepo.update(into.id, { aliases });
+      await entityRepo.delete(from.id);
+    });
+
+    return res.status(200).send({ success: true });
   });
 
   fastify.post<{
@@ -674,6 +791,32 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         { claimId: body.claimId, url: body.url },
         { sourceClass: body.sourceClass },
       );
+
+    if (!affected) {
+      return res.status(404).send({ error: 'Claim evidence not found' });
+    }
+
+    return res.status(200).send({ success: true });
+  });
+
+  // Evidence that on review says nothing about the claim still counts towards
+  // its corroboration, so the row is dropped instead of reclassified.
+  fastify.post<{
+    Body: z.infer<typeof claimEvidenceDeleteSchema>;
+  }>('/claims/evidence/delete', async (req, res) => {
+    const body = parseSchema({
+      schema: claimEvidenceDeleteSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const { affected } = await con
+      .getRepository(ClaimEvidence)
+      .delete({ claimId: body.claimId, url: body.url });
 
     if (!affected) {
       return res.status(404).send({ error: 'Claim evidence not found' });
