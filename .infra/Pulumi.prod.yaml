@@ -283,6 +283,10 @@ config:
       secure: AAABANKRo+IcGU45hHot31p7j3Qei8oAGU5QSDZRNN1eJRY1yn37uJfRcTnfL0K5GC4LFeBcg7wbGZafY+7h7mIqICo=
     agentAccessTokenSecret:
       secure: AAABAPxrWvSZchpaXNnGXANoZfcYNljETFw0TsO5KBNjxhLgQWXHf6WnWt+UhGRo7ulAqG4xsD4oaCJyQfhmCJltAxgTBiBTEIPqAu58ku640wIBEyG0rCXQTgil7Jax
+    encoreApiKey:
+      secure: AAABAPIb9sXoiKXheuSjhaYdiJVZMq6WMxECNwyUFFghXi8xCn3YOKVrK1Gsja+wepnbKlXuKuIo8O3DsqvJAQ==
+    encoreOrigin:
+      secure: AAABAOYCAMGzeMY9j8K1KT+2tpufEzLWKYcSCGKo/1+4HCK08xNTWODDv65kxZ9nwxx/GKMHkjAeh3zeMCVsF/lobcSTqtITEuXfCih3p8UF
   api:k8s:
     host: subs.daily.dev
     namespace: daily
