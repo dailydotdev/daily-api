@@ -116,6 +116,11 @@ class RemoteConfig {
             allowedCountries: ['US', 'GB', 'CA', 'IL', 'DE', 'FR', 'IN', 'AU'],
             currentCycleTargetPoints: 10000,
           },
+          // Local dev default so Encore offers can be tested without a
+          // GrowthBook connection (the API key still comes from env).
+          encoreOffers: {
+            enabled: true,
+          },
         }),
       };
     }

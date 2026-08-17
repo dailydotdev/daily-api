@@ -99,8 +99,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       // Encore requires an ISO country code; without geo we'd misattribute
-      // offers, so serve none.
-      if (!mocked && !ctx.region) {
+      // offers, so serve none. Local dev has no GeoIP database, so it
+      // defaults to US to keep the flow testable against Encore's test env.
+      const countryCode =
+        ctx.region || (process.env.NODE_ENV === 'development' ? 'US' : '');
+
+      if (!mocked && !countryCode) {
         return [];
       }
 
@@ -111,7 +115,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               userId: ctx.userId,
               limit: offersFeedLimit,
               attributes: {
-                countryCode: ctx.region,
+                countryCode,
                 language: parseLanguage(ctx.requestMeta.acceptLanguage),
                 platform: 'web',
               },
