@@ -61,6 +61,7 @@ export enum StorageKey {
   DailyFeed = 'daily',
   CpaSource = 'cpa_source',
   Statusline = 'statusline',
+  Offers = 'offers',
 }
 
 export const generateStorageKey = (

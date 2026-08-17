@@ -71,6 +71,10 @@ export type RemoteConfigValue = {
   excludedMarketingCta: string[];
   personalContextEnabled: boolean;
   tagChipTopicsClusterThreshold: number;
+  encoreOffers: Partial<{
+    enabled: boolean;
+    allowedCountries: string[];
+  }>;
 };
 
 class RemoteConfig {
