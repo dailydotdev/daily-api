@@ -5,34 +5,18 @@ import {
   getOffsetWithDefault,
   offsetToCursor,
 } from 'graphql-relay';
-import type { EntityManager, SelectQueryBuilder } from 'typeorm';
-import { MoreThanOrEqual } from 'typeorm';
-import { AuthContext, BaseContext, Context } from '../Context';
+import type { SelectQueryBuilder } from 'typeorm';
+import { BaseContext, Context } from '../Context';
 import { NEW_HIGHLIGHT_CHANNEL } from '../common/highlights';
 import graphorm from '../graphorm';
-import { redisPubSub, setRedisObjectIfNotExistsWithExpiry } from '../redis';
-import type { GQLEmptyResponse, OffsetPage } from './common';
-import { generateStorageKey, StorageKey, StorageTopic } from '../config';
-import {
-  DEFAULT_TIMEZONE,
-  secondsUntilNextHourInTimezone,
-} from '../common/date';
-import { DAILY_DROP_HOUR } from '../types';
-import { User } from '../entity/user/User';
+import { redisPubSub } from '../redis';
+import type { OffsetPage } from './common';
 import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import {
   HighlightSignificance,
   toHighlightSignificance,
 } from '../common/channelHighlight/significance';
 import type { GQLSource } from './sources';
-import { ChannelDigest } from '../entity/ChannelDigest';
-import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
-import { ContentPreferenceStatus } from '../entity/contentPreference/types';
-import { queryReadReplica } from '../common/queryReadReplica';
-import { Post, PostType } from '../entity/posts/Post';
-import { ONE_DAY_IN_SECONDS } from '../common/constants';
-import { seedHeadlineChannelsForUser } from '../common/channelDigest/headlineFollows';
-import { isMockEnabled } from '../mocks/common';
 
 type GQLChannelDigestConfiguration = {
   frequency: string;
@@ -134,22 +118,10 @@ export const typeDefs = /* GraphQL */ `
       first: Int
       after: String
     ): PostHighlightConnection!
-
-    """
-    Get the latest digest post from the last 24 hours for each channel digest
-    whose source the current user follows, one per channel, ordered by recency.
-    The first time it runs for a user with no channel digest preference yet,
-    follows are seeded from their onboarding tags.
-    """
-    dailyHeadlines(first: Int, after: String): PostConnection! @auth
   }
 
   extend type Subscription {
     newHighlight: PostHighlight! @auth
-  }
-
-  extend type Mutation {
-    markDailySeen: EmptyResponse @auth
   }
 `;
 
@@ -312,157 +284,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         channel: args.channel,
         significances: parseSignificanceFilters(args.significance),
       }),
-    dailyHeadlines: async (
-      _,
-      args: ConnectionArguments,
-      ctx: AuthContext,
-      info,
-    ) => {
-      let seeded = false;
-      try {
-        const result = await seedHeadlineChannelsForUser({
-          con: ctx.con,
-          userId: ctx.userId,
-        });
-
-        seeded = result.seeded;
-      } catch (err) {
-        ctx.log.error(
-          { err, userId: ctx.userId },
-          'failed to backfill headline channel follows',
-        );
-      }
-
-      // mocking returns any posts, mostly to match local seeds
-      const recencyBounded = !isMockEnabled();
-      const since = new Date(Date.now() - ONE_DAY_IN_SECONDS * 1000);
-
-      const queryLatestDigestPerChannel = (manager: EntityManager) => {
-        const builder = manager
-          .getRepository(ContentPreferenceSource)
-          .createQueryBuilder('cp')
-          .select('p.id', 'id')
-          .innerJoin(
-            ChannelDigest,
-            'cd',
-            'cd."sourceId" = cp."referenceId" AND cd.enabled = true',
-          )
-          .innerJoin(
-            Post,
-            'p',
-            'p."sourceId" = cd."sourceId" AND p.type = :postType AND p.visible = true AND p.deleted = false',
-            { postType: PostType.Freeform },
-          )
-          .where('cp."userId" = :userId AND cp."feedId" = :userId', {
-            userId: ctx.userId,
-          })
-          .andWhere('cp.status != :blocked', {
-            blocked: ContentPreferenceStatus.Blocked,
-          })
-          .distinctOn(['cd."sourceId"'])
-          .orderBy('cd."sourceId"', 'ASC')
-          .addOrderBy('p."createdAt"', 'DESC');
-
-        if (recencyBounded) {
-          builder.andWhere('p."createdAt" >= :since', { since });
-        }
-
-        return builder.getRawMany<{ id: string }>();
-      };
-
-      const [latestDigestPerChannel, latestBrief] = await Promise.all([
-        seeded
-          ? queryLatestDigestPerChannel(ctx.con.manager)
-          : queryReadReplica(ctx.con, ({ queryRunner }) =>
-              queryLatestDigestPerChannel(queryRunner.manager),
-            ),
-        queryReadReplica(ctx.con, ({ queryRunner }) =>
-          queryRunner.manager.getRepository(Post).findOne({
-            select: ['id'],
-            where: {
-              authorId: ctx.userId,
-              type: PostType.Brief,
-              visible: true,
-              deleted: false,
-              ...(recencyBounded && { createdAt: MoreThanOrEqual(since) }),
-            },
-            order: { createdAt: 'DESC' },
-          }),
-        ),
-      ]);
-
-      const channelPostIds = latestDigestPerChannel.map((row) => row.id);
-      const postIds = latestBrief
-        ? [latestBrief.id, ...channelPostIds]
-        : channelPostIds;
-      const page = getHighlightsPage(args);
-
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        () => page.offset > 0,
-        (nodeSize) => nodeSize >= page.limit,
-        (_, index) => offsetToCursor(page.offset + index),
-        (builder) => {
-          builder.queryBuilder.where(
-            `"${builder.alias}"."id" IN (:...postIds)`,
-            {
-              postIds: postIds.length ? postIds : ['nosuchid'],
-            },
-          );
-
-          if (latestBrief) {
-            builder.queryBuilder
-              .orderBy(`("${builder.alias}"."id" = :briefId)`, 'DESC')
-              .setParameter('briefId', latestBrief.id)
-              .addOrderBy(`"${builder.alias}"."createdAt"`, 'DESC');
-          } else {
-            builder.queryBuilder.orderBy(
-              `"${builder.alias}"."createdAt"`,
-              'DESC',
-            );
-          }
-
-          builder.queryBuilder
-            .addOrderBy(`"${builder.alias}"."id"`, 'DESC')
-            .offset(page.offset)
-            .limit(page.limit);
-          return builder;
-        },
-        (nodes) => nodes.slice(0, page.limit - 1),
-        true,
-      );
-    },
-  },
-  Mutation: {
-    markDailySeen: async (
-      _,
-      __,
-      ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      const user = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(User).findOne({
-          select: ['timezone'],
-          where: { id: ctx.userId },
-        }),
-      );
-      const key = generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.DailyFeed,
-        ctx.userId,
-      );
-
-      await setRedisObjectIfNotExistsWithExpiry(
-        key,
-        '1',
-        secondsUntilNextHourInTimezone({
-          hour: DAILY_DROP_HOUR,
-          timezone: user?.timezone || DEFAULT_TIMEZONE,
-        }),
-      );
-
-      return { _: true };
-    },
   },
   Subscription: {
     newHighlight: {
