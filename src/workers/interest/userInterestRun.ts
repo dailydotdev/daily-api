@@ -1,4 +1,4 @@
-import { Not, type Repository } from 'typeorm';
+import { Not, type DataSource } from 'typeorm';
 import type { TypedWorker } from '../worker';
 import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import {
@@ -16,10 +16,13 @@ import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import { markdown } from '../../common/markdown';
 import { generateShortId } from '../../ids';
+import { ONE_MINUTE_IN_MS } from '../../common/constants';
 import type { InterestAgentRunState } from '../../common/interest/tools/context';
 
 const MAX_PICKS = 3;
-const STALE_RUNNING_RECLAIM_MINUTES = 30;
+const RUN_EXECUTION_DEADLINE_MS = 30 * ONE_MINUTE_IN_MS;
+const STALE_RUNNING_RECLAIM_MINUTES = 45;
+const UNIQUE_VIOLATION = '23505';
 
 const buildRunBlocks = ({
   result,
@@ -48,31 +51,78 @@ const buildRunBlocks = ({
   return blocks;
 };
 
-const claimRun = async ({
-  runRepo,
-  runId,
-  startedAt,
+const failStaleRunning = ({
+  con,
+  interestId,
 }: {
-  runRepo: Repository<InterestRun>;
-  runId: string;
-  startedAt: Date;
-}): Promise<boolean> => {
-  const result = await runRepo
+  con: DataSource;
+  interestId: string;
+}) =>
+  con
+    .getRepository(InterestRun)
     .createQueryBuilder()
     .update(InterestRun)
-    .set({ status: InterestRunStatus.Running, startedAt })
-    .where('id = :runId', { runId })
-    .andWhere(
-      `(status IN (:...claimable) OR (status = :running AND "startedAt" < now() - make_interval(mins => :staleMinutes)))`,
-      {
-        claimable: [InterestRunStatus.Queued, InterestRunStatus.Failed],
-        running: InterestRunStatus.Running,
-        staleMinutes: STALE_RUNNING_RECLAIM_MINUTES,
-      },
-    )
+    .set({ status: InterestRunStatus.Failed, finishedAt: () => 'now()' })
+    .where('"interestId" = :interestId AND status = :running', {
+      interestId,
+      running: InterestRunStatus.Running,
+    })
+    .andWhere(`"startedAt" < now() - make_interval(mins => :staleMinutes)`, {
+      staleMinutes: STALE_RUNNING_RECLAIM_MINUTES,
+    })
     .execute();
 
-  return (result.affected ?? 0) > 0;
+const claimRun = async ({
+  con,
+  runId,
+  interestId,
+  startedAt,
+}: {
+  con: DataSource;
+  runId: string;
+  interestId: string;
+  startedAt: Date;
+}): Promise<'claimed' | 'busy' | 'unavailable'> => {
+  await failStaleRunning({ con, interestId });
+
+  try {
+    const result = await con
+      .getRepository(InterestRun)
+      .createQueryBuilder()
+      .update(InterestRun)
+      .set({ status: InterestRunStatus.Running, startedAt })
+      .where('id = :runId AND "interestId" = :interestId', {
+        runId,
+        interestId,
+      })
+      .andWhere('status IN (:...claimable)', {
+        claimable: [InterestRunStatus.Queued, InterestRunStatus.Failed],
+      })
+      .execute();
+
+    return (result.affected ?? 0) > 0 ? 'claimed' : 'unavailable';
+  } catch (error) {
+    if ((error as { code?: string })?.code === UNIQUE_VIOLATION) {
+      return 'busy';
+    }
+    throw error;
+  }
+};
+
+const runWithDeadline = (
+  args: Parameters<typeof runInterestAgent>[0],
+): Promise<InterestAgentRunState> => {
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+
+  return Promise.race([
+    runInterestAgent(args),
+    new Promise<never>((_, reject) => {
+      deadline = setTimeout(
+        () => reject(new Error('interest run exceeded its execution deadline')),
+        RUN_EXECUTION_DEADLINE_MS,
+      );
+    }),
+  ]).finally(() => clearTimeout(deadline));
 };
 
 export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'> =
@@ -89,7 +139,11 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
       if (!interest || interest.status !== UserInterestStatus.Active) {
         if (runId) {
           await runRepo.update(
-            { id: runId, status: Not(InterestRunStatus.Completed) },
+            {
+              id: runId,
+              interestId,
+              status: Not(InterestRunStatus.Completed),
+            },
             { status: InterestRunStatus.Failed, finishedAt: new Date() },
           );
         }
@@ -97,26 +151,49 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
       }
 
       const runAt = Date.now();
+      const lease = new Date(runAt);
       let claimedRunId = runId;
       if (claimedRunId) {
-        const claimed = await claimRun({
-          runRepo,
+        const claim = await claimRun({
+          con,
           runId: claimedRunId,
-          startedAt: new Date(runAt),
+          interestId,
+          startedAt: lease,
         });
-        if (!claimed) {
+        if (claim === 'unavailable') {
           return;
+        }
+        if (claim === 'busy') {
+          throw new Error(
+            'another run for this interest is active, retrying later',
+          );
         }
       } else {
         claimedRunId = await generateShortId();
-        await runRepo.insert({
-          id: claimedRunId,
-          interestId,
-          status: InterestRunStatus.Running,
-          trigger: InterestRunTrigger.Scheduled,
-          startedAt: new Date(runAt),
-        });
+        try {
+          await runRepo.insert({
+            id: claimedRunId,
+            interestId,
+            status: InterestRunStatus.Running,
+            trigger: InterestRunTrigger.Scheduled,
+            startedAt: lease,
+          });
+        } catch (error) {
+          if ((error as { code?: string })?.code === UNIQUE_VIOLATION) {
+            throw new Error(
+              'another run for this interest is active, retrying later',
+            );
+          }
+          throw error;
+        }
       }
+
+      const leasedRun = {
+        id: claimedRunId,
+        interestId,
+        status: InterestRunStatus.Running,
+        startedAt: lease,
+      };
 
       await con
         .getRepository(UserInterest)
@@ -127,20 +204,20 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
 
       let result: InterestAgentRunState;
       try {
-        result = await runInterestAgent({ con, logger, interest });
+        result = await runWithDeadline({ con, logger, interest });
       } catch (error) {
-        await Promise.all([
-          runRepo.update(
-            { id: claimedRunId },
-            { status: InterestRunStatus.Failed, finishedAt: new Date() },
-          ),
-          con
+        const failed = await runRepo.update(leasedRun, {
+          status: InterestRunStatus.Failed,
+          finishedAt: new Date(),
+        });
+        if (failed.affected) {
+          await con
             .getRepository(UserInterest)
             .update(
               { id: interest.id },
               { lastRunStatus: InterestRunStatus.Failed },
-            ),
-        ]);
+            );
+        }
         throw error;
       }
 
@@ -165,24 +242,27 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           .getRawMany<{ postId: string }>(),
       ]);
 
-      await con.transaction(async (manager) => {
+      const leaseHeld = await con.transaction(async (manager) => {
+        const completed = await manager
+          .getRepository(InterestRun)
+          .update(leasedRun, {
+            status: InterestRunStatus.Completed,
+            finishedAt: new Date(),
+            blocks: buildRunBlocks({ result, picks, deliverableCount }),
+            findingsAdded: deliverableCount,
+            summaryPostId: result.summaryPostId,
+          });
+
+        if (!completed.affected) {
+          return false;
+        }
+
         await manager
           .getRepository(InterestFinding)
           .update(
             { interestId: interest.id, status: InterestFindingStatus.New },
             { status: InterestFindingStatus.Surfaced },
           );
-
-        await manager.getRepository(InterestRun).update(
-          { id: claimedRunId },
-          {
-            status: InterestRunStatus.Completed,
-            finishedAt: new Date(),
-            blocks: buildRunBlocks({ result, picks, deliverableCount }),
-            findingsAdded: deliverableCount,
-            summaryPostId: result.summaryPostId,
-          },
-        );
 
         await manager.getRepository(UserInterest).update(
           { id: interest.id },
@@ -193,7 +273,17 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             lastRunFindings: deliverableCount,
           },
         );
+
+        return true;
       });
+
+      if (!leaseHeld) {
+        logger.warn(
+          { interestId, runId: claimedRunId },
+          'interest run lease lost before completion',
+        );
+        return;
+      }
 
       const hasContent = deliverableCount > 0 || !!result.summaryPostId;
 

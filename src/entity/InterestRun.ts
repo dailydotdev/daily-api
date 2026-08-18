@@ -30,6 +30,10 @@ export type InterestRunBlock =
 
 @Entity()
 @Index('IDX_interest_run_interest_id_created', ['interestId', 'createdAt'])
+@Index('IDX_interest_run_interest_id_running', ['interestId'], {
+  unique: true,
+  where: `status = 'running'`,
+})
 export class InterestRun {
   @PrimaryColumn({ type: 'text' })
   id: string;

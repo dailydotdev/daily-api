@@ -430,6 +430,72 @@ describe('userInterestRun worker', () => {
     expect(run.status).toEqual(InterestRunStatus.Completed);
   });
 
+  it('rejects for redelivery while a different run of the interest is active', async () => {
+    await con.getRepository(InterestRun).save([
+      {
+        id: 'run-active',
+        interestId: 'uir-1',
+        status: InterestRunStatus.Running,
+        trigger: InterestRunTrigger.Scheduled,
+        startedAt: new Date(),
+      },
+      {
+        id: 'run-1',
+        interestId: 'uir-1',
+        status: InterestRunStatus.Queued,
+        trigger: InterestRunTrigger.Command,
+      },
+    ]);
+
+    await expect(
+      invokeTypedBackground<'api.v1.interest-run-requested'>(worker, {
+        interestId: 'uir-1',
+        runId: 'run-1',
+      }),
+    ).rejects.toThrow('another run for this interest is active');
+
+    expect(runInterestAgent).not.toHaveBeenCalled();
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Queued);
+  });
+
+  it('abandons completion when another delivery has taken over the lease', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Command,
+    });
+    (runInterestAgent as jest.Mock).mockImplementation(async () => {
+      await con
+        .getRepository(InterestRun)
+        .update(
+          { id: 'run-1' },
+          { startedAt: new Date(Date.now() + 60 * 60 * 1000) },
+        );
+      return {
+        findingsAdded: 0,
+        summaryPostId: 'post-1',
+        agentSummary: 'stolen lease',
+        finalMessage: 'stolen lease',
+      };
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Running);
+    expect(run.summaryPostId).toBeNull();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
   it('fails the provided run when the interest is not active', async () => {
     await con
       .getRepository(UserInterest)
