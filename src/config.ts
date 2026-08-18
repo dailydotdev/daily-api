@@ -58,9 +58,9 @@ export enum StorageKey {
   UserLastOnline = 'ulo',
   ParticipantCount = 'participant_count',
   HasLiveRooms = 'has_live_rooms',
-  DailyFeed = 'daily',
   CpaSource = 'cpa_source',
   Statusline = 'statusline',
+  Offers = 'offers',
 }
 
 export const generateStorageKey = (

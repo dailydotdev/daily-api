@@ -77,6 +77,9 @@ declare global {
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
       SKADI_API_ORIGIN_V2: string;
+      ENCORE_ORIGIN?: string;
+      ENCORE_API_KEY?: string;
+      ENCORE_CLIENT_ID?: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
@@ -357,8 +360,6 @@ export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
 
 export const opportunityMatchBatchSize = 50;
-
-export const DAILY_DROP_HOUR = 9;
 
 // Map continent names to their codes
 export const continentMap: Record<string, string> = {
