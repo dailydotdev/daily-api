@@ -361,6 +361,71 @@ describe('updateCurrentStreak cron', () => {
       expect(streak.freezesAvailable).toBe(3);
     });
 
+    it('should not consume freezes for weekend days inside the gap', async () => {
+      /*
+        1. Last read was Thursday, user is away from Friday
+        2. Saturday's cron consumes one freeze for Friday
+        3. Sunday and Monday are within the weekend grace
+        4. Tuesday's gap is [Sat, Sun, Mon] but only Monday needs a freeze —
+           the weekend must not consume freezes nor strand the balance behind
+           the all-or-nothing check
+      */
+      await con.getRepository(UserStreak).update(
+        { userId: '1' },
+        {
+          lastViewAt: new Date('2024-06-20'), // Thursday
+          freezesAvailable: 3,
+        },
+      );
+
+      jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-22')); // Saturday
+      await expectSuccessfulCron(cron);
+      jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-25')); // Tuesday
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+      expect(streak.freezesAvailable).toBe(1);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      const sortedTimes = freezeActions
+        .map(({ createdAt }) => createdAt.getTime())
+        .sort((a, b) => a - b);
+      expect(sortedTimes).toEqual([
+        new Date('2024-06-21').getTime(), // Friday
+        new Date('2024-06-24').getTime(), // Monday
+      ]);
+    });
+
+    it('should consume a freeze only for the missed weekday when the gap spans a weekend', async () => {
+      await con.getRepository(UserStreak).update(
+        { userId: '1' },
+        {
+          lastViewAt: new Date('2024-06-21'), // Friday
+          freezesAvailable: 3,
+        },
+      );
+
+      jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-25')); // Tuesday
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+      expect(streak.freezesAvailable).toBe(2);
+
+      const freezeActions = await con
+        .getRepository(UserStreakAction)
+        .findBy({ userId: '1', type: UserStreakActionType.Freeze });
+      expect(freezeActions).toHaveLength(1);
+      expect(freezeActions[0].createdAt).toEqual(new Date('2024-06-24')); // Monday
+    });
+
     it('should not consume a freeze twice for the same missed day across consecutive cron runs', async () => {
       await con
         .getRepository(UserStreak)

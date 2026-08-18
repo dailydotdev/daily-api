@@ -43,6 +43,9 @@ export const claimCandidateResolveSchema = z
     effectiveDate: z.iso.date().nullish(),
     sunsetDate: z.iso.date().nullish(),
     entityId: z.uuid().optional(),
+    // A post can state several facts at once, so a candidate already merged
+    // splits into a second claim, but only when the reviewer asks for it.
+    split: z.boolean().optional(),
   })
   .refine(({ action, claimId }) => action === 'merge' || !claimId, {
     error: 'claimId is only valid when merging',
@@ -55,6 +58,15 @@ export const claimCandidateResolveSchema = z
     {
       error: 'Overrides are only valid when merging into a new claim',
       path: ['claimId'],
+    },
+  )
+  .refine(
+    ({ split, action, claimId, statement }) =>
+      !split ||
+      (action === 'merge' && !claimId && typeof statement !== 'undefined'),
+    {
+      error: 'split requires merging into a new claim with a statement',
+      path: ['split'],
     },
   );
 
@@ -84,9 +96,24 @@ export const ledgerEntityAliasSchema = z.strictObject({
   alias: entityName,
 });
 
+// Extraction files the same artifact twice under names that only later turn out
+// to be the same thing, so the duplicate is folded into the entity that keeps it.
+export const ledgerEntityMergeSchema = z
+  .strictObject({
+    fromEntityId: z.uuid(),
+    intoEntityId: z.uuid(),
+  })
+  .refine(({ fromEntityId, intoEntityId }) => fromEntityId !== intoEntityId, {
+    error: 'A ledger entity cannot be merged into itself',
+    path: ['intoEntityId'],
+  });
+
+// Corroborated demotes back to candidate when a reviewer finds the second
+// source was the first one restated.
 export const claimStatusUpdateSchema = z.strictObject({
   claimId: z.uuid(),
   status: z.literal([
+    ClaimStatus.Candidate,
     ClaimStatus.Corroborated,
     ClaimStatus.Verified,
     ClaimStatus.Rejected,
@@ -132,6 +159,13 @@ export const claimEvidenceUpdateSchema = z.strictObject({
   claimId: z.uuid(),
   url: z.url(),
   sourceClass: z.enum(enumValues(ClaimEvidenceSourceClass)),
+});
+
+// Evidence that turns out to say nothing about the claim leaves it looking
+// corroborated, so the row is removed rather than reclassified.
+export const claimEvidenceDeleteSchema = z.strictObject({
+  claimId: z.uuid(),
+  url: z.url(),
 });
 
 export const claimsQuerySchema = z.strictObject({
