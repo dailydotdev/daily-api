@@ -59,7 +59,6 @@ export type RemoteConfigValue = {
   interestAgentMaxWebSearchesPerRun: number;
   interestAgentMaxDiscoveriesPerDay: number;
   interestAgentMaxToolCallsPerRun: number;
-  dailyFeedCacheKey: string;
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;
   newViewLogs: boolean;
@@ -67,7 +66,6 @@ export type RemoteConfigValue = {
   engagementAdsEnabled: boolean;
   postHighlightTtlSeconds: number;
   contributionProgram: ContributionProgramConfig;
-  headlineChannelMinPosts: number;
   excludedMarketingCta: string[];
   personalContextEnabled: boolean;
   tagChipTopicsClusterThreshold: number;
