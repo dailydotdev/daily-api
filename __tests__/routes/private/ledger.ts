@@ -493,7 +493,7 @@ describe('private ledger routes', () => {
 
     expect(
       await con.getRepository(ClaimEvidence).findOneBy({
-        url: 'https://www.postgresql.org/docs/release/18.0/',
+        url: 'https://www.postgresql.org/docs/release/18.0',
       }),
     ).toMatchObject({
       claimId,
@@ -517,6 +517,40 @@ describe('private ledger routes', () => {
       .expect(409);
 
     expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
+  });
+
+  it('should reject evidence the claim cites under a trailing slash variant', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://nextjs.org/blog/caching/',
+        sourceClass: ClaimEvidenceSourceClass.Manual,
+      })
+      .expect(409);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(1);
+  });
+
+  it('should normalize the evidence url a reviewer supplies when merging a candidate', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        url: 'https://forgejo.org/2026-03-monthly-report/',
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(ClaimEvidence).findBy({ claimId: body.claimId }),
+    ).toMatchObject([{ url: 'https://forgejo.org/2026-03-monthly-report' }]);
   });
 
   it('should list pending candidates', async () => {
@@ -1228,6 +1262,26 @@ describe('private ledger routes', () => {
     });
   });
 
+  it('should reclassify evidence given the trailing slash variant of its url', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence/update')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://nextjs.org/blog/caching/',
+        sourceClass: ClaimEvidenceSourceClass.Manual,
+      })
+      .expect(200);
+
+    expect(
+      await con
+        .getRepository(ClaimEvidence)
+        .findOneBy({ url: 'https://nextjs.org/blog/caching' }),
+    ).toMatchObject({ sourceClass: ClaimEvidenceSourceClass.Manual });
+  });
+
   it('should not reclassify a url the claim does not cite', async () => {
     await seedHierarchy();
 
@@ -1251,6 +1305,34 @@ describe('private ledger routes', () => {
       .post('/p/ledger/claims/evidence/delete')
       .set(serviceHeaders)
       .send({ claimId, url: 'https://nextjs.org/blog/caching' })
+      .expect(200);
+
+    expect(await con.getRepository(ClaimEvidence).count()).toEqual(0);
+  });
+
+  // The hygiene lane clears the duplicates already in the ledger, so a row
+  // stored with its trailing slash has to stay reachable by that exact url.
+  it('should drop evidence by either form of its url', async () => {
+    await seedHierarchy();
+    await con.getRepository(ClaimEvidence).save({
+      claimId,
+      url: 'https://vercel.com/changelog/app-router-caching/',
+      sourceClass: ClaimEvidenceSourceClass.Community,
+    });
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence/delete')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        url: 'https://vercel.com/changelog/app-router-caching/',
+      })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/claims/evidence/delete')
+      .set(serviceHeaders)
+      .send({ claimId, url: 'https://nextjs.org/blog/caching/' })
       .expect(200);
 
     expect(await con.getRepository(ClaimEvidence).count()).toEqual(0);
