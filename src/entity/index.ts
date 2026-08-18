@@ -48,6 +48,7 @@ export * from './LiveRoom';
 export * from './LiveRoomSubscription';
 export * from './campaign';
 export * from './PersonalAccessToken';
+export * from './EncoreOfferCompletion';
 export * from './Feedback';
 export * from './FeedbackReply';
 export * from './Achievement';
