@@ -288,6 +288,63 @@ describe('private ledger routes', () => {
       .expect(404);
   });
 
+  it('should delete an entity nothing stands on', async () => {
+    await seedHierarchy();
+    const strayEntityId = '11111111-1111-4111-8111-111111111115';
+    await con.getRepository(LedgerEntity).save({
+      id: strayEntityId,
+      canonicalName: 'Nextjs Pages Router Probe',
+      kind: LedgerEntityKind.Other,
+      aliases: [],
+    });
+
+    await request(app.server)
+      .post('/p/ledger/entities/delete')
+      .set(serviceHeaders)
+      .send({ entityId: strayEntityId })
+      .expect(200);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: strayEntityId }),
+    ).toBeNull();
+  });
+
+  it('should refuse to delete an entity claims still reference', async () => {
+    await seedHierarchy();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/delete')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId })
+      .expect(400);
+
+    expect(body.error).toContain('referenced by claims');
+    expect(await con.getRepository(Claim).count()).toEqual(1);
+  });
+
+  it('should refuse to delete an entity that still has children', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).delete(claimId);
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/delete')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId })
+      .expect(400);
+
+    expect(body.error).toContain('child entities');
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: parentEntityId }),
+    ).not.toBeNull();
+  });
+
+  it('should reject deleting an entity that does not exist', () =>
+    request(app.server)
+      .post('/p/ledger/entities/delete')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId })
+      .expect(404));
+
   it('should look up entities by canonical name and by alias', async () => {
     await seedHierarchy();
     const lookup = (name: string) =>
@@ -771,6 +828,64 @@ describe('private ledger routes', () => {
     expect(await con.getRepository(Claim).count()).toEqual(0);
   });
 
+  it('should merge a denied candidate when the reviewer revives it', async () => {
+    await seedCandidate();
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'deny' })
+      .expect(200);
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', revive: true })
+      .expect(200);
+
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Merged,
+      claimId: body.claimId,
+    });
+    expect(
+      await con
+        .getRepository(ClaimEvidence)
+        .findOneBy({ claimId: body.claimId }),
+    ).toMatchObject({ postId: postsFixture[0].id, url: postsFixture[0].url });
+  });
+
+  it('should not let a revive re-resolve a merged candidate', async () => {
+    await seedCandidate();
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge', revive: true })
+      .expect(409);
+
+    expect(await con.getRepository(Claim).count()).toEqual(1);
+  });
+
+  it('should reject a revive that denies the candidate again', async () => {
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'deny', revive: true })
+      .expect(400);
+
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({ status: ClaimCandidateStatus.Pending });
+  });
+
   it('should cite the post permalink as evidence when the post has no url', async () => {
     await seedCandidate();
     await con
@@ -979,6 +1094,58 @@ describe('private ledger routes', () => {
     expect(
       await con.getRepository(Claim).findOneBy({ id: claimId }),
     ).toMatchObject({ status: ClaimStatus.Corroborated });
+  });
+
+  it('should repoint a misfiled claim at another entity and leave its evidence alone', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/move')
+      .set(serviceHeaders)
+      .send({ claimId, entityId: parentEntityId })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ entityId: parentEntityId });
+    expect(await con.getRepository(ClaimEvidence).findBy({ claimId })).toEqual([
+      expect.objectContaining({
+        claimId,
+        postId: postsFixture[0].id,
+        url: 'https://nextjs.org/blog/caching',
+      }),
+    ]);
+  });
+
+  it('should reject moving a claim to the entity it already belongs to', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/move')
+      .set(serviceHeaders)
+      .send({ claimId, entityId: childEntityId })
+      .expect(400);
+  });
+
+  it('should reject moving a claim when either side does not exist', async () => {
+    await seedHierarchy();
+    const unknownId = '11111111-1111-4111-8111-111111111119';
+
+    await request(app.server)
+      .post('/p/ledger/claims/move')
+      .set(serviceHeaders)
+      .send({ claimId: duplicateClaimId, entityId: parentEntityId })
+      .expect(404);
+
+    await request(app.server)
+      .post('/p/ledger/claims/move')
+      .set(serviceHeaders)
+      .send({ claimId, entityId: unknownId })
+      .expect(404);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({ entityId: childEntityId });
   });
 
   it('should reclassify the source class of evidence the claim cites', async () => {
