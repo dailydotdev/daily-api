@@ -242,12 +242,20 @@ describe('private ledger routes', () => {
       statement: 'App Router changed its caching defaults.',
     });
 
-    await request(app.server)
+    const { body } = await request(app.server)
       .post('/p/ledger/entities/merge')
       .set(serviceHeaders)
       .send({ fromEntityId: duplicateEntityId, intoEntityId: childEntityId })
       .expect(200);
 
+    // The merged entity comes back from inside the transaction, so verifying it
+    // never has to race the replica.
+    expect(body).toEqual({
+      id: childEntityId,
+      canonicalName: 'Next.js App Router',
+      aliases: ['App Router', 'app-router'],
+      parentId: parentEntityId,
+    });
     expect(
       await con.getRepository(Claim).findOneBy({ id: duplicateClaim.id }),
     ).toMatchObject({ entityId: childEntityId });
@@ -926,6 +934,49 @@ describe('private ledger routes', () => {
     expect(await con.getRepository(Claim).count()).toEqual(0);
   });
 
+  it('should keep the reviewer rationale on a denied candidate', async () => {
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'deny',
+        note: 'Rule 4: roadmap intent, nothing shipped.',
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Denied,
+      note: 'Rule 4: roadmap intent, nothing shipped.',
+    });
+  });
+
+  it('should keep the reviewer rationale on a merged candidate', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        note: 'Rule 1: dated vendor announcement.',
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(ClaimCandidate).findOneBy({ id: candidateId }),
+    ).toMatchObject({
+      status: ClaimCandidateStatus.Merged,
+      claimId: body.claimId,
+      note: 'Rule 1: dated vendor announcement.',
+    });
+  });
+
   it('should update a claim status', async () => {
     await seedHierarchy();
 
@@ -1262,6 +1313,37 @@ describe('private ledger routes', () => {
     expect(
       body.claims.find(({ id }: { id: string }) => id === claimId),
     ).toMatchObject({ supersededByClaimId: reversal.id });
+  });
+
+  it('should serve the claims asked for by id and leave out the ones it holds no row for', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).update(claimId, {
+      status: ClaimStatus.Rejected,
+      effectiveDate: '2020-01-01',
+    });
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/claims')
+      .query({ ids: `${claimId},${duplicateClaimId}` })
+      .set(serviceHeaders)
+      .expect(200);
+
+    // Ids name the claims outright, so neither the status floor nor a date
+    // window keeps one back.
+    expect(body.claims).toHaveLength(1);
+    expect(body.claims[0]).toMatchObject({
+      id: claimId,
+      entityName: 'Next.js App Router',
+      status: ClaimStatus.Rejected,
+    });
+  });
+
+  it('should reject a claim query carrying neither ids nor an entity window', async () => {
+    await request(app.server)
+      .get('/p/ledger/claims')
+      .query({ entities: 'nextjs' })
+      .set(serviceHeaders)
+      .expect(400);
   });
 
   it('should exclude claims below the requested minimum status', async () => {

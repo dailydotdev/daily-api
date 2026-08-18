@@ -218,10 +218,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       throw new ConflictError('Claim candidate is already resolved');
     }
 
+    // The playbook asks for a rule-citing rationale per decision, and it is only
+    // worth anything to the recall audit if it sits on the row it explains.
+    const note = typeof body.note === 'undefined' ? {} : { note: body.note };
+
     if (body.action === 'deny') {
       await con
         .getRepository(ClaimCandidate)
-        .update(candidate.id, { status: ClaimCandidateStatus.Denied });
+        .update(candidate.id, { status: ClaimCandidateStatus.Denied, ...note });
 
       return res.status(200).send({ success: true });
     }
@@ -276,12 +280,20 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .orIgnore()
         .execute();
 
-      // A split leaves the candidate pointing at the first claim it produced.
-      if (!isSplit) {
-        await manager.getRepository(ClaimCandidate).update(candidate.id, {
+      // A split leaves the candidate pointing at the first claim it produced,
+      // so only its note moves.
+      const candidateUpdate = {
+        ...(!isSplit && {
           status: ClaimCandidateStatus.Merged,
           claimId: targetClaimId,
-        });
+        }),
+        ...note,
+      };
+
+      if (Object.keys(candidateUpdate).length) {
+        await manager
+          .getRepository(ClaimCandidate)
+          .update(candidate.id, candidateUpdate);
       }
 
       return targetClaimId;
@@ -521,7 +533,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    await con.transaction(async (manager) => {
+    const merged = await con.transaction(async (manager) => {
       const entityRepo = manager.getRepository(LedgerEntity);
       const claimRepo = manager.getRepository(Claim);
 
@@ -560,9 +572,17 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
       await entityRepo.update(into.id, { aliases });
       await entityRepo.delete(from.id);
+
+      // Verifying the merge against the replica reads it before the merge
+      // lands, so the entity the reviewer ends up with is answered from inside
+      // the transaction that made it.
+      return entityRepo.findOne({
+        select: ['id', 'canonicalName', 'aliases', 'parentId'],
+        where: { id: into.id },
+      });
     });
 
-    return res.status(200).send({ success: true });
+    return res.status(200).send(merged);
   });
 
   // Extraction probes entities into existence that never take a claim, and
@@ -943,22 +963,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const { entities, ids, since } = query;
     const claims = await queryReadReplica(con, async ({ queryRunner }) => {
-      const matched = await findLedgerEntitiesByName({
-        con: queryRunner.manager,
-        names: query.entities,
-      });
-
-      if (!matched.length) {
-        return [];
-      }
-
-      const entityIds = await expandLedgerEntityIds({
-        con: queryRunner.manager,
-        entityIds: matched.map(({ id }) => id),
-      });
-
-      return queryRunner.manager
+      const builder = queryRunner.manager
         .getRepository(Claim)
         .createQueryBuilder('c')
         .innerJoin(LedgerEntity, 'le', 'le.id = c."entityId"')
@@ -977,18 +984,44 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'c.status AS status',
           `COALESCE(json_agg(json_build_object('url', ce.url, 'postId', ce."postId", 'sourceClass', ce."sourceClass", 'publishedAt', ce."publishedAt")) FILTER (WHERE ce.id IS NOT NULL), '[]') AS evidence`,
         ])
+        .groupBy('c.id')
+        .addGroupBy('le."canonicalName"')
+        .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
+        .addOrderBy('c.id', 'DESC');
+
+      // Ids name the claims outright, so the status floor and the date window
+      // would only hide a claim the caller already holds the id of.
+      if (ids) {
+        return builder.where('c.id IN (:...ids)', { ids }).getRawMany();
+      }
+
+      if (!entities || !since) {
+        return [];
+      }
+
+      const matched = await findLedgerEntitiesByName({
+        con: queryRunner.manager,
+        names: entities,
+      });
+
+      if (!matched.length) {
+        return [];
+      }
+
+      const entityIds = await expandLedgerEntityIds({
+        con: queryRunner.manager,
+        entityIds: matched.map(({ id }) => id),
+      });
+
+      return builder
         .where('c."entityId" IN (:...entityIds)', { entityIds })
         .andWhere('c.status IN (:...statuses)', {
           statuses: statusRank.slice(statusRank.indexOf(query.minStatus)),
         })
         .andWhere(
           'COALESCE(c."effectiveDate", c."createdAt"::date) >= :since',
-          { since: query.since },
+          { since },
         )
-        .groupBy('c.id')
-        .addGroupBy('le."canonicalName"')
-        .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
-        .addOrderBy('c.id', 'DESC')
         .getRawMany();
     });
 
