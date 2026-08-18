@@ -11,11 +11,13 @@ import {
   claimEvidenceDeleteSchema,
   claimEvidenceUpdateSchema,
   claimMergeSchema,
+  claimMoveSchema,
   claimStatusUpdateSchema,
   claimUpdateSchema,
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
+  ledgerEntityDeleteSchema,
   ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
   ledgerEntityUpdateSchema,
@@ -201,8 +203,18 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     // or pile redundant evidence onto one.
     const isSplit =
       candidate.status === ClaimCandidateStatus.Merged && body.split === true;
+    // A policy ruling can legitimize a class of denials after the fact, so a
+    // denied candidate merges after all, but only on an explicit exception: a
+    // denial is otherwise final and a runner replaying its work must not undo
+    // a reviewer's call.
+    const isRevive =
+      candidate.status === ClaimCandidateStatus.Denied && body.revive === true;
 
-    if (candidate.status !== ClaimCandidateStatus.Pending && !isSplit) {
+    if (
+      candidate.status !== ClaimCandidateStatus.Pending &&
+      !isSplit &&
+      !isRevive
+    ) {
       throw new ConflictError('Claim candidate is already resolved');
     }
 
@@ -553,6 +565,59 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     return res.status(200).send({ success: true });
   });
 
+  // Extraction probes entities into existence that never take a claim, and
+  // merging one away only moves its names onto a neighbour, so an entity
+  // nothing stands on is dropped outright.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityDeleteSchema>;
+  }>('/entities/delete', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityDeleteSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const entity = await con
+      .getRepository(LedgerEntity)
+      .findOneBy({ id: body.entityId });
+
+    if (!entity) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    // Deleting cascades to the claims filed against the entity and orphans its
+    // children, so both have to be empty before the row can go.
+    const [claims, children] = await Promise.all([
+      con
+        .getRepository(Claim)
+        .countBy([
+          { entityId: entity.id },
+          { supersededByEntityId: entity.id },
+        ]),
+      con.getRepository(LedgerEntity).countBy({ parentId: entity.id }),
+    ]);
+
+    if (claims) {
+      return res
+        .status(400)
+        .send({ error: 'Ledger entity is still referenced by claims' });
+    }
+
+    if (children) {
+      return res
+        .status(400)
+        .send({ error: 'Ledger entity still has child entities' });
+    }
+
+    await con.getRepository(LedgerEntity).delete(entity.id);
+
+    return res.status(200).send({ success: true });
+  });
+
   fastify.post<{
     Body: z.infer<typeof claimStatusUpdateSchema>;
   }>('/claims/status', async (req, res) => {
@@ -726,6 +791,46 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         supersededByClaimId: into.id,
       });
     });
+
+    return res.status(200).send({ success: true });
+  });
+
+  // A claim filed against the wrong entity is otherwise unrepairable: the
+  // entity is chosen when the claim is created and nothing since could change
+  // it. Its evidence hangs off the post, not the entity, so it stays as it is.
+  fastify.post<{
+    Body: z.infer<typeof claimMoveSchema>;
+  }>('/claims/move', async (req, res) => {
+    const body = parseSchema({
+      schema: claimMoveSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const [claim, entity] = await Promise.all([
+      con.getRepository(Claim).findOneBy({ id: body.claimId }),
+      con.getRepository(LedgerEntity).findOneBy({ id: body.entityId }),
+    ]);
+
+    if (!claim) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
+    if (!entity) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    if (claim.entityId === entity.id) {
+      return res
+        .status(400)
+        .send({ error: 'Claim already belongs to this ledger entity' });
+    }
+
+    await con.getRepository(Claim).update(claim.id, { entityId: entity.id });
 
     return res.status(200).send({ success: true });
   });

@@ -46,6 +46,9 @@ export const claimCandidateResolveSchema = z
     // A post can state several facts at once, so a candidate already merged
     // splits into a second claim, but only when the reviewer asks for it.
     split: z.boolean().optional(),
+    // A policy ruling can retroactively legitimize a denied candidate, so a
+    // denial is reopened only through an explicit exception.
+    revive: z.boolean().optional(),
   })
   .refine(({ action, claimId }) => action === 'merge' || !claimId, {
     error: 'claimId is only valid when merging',
@@ -68,7 +71,11 @@ export const claimCandidateResolveSchema = z
       error: 'split requires merging into a new claim with a statement',
       path: ['split'],
     },
-  );
+  )
+  .refine(({ revive, action }) => !revive || action === 'merge', {
+    error: 'revive is only valid when merging',
+    path: ['revive'],
+  });
 
 export const ledgerEntityQuerySchema = z.strictObject({
   name: entityName,
@@ -108,6 +115,12 @@ export const ledgerEntityMergeSchema = z
     path: ['intoEntityId'],
   });
 
+// Stray entities extraction probed into existence carry nothing, and merging
+// them into a neighbour would leave their names behind as its aliases.
+export const ledgerEntityDeleteSchema = z.strictObject({
+  entityId: z.uuid(),
+});
+
 // Corroborated demotes back to candidate when a reviewer finds the second
 // source was the first one restated.
 export const claimStatusUpdateSchema = z.strictObject({
@@ -131,6 +144,13 @@ export const claimUpdateSchema = z.strictObject({
   sunsetDate: z.iso.date().nullish(),
   supersededByEntityId: z.uuid().nullish(),
   supersededByClaimId: z.uuid().nullish(),
+});
+
+// A claim filed against the wrong entity is otherwise stuck there: the entity
+// it belongs to is fixed at creation and nothing else can repoint it.
+export const claimMoveSchema = z.strictObject({
+  claimId: z.uuid(),
+  entityId: z.uuid(),
 });
 
 // Concurrent review files the same fact twice, so the duplicate is absorbed
