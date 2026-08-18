@@ -183,7 +183,6 @@ export type LoggedInBoot = BaseBoot & {
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
   marketingCtaVariants: string[];
-  daily: boolean;
 };
 
 export type FunnelLoggedInUser = GQLUser & {
@@ -792,20 +791,6 @@ const getEngagementCreatives = async (
   }
 };
 
-const getDailyBoot = async ({
-  userId,
-}: {
-  userId: string;
-}): Promise<boolean> => {
-  const key = generateStorageKey(
-    StorageTopic.Boot,
-    StorageKey.DailyFeed,
-    userId,
-  );
-
-  return !(await getRedisObject(key));
-};
-
 const loggedInBoot = async ({
   con,
   req,
@@ -847,7 +832,6 @@ const loggedInBoot = async ({
       anonymousTheme,
       engagementCreatives,
       liveRooms,
-      daily,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -881,7 +865,6 @@ const loggedInBoot = async ({
         consentSection(req, geo),
       ),
       getLiveRoomsBoot(con),
-      getDailyBoot({ userId }),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -998,7 +981,6 @@ const loggedInBoot = async ({
       feeds,
       geo,
       engagementCreatives,
-      daily,
       ...extra,
     } as LoggedInBoot;
   });
