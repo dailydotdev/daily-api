@@ -60,6 +60,7 @@ export enum StorageKey {
   HasLiveRooms = 'has_live_rooms',
   CpaSource = 'cpa_source',
   Statusline = 'statusline',
+  Offers = 'offers',
 }
 
 export const generateStorageKey = (
