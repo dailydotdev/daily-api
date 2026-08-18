@@ -8,8 +8,7 @@ import type { EncoreOffer } from '../integrations/encore/types';
 import { isMockEnabled } from '../mocks/common';
 import { mockEncoreOffersFeedResponse } from '../mocks/encore/offers';
 import {
-  deleteRedisKey,
-  getRedisObject,
+  deleteRedisKeyIfValueMatches,
   setRedisObjectWithExpiry,
 } from '../redis';
 import { remoteConfig } from '../remoteConfig';
@@ -17,8 +16,8 @@ import type { GQLEmptyResponse } from './common';
 
 export const typeDefs = /* GraphQL */ `
   """
-  The product moment an offer is requested for. Encore's feed API has no
-  placement concept yet — this keys config/logging and future branching.
+  The product moment an offer is requested for. Forwarded to Encore as a
+  placementId for funnel reporting, and keys config/logging on our side.
   """
   enum OfferPlacement {
     STREAK_MILESTONE
@@ -63,6 +62,11 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const offersFeedLimit = 3;
+
+// Encore stamps placementId onto impressions/clicks for funnel reporting.
+const encorePlacementIds: Record<string, string> = {
+  STREAK_MILESTONE: 'streak_milestone',
+};
 
 // Ownership markers outlive the popup moment but not the tokenized links.
 const impressionTtlSeconds = ONE_HOUR_IN_SECONDS;
@@ -114,6 +118,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           : await encoreClient.getOffersFeed({
               userId: ctx.userId,
               limit: offersFeedLimit,
+              placementId: encorePlacementIds[args.placement],
               attributes: {
                 countryCode,
                 language: parseLanguage(ctx.requestMeta.acceptLanguage),
@@ -157,16 +162,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       await Promise.all(
         impressionUids.map(async (impressionUid) => {
-          const key = impressionKey(impressionUid);
-          const owner = await getRedisObject(key);
+          // Atomically claim (compare-and-delete) the ownership marker so
+          // concurrent confirmations of the same impression can't both pass
+          // the check and double-count — Encore doesn't dedupe delivered
+          // calls, so a lost confirm beats a duplicated one.
+          const claimed = await deleteRedisKeyIfValueMatches(
+            impressionKey(impressionUid),
+            ctx.userId,
+          );
 
-          if (owner !== ctx.userId) {
+          if (!claimed) {
             return;
           }
-
-          // Delete before confirming: Encore doesn't dedupe delivered calls,
-          // so a lost confirm beats a duplicated one.
-          await deleteRedisKey(key);
 
           if (mocked) {
             return;

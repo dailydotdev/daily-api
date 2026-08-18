@@ -163,6 +163,7 @@ describe('query userOffers', () => {
     expect(spy).toHaveBeenCalledWith({
       userId: '1',
       limit: 3,
+      placementId: 'streak_milestone',
       attributes: expect.objectContaining({
         countryCode: 'US',
         platform: 'web',
@@ -253,6 +254,24 @@ describe('mutation confirmOffersDelivered', () => {
     });
     expect(replay.errors).toBeFalsy();
     expect(spy).toHaveBeenCalledTimes(uids.length);
+  });
+
+  it('should confirm once even under concurrent replays', async () => {
+    loggedUser = '1';
+    await fetchOffers();
+    const spy = jest
+      .spyOn(encoreClient, 'confirmDelivered')
+      .mockResolvedValue(undefined);
+    const uid = mockOffers[0].impressionUid;
+
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        client.mutate(MUTATION, { variables: { impressionUids: [uid] } }),
+      ),
+    );
+
+    results.forEach((res) => expect(res.errors).toBeFalsy());
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('should skip impressions served to another user', async () => {

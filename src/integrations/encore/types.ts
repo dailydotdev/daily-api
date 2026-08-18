@@ -16,6 +16,8 @@ export type EncoreOffer = {
 export type EncoreOffersFeedRequest = {
   userId: string;
   limit?: number;
+  /** Stamped onto impressions/clicks by Encore for funnel reporting. */
+  placementId?: string;
   attributes: {
     countryCode: string;
     language: string;

@@ -47,6 +47,27 @@ export function deleteKeysByPattern(pattern: string): Promise<void> {
 export const deleteRedisKey = (...keys: string[]): Promise<number> =>
   ioRedisPool.execute((client) => client.unlink(...keys));
 
+/**
+ * Atomically deletes the key only if it currently holds the expected value.
+ * Returns true when this call claimed (deleted) the key, so concurrent
+ * callers cannot both win.
+ */
+export const deleteRedisKeyIfValueMatches = async (
+  key: string,
+  expectedValue: string,
+): Promise<boolean> => {
+  const claimed = await ioRedisPool.execute((client) =>
+    client.eval(
+      `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`,
+      1,
+      key,
+      expectedValue,
+    ),
+  );
+
+  return claimed === 1;
+};
+
 export enum RedisMagicValues {
   SLEEPING = 'SLEEPING',
 }

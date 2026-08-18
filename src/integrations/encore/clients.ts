@@ -38,7 +38,7 @@ export class EncoreClient implements IEncoreClient {
       throw new Error('Missing ENCORE_ORIGIN or ENCORE_API_KEY');
     }
 
-    return this.garmr.execute(async () => {
+    return this.garmr.execute(async ({ signal }) => {
       const response = await fetch(`${this.url}${path}`, {
         ...this.fetchOptions,
         method: 'POST',
@@ -47,6 +47,7 @@ export class EncoreClient implements IEncoreClient {
           'X-API-Key': this.apiKey,
         },
         body: JSON.stringify(body),
+        signal,
       });
 
       if (!response.ok) {
