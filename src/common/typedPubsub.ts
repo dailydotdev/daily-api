@@ -232,6 +232,7 @@ export type PubSubSchema = {
   };
   'api.v1.interest-run-requested': {
     interestId: string;
+    runId?: string;
   };
   'api.v1.interest-content-available': {
     interestId: string;

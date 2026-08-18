@@ -216,6 +216,7 @@ export const createInterestAgentTools = async ({
     findingsAdded: 0,
     summaryPostId: null,
     agentSummary: null,
+    finalMessage: null,
   };
 
   const addedPostIds = new Set<string>();
@@ -363,6 +364,7 @@ export const runInterestAgent = async ({
         .join('\n')
         .trim();
       if (text) {
+        state.finalMessage = text;
         log.info({ interestId: interest.id, text }, 'interest agent message');
       }
     } else if (event.type === 'tool_execution_end' && event.isError) {

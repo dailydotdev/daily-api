@@ -9,6 +9,11 @@ import {
   UserInterest,
   UserInterestStatus,
 } from '../../src/entity/UserInterest';
+import {
+  InterestRun,
+  InterestRunStatus,
+  InterestRunTrigger,
+} from '../../src/entity/InterestRun';
 import { usersFixture } from '../fixture/user';
 import { triggerTypedEvent } from '../../src/common/typedPubsub';
 
@@ -87,5 +92,29 @@ describe('interestScheduledRun cron', () => {
     expect(fired).not.toContain('not-due');
     expect(fired).not.toContain('not-due-daily');
     expect(fired).not.toContain('stopped');
+  });
+
+  it('creates a queued scheduled run row per fired interest and passes its id', async () => {
+    await expectSuccessfulCron(cron);
+
+    const runs = await con.getRepository(InterestRun).find();
+    expect(runs.map(({ interestId }) => interestId).sort()).toEqual([
+      'due-hourly',
+      'due-null',
+    ]);
+    expect(runs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: InterestRunStatus.Queued,
+          trigger: InterestRunTrigger.Scheduled,
+        }),
+      ]),
+    );
+
+    const firedRunIds = (triggerTypedEvent as jest.Mock).mock.calls
+      .filter((c) => c[1] === 'api.v1.interest-run-requested')
+      .map((c) => c[2].runId)
+      .sort();
+    expect(firedRunIds).toEqual(runs.map(({ id }) => id).sort());
   });
 });

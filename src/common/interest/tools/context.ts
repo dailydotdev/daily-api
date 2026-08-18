@@ -7,6 +7,7 @@ export type InterestAgentRunState = {
   findingsAdded: number;
   summaryPostId: string | null;
   agentSummary: string | null;
+  finalMessage: string | null;
 };
 
 export type InterestToolContext = {

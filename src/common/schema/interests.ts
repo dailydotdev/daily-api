@@ -39,4 +39,5 @@ export const interestIdSchema = z.object({
 export const sendInterestCommandSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1).max(2000),
+  triggerRun: z.boolean().optional(),
 });

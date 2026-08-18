@@ -6,6 +6,12 @@ import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
 import { InterestFeedback } from '../entity/InterestFeedback';
 import {
+  InterestRun,
+  InterestRunStatus,
+  InterestRunTrigger,
+  type InterestRunBlock,
+} from '../entity/InterestRun';
+import {
   UserInterest,
   UserInterestCadence,
   UserInterestStatus,
@@ -56,6 +62,21 @@ export type GQLInterestFinding = {
   createdAt: Date;
 };
 
+export type GQLInterestTurn = {
+  id: string;
+  role: 'user' | 'agent';
+  createdAt: Date;
+  text?: string | null;
+  status?: string | null;
+  trigger?: string | null;
+  feedbackId?: string | null;
+  blocks?: InterestRunBlock[] | null;
+  findingsAdded?: number | null;
+  summaryPostId?: string | null;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+};
+
 export const typeDefs = /* GraphQL */ `
   """
   A long-lived interest the agent hunts content for
@@ -72,6 +93,8 @@ export const typeDefs = /* GraphQL */ `
     sourceId: String
     lastRunAt: DateTime
     lastRunSummary: String
+    lastRunStatus: String
+    lastRunFindings: Int
     createdAt: DateTime!
     updatedAt: DateTime!
   }
@@ -88,6 +111,25 @@ export const typeDefs = /* GraphQL */ `
     status: String!
     post: Post
     createdAt: DateTime!
+  }
+
+  """
+  One turn in an interest's conversation history: a user command (role user)
+  or an agent run (role agent)
+  """
+  type InterestTurn {
+    id: ID!
+    role: String!
+    createdAt: DateTime!
+    text: String
+    status: String
+    trigger: String
+    feedbackId: String
+    blocks: [JSONObject!]
+    findingsAdded: Int
+    summaryPostId: String
+    startedAt: DateTime
+    finishedAt: DateTime
   }
 
   extend type Query {
@@ -110,6 +152,12 @@ export const typeDefs = /* GraphQL */ `
     Get the generated posts hosted in an interest's source
     """
     interestPosts(id: ID!): [Post!]! @auth
+
+    """
+    Get the merged conversation history of an interest: user commands and
+    agent runs, oldest first
+    """
+    interestHistory(id: ID!): [InterestTurn!]! @auth
   }
 
   input InterestSourcesInput {
@@ -150,10 +198,14 @@ export const typeDefs = /* GraphQL */ `
     deleteInterest(id: ID!): EmptyResponse! @auth
 
     """
-    Send a natural-language command to an interest (records feedback and
-    re-triggers a run)
+    Send a natural-language command to an interest (records feedback and,
+    unless triggerRun is false, re-triggers a run)
     """
-    sendInterestCommand(id: ID!, text: String!): UserInterest! @auth
+    sendInterestCommand(
+      id: ID!
+      text: String!
+      triggerRun: Boolean
+    ): UserInterest! @auth
   }
 `;
 
@@ -285,6 +337,84 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       );
     },
+    interestHistory: async (
+      _,
+      args: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLInterestTurn[]> => {
+      ensureTeamMember(ctx);
+      const { id } = interestIdSchema.parse(args);
+
+      const interest = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(UserInterest).findOne({
+          select: ['id', 'query', 'createdAt'],
+          where: { id, userId: ctx.userId },
+        }),
+      );
+
+      if (!interest) {
+        throw new NotFoundError('Interest not found');
+      }
+
+      const [feedback, runs] = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          Promise.all([
+            queryRunner.manager.getRepository(InterestFeedback).find({
+              select: ['id', 'text', 'createdAt'],
+              where: { interestId: id },
+              order: { createdAt: 'ASC' },
+            }),
+            queryRunner.manager.getRepository(InterestRun).find({
+              where: { interestId: id },
+              order: { createdAt: 'ASC' },
+            }),
+          ]),
+      );
+
+      const turns: GQLInterestTurn[] = [
+        {
+          id: `${interest.id}-spawn`,
+          role: 'user',
+          text: interest.query,
+          createdAt: interest.createdAt,
+        },
+        ...feedback.map(
+          (row): GQLInterestTurn => ({
+            id: row.id,
+            role: 'user',
+            text: row.text,
+            createdAt: row.createdAt,
+          }),
+        ),
+        ...runs.map(
+          (run): GQLInterestTurn => ({
+            id: run.id,
+            role: 'agent',
+            createdAt: run.createdAt,
+            status: run.status,
+            trigger: run.trigger,
+            feedbackId: run.feedbackId,
+            blocks: run.blocks,
+            findingsAdded: run.findingsAdded,
+            summaryPostId: run.summaryPostId,
+            startedAt: run.startedAt,
+            finishedAt: run.finishedAt,
+          }),
+        ),
+      ];
+
+      return turns.sort((a, b) => {
+        const diff = a.createdAt.getTime() - b.createdAt.getTime();
+        if (diff !== 0) {
+          return diff;
+        }
+        if (a.role !== b.role) {
+          return a.role === 'user' ? -1 : 1;
+        }
+        return a.id.localeCompare(b.id);
+      });
+    },
   },
   Mutation: {
     createInterest: async (
@@ -300,6 +430,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const interestId = await generateShortId();
       const sourceId = await generateShortId();
       const feedId = await generateShortId();
+      const runId = await generateShortId();
 
       await ctx.con.transaction(async (manager) => {
         await manager.getRepository(AgentSource).save({
@@ -326,10 +457,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           feedId,
           sourceId,
         });
+
+        await manager.getRepository(InterestRun).insert({
+          id: runId,
+          interestId,
+          status: InterestRunStatus.Queued,
+          trigger: InterestRunTrigger.Spawn,
+        });
       });
 
       await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
         interestId,
+        runId,
       });
 
       return graphorm.queryOneOrFail<GQLUserInterest>(ctx, info, (builder) => {
@@ -430,12 +569,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     sendInterestCommand: async (
       _,
-      args: { id: string; text: string },
+      args: { id: string; text: string; triggerRun?: boolean },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
       ensureTeamMember(ctx);
-      const { id, text } = sendInterestCommandSchema.parse(args);
+      const { id, text, triggerRun } = sendInterestCommandSchema.parse(args);
       const { userId } = ctx;
 
       const interest = await ctx.con.getRepository(UserInterest).findOne({
@@ -447,15 +586,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new NotFoundError('Interest not found');
       }
 
-      await ctx.con.getRepository(InterestFeedback).insert({
-        id: await generateShortId(),
-        interestId: id,
-        text,
+      const feedbackId = await generateShortId();
+      const runId = await generateShortId();
+      const shouldRun = triggerRun !== false;
+
+      await ctx.con.transaction(async (manager) => {
+        await manager.getRepository(InterestFeedback).insert({
+          id: feedbackId,
+          interestId: id,
+          text,
+        });
+
+        if (shouldRun) {
+          await manager.getRepository(InterestRun).insert({
+            id: runId,
+            interestId: id,
+            status: InterestRunStatus.Queued,
+            trigger: InterestRunTrigger.Command,
+            feedbackId,
+          });
+        }
       });
 
-      await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
-        interestId: id,
-      });
+      if (shouldRun) {
+        await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
+          interestId: id,
+          runId,
+        });
+      }
 
       return graphorm.queryOneOrFail<GQLUserInterest>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.where(
