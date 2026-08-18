@@ -117,4 +117,22 @@ describe('interestScheduledRun cron', () => {
       .sort();
     expect(firedRunIds).toEqual(runs.map(({ id }) => id).sort());
   });
+
+  it('reuses the same run on a retry instead of queueing a duplicate', async () => {
+    await expectSuccessfulCron(cron);
+    await con
+      .getRepository(InterestRun)
+      .update(
+        { interestId: 'due-null' },
+        { status: InterestRunStatus.Completed },
+      );
+
+    await expectSuccessfulCron(cron);
+
+    const runs = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'due-null' });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toEqual(InterestRunStatus.Completed);
+  });
 });

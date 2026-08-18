@@ -780,6 +780,51 @@ describe('query interestHistory', () => {
     });
   });
 
+  it('should page older turns through the before cursor', async () => {
+    loggedUser = '1';
+    const firstPage = await client.query(
+      `
+      query InterestHistory($id: ID!, $limit: Int, $before: String) {
+        interestHistory(id: $id, limit: $limit, before: $before) {
+          id
+          role
+          createdAt
+        }
+      }
+    `,
+      { variables: { id: 'uir-1', limit: 2 } },
+    );
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.interestHistory.map(({ id }) => id)).toEqual([
+      'fb-1',
+      'run-2',
+    ]);
+
+    const oldest = firstPage.data.interestHistory[0];
+    const secondPage = await client.query(
+      `
+      query InterestHistory($id: ID!, $limit: Int, $before: String) {
+        interestHistory(id: $id, limit: $limit, before: $before) {
+          id
+          role
+        }
+      }
+    `,
+      {
+        variables: {
+          id: 'uir-1',
+          limit: 2,
+          before: `${new Date(oldest.createdAt).toISOString()}|${oldest.role}|${oldest.id}`,
+        },
+      },
+    );
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.interestHistory.map(({ id }) => id)).toEqual([
+      'uir-1-spawn',
+      'run-1',
+    ]);
+  });
+
   it('should reject history for a non-owner', async () => {
     loggedUser = '2';
     return testQueryErrorCode(

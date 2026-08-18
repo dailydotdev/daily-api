@@ -1,5 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
@@ -30,6 +30,7 @@ import type { GQLPost } from './posts';
 import { PostType } from '../entity/posts/Post';
 import {
   createInterestSchema,
+  interestHistorySchema,
   interestIdSchema,
   sendInterestCommandSchema,
   updateInterestSchema,
@@ -155,9 +156,11 @@ export const typeDefs = /* GraphQL */ `
 
     """
     Get the merged conversation history of an interest: user commands and
-    agent runs, oldest first
+    agent runs, oldest first. Returns the newest turns up to limit; page
+    older turns by passing the oldest received turn's cursor
+    ("<createdAt>|<role>|<id>") as before.
     """
-    interestHistory(id: ID!): [InterestTurn!]! @auth
+    interestHistory(id: ID!, limit: Int, before: String): [InterestTurn!]! @auth
   }
 
   input InterestSourcesInput {
@@ -213,6 +216,27 @@ const ensureTeamMember = (ctx: AuthContext): void => {
   if (!ctx.isTeamMember) {
     throw new ForbiddenError('Interest agent is not available');
   }
+};
+
+const DEFAULT_HISTORY_LIMIT = 100;
+
+const turnRank = { user: 0, agent: 1 } as const;
+
+const compareTurnsAsc = (
+  a: Pick<GQLInterestTurn, 'id' | 'role' | 'createdAt'>,
+  b: Pick<GQLInterestTurn, 'id' | 'role' | 'createdAt'>,
+): number => {
+  const diff = a.createdAt.getTime() - b.createdAt.getTime();
+  if (diff !== 0) {
+    return diff;
+  }
+  if (a.role !== b.role) {
+    return turnRank[a.role] - turnRank[b.role];
+  }
+  if (a.id === b.id) {
+    return 0;
+  }
+  return a.id < b.id ? -1 : 1;
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
@@ -339,11 +363,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     interestHistory: async (
       _,
-      args: { id: string },
+      args: { id: string; limit?: number; before?: string },
       ctx: AuthContext,
     ): Promise<GQLInterestTurn[]> => {
       ensureTeamMember(ctx);
-      const { id } = interestIdSchema.parse(args);
+      const { id, limit, before } = interestHistorySchema.parse(args);
+      const take = limit ?? DEFAULT_HISTORY_LIMIT;
+
+      let cursor: { createdAt: Date; rank: number; id: string } | null = null;
+      if (before) {
+        const [iso, rank, cursorId] = before.split('|');
+        const createdAt = new Date(iso);
+        if (
+          Number.isNaN(createdAt.getTime()) ||
+          !(rank in turnRank) ||
+          !cursorId
+        ) {
+          throw new ValidationError('Invalid history cursor');
+        }
+        cursor = {
+          createdAt,
+          rank: turnRank[rank as keyof typeof turnRank],
+          id: cursorId,
+        };
+      }
 
       const interest = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(UserInterest).findOne({
@@ -358,27 +401,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
       const [feedback, runs] = await queryReadReplica(
         ctx.con,
-        ({ queryRunner }) =>
-          Promise.all([
-            queryRunner.manager.getRepository(InterestFeedback).find({
-              select: ['id', 'text', 'createdAt'],
-              where: { interestId: id },
-              order: { createdAt: 'ASC' },
-            }),
-            queryRunner.manager.getRepository(InterestRun).find({
-              where: { interestId: id },
-              order: { createdAt: 'ASC' },
-            }),
-          ]),
+        ({ queryRunner }) => {
+          const feedbackBuilder = queryRunner.manager
+            .getRepository(InterestFeedback)
+            .createQueryBuilder('fb')
+            .select(['fb.id', 'fb.text', 'fb.createdAt'])
+            .where('fb."interestId" = :id', { id })
+            .orderBy('fb."createdAt"', 'DESC')
+            .addOrderBy('fb.id', 'DESC')
+            .limit(take);
+          const runsBuilder = queryRunner.manager
+            .getRepository(InterestRun)
+            .createQueryBuilder('r')
+            .where('r."interestId" = :id', { id })
+            .orderBy('r."createdAt"', 'DESC')
+            .addOrderBy('r.id', 'DESC')
+            .limit(take);
+
+          if (cursor) {
+            const params = {
+              cursorAt: cursor.createdAt,
+              cursorRank: cursor.rank,
+              cursorId: cursor.id,
+            };
+            feedbackBuilder.andWhere(
+              `(fb."createdAt", ${turnRank.user}, fb.id) < (:cursorAt, :cursorRank, :cursorId)`,
+              params,
+            );
+            runsBuilder.andWhere(
+              `(r."createdAt", ${turnRank.agent}, r.id) < (:cursorAt, :cursorRank, :cursorId)`,
+              params,
+            );
+          }
+
+          return Promise.all([
+            feedbackBuilder.getMany(),
+            runsBuilder.getMany(),
+          ]);
+        },
       );
 
-      const turns: GQLInterestTurn[] = [
-        {
-          id: `${interest.id}-spawn`,
-          role: 'user',
-          text: interest.query,
-          createdAt: interest.createdAt,
-        },
+      const merged: GQLInterestTurn[] = [
         ...feedback.map(
           (row): GQLInterestTurn => ({
             id: row.id,
@@ -402,18 +465,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             finishedAt: run.finishedAt,
           }),
         ),
-      ];
+      ].sort(compareTurnsAsc);
 
-      return turns.sort((a, b) => {
-        const diff = a.createdAt.getTime() - b.createdAt.getTime();
-        if (diff !== 0) {
-          return diff;
-        }
-        if (a.role !== b.role) {
-          return a.role === 'user' ? -1 : 1;
-        }
-        return a.id.localeCompare(b.id);
-      });
+      const page = merged.slice(-take);
+      const spawnTurn: GQLInterestTurn = {
+        id: `${interest.id}-spawn`,
+        role: 'user',
+        text: interest.query,
+        createdAt: interest.createdAt,
+      };
+      const reachedStart =
+        merged.length < take &&
+        (!cursor ||
+          compareTurnsAsc(spawnTurn, {
+            id: cursor.id,
+            role: cursor.rank === turnRank.user ? 'user' : 'agent',
+            createdAt: cursor.createdAt,
+          }) < 0);
+
+      return reachedStart ? [spawnTurn, ...page] : page;
     },
   },
   Mutation: {

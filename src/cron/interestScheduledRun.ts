@@ -7,7 +7,6 @@ import {
 } from '../entity/InterestRun';
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { generateShortId } from '../ids';
 
 const cron: Cron = {
   name: 'interest-scheduled-run',
@@ -27,14 +26,22 @@ const cron: Cron = {
         .getRawMany<{ id: string }>(),
     );
 
+    const hourBucket = new Date().toISOString().slice(0, 13);
+
     for (const { id } of interests) {
-      const runId = await generateShortId();
-      await con.getRepository(InterestRun).insert({
-        id: runId,
-        interestId: id,
-        status: InterestRunStatus.Queued,
-        trigger: InterestRunTrigger.Scheduled,
-      });
+      const runId = `sched-${id}-${hourBucket}`;
+      await con
+        .getRepository(InterestRun)
+        .createQueryBuilder()
+        .insert()
+        .values({
+          id: runId,
+          interestId: id,
+          status: InterestRunStatus.Queued,
+          trigger: InterestRunTrigger.Scheduled,
+        })
+        .orIgnore()
+        .execute();
       await triggerTypedEvent(logger, 'api.v1.interest-run-requested', {
         interestId: id,
         runId,

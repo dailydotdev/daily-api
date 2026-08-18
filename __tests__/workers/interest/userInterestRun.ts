@@ -350,6 +350,86 @@ describe('userInterestRun worker', () => {
     expect(interest.lastRunStatus).toEqual(InterestRunStatus.Failed);
   });
 
+  it('does not re-run a delivery whose run already completed', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Completed,
+      trigger: InterestRunTrigger.Command,
+      finishedAt: new Date(),
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    expect(runInterestAgent).not.toHaveBeenCalled();
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+  });
+
+  it('does not double-run while another delivery holds a fresh running claim', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Running,
+      trigger: InterestRunTrigger.Command,
+      startedAt: new Date(),
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    expect(runInterestAgent).not.toHaveBeenCalled();
+  });
+
+  it('reclaims a failed run so a redelivery can retry it', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Failed,
+      trigger: InterestRunTrigger.Command,
+      finishedAt: new Date(),
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    expect(runInterestAgent).toHaveBeenCalled();
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+  });
+
+  it('reclaims a stale running run whose worker died mid-flight', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Running,
+      trigger: InterestRunTrigger.Scheduled,
+      startedAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    expect(runInterestAgent).toHaveBeenCalled();
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+  });
+
   it('fails the provided run when the interest is not active', async () => {
     await con
       .getRepository(UserInterest)

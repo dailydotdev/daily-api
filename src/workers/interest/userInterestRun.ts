@@ -1,3 +1,4 @@
+import { Not, type Repository } from 'typeorm';
 import type { TypedWorker } from '../worker';
 import { UserInterest, UserInterestStatus } from '../../entity/UserInterest';
 import {
@@ -18,6 +19,7 @@ import { generateShortId } from '../../ids';
 import type { InterestAgentRunState } from '../../common/interest/tools/context';
 
 const MAX_PICKS = 3;
+const STALE_RUNNING_RECLAIM_MINUTES = 30;
 
 const buildRunBlocks = ({
   result,
@@ -46,6 +48,33 @@ const buildRunBlocks = ({
   return blocks;
 };
 
+const claimRun = async ({
+  runRepo,
+  runId,
+  startedAt,
+}: {
+  runRepo: Repository<InterestRun>;
+  runId: string;
+  startedAt: Date;
+}): Promise<boolean> => {
+  const result = await runRepo
+    .createQueryBuilder()
+    .update(InterestRun)
+    .set({ status: InterestRunStatus.Running, startedAt })
+    .where('id = :runId', { runId })
+    .andWhere(
+      `(status IN (:...claimable) OR (status = :running AND "startedAt" < now() - make_interval(mins => :staleMinutes)))`,
+      {
+        claimable: [InterestRunStatus.Queued, InterestRunStatus.Failed],
+        running: InterestRunStatus.Running,
+        staleMinutes: STALE_RUNNING_RECLAIM_MINUTES,
+      },
+    )
+    .execute();
+
+  return (result.affected ?? 0) > 0;
+};
+
 export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'> =
   {
     subscription: 'api.user-interest-run',
@@ -60,36 +89,41 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
       if (!interest || interest.status !== UserInterestStatus.Active) {
         if (runId) {
           await runRepo.update(
-            { id: runId },
+            { id: runId, status: Not(InterestRunStatus.Completed) },
             { status: InterestRunStatus.Failed, finishedAt: new Date() },
           );
         }
         return;
       }
 
-      let run = runId ? await runRepo.findOneBy({ id: runId }) : null;
-      if (!run) {
-        run = await runRepo.save({
-          id: await generateShortId(),
+      const runAt = Date.now();
+      let claimedRunId = runId;
+      if (claimedRunId) {
+        const claimed = await claimRun({
+          runRepo,
+          runId: claimedRunId,
+          startedAt: new Date(runAt),
+        });
+        if (!claimed) {
+          return;
+        }
+      } else {
+        claimedRunId = await generateShortId();
+        await runRepo.insert({
+          id: claimedRunId,
           interestId,
-          status: InterestRunStatus.Queued,
+          status: InterestRunStatus.Running,
           trigger: InterestRunTrigger.Scheduled,
+          startedAt: new Date(runAt),
         });
       }
 
-      const runAt = Date.now();
-      await Promise.all([
-        runRepo.update(
-          { id: run.id },
-          { status: InterestRunStatus.Running, startedAt: new Date(runAt) },
-        ),
-        con
-          .getRepository(UserInterest)
-          .update(
-            { id: interest.id },
-            { lastRunStatus: InterestRunStatus.Running },
-          ),
-      ]);
+      await con
+        .getRepository(UserInterest)
+        .update(
+          { id: interest.id },
+          { lastRunStatus: InterestRunStatus.Running },
+        );
 
       let result: InterestAgentRunState;
       try {
@@ -97,7 +131,7 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
       } catch (error) {
         await Promise.all([
           runRepo.update(
-            { id: run.id },
+            { id: claimedRunId },
             { status: InterestRunStatus.Failed, finishedAt: new Date() },
           ),
           con
@@ -131,16 +165,16 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           .getRawMany<{ postId: string }>(),
       ]);
 
-      await con
-        .getRepository(InterestFinding)
-        .update(
-          { interestId: interest.id, status: InterestFindingStatus.New },
-          { status: InterestFindingStatus.Surfaced },
-        );
+      await con.transaction(async (manager) => {
+        await manager
+          .getRepository(InterestFinding)
+          .update(
+            { interestId: interest.id, status: InterestFindingStatus.New },
+            { status: InterestFindingStatus.Surfaced },
+          );
 
-      await Promise.all([
-        runRepo.update(
-          { id: run.id },
+        await manager.getRepository(InterestRun).update(
+          { id: claimedRunId },
           {
             status: InterestRunStatus.Completed,
             finishedAt: new Date(),
@@ -148,8 +182,9 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             findingsAdded: deliverableCount,
             summaryPostId: result.summaryPostId,
           },
-        ),
-        con.getRepository(UserInterest).update(
+        );
+
+        await manager.getRepository(UserInterest).update(
           { id: interest.id },
           {
             lastRunAt: new Date(runAt),
@@ -157,8 +192,8 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             lastRunStatus: InterestRunStatus.Completed,
             lastRunFindings: deliverableCount,
           },
-        ),
-      ]);
+        );
+      });
 
       const hasContent = deliverableCount > 0 || !!result.summaryPostId;
 

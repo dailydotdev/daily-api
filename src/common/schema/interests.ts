@@ -36,6 +36,12 @@ export const interestIdSchema = z.object({
   id: z.string().min(1),
 });
 
+export const interestHistorySchema = z.object({
+  id: z.string().min(1),
+  limit: z.number().int().min(1).max(200).optional(),
+  before: z.string().min(1).max(200).optional(),
+});
+
 export const sendInterestCommandSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1).max(2000),
