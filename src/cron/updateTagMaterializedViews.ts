@@ -4,7 +4,6 @@ import { SourceTagView } from '../entity/SourceTagView';
 import { TagRecommendation } from '../entity/TagRecommendation';
 import { UserSimilarityView } from '../entity/user/UserSimilarityView';
 import { UserTagView } from '../entity/user/UserTagView';
-import { KeywordChannel } from '../entity/KeywordChannel';
 
 const cron: Cron = {
   name: 'update-tag-materialized-views',
@@ -15,7 +14,6 @@ const cron: Cron = {
       SourceSimilarityView,
       UserSimilarityView,
       TagRecommendation,
-      KeywordChannel,
     ];
 
     for (const view of viewsToRefresh) {

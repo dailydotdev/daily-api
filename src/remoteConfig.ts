@@ -66,7 +66,6 @@ export type RemoteConfigValue = {
   engagementAdsEnabled: boolean;
   postHighlightTtlSeconds: number;
   contributionProgram: ContributionProgramConfig;
-  headlineChannelMinPosts: number;
   excludedMarketingCta: string[];
   personalContextEnabled: boolean;
   tagChipTopicsClusterThreshold: number;
