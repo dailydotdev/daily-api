@@ -72,6 +72,11 @@ export class ClaimCandidate {
   @Column({ type: 'text', default: ClaimCandidateStatus.Pending })
   status: ClaimCandidateStatus;
 
+  // The rule the reviewer cited when resolving the candidate, so the recall
+  // audit can read the reasoning instead of guessing it from the outcome.
+  @Column({ type: 'text', nullable: true, default: null })
+  note: string | null;
+
   @Column({ type: 'uuid', nullable: true, default: null })
   claimId: string | null;
 

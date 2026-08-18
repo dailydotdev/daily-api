@@ -9,6 +9,15 @@ const entityName = z.string().trim().min(1).max(200);
 const keywordValue = z.string().trim().min(1).max(200);
 const statement = z.string().trim().min(1).max(1000);
 const versionScope = z.string().trim().min(1).max(200);
+const note = z.string().trim().min(1).max(500);
+
+const commaSeparated = z
+  .union([z.string(), z.array(z.string())])
+  .transform((value) =>
+    (Array.isArray(value) ? value : value.split(','))
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
 
 export const claimCandidateListSchema = z.strictObject({
   status: z
@@ -49,6 +58,9 @@ export const claimCandidateResolveSchema = z
     // A policy ruling can retroactively legitimize a denied candidate, so a
     // denial is reopened only through an explicit exception.
     revive: z.boolean().optional(),
+    // The rule the decision cites, kept on the candidate so the reasoning
+    // outlives the reviewer's scratch file.
+    note: note.optional(),
   })
   .refine(({ action, claimId }) => action === 'merge' || !claimId, {
     error: 'claimId is only valid when merging',
@@ -188,21 +200,24 @@ export const claimEvidenceDeleteSchema = z.strictObject({
   url: z.url(),
 });
 
-export const claimsQuerySchema = z.strictObject({
-  entities: z
-    .union([z.string(), z.array(z.string())])
-    .transform((value) =>
-      (Array.isArray(value) ? value : value.split(','))
-        .map((name) => name.trim())
-        .filter(Boolean),
-    )
-    .pipe(z.array(entityName).min(1).max(50)),
-  since: z.iso.date(),
-  minStatus: z
-    .literal([
-      ClaimStatus.Candidate,
-      ClaimStatus.Corroborated,
-      ClaimStatus.Verified,
-    ])
-    .default(ClaimStatus.Candidate),
-});
+// Validating a claimId is a lookup, not a feed read, so ids answers with
+// exactly the claims asked for and the entity window steps aside.
+export const claimsQuerySchema = z
+  .strictObject({
+    entities: commaSeparated
+      .pipe(z.array(entityName).min(1).max(50))
+      .optional(),
+    ids: commaSeparated.pipe(z.array(z.uuid()).min(1).max(100)).optional(),
+    since: z.iso.date().optional(),
+    minStatus: z
+      .literal([
+        ClaimStatus.Candidate,
+        ClaimStatus.Corroborated,
+        ClaimStatus.Verified,
+      ])
+      .default(ClaimStatus.Candidate),
+  })
+  .refine(({ ids, entities, since }) => !!ids || (!!entities && !!since), {
+    error: 'entities and since are required without ids',
+    path: ['ids'],
+  });
