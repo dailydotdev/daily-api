@@ -428,18 +428,6 @@ Object {
 exports[`query recommendedMentions should return users with user or username starting with the query prioritizing previously mentioned ones 1`] = `
 Array [
   Object {
-    "id": "6",
-    "image": "https://daily.dev/samson.jpg",
-    "name": "Samson",
-    "username": "Samson",
-  },
-  Object {
-    "id": "7",
-    "image": "https://daily.dev/solevilla.jpg",
-    "name": "Solevilla",
-    "username": "Solevilla",
-  },
-  Object {
     "id": "system",
     "image": "https://daily.dev/assets/maskable_icon.png",
     "name": "daily.dev system user",
@@ -450,6 +438,18 @@ Array [
     "image": "sample/image",
     "name": "sample",
     "username": "sample",
+  },
+  Object {
+    "id": "6",
+    "image": "https://daily.dev/samson.jpg",
+    "name": "Samson",
+    "username": "Samson",
+  },
+  Object {
+    "id": "7",
+    "image": "https://daily.dev/solevilla.jpg",
+    "name": "Solevilla",
+    "username": "Solevilla",
   },
 ]
 `;
