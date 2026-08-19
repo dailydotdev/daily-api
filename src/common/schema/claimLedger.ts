@@ -10,6 +10,9 @@ const keywordValue = z.string().trim().min(1).max(200);
 const statement = z.string().trim().min(1).max(1000);
 const versionScope = z.string().trim().min(1).max(200);
 const note = z.string().trim().min(1).max(500);
+// Symbols, import paths, model IDs and endpoints, kept as the literal token a
+// plan would carry so matching stays an equality check.
+const signatures = z.array(z.string().trim().min(1).max(200)).max(50);
 
 const commaSeparated = z
   .union([z.string(), z.array(z.string())])
@@ -35,6 +38,8 @@ const claimOverrideKeys = [
   'effectiveDate',
   'sunsetDate',
   'entityId',
+  'affected',
+  'superseding',
 ] as const;
 
 export const claimCandidateResolveSchema = z
@@ -52,6 +57,8 @@ export const claimCandidateResolveSchema = z
     effectiveDate: z.iso.date().nullish(),
     sunsetDate: z.iso.date().nullish(),
     entityId: z.uuid().optional(),
+    affected: signatures.optional(),
+    superseding: signatures.optional(),
     // A post can state several facts at once, so a candidate already merged
     // splits into a second claim, but only when the reviewer asks for it.
     split: z.boolean().optional(),
@@ -156,6 +163,8 @@ export const claimUpdateSchema = z.strictObject({
   sunsetDate: z.iso.date().nullish(),
   supersededByEntityId: z.uuid().nullish(),
   supersededByClaimId: z.uuid().nullish(),
+  affected: signatures.optional(),
+  superseding: signatures.optional(),
 });
 
 // A claim filed against the wrong entity is otherwise stuck there: the entity
@@ -209,6 +218,9 @@ export const claimsQuerySchema = z
       .optional(),
     ids: commaSeparated.pipe(z.array(z.uuid()).min(1).max(100)).optional(),
     since: z.iso.date().optional(),
+    // Undated claims answer the window too, since a missing date hides a change
+    // rather than placing it. A study slicing months wants only the dated ones.
+    dated: z.stringbool().default(false),
     minStatus: z
       .literal([
         ClaimStatus.Candidate,

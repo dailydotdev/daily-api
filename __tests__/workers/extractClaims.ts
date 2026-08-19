@@ -138,6 +138,8 @@ describe('extractClaims worker', () => {
             supersededBy: '',
             directness: ProtoClaimDirectness.ANNOUNCEMENT,
             evidence: 'React 19 removes defaultProps.',
+            affected: ['defaultProps'],
+            superseding: ['default parameters'],
           }),
           new ProtoClaim({
             entityName: 'react',
@@ -181,6 +183,8 @@ describe('extractClaims worker', () => {
       supersededBy: null,
       directness: ClaimDirectness.Announcement,
       status: ClaimCandidateStatus.Pending,
+      affected: ['defaultProps'],
+      superseding: ['default parameters'],
     });
   });
 

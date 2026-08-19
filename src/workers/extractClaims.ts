@@ -244,6 +244,8 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             directness:
               directnessMap[claim.directness] ?? ClaimDirectness.Report,
             evidence: claim.evidence,
+            affected: claim.affected,
+            superseding: claim.superseding,
           });
 
           return acc;
