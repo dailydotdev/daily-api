@@ -22,7 +22,8 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { toChangeObject } from '../../../src/common/utils';
 import { triggerTypedEvent } from '../../../src/common/typedPubsub';
-import type { Post } from '../../../src/entity/posts/Post';
+import { PostType, type Post } from '../../../src/entity/posts/Post';
+import { COLLECTIONS_SOURCE } from '../../../src/common/interest/exclusions';
 
 jest.mock('../../../src/common/interest/runInterestAgent', () => ({
   runInterestAgent: jest.fn(),
@@ -187,6 +188,48 @@ describe('postVisibleInterestMatch worker', () => {
 
     await expectSuccessfulTypedBackground<'api.v1.post-visible'>(worker, {
       post: { ...post, private: true },
+    });
+
+    const finding = await con
+      .getRepository(InterestFinding)
+      .findOneBy({ interestId: 'uir-1', postId: 'p1' });
+    expect(finding).toBeNull();
+  });
+
+  it('skips banned posts', async () => {
+    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+    const post = await getPost();
+
+    await expectSuccessfulTypedBackground<'api.v1.post-visible'>(worker, {
+      post: { ...post, banned: true },
+    });
+
+    const finding = await con
+      .getRepository(InterestFinding)
+      .findOneBy({ interestId: 'uir-1', postId: 'p1' });
+    expect(finding).toBeNull();
+  });
+
+  it('skips aggregation post types so collections never become findings', async () => {
+    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+    const post = await getPost();
+
+    await expectSuccessfulTypedBackground<'api.v1.post-visible'>(worker, {
+      post: { ...post, type: PostType.Collection },
+    });
+
+    const finding = await con
+      .getRepository(InterestFinding)
+      .findOneBy({ interestId: 'uir-1', postId: 'p1' });
+    expect(finding).toBeNull();
+  });
+
+  it('skips posts hosted in an excluded source', async () => {
+    await con.getRepository(FeedTag).save({ feedId: 'feed-1', tag: 'zig' });
+    const post = await getPost();
+
+    await expectSuccessfulTypedBackground<'api.v1.post-visible'>(worker, {
+      post: { ...post, sourceId: COLLECTIONS_SOURCE },
     });
 
     const finding = await con

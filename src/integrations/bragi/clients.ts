@@ -10,6 +10,7 @@ import {
   ClassifyRejectionFeedbackResponse,
   ClassifyUserFeedbackResponse,
   EvaluateChannelHighlightsResponse,
+  ExtractClaimsResponse,
   FeedbackCategory,
   FeedbackClassification,
   FeedbackPlatform,
@@ -33,6 +34,7 @@ import {
   RejectionFeedbackClassification,
   RejectionReason,
   RejectionReasonDetail,
+  ResolveOrganizationResponse,
   TopicalDigest,
   TopicalDigestItem,
   UserFeedbackClassification,
@@ -147,6 +149,12 @@ export const getBragiClient = (
           new EvaluateChannelHighlightsResponse({
             highlights: [],
           }),
+        extractClaims: async () =>
+          new ExtractClaimsResponse({
+            id: 'mock-id',
+            model: 'mock-model',
+            claims: [],
+          }),
         audienceFit: async () =>
           new AudienceFitResponse({
             id: 'mock-id',
@@ -175,6 +183,13 @@ export const getBragiClient = (
             id: 'mock-id',
             category: ProtoGearCategory.OTHER,
             normalizedName: name,
+          }),
+        resolveOrganization: async () =>
+          new ResolveOrganizationResponse({
+            id: 'mock-id',
+            englishName: 'Mock Organization',
+            nativeName: 'Mock Organization',
+            domain: 'mock-organization.com',
           }),
         gitHubProfileTags: async () =>
           new GitHubProfileTagsResponse({

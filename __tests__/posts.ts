@@ -324,6 +324,59 @@ describe('slug field', () => {
   });
 });
 
+describe('answeredQuestions field', () => {
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        answeredQuestions {
+          question
+          answer
+          cta
+        }
+      }
+    }
+  `;
+
+  it('should return null when the post was never enriched with questions', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toBeNull();
+  });
+
+  it('should return an empty list when enrichment found nothing worth asking', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { answeredQuestions: [] });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toEqual([]);
+  });
+
+  it('should return the questions when present', async () => {
+    const answeredQuestions = [
+      {
+        question: 'What session security defaults change in PHP 8.6?',
+        answer: 'PHP 8.6 flips three session ini defaults to safer values.',
+        cta: 'Teams shipping PHP upgrades track breaking changes like these on daily.dev.',
+      },
+      {
+        question: 'How does partial function application work in PHP 8.6?',
+        answer: 'A ? placeholder prefills arguments and returns a callable.',
+        cta: 'Developers adopting new PHP syntax compare real usage on daily.dev.',
+      },
+    ];
+
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { answeredQuestions });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.post.answeredQuestions).toEqual(answeredQuestions);
+  });
+});
+
 describe('communitySentiment field', () => {
   const QUERY = /* GraphQL */ `
     {

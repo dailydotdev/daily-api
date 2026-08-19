@@ -8766,6 +8766,48 @@ describe('user experience change', () => {
       expect(experience).toBeNull();
     });
 
+    it('should request company enrichment when only a custom company name is set', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        companyId: null,
+        customCompanyName: 'Integrated Worlds',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_experience',
+        }),
+      );
+
+      expect(jest.mocked(triggerTypedEvent).mock.calls).toContainEqual([
+        expect.anything(),
+        'api.v1.experience-company-enrichment',
+        { experienceId: after.id },
+      ]);
+    });
+
+    it('should not request company enrichment when the company is already linked', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: { ...base, customCompanyName: 'Integrated Worlds' },
+          before: null,
+          op: 'c',
+          table: 'user_experience',
+        }),
+      );
+
+      expect(jest.mocked(triggerTypedEvent).mock.calls).not.toContainEqual([
+        expect.anything(),
+        'api.v1.experience-company-enrichment',
+        { experienceId: base.id },
+      ]);
+    });
+
     it('should not verify experience work when companyId is not set', async () => {
       const after: ChangeObject<UserExperienceWork> = {
         ...base,

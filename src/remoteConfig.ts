@@ -58,7 +58,7 @@ export type RemoteConfigValue = {
   interestAgentMaxTags: number;
   interestAgentMaxWebSearchesPerRun: number;
   interestAgentMaxDiscoveriesPerDay: number;
-  dailyFeedCacheKey: string;
+  interestAgentMaxToolCallsPerRun: number;
   superAgentTrial: SuperAgentTrialConfig;
   digestPostEnabled: boolean;
   newViewLogs: boolean;
@@ -66,9 +66,13 @@ export type RemoteConfigValue = {
   engagementAdsEnabled: boolean;
   postHighlightTtlSeconds: number;
   contributionProgram: ContributionProgramConfig;
-  headlineChannelMinPosts: number;
   excludedMarketingCta: string[];
   personalContextEnabled: boolean;
+  tagChipTopicsClusterThreshold: number;
+  encoreOffers: Partial<{
+    enabled: boolean;
+    allowedCountries: string[];
+  }>;
 };
 
 class RemoteConfig {
@@ -109,6 +113,11 @@ class RemoteConfig {
             enabled: true,
             allowedCountries: ['US', 'GB', 'CA', 'IL', 'DE', 'FR', 'IN', 'AU'],
             currentCycleTargetPoints: 10000,
+          },
+          // Local dev default so Encore offers can be tested without a
+          // GrowthBook connection (the API key still comes from env).
+          encoreOffers: {
+            enabled: true,
           },
         }),
       };

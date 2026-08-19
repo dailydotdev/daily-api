@@ -38,8 +38,6 @@ import { PollOption } from '../src/entity/polls/PollOption';
 import { Niche, NicheBucketGroup } from '../src/entity/Niche';
 import { PostNiche } from '../src/entity/PostNiche';
 import { SourceMemberRoles } from '../src/roles';
-import { snotraUserApiClient } from '../src/integrations/snotra/clients';
-import { PersonaliseState } from '../src/integrations/snotra/types';
 import { Category } from '../src/entity/Category';
 import { Persona } from '../src/entity/Persona';
 import { FastifyInstance } from 'fastify';
@@ -72,7 +70,7 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { maxFeedsPerUser, UserVote } from '../src/types';
+import { maxFeedsPerUser, TagChipSeedStrategy, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import { feedClient } from '../src/integrations/feed/generators';
@@ -1545,101 +1543,6 @@ describe('query feedV2', () => {
         },
       })),
     );
-  });
-});
-
-describe('query dailyFeed', () => {
-  const variables = { first: 10 };
-
-  const QUERY = `
-  query DailyFeed($first: Int, $after: String, $ranking: Ranking, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    dailyFeed(first: $first, after: $after, ranking: $ranking, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
-      ${feedFields()}
-    }
-  }
-`;
-
-  afterEach(() => jest.restoreAllMocks());
-
-  it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
-
-  it('should fetch the daily feed with the personalised config for personalised users', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-
-    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
-      personalise: { state: PersonaliseState.Personalised },
-    });
-    nock('http://localhost:6000')
-      .post('/api/daily-posts', (body) => {
-        expect(body.feed_config_name).toEqual('daily_v1');
-        return true;
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-        cursor: 'next-cursor',
-      });
-
-    const res = await client.query(QUERY, { variables });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.dailyFeed.pageInfo.endCursor).toEqual('next-cursor');
-    expect(res.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
-      'p1',
-      'p4',
-    ]);
-  });
-
-  it('should fetch the daily feed with the cold start config for non-personalised users', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-
-    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
-      personalise: { state: PersonaliseState.NonPersonalised },
-    });
-    nock('http://localhost:6000')
-      .post('/api/daily-posts', (body) => {
-        expect(body.feed_config_name).toEqual('daily_cs_v1');
-        return true;
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }],
-        cursor: 'b',
-      });
-
-    const res = await client.query(QUERY, { variables });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
-      'p1',
-    ]);
-  });
-
-  it('should serve repeat requests from the redis cache without re-hitting the feed service', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-
-    jest.spyOn(snotraUserApiClient, 'getUserProfile').mockResolvedValue({
-      personalise: { state: PersonaliseState.Personalised },
-    });
-    // Only one feed-service mock: a second call would have no nock match and fail.
-    nock('http://localhost:6000')
-      .post('/api/daily-posts')
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-        cursor: 'next-cursor',
-      });
-
-    const first = await client.query(QUERY, { variables });
-    const second = await client.query(QUERY, { variables });
-
-    expect(first.errors).toBeFalsy();
-    expect(second.errors).toBeFalsy();
-    expect(second.data.dailyFeed.edges.map((edge) => edge.node.id)).toEqual([
-      'p1',
-      'p4',
-    ]);
   });
 });
 
@@ -4542,8 +4445,8 @@ describe('query feedPreview', () => {
 
 describe('query userUpvotedFeed', () => {
   const QUERY = `
-  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $niches: [String!]) {
-    userUpvotedFeed(userId: $userId, first: $first, after: $after, niches: $niches) {
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String, $nicheIds: [ID!]) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after, nicheIds: $nicheIds) {
       ${feedFields()}
     }
   }
@@ -4622,7 +4525,7 @@ describe('query userUpvotedFeed', () => {
 
     it('should only return upvotes in the given niches', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['rust'] },
+        variables: { userId: '2', nicheIds: [rustId] },
       });
 
       expect(res.errors).toBeFalsy();
@@ -4633,7 +4536,7 @@ describe('query userUpvotedFeed', () => {
 
     it('should match a secondary niche of a post', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['js_ts'] },
+        variables: { userId: '2', nicheIds: [jsTsId] },
       });
 
       expect(res.errors).toBeFalsy();
@@ -4644,7 +4547,10 @@ describe('query userUpvotedFeed', () => {
 
     it('should return nothing for an unknown niche', async () => {
       const res = await client.query(QUERY, {
-        variables: { userId: '2', niches: ['nope'] },
+        variables: {
+          userId: '2',
+          nicheIds: ['00000000-0000-4000-8000-000000000000'],
+        },
       });
 
       expect(res.errors).toBeFalsy();
@@ -4999,6 +4905,89 @@ describe('query feedList', () => {
         .getMany();
       expect(chipFeeds).toHaveLength(1);
       expect(getUserTagsSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tagChipSeedStrategy arg', () => {
+    const QUERY_WITH_STRATEGY = `
+      query FeedList(
+        $includeTagChipFeeds: Boolean
+        $tagChipSeedStrategy: TagChipSeedStrategy
+      ) {
+        feedList(
+          includeTagChipFeeds: $includeTagChipFeeds
+          tagChipSeedStrategy: $tagChipSeedStrategy
+        ) {
+          edges {
+            node {
+              flags {
+                name
+                origin
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let getUserTagsSpy: jest.SpyInstance;
+    let getTopicsSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      getUserTagsSpy = jest
+        .spyOn(feedClient, 'getUserTags')
+        .mockResolvedValue([]);
+      getTopicsSpy = jest.spyOn(feedClient, 'getTopics').mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      getUserTagsSpy.mockRestore();
+      getTopicsSpy.mockRestore();
+    });
+
+    it('defaults to V2 when omitted', async () => {
+      getUserTagsSpy.mockResolvedValue(['javascript']);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: { includeTagChipFeeds: true },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).not.toHaveBeenCalled();
+      const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
+      expect(user.flags?.tagChipFeedsSeedStrategy).toEqual(
+        TagChipSeedStrategy.V2,
+      );
+    });
+
+    it('seeds clustered topics when V3', async () => {
+      await con.getRepository(ContentPreferenceKeyword).save({
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      });
+      getTopicsSpy.mockResolvedValue([
+        { label: 'javascript', tags: ['javascript'] },
+      ]);
+
+      const res = await client.query(QUERY_WITH_STRATEGY, {
+        variables: {
+          includeTagChipFeeds: true,
+          tagChipSeedStrategy: TagChipSeedStrategy.V3,
+        },
+      });
+      expect(res.errors).toBeFalsy();
+
+      expect(getTopicsSpy).toHaveBeenCalled();
+      expect(getUserTagsSpy).not.toHaveBeenCalled();
+
+      const seededNames = res.data.feedList.edges
+        .filter((e) => e.node.flags.origin === FeedOrigin.TagChip)
+        .map((e) => e.node.flags.name);
+      expect(seededNames).toEqual(['javascript']);
     });
   });
 });

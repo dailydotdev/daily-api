@@ -2,9 +2,12 @@ import {
   dedupedSend,
   digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
+  publishEvent,
+  pubsub as pubsubClient,
   resolveDigestPersonaliseState,
   sendEmail,
   triggerTypedEvent,
+  type PubSubSchema,
 } from '../common';
 import { remoteConfig } from '../remoteConfig';
 import { generateAndStoreNotificationsV2 } from '../notifications';
@@ -42,6 +45,34 @@ import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { upsertDigestPost } from '../common/digest';
 import { isPlusMember } from '../paddle';
+
+const digestEmailQueuedTopic = pubsubClient.topic(
+  'api.v1.digest-email-queued',
+  {
+    batching: {
+      maxMessages: 100,
+      maxMilliseconds: 100,
+    },
+  },
+);
+
+const publishDigestEmailDelivery = async (
+  logger: FastifyBaseLogger,
+  payload: PubSubSchema['api.v1.digest-email-queued'],
+): Promise<void> => {
+  try {
+    await publishEvent(logger, digestEmailQueuedTopic, payload);
+  } catch (err) {
+    logger.error(
+      {
+        err,
+        generationId: payload.generationId,
+        deliveryId: payload.deliveryId,
+      },
+      'failed to publish digest email delivery',
+    );
+  }
+};
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -159,7 +190,7 @@ const digestTypeToFunctionMap: Record<
       return;
     }
 
-    const { emailPayload, postIds, sourceIds, ad } = result;
+    const { emailPayload, postIds, sourceIds, ad, adGenerationId } = result;
 
     await dedupedSend(
       async () => {
@@ -206,7 +237,14 @@ const digestTypeToFunctionMap: Record<
           NotificationPreferenceStatus.Subscribed;
 
         if (emailPref !== NotificationPreferenceStatus.Muted) {
-          await sendEmail(emailPayload);
+          const delivery = await sendEmail(emailPayload);
+          if (delivery && adGenerationId) {
+            await publishDigestEmailDelivery(logger, {
+              generationId: adGenerationId,
+              deliveryId: delivery.deliveryId,
+              queuedAt: delivery.queuedAt,
+            });
+          }
         }
       },
       {

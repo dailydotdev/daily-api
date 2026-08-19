@@ -28,6 +28,7 @@ import { userPostsAnalyticsRefreshCron } from './userPostsAnalyticsRefresh';
 import { squadPostsAnalyticsRefreshCron } from './squadPostsAnalyticsRefresh';
 import { userProfileAnalyticsClickhouseCron } from './userProfileAnalyticsClickhouse';
 import { userWorldClickhouseCron } from './userWorldClickhouse';
+import { worldIndexCron } from './worldIndex';
 import { userProfileAnalyticsHistoryClickhouseCron } from './userProfileAnalyticsHistoryClickhouse';
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
@@ -77,6 +78,7 @@ export const crons: Cron[] = [
   squadPostsAnalyticsRefreshCron,
   userProfileAnalyticsClickhouseCron,
   userWorldClickhouseCron,
+  worldIndexCron,
   userProfileAnalyticsHistoryClickhouseCron,
   cleanZombieOpportunities,
   userProfileUpdatedSync,

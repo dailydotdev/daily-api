@@ -33,6 +33,7 @@ declare global {
       EMAIL_TRACKING_ORIGIN?: string;
       GROWTHBOOK_CLIENT_KEY: string;
       EXPERIMENTATION_KEY: string;
+      AGENT_ACCESS_TOKEN_SECRET: string;
       COOKIES_KEY: string;
       ONESIGNAL_APP_ID: string;
       ONESIGNAL_API_KEY: string;
@@ -76,6 +77,9 @@ declare global {
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
       SKADI_API_ORIGIN_V2: string;
+      ENCORE_ORIGIN?: string;
+      ENCORE_API_KEY?: string;
+      ENCORE_CLIENT_ID?: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
@@ -197,6 +201,11 @@ export enum UserVoteEntity {
 }
 
 export const maxFeedsPerUser = 35;
+
+export enum TagChipSeedStrategy {
+  V2 = 'V2',
+  V3 = 'V3',
+}
 
 export const maxBookmarksPerMutation = 10;
 
@@ -351,8 +360,6 @@ export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
 
 export const opportunityMatchBatchSize = 50;
-
-export const DAILY_DROP_HOUR = 9;
 
 // Map continent names to their codes
 export const continentMap: Record<string, string> = {

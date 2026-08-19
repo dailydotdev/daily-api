@@ -4,10 +4,8 @@ import {
   FastifyRequest,
   RouteHandler,
 } from 'fastify';
-import { fromNodeHeaders } from 'better-auth/node';
 import createOrGetConnection from '../db';
 import { DataSource, QueryRunner } from 'typeorm';
-import { getBetterAuth } from '../betterAuth';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import {
@@ -101,7 +99,7 @@ import {
 } from '../common/profile/completion';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
-import { asyncRetry } from '../integrations/retry';
+import { getBetterAuthSessionForRequest } from '../common/betterAuth';
 import {
   skadiEngagementClient,
   type EngagementCreative,
@@ -130,22 +128,6 @@ export type Experimentation = {
 export type Geo = {
   region?: string;
   continent?: Continent;
-};
-
-type BetterAuthSession = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    emailVerified: boolean;
-    image?: string | null;
-  };
-  session: {
-    id: string;
-    userId: string;
-    expiresAt: Date;
-    token: string;
-  };
 };
 
 interface ComputedAlerts {
@@ -201,7 +183,6 @@ export type LoggedInBoot = BaseBoot & {
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
   marketingCtaVariants: string[];
-  daily: boolean;
 };
 
 export type FunnelLoggedInUser = GQLUser & {
@@ -810,20 +791,6 @@ const getEngagementCreatives = async (
   }
 };
 
-const getDailyBoot = async ({
-  userId,
-}: {
-  userId: string;
-}): Promise<boolean> => {
-  const key = generateStorageKey(
-    StorageTopic.Boot,
-    StorageKey.DailyFeed,
-    userId,
-  );
-
-  return !(await getRedisObject(key));
-};
-
 const loggedInBoot = async ({
   con,
   req,
@@ -865,7 +832,6 @@ const loggedInBoot = async ({
       anonymousTheme,
       engagementCreatives,
       liveRooms,
-      daily,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -899,7 +865,6 @@ const loggedInBoot = async ({
         consentSection(req, geo),
       ),
       getLiveRoomsBoot(con),
-      getDailyBoot({ userId }),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -1016,7 +981,6 @@ const loggedInBoot = async ({
       feeds,
       geo,
       engagementCreatives,
-      daily,
       ...extra,
     } as LoggedInBoot;
   });
@@ -1159,15 +1123,7 @@ export const getBootData = async (
   if (baSessionCookie) {
     let sessionInvalid = false;
     try {
-      const session = (await asyncRetry(
-        () =>
-          getBetterAuth().api.getSession({
-            headers: fromNodeHeaders(
-              req.headers as Record<string, string | string[] | undefined>,
-            ),
-          }),
-        { retries: 3 },
-      )) as BetterAuthSession | null;
+      const session = await getBetterAuthSessionForRequest(req);
 
       if (session) {
         const cookieKey = cookies.authSession.key;

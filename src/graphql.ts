@@ -25,6 +25,7 @@ import * as contributionEligibilityDirective from './directive/contributionEligi
 import * as feedPlusDirective from './directive/feedPlus';
 import * as urlDirective from './directive/url';
 import * as leaderboard from './schema/leaderboard';
+import * as worldIndex from './schema/worldIndex';
 import * as integrations from './schema/integrations';
 import * as contentPreference from './schema/contentPreference';
 import * as prompts from './schema/prompts';
@@ -53,6 +54,7 @@ import * as archive from './schema/archive';
 import * as liveRooms from './schema/liveRooms';
 import * as spotlight from './schema/spotlight';
 import * as statusline from './schema/statusline';
+import * as offers from './schema/offers';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -96,6 +98,7 @@ export const schema = urlDirective.transformer(
                 devcards.typeDefs,
                 urlShortener.typeDefs,
                 leaderboard.typeDefs,
+                worldIndex.typeDefs,
                 integrations.typeDefs,
                 contentPreference.typeDefs,
                 prompts.typeDefs,
@@ -124,6 +127,7 @@ export const schema = urlDirective.transformer(
                 archive.typeDefs,
                 spotlight.typeDefs,
                 statusline.typeDefs,
+                offers.typeDefs,
               ],
               resolvers: traceResolvers(
                 merge(
@@ -148,6 +152,7 @@ export const schema = urlDirective.transformer(
                   devcards.resolvers,
                   urlShortener.resolvers,
                   leaderboard.resolvers,
+                  worldIndex.resolvers,
                   integrations.resolvers,
                   contentPreference.resolvers,
                   prompts.resolvers,
@@ -176,6 +181,7 @@ export const schema = urlDirective.transformer(
                   archive.resolvers,
                   spotlight.resolvers,
                   statusline.resolvers,
+                  offers.resolvers,
                 ),
               ),
             }),

@@ -77,6 +77,7 @@ describe('userInterestRun worker', () => {
       findingsAdded: 2,
       summaryPostId: 'post-1',
       summary: 'Added 2 finding(s) this run, wrote a summary post.',
+      agentSummary: 'Zig 0.14 landed with a new incremental compiler.',
     });
     await seedFinding('p1', InterestFindingStatus.New);
     await seedFinding('p2', InterestFindingStatus.New);
@@ -91,7 +92,7 @@ describe('userInterestRun worker', () => {
       .findOneByOrFail({ id: 'uir-1' });
     expect(interest.lastRunAt).toBeTruthy();
     expect(interest.lastRunSummary).toEqual(
-      'Added 2 finding(s) this run, wrote a summary post.',
+      'Zig 0.14 landed with a new incremental compiler.',
     );
 
     const call = (triggerTypedEvent as jest.Mock).mock.calls.find(
@@ -121,11 +122,40 @@ describe('userInterestRun worker', () => {
     expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
+  it('keeps the previous recap instead of persisting the machine fallback, which renders as the notification headline', async () => {
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { lastRunSummary: 'Zig 0.14 shipped.' });
+    (runInterestAgent as jest.Mock).mockResolvedValue({
+      findingsAdded: 0,
+      summaryPostId: null,
+      summary: 'Added 0 finding(s) this run.',
+      agentSummary: null,
+    });
+    await seedFinding('p1', InterestFindingStatus.New);
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.lastRunSummary).toEqual('Zig 0.14 shipped.');
+
+    const call = (triggerTypedEvent as jest.Mock).mock.calls.find(
+      (c) => c[1] === 'api.v1.interest-content-available',
+    );
+    expect(call?.[2]).toMatchObject({ interestId: 'uir-1', count: 1 });
+  });
+
   it('notifies for a summary post even when there are no new findings', async () => {
     (runInterestAgent as jest.Mock).mockResolvedValue({
       findingsAdded: 0,
       summaryPostId: 'post-1',
       summary: 'Added 0 finding(s) this run, wrote a summary post.',
+      agentSummary: 'A deep dive on comptime landed this week.',
     });
 
     await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(

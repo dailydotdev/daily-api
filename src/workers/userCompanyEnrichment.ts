@@ -1,4 +1,7 @@
-import { enrichCompanyForUserCompany } from '../common/companyEnrichment';
+import {
+  enrichCompanyForUserCompany,
+  syncVerifiedUserWorkExperiences,
+} from '../common/companyEnrichment';
 import type { TypedWorker } from './worker';
 
 const worker: TypedWorker<'api.v1.user-company-enrichment'> = {
@@ -16,7 +19,7 @@ const worker: TypedWorker<'api.v1.user-company-enrichment'> = {
       return;
     }
 
-    await enrichCompanyForUserCompany(
+    const { companyId } = await enrichCompanyForUserCompany(
       con,
       {
         userCompanyEmail: email,
@@ -25,6 +28,11 @@ const worker: TypedWorker<'api.v1.user-company-enrichment'> = {
       },
       logger,
     );
+
+    // Enrichment usually resolves the company after the user has already
+    // entered their verification code, and nothing else revisits the
+    // experience once that moment has passed.
+    await syncVerifiedUserWorkExperiences(con, userId, companyId ?? null);
   },
 };
 

@@ -1,4 +1,10 @@
-import { FeedConfig, FeedResponse, IFeedClient, BriefingModel } from './types';
+import {
+  FeedConfig,
+  FeedResponse,
+  FeedTopic,
+  IFeedClient,
+  BriefingModel,
+} from './types';
 import fetch, { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -9,6 +15,7 @@ import type { JsonValue } from '@bufbuild/protobuf';
 import { ServiceError } from '../../errors';
 import { isMockEnabled } from '../../mocks/common';
 import { mockUserTagsResponse } from '../../mocks/feed/userTags';
+import { mockTopicsResponse } from '../../mocks/feed/topics';
 
 type RawFeedDataItem = {
   post_id: string;
@@ -188,6 +195,33 @@ export class FeedClient implements IFeedClient, IGarmrClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ user_id: userId, limit }),
+      }),
+    );
+
+    return result?.data ?? [];
+  }
+
+  async getTopics(
+    allowedTags: string[],
+    clusterThreshold?: number,
+  ): Promise<FeedTopic[]> {
+    if (isMockEnabled()) {
+      return mockTopicsResponse(allowedTags);
+    }
+
+    const result = await this.garmr.execute(() =>
+      fetchParse<{ data: FeedTopic[] }>(`${this.url}/api/topics`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          allowed_tags: allowedTags,
+          ...(typeof clusterThreshold === 'number' && {
+            cluster_threshold: clusterThreshold,
+          }),
+        }),
       }),
     );
 

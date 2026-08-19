@@ -61,8 +61,11 @@ import type {
   generatePersonalContextSchema,
   personalContextGeneratedSchema,
 } from './schema/personalContext';
+import type { Data as ContentPublishedData } from '../workers/postUpdated/types';
 
 export type PubSubSchema = {
+  // Published by yggdrasil, never by us.
+  'yggdrasil.v1.content-published': ContentPublishedData;
   'pub-request': {
     reason: NotificationReason;
     sourceRequest: ChangeObject<SourceRequest>;
@@ -222,6 +225,11 @@ export type PubSubSchema = {
     postId: string;
     sendAtMs?: number;
   };
+  'api.v1.digest-email-queued': {
+    generationId: string;
+    deliveryId: string;
+    queuedAt: string;
+  };
   'api.v1.interest-run-requested': {
     interestId: string;
   };
@@ -316,6 +324,9 @@ export type PubSubSchema = {
       typeof rejectionFeedbackClassificationSchema
     >;
   };
+  'api.v1.experience-company-enrichment': {
+    experienceId: string;
+  };
   'api.v1.experience-company-enriched': {
     experienceId: string;
     userId: string;
@@ -336,6 +347,17 @@ export type PubSubSchema = {
   'api.v1.achievement-unlocked': {
     achievementId: string;
     userId: string;
+  };
+  'api.v1.world-district-level-up': {
+    userId: string;
+    /** Highest rung first, capped — the notification names at most two. */
+    districts: {
+      nicheId: string;
+      /** The rung just reached, on the twelve-step district ladder. */
+      level: number;
+    }[];
+    /** Districts that levelled up in this run, including the unnamed ones. */
+    total: number;
   };
   'api.v1.worker-job-execute': {
     jobId: string;

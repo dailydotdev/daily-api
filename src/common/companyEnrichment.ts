@@ -1,13 +1,66 @@
 import fetch from 'node-fetch';
-import { ArrayContains, IsNull } from 'typeorm';
+import { ArrayOverlap, IsNull } from 'typeorm';
 import type { DataSource, EntityManager } from 'typeorm';
-import { anthropicClient } from '../integrations/anthropic';
+import { getBragiClient } from '../integrations/bragi';
 import { generateShortId } from '../ids';
 import { Company, CompanyType } from '../entity/Company';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
+import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import { UserCompany } from '../entity/UserCompany';
 import { validateWorkEmailDomain } from './utils';
+
+// Self-employment and placeholder answers people type into the company field.
+// They can never resolve to an organization, so they skip the LLM round trip.
+// Matched on the exact normalized string, never as a prefix: "freelancer.com"
+// and "Independent University, Bangladesh" are real organizations.
+const NON_ORGANIZATION_NAMES = new Set([
+  'confidential',
+  'freelance',
+  'freelance / contract',
+  'freelance / personal projects',
+  'freelance / self employed',
+  'freelance developer',
+  'freelance projects',
+  'freelance self employed',
+  'freelance web developer',
+  'freelancer',
+  'freelancing',
+  'home',
+  'independent consultant',
+  'independent contractor',
+  'independent projects',
+  'multiple companies',
+  'myself',
+  'n/a',
+  'na',
+  'none',
+  'own business',
+  'personal',
+  'personal project',
+  'personal projects',
+  'self employed',
+  'self employed / freelance',
+  'side project',
+  'side projects',
+  'student',
+  'unemployed',
+  'various',
+  'various clients',
+  'various companies',
+]);
+
+// Collapses the punctuation people use to join these phrases ("freelance |
+// self-employed", "Freelance/Self Employed") so one entry covers the variants.
+export const isNonOrganizationName = (name: string): boolean =>
+  NON_ORGANIZATION_NAMES.has(
+    name
+      .toLowerCase()
+      .replace(/[|,()]/g, ' ')
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
 
 const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const FAVICON_SIZE = 128;
@@ -50,25 +103,26 @@ async function tryFetchDomain(
   return response.ok;
 }
 
-function isRetryableError(error: unknown): boolean {
+// A TLS handshake that produced a certificate proves the host resolves and serves
+// HTTPS, which is all this check asks. Chains we cannot verify (missing
+// intermediates, expired or self-signed certs) are common on university and
+// government sites and say nothing about whether the organization is real.
+function isCertificateError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  // SSL/TLS certificate errors are not retryable - they're deterministic
-  if (message.includes('certificate') || message.includes('cert')) {
-    return false;
-  }
-  return true;
+  return message.includes('certificate') || message.includes('cert');
 }
+
+export const getDomainVariants = (domain: string): string[] =>
+  domain.startsWith('www.')
+    ? [domain, domain.slice(4)]
+    : [domain, `www.${domain}`];
 
 async function validateDomain(
   domain: string,
   logger: EnrichmentLogger,
 ): Promise<string | null> {
   // Try the LLM-provided domain first, then the opposite variant
-  const domainsToTry = domain.startsWith('www.')
-    ? [domain, domain.slice(4)]
-    : [domain, `www.${domain}`];
-
-  for (const testDomain of domainsToTry) {
+  for (const testDomain of getDomainVariants(domain)) {
     for (let attempt = 1; attempt <= DOMAIN_CHECK_RETRIES; attempt++) {
       try {
         const isValid = await tryFetchDomain(testDomain, logger);
@@ -78,7 +132,15 @@ async function validateDomain(
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const retryable = isRetryableError(error);
+
+        if (isCertificateError(error)) {
+          logger.debug(
+            { testDomain, errorMessage },
+            'Domain served an unverifiable certificate, treating as reachable',
+          );
+
+          return testDomain;
+        }
 
         logger.debug(
           {
@@ -86,14 +148,9 @@ async function validateDomain(
             attempt,
             maxAttempts: DOMAIN_CHECK_RETRIES,
             errorMessage,
-            retryable,
           },
           'Domain validation attempt failed',
         );
-
-        if (!retryable) {
-          break;
-        }
 
         if (attempt < DOMAIN_CHECK_RETRIES) {
           await sleep(RETRY_DELAY_MS * attempt);
@@ -113,6 +170,7 @@ export type EnrichCompanyParams = {
   experienceId: string;
   customCompanyName: string;
   experienceType: UserExperienceType;
+  customDomain?: string | null;
 };
 
 export type EnrichCompanyForUserCompanyParams = {
@@ -124,9 +182,9 @@ export type EnrichCompanyForUserCompanyParams = {
 type RepositorySource = DataSource | EntityManager;
 
 type OrganizationInfo = {
-  englishName?: string;
-  nativeName?: string;
-  domain?: string;
+  englishName: string;
+  nativeName: string;
+  domain: string;
 };
 
 type CreateCompanyParams = {
@@ -160,15 +218,12 @@ const createdResult = (companyId: string): EnrichmentResult => ({
   companyId,
 });
 
-const isAnthropicConfigured = (): boolean =>
-  !!anthropicClient && !!process.env.ANTHROPIC_API_KEY;
-
 const getCompanyByDomain = (
   source: RepositorySource,
   domain: string,
 ): Promise<Company | null> =>
   source.getRepository(Company).findOneBy({
-    domains: ArrayContains([domain]),
+    domains: ArrayOverlap(getDomainVariants(domain)),
   });
 
 const createCompany = async (
@@ -191,67 +246,20 @@ const createCompany = async (
   return companyId;
 };
 
-const getOrganizationInfo = async ({
-  input,
-  includeDomain,
-}: {
-  input: string;
-  includeDomain: boolean;
-}): Promise<OrganizationInfo> => {
-  const properties = {
-    englishName: {
-      type: 'string',
-      description: 'The English name of the organization',
-    },
-    nativeName: {
-      type: 'string',
-      description: 'The name of the organization in its native language',
-    },
-    ...(includeDomain
-      ? {
-          domain: {
-            type: 'string',
-            description:
-              'The web domain of the organization. Return empty string if unknown.',
-          },
-        }
-      : {}),
-  };
+const getOrganizationInfo = async (
+  input: { name: string } | { domain: string },
+): Promise<OrganizationInfo> => {
+  const bragiClient = getBragiClient();
+  const { englishName, nativeName, domain } = await bragiClient.garmr.execute(
+    () =>
+      bragiClient.instance.resolveOrganization(
+        'name' in input
+          ? { input: { case: 'name', value: input.name } }
+          : { input: { case: 'domain', value: input.domain } },
+      ),
+  );
 
-  const res = await anthropicClient.createMessage({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 1024,
-    system: includeDomain
-      ? 'You are a helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.'
-      : 'You are a helpful assistant that returns information about an organization. The user will give you a web domain, and you will return the organization name in both English and its native language.',
-    messages: [
-      {
-        role: 'user',
-        content: input,
-      },
-    ],
-    tools: [
-      {
-        name: 'organization_info',
-        description: includeDomain
-          ? 'Gets information about the given organization'
-          : 'Gets information about the organization for a domain',
-        input_schema: {
-          type: 'object',
-          properties,
-          required: includeDomain
-            ? ['englishName', 'nativeName', 'domain']
-            : ['englishName', 'nativeName'],
-        },
-      },
-    ],
-    tool_choice: {
-      type: 'tool',
-      name: 'organization_info',
-    },
-  });
-
-  return (res.content[0]?.input ?? {}) as OrganizationInfo;
+  return { englishName, nativeName, domain };
 };
 
 const getUserCompanyResult = async (
@@ -332,15 +340,7 @@ export async function enrichCompanyForUserCompany(
     return existingResult;
   }
 
-  if (!isAnthropicConfigured()) {
-    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
-    return skippedResult('Anthropic client not configured');
-  }
-
-  const { englishName, nativeName } = await getOrganizationInfo({
-    input: domain,
-    includeDomain: false,
-  });
+  const { englishName, nativeName } = await getOrganizationInfo({ domain });
 
   if (!englishName) {
     logger.debug({ domain }, 'Missing required organization info englishName');
@@ -385,9 +385,50 @@ export async function enrichCompanyForUserCompany(
   });
 }
 
+const linkExperienceToCompany = (
+  con: DataSource,
+  experienceId: string,
+  companyId: string,
+) =>
+  con.getRepository(UserExperience).update({ id: experienceId }, { companyId });
+
+/**
+ * Marks the user's Work experiences at a company verified, mirroring a verified
+ * UserCompany record.
+ *
+ * Enrichment resolves a UserCompany's companyId asynchronously, so it commonly
+ * lands after the user has already entered their verification code. The
+ * mutation that flips `verified` has a null companyId at that point and CDC
+ * only reacts to a verified transition, so without this nothing ever revisits
+ * the experience.
+ */
+export const syncVerifiedUserWorkExperiences = async (
+  con: RepositorySource,
+  userId: string,
+  companyId: string | null,
+): Promise<void> => {
+  if (!companyId) {
+    return;
+  }
+
+  // Callers include the enrichment worker, which runs for unverified records
+  // too - it fires when the email is added, before any code is entered.
+  const isVerified = await con
+    .getRepository(UserCompany)
+    .existsBy({ userId, companyId, verified: true });
+
+  if (!isVerified) {
+    return;
+  }
+
+  await con
+    .getRepository(UserExperienceWork)
+    .update({ userId, companyId, verified: false }, { verified: true });
+};
+
 /**
  * Enriches a company for a given user experience.
- * Uses Claude AI to extract company info, validates the domain,
+ * Resolves the organization through bragi, validates the domain,
  * and either links to an existing company or creates a new one.
  */
 export async function enrichCompanyForExperience(
@@ -395,16 +436,33 @@ export async function enrichCompanyForExperience(
   params: EnrichCompanyParams,
   logger: EnrichmentLogger,
 ): Promise<EnrichmentResult> {
-  const { experienceId, customCompanyName, experienceType } = params;
+  const { experienceId, customCompanyName, experienceType, customDomain } =
+    params;
 
-  if (!isAnthropicConfigured()) {
-    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
-    return skippedResult('Anthropic client not configured');
+  if (isNonOrganizationName(customCompanyName)) {
+    logger.debug({ customCompanyName }, 'Not an organization, skipping');
+    return skippedResult('Not an organization');
+  }
+
+  // The user typed this domain themselves, so it beats asking a model to guess
+  // one from the name. Only ever used to link an existing company - creating
+  // from unvalidated user input would let a typo mint a company row.
+  if (customDomain) {
+    const companyByCustomDomain = await getCompanyByDomain(con, customDomain);
+
+    if (companyByCustomDomain) {
+      await linkExperienceToCompany(
+        con,
+        experienceId,
+        companyByCustomDomain.id,
+      );
+
+      return linkedResult(companyByCustomDomain.id);
+    }
   }
 
   const { englishName, nativeName, domain } = await getOrganizationInfo({
-    input: customCompanyName,
-    includeDomain: true,
+    name: customCompanyName,
   });
 
   if (!englishName || !domain) {
@@ -415,20 +473,21 @@ export async function enrichCompanyForExperience(
     return skippedResult('Missing englishName or domain');
   }
 
+  // A domain we already store needs no liveness check - sites behind a WAF
+  // answer 403 to this fetch, which would otherwise strand the experience even
+  // though the company is right there.
+  const existingCompany = await getCompanyByDomain(con, domain);
+
+  if (existingCompany) {
+    await linkExperienceToCompany(con, experienceId, existingCompany.id);
+
+    return linkedResult(existingCompany.id);
+  }
+
   const validatedDomain = await validateDomain(domain, logger);
   if (!validatedDomain) {
     logger.debug({ domain }, 'Domain validation failed');
     return skippedResult(`Domain validation failed for ${domain}`);
-  }
-
-  const existingCompany = await getCompanyByDomain(con, validatedDomain);
-
-  if (existingCompany) {
-    await con
-      .getRepository(UserExperience)
-      .update({ id: experienceId }, { companyId: existingCompany.id });
-
-    return linkedResult(existingCompany.id);
   }
 
   const companyId = await createCompany(con, {
@@ -441,9 +500,7 @@ export async function enrichCompanyForExperience(
         : CompanyType.Company,
   });
 
-  await con
-    .getRepository(UserExperience)
-    .update({ id: experienceId }, { companyId });
+  await linkExperienceToCompany(con, experienceId, companyId);
 
   return createdResult(companyId);
 }

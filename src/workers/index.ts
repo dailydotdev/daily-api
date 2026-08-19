@@ -68,7 +68,6 @@ import { organizationUserRemoved } from './organization/organizationUserRemoved'
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userInterestRunWorker } from './interest/userInterestRun';
 import { postVisibleInterestMatchWorker } from './interest/postVisibleInterestMatch';
-import { postUpvotedInterestSignalWorker } from './interest/postUpvotedInterestSignal';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { userUpdatedPersonalContextWorker } from './personalContext/userUpdatedPersonalContext';
 import { githubAccountLinkedWorker } from './personalContext/githubAccountLinked';
@@ -92,6 +91,7 @@ import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import gearClassify from './gearClassify';
+import extractClaims from './extractClaims';
 import generateChannelDigest from './generateChannelDigest';
 import { jobExecuteWorker } from './job/jobExecute';
 import workerJobDeadLetterLog from './workerJobDeadLetterLog';
@@ -99,6 +99,7 @@ import userDeletionCleanup from './userDeletionCleanup';
 import { liveRoomStartedWorker } from './liveRoomStarted';
 import { liveRoomEndedWorker } from './liveRoomEnded';
 import userCompanyEnrichment from './userCompanyEnrichment';
+import experienceCompanyEnrichment from './experienceCompanyEnrichment';
 
 export { Worker } from './worker';
 
@@ -166,7 +167,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userGenerateBriefWorker,
   userInterestRunWorker,
   postVisibleInterestMatchWorker,
-  postUpvotedInterestSignalWorker,
   userUpdatedPlusSubscriptionBriefWorker,
   userUpdatedPersonalContextWorker,
   githubAccountLinkedWorker,
@@ -190,6 +190,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   feedbackClassify,
   feedbackUpdatedSlack,
   gearClassify,
+  extractClaims,
   generateChannelDigest,
   newHighlightRealTime,
   contributionActionCompletedRealTime,
@@ -199,6 +200,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   liveRoomStartedWorker,
   liveRoomEndedWorker,
   userCompanyEnrichment,
+  experienceCompanyEnrichment,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

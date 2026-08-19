@@ -180,17 +180,27 @@ export const syncSubscription = async function (
 
 export const sendEmail = async (
   data: SendEmailRequestWithTemplate,
-): Promise<void> => {
-  if (process.env.CIO_APP_KEY) {
-    if (!('id' in data.identifiers) && !('email' in data.identifiers)) {
-      throw new Error('identifiers.id or identifiers.email is required');
-    }
-    const req = new SendEmailRequest({
-      ...baseNotificationEmailData,
-      ...data,
-    });
-    await cioApi.sendEmail(req);
+): Promise<{ deliveryId: string; queuedAt: string } | null> => {
+  if (!process.env.CIO_APP_KEY) {
+    return null;
   }
+  if (!('id' in data.identifiers) && !('email' in data.identifiers)) {
+    throw new Error('identifiers.id or identifiers.email is required');
+  }
+  const req = new SendEmailRequest({
+    ...baseNotificationEmailData,
+    ...data,
+  });
+  const response = await cioApi.sendEmail(req);
+  const { delivery_id: deliveryId, queued_at: queuedAt } = response;
+  if (typeof deliveryId !== 'string' || typeof queuedAt !== 'number') {
+    throw new Error('customer.io returned an invalid email delivery response');
+  }
+
+  return {
+    deliveryId,
+    queuedAt: new Date(queuedAt * 1000).toISOString(),
+  };
 };
 
 export const addPrivateSourceJoinParams = ({

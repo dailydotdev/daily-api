@@ -256,6 +256,17 @@ export class NotificationBuilder {
     });
   }
 
+  /**
+   * The district, identified by its niche. The world it sits in is the
+   * recipient's, so the user is not part of the reference.
+   */
+  referenceWorldDistrict(nicheId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: nicheId,
+      referenceType: 'world_district',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -440,6 +451,25 @@ export class NotificationBuilder {
       name: 'Digest',
       targetUrl: '',
       referenceId: 'digest',
+      image: emptyImage,
+    });
+
+    return this;
+  }
+
+  /**
+   * The world mark, drawn client-side from the shared `WorldIcon`.
+   *
+   * One row for everybody, like the brief and digest avatars: the glyph is the
+   * same whoever is looking, and the notification already targets the reader's
+   * own world, so nothing here needs to vary per user.
+   */
+  avatarWorld(): NotificationBuilder {
+    this.avatars.push({
+      type: 'world',
+      name: 'World',
+      targetUrl: '',
+      referenceId: 'world',
       image: emptyImage,
     });
 

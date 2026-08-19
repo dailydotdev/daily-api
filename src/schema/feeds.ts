@@ -68,25 +68,15 @@ import {
   getFeedResponsePostIds,
   SimpleFeedConfigGenerator,
 } from '../integrations/feed';
-import {
-  dailyFeedConfigGenerator,
-  getForYouByTagFeedGenerator,
-} from '../integrations/feed/generators';
-import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
-import { remoteConfig } from '../remoteConfig';
-import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { getForYouByTagFeedGenerator } from '../integrations/feed/generators';
 import { getCpaSource } from '../integrations/feed/cpaSource';
-import {
-  DEFAULT_TIMEZONE,
-  secondsUntilNextHourInTimezone,
-} from '../common/date';
 import type { FeedResponse } from '../integrations/feed';
 import {
   AuthenticationError,
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { DAILY_DROP_HOUR, maxFeedsPerUser, UserVote } from '../types';
+import { maxFeedsPerUser, TagChipSeedStrategy, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -119,6 +109,8 @@ import {
 } from './feedV2';
 import { feedByTagsInputSchema } from '../common/schema/feedByTags';
 import { seedTagChipFeedsIfNeeded } from '../common/seedTagChipFeeds';
+import { z } from 'zod';
+import { feedListInputSchema } from '../common/schema/feedList';
 
 interface GQLTagsCategory {
   id: string;
@@ -207,6 +199,8 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
 
   ${toGQLEnum(FeedType, 'FeedType')}
+
+  ${toGQLEnum(TagChipSeedStrategy, 'TagChipSeedStrategy')}
 
   input FeedAdvancedSettingsInput {
     """
@@ -457,42 +451,6 @@ export const typeDefs = /* GraphQL */ `
       Deprecated, no longer in use. Kept for backwards compatibility.
       """
       noAi: Boolean = false
-    ): PostConnection! @auth
-
-    """
-    Get the "Daily" homepage Picks feed. Mirrors the For You feed ranking and
-    pagination, returning a standard post connection.
-    """
-    dailyFeed(
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-
-      """
-      Paginate first
-      """
-      first: Int
-
-      """
-      Ranking criteria for the feed
-      """
-      ranking: Ranking = POPULARITY
-
-      """
-      Return only unread posts
-      """
-      unreadOnly: Boolean = false
-
-      """
-      Version of the feed algorithm
-      """
-      version: Int = 20
-
-      """
-      Array of supported post types
-      """
-      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
@@ -857,9 +815,9 @@ export const typeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
-      Only return posts labeled with any of these niche slugs
+      Only return posts labeled with any of these niche ids
       """
-      niches: [String!]
+      nicheIds: [ID!]
     ): PostConnection!
 
     """
@@ -1058,6 +1016,15 @@ export const typeDefs = /* GraphQL */ `
       (e.g. behind a GrowthBook rollout flag).
       """
       includeTagChipFeeds: Boolean = false
+      """
+      Which source seeds the caller's tag-chip feeds on their first opted-in
+      read, mirroring the client's feed_chips variant. V2 seeds one single-tag
+      feed per tag from the feed service. V3 clusters the caller's onboarding
+      tags into topics and seeds one multi-tag feed per topic.
+      Client-controlled so the two can be A/B tested; only read on the first
+      seed and inert afterwards.
+      """
+      tagChipSeedStrategy: TagChipSeedStrategy = V2
     ): FeedConnection! @auth
 
     """
@@ -1725,87 +1692,6 @@ const feedResolverCursor = feedResolver<
   },
 );
 
-// "Daily" feed: hits the dedicated /api/daily-posts endpoint and caches the
-// feed-service response per user/page for a day. Post hydration stays fresh.
-const dailyFeedResolver = feedResolver<
-  unknown,
-  FeedArgs,
-  CursorPage,
-  FeedResponse
->(
-  (ctx, args, builder, alias, queryParams) =>
-    fixedIdsFeedBuilder(
-      ctx,
-      getFeedResponsePostIds(queryParams!),
-      builder,
-      alias,
-    ),
-  feedCursorPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder,
-  {
-    fetchQueryParams: async (ctx, args: FeedArgs, page) => {
-      const cacheKey = generateStorageKey(
-        StorageTopic.Feed,
-        StorageKey.DailyFeed,
-        [
-          remoteConfig.vars.dailyFeedCacheKey,
-          ctx.userId ?? ctx.trackingId,
-          page.limit,
-          page.cursor,
-          args.supportedTypes?.join(','),
-        ]
-          .filter(Boolean)
-          .join(':'),
-      );
-      const cached = await getRedisObject(cacheKey);
-      if (cached) {
-        ctx.log.info(
-          { userId: ctx.userId ?? ctx.trackingId, cached: true, cacheKey },
-          'daily feed served from cache',
-        );
-        return JSON.parse(cached) as FeedResponse;
-      }
-
-      const { config, extraMetadata } = await dailyFeedConfigGenerator.generate(
-        ctx,
-        {
-          user_id: ctx.userId || ctx.trackingId,
-          page_size: page.limit,
-          offset: 0,
-          cursor: page.cursor,
-          allowed_post_types: args.supportedTypes,
-        },
-      );
-      const response = await feedClient.fetchFeed(
-        ctx,
-        '/api/daily-posts',
-        config,
-        extraMetadata,
-      );
-      if (response.data.length) {
-        const user = ctx.userId
-          ? await ctx.dataLoader.user.load({
-              userId: ctx.userId,
-              select: ['timezone'],
-            })
-          : null;
-        await setRedisObjectWithExpiry(
-          cacheKey,
-          JSON.stringify(response),
-          secondsUntilNextHourInTimezone({
-            hour: DAILY_DROP_HOUR,
-            timezone: user?.timezone || DEFAULT_TIMEZONE,
-          }),
-        );
-      }
-      return response;
-    },
-    warnOnPartialFirstPage: true,
-    // Feed service should take care of this
-    removeNonPublicThresholdSquads: false,
-  },
-);
-
 type ChannelFeedArgs = ConnectionArguments & {
   channel: string;
   contentCuration?: string[];
@@ -1948,17 +1834,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
       return feedResolverV1(source, args, ctx, info);
-    },
-    dailyFeed: async (
-      source,
-      args: ConfiguredFeedArgs,
-      ctx: AuthContext,
-      info,
-    ) => {
-      if (isMockEnabled()) {
-        return anonymousFeedResolverV1(source, args, ctx, info);
-      }
-      return dailyFeedResolver(source, args, ctx, info);
     },
     feedByTags: (source, args: FeedByTagsArgs, ctx: AuthContext, info) => {
       const { tags } = feedByTagsInputSchema.parse(args);
@@ -2302,7 +2177,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     userUpvotedFeed: feedResolver(
       (
         ctx,
-        { userId, niches }: { userId: string; niches?: string[] } & FeedArgs,
+        {
+          userId,
+          nicheIds,
+        }: { userId: string; nicheIds?: string[] } & FeedArgs,
         builder,
         alias,
       ) => {
@@ -2315,9 +2193,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             { author: userId, vote: UserVote.Up },
           );
 
-        if (niches?.length) {
+        if (nicheIds?.length) {
           builder.andWhere((subBuilder) =>
-            whereNiches(niches, subBuilder, alias),
+            whereNiches(nicheIds, subBuilder, alias),
           );
         }
 
@@ -2526,11 +2404,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx.getRepository(Persona).find({ order: { sortOrder: 'ASC' } }),
     feedList: async (
       source,
-      args: ConnectionArguments & { includeTagChipFeeds?: boolean },
+      args: ConnectionArguments & z.input<typeof feedListInputSchema>,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLFeed>> => {
-      const includeTagChipFeeds = args.includeTagChipFeeds === true;
+      const { includeTagChipFeeds, tagChipSeedStrategy } =
+        feedListInputSchema.parse(args);
 
       let didSeed = false;
 
@@ -2539,6 +2418,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           didSeed = await seedTagChipFeedsIfNeeded({
             con: ctx.con,
             userId: ctx.userId,
+            strategy: tagChipSeedStrategy,
           });
         } catch (err) {
           ctx.log.error(

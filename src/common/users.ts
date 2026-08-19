@@ -548,6 +548,17 @@ export const getStreakGraceDays = (
   return MISSED_LIMIT;
 };
 
+// The two weekend days that are automatically frozen for a given week start:
+// Sat+Sun for Monday-start weeks, Fri+Sat for Sunday-start weeks
+export const getWeekendDays = (
+  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
+): Day[] => {
+  const lastDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
+
+  return [(lastDayOfWeek + 6) % 7, lastDayOfWeek];
+};
+
 // Computes whether we should reset user streak
 // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
 // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
@@ -594,14 +605,15 @@ export const checkUserStreak = (
   lastActionTime?: Date,
 ): boolean => getStreakResetContext(streak, lastActionTime).shouldReset;
 
-// The calendar days (in the user's timezone) that were missed and caused a
-// reset to be triggered, i.e. the days beyond the free grace period. Returns
-// an empty array when no reset would be triggered.
+// The weekdays (in the user's timezone) that were missed and caused a reset
+// to be triggered, i.e. each day since the last streak update that needs a
+// freeze to keep the streak alive. Returns an empty array when no reset
+// would be triggered.
 export const getMissedStreakDays = (
   streak: GQLUserStreakTz,
   lastActionTime?: Date,
 ): Date[] => {
-  const { shouldReset, today, day, difference } = getStreakResetContext(
+  const { shouldReset, today, difference } = getStreakResetContext(
     streak,
     lastActionTime,
   );
@@ -610,11 +622,14 @@ export const getMissedStreakDays = (
     return [];
   }
 
-  const missedCount = difference - getStreakGraceDays(day, streak.weekStart);
+  const weekendDays = getWeekendDays(streak.weekStart);
 
-  return Array.from({ length: missedCount }, (_, index) =>
-    subDays(today, missedCount - index),
-  );
+  // Every day strictly between the last streak update and today, except
+  // weekend days: those are covered by the built-in weekend freeze and must
+  // never consume a purchased one
+  return Array.from({ length: difference - 1 }, (_, index) =>
+    subDays(today, difference - 1 - index),
+  ).filter((date) => !weekendDays.includes(date.getDay()));
 };
 
 export const combineLastActionDates = (
