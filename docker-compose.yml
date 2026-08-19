@@ -6,7 +6,7 @@ volumes:
 services:
 
   db:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18
     environment:
       - POSTGRES_MULTIPLE_DATABASES=api,api_test
       - POSTGRES_USER=postgres

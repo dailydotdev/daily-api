@@ -10,6 +10,7 @@ const keywordValue = z.string().trim().min(1).max(200);
 const statement = z.string().trim().min(1).max(1000);
 const versionScope = z.string().trim().min(1).max(200);
 const note = z.string().trim().min(1).max(500);
+const description = z.string().trim().min(1).max(1000);
 // Symbols, import paths, model IDs and endpoints, kept as the literal token a
 // plan would carry so matching stays an equality check.
 const signatures = z.array(z.string().trim().min(1).max(200)).max(50);
@@ -106,6 +107,7 @@ export const ledgerEntityCreateSchema = z.strictObject({
   aliases: z.array(entityName).max(50).default([]),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
+  description: description.nullish(),
 });
 
 // Aliases keep their own route, so a rename never has to restate them.
@@ -115,6 +117,20 @@ export const ledgerEntityUpdateSchema = z.strictObject({
   kind: z.enum(enumValues(LedgerEntityKind)).optional(),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
+  description: description.nullish(),
+});
+
+// A plan describes an approach without naming what implements it, so discovery
+// takes the prose and answers with entities to check, never with findings: the
+// nearest neighbour is a candidate, and the claim rows decide.
+export const ledgerEntityDiscoverSchema = z.strictObject({
+  text: z.string().trim().min(1).max(2000),
+  limit: z.coerce.number().int().positive().max(25).default(10),
+  // A floor against garbage only. Measured on the retrieval this exists for,
+  // an unrelated entity scores ~0.27 and a correct one ~0.32-0.48, so no single
+  // cutoff separates them: rank carries the signal and the claims filed against
+  // the candidates settle it, which is why nothing here decides on the score.
+  minSimilarity: z.coerce.number().min(0).max(1).default(0.2),
 });
 
 export const ledgerEntityAliasSchema = z.strictObject({
