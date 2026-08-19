@@ -30,6 +30,7 @@ import {
   expandLedgerEntityIds,
   findLedgerEntitiesByName,
   normalizeEvidenceUrl,
+  resolveSupersededByEntityId,
 } from '../../common/claimLedger';
 import {
   LEDGER_EMBEDDING_MODEL,
@@ -198,6 +199,12 @@ const createClaimFromCandidate = async ({
   );
   const claim = await manager.getRepository(Claim).save({
     entityId,
+    // The candidate carries the replacement as the name the post used; without
+    // resolving it here the displacement stays prose and nothing can traverse it.
+    supersededByEntityId: await resolveSupersededByEntityId({
+      con: manager,
+      name: candidate.supersededBy,
+    }),
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement: pickOverride(body.statement, candidate.statement),
     versionScope: pickOverride(body.versionScope, candidate.versionScope),
