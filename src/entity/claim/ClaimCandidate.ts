@@ -24,6 +24,9 @@ export enum ClaimCandidateStatus {
 @Entity()
 @Index('IDX_claim_candidate_status', ['status'])
 @Index('IDX_claim_candidate_postId', ['postId'])
+// Partial on the migration's cutover so the duplicates already filed by
+// redelivered extractions stay untouched — see the migration for the shape.
+@Index('IDX_claim_candidate_postId_statement_unique', { synchronize: false })
 export class ClaimCandidate {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_claim_candidate_id',
