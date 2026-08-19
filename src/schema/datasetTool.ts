@@ -10,9 +10,17 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
-import { normalizeTitle } from '../common/datasetTool';
+import {
+  createToolDiscussionPost,
+  normalizeTitle,
+} from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { ToolStackStats } from '../entity/ToolStackStats';
+import { ToolVote } from '../entity/ToolVote';
+import { UserVote } from '../types';
+import { voteToolSchema } from '../common/schema/toolDiscussion';
+import { GQLEmptyResponse } from './common';
+import { NotFoundError } from '../errors';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
@@ -28,6 +36,9 @@ const MIN_TAKE_MATCH_LENGTH = 4;
 
 const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Rolls back initToolDiscussion's transaction when it loses a concurrent race.
+class ToolDiscussionRaceError extends Error {}
 
 export const typeDefs = /* GraphQL */ `
   extend type DatasetTool {
@@ -55,6 +66,26 @@ export const typeDefs = /* GraphQL */ `
     Allowed content keyword matching this tool, if any
     """
     keyword: String
+
+    """
+    Number of upvotes on the tool
+    """
+    upvotes: Int!
+
+    """
+    Number of downvotes on the tool
+    """
+    downvotes: Int!
+
+    """
+    The viewer's vote on the tool (1, 0, -1)
+    """
+    userVote: Int
+
+    """
+    Hidden post hosting the tool's discussion, once initialized
+    """
+    discussionPostId: ID
   }
 
   extend type Query {
@@ -97,6 +128,19 @@ export const typeDefs = /* GraphQL */ `
     Curated tool categories ordered by total stack presence
     """
     toolCategories: [ToolCategoryStat!]!
+  }
+
+  extend type Mutation {
+    """
+    Vote on a tool (1 up, -1 down, 0 to clear)
+    """
+    voteTool(id: ID!, vote: Int!): EmptyResponse! @auth
+
+    """
+    Get or create the tool's hidden discussion post; comments on it are
+    ordinary post comments
+    """
+    initToolDiscussion(id: ID!): ID! @auth @rateLimit(limit: 1, duration: 30)
   }
 
   type ToolCategoryStat {
@@ -397,5 +441,83 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           toolCount: Number(row.toolCount),
         }));
       }),
+  },
+
+  Mutation: {
+    voteTool: async (
+      _,
+      args: { id: string; vote: number },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, vote } = voteToolSchema.parse(args);
+
+      const tool = await ctx.con.getRepository(DatasetTool).findOneBy({ id });
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+
+      if (vote === UserVote.None) {
+        await ctx.con
+          .getRepository(ToolVote)
+          .delete({ userId: ctx.userId, toolId: id });
+      } else {
+        await ctx.con
+          .getRepository(ToolVote)
+          .upsert(
+            { userId: ctx.userId, toolId: id, vote },
+            { conflictPaths: ['userId', 'toolId'] },
+          );
+      }
+
+      return { _: true };
+    },
+
+    initToolDiscussion: async (
+      _,
+      args: { id: string },
+      ctx: AuthContext,
+    ): Promise<string> => {
+      const tool = await ctx.con
+        .getRepository(DatasetTool)
+        .findOneBy({ id: args.id });
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+      if (tool.discussionPostId) {
+        return tool.discussionPostId;
+      }
+
+      try {
+        return await ctx.con.transaction(async (manager) => {
+          const post = await createToolDiscussionPost(manager, tool);
+          const claimed = await manager
+            .getRepository(DatasetTool)
+            .createQueryBuilder()
+            .update()
+            .set({ discussionPostId: post.id })
+            .where('id = :id AND "discussionPostId" IS NULL', { id: tool.id })
+            .execute();
+
+          if (!claimed.affected) {
+            // Lost a concurrent init; roll back this post and use the winner's.
+            throw new ToolDiscussionRaceError();
+          }
+
+          return post.id;
+        });
+      } catch (error) {
+        if (!(error instanceof ToolDiscussionRaceError)) {
+          throw error;
+        }
+      }
+
+      const fresh = await ctx.con
+        .getRepository(DatasetTool)
+        .findOneByOrFail({ id: tool.id });
+      if (!fresh.discussionPostId) {
+        throw new Error('Failed to initialize tool discussion');
+      }
+      return fresh.discussionPostId;
+    },
   },
 };

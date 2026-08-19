@@ -1,6 +1,11 @@
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { Readable } from 'stream';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
+import { FreeformPost } from '../entity/posts/FreeformPost';
+import { PostOrigin } from '../entity/posts/Post';
+import { TOOLS_SOURCE } from '../entity/Source';
+import { generateShortId } from '../ids';
+import { markdown } from './markdown';
 import { uploadToolIcon } from './cloudinary';
 
 const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
@@ -74,6 +79,36 @@ export const fetchAndUploadToolIcon = async (
   }
 
   return null;
+};
+
+// Hidden host post for a tool's discussion: comments on tools are ordinary
+// post comments, so threading, votes, notifications and moderation come from
+// the existing machinery.
+export const createToolDiscussionPost = async (
+  con: DataSource | EntityManager,
+  tool: DatasetTool,
+): Promise<FreeformPost> => {
+  const id = await generateShortId();
+  const content = `Community discussion about ${tool.title} on daily.dev.`;
+
+  return con.getRepository(FreeformPost).save({
+    id,
+    shortId: id,
+    title: `${tool.title} discussion`,
+    sourceId: TOOLS_SOURCE,
+    content,
+    contentHtml: markdown.render(content),
+    visible: true,
+    visibleAt: new Date(),
+    private: false,
+    showOnFeed: false,
+    origin: PostOrigin.UserGenerated,
+    flags: {
+      visible: true,
+      private: false,
+      showOnFeed: false,
+    },
+  });
 };
 
 export const findOrCreateDatasetTool = async (
