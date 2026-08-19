@@ -184,6 +184,35 @@ describe('interestScheduledRun cron', () => {
     expect(queued).toHaveLength(1);
   });
 
+  it('fails the job when scheduling breaks, still scheduling the other interests', async () => {
+    (triggerTypedEvent as jest.Mock).mockImplementation(
+      async (_logger, _topic, data: { interestId: string }) => {
+        if (data.interestId === 'due-null') {
+          throw new Error('publish boom');
+        }
+      },
+    );
+    const logger = {
+      error: jest.fn(),
+      warn: jest.fn(),
+      info: jest.fn(),
+    } as never;
+
+    await expect(cron.handler(con, logger)).rejects.toThrow(
+      'failed to schedule 1 of 2 interest runs',
+    );
+
+    const scheduled = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'due-hourly' });
+    expect(scheduled).toHaveLength(1);
+    expect(
+      (triggerTypedEvent as jest.Mock).mock.calls.filter(
+        (c) => c[2]?.interestId === 'due-hourly',
+      ),
+    ).toHaveLength(1);
+  });
+
   it('schedules a fresh run once the previous scheduled run left the queue', async () => {
     await expectSuccessfulCron(cron);
     const [first] = await con

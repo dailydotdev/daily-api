@@ -208,6 +208,11 @@ describe('userInterestRun worker', () => {
       .getRepository(InterestFinding)
       .findOneByOrFail({ id: 'finding-p1' });
     expect(finding.status).toEqual(InterestFindingStatus.Surfaced);
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run.notifiedAt).toBeTruthy();
   });
 
   it('skips a stopped interest', async () => {
@@ -269,6 +274,7 @@ describe('userInterestRun worker', () => {
     });
     expect(run.startedAt).toBeTruthy();
     expect(run.finishedAt).toBeTruthy();
+    expect(run.notifiedAt).toBeTruthy();
     expect(run.blocks).toEqual([
       {
         type: 'text',
@@ -349,6 +355,74 @@ describe('userInterestRun worker', () => {
       .getRepository(UserInterest)
       .findOneByOrFail({ id: 'uir-1' });
     expect(interest.lastRunStatus).toEqual(InterestRunStatus.Failed);
+  });
+
+  it('republishes a lost notification when a completed unnotified run is redelivered', async () => {
+    const startedAt = new Date('2026-01-01T00:00:00Z');
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Completed,
+      trigger: InterestRunTrigger.Command,
+      findingsAdded: 2,
+      startedAt,
+      finishedAt: new Date(),
+      notifiedAt: null,
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    expect(runInterestAgent).not.toHaveBeenCalled();
+    const call = (triggerTypedEvent as jest.Mock).mock.calls.find(
+      (c) => c[1] === 'api.v1.interest-content-available',
+    );
+    expect(call?.[2]).toEqual({
+      interestId: 'uir-1',
+      userId: usersFixture[0].id,
+      count: 2,
+      runAt: startedAt.getTime(),
+    });
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.notifiedAt).toBeTruthy();
+
+    (triggerTypedEvent as jest.Mock).mockClear();
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('keeps the notification pending when its publication fails', async () => {
+    await seedFinding('p1', InterestFindingStatus.New);
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Command,
+    });
+    (triggerTypedEvent as jest.Mock).mockRejectedValue(
+      new Error('publish boom'),
+    );
+
+    await expect(
+      invokeTypedBackground<'api.v1.interest-run-requested'>(worker, {
+        interestId: 'uir-1',
+        runId: 'run-1',
+      }),
+    ).rejects.toThrow('publish boom');
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+    expect(run.notifiedAt).toBeNull();
   });
 
   it('does not re-run a delivery whose run already completed', async () => {

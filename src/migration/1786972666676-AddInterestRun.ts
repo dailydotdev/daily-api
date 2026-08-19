@@ -16,6 +16,7 @@ export class AddInterestRun1786972666676 implements MigrationInterface {
         "summaryPostId" text,
         "startedAt" TIMESTAMP WITH TIME ZONE,
         "finishedAt" TIMESTAMP WITH TIME ZONE,
+        "notifiedAt" TIMESTAMP WITH TIME ZONE,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_interest_run" PRIMARY KEY ("id"),
         CONSTRAINT "FK_interest_run_interest_id"

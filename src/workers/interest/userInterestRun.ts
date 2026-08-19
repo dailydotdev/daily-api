@@ -143,6 +143,34 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           startedAt: lease,
         });
         if (claim === 'unavailable') {
+          const run = await runRepo.findOneBy({
+            id: claimedRunId,
+            interestId,
+          });
+          const runHasContent =
+            !!run && (run.findingsAdded > 0 || !!run.summaryPostId);
+
+          if (
+            run?.status === InterestRunStatus.Completed &&
+            !run.notifiedAt &&
+            runHasContent &&
+            (interest.outputModes?.notification ?? true)
+          ) {
+            await triggerTypedEvent(
+              logger,
+              'api.v1.interest-content-available',
+              {
+                interestId,
+                userId: interest.userId,
+                count: run.findingsAdded,
+                runAt: (run.startedAt ?? run.createdAt).getTime(),
+              },
+            );
+            await runRepo.update(
+              { id: claimedRunId, interestId },
+              { notifiedAt: new Date() },
+            );
+          }
           return;
         }
         if (claim === 'busy') {
@@ -214,6 +242,10 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             .getRawMany<{ postId: string }>(),
         ]);
 
+        const hasContent = deliverableCount > 0 || !!result.summaryPostId;
+        const shouldNotify =
+          hasContent && (interest.outputModes?.notification ?? true);
+
         const leaseHeld = await con.transaction(async (manager) => {
           const completed = await manager
             .getRepository(InterestRun)
@@ -223,6 +255,7 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
               blocks: buildRunBlocks({ result, picks, deliverableCount }),
               findingsAdded: deliverableCount,
               summaryPostId: result.summaryPostId,
+              notifiedAt: shouldNotify ? null : new Date(),
             });
 
           if (!completed.affected) {
@@ -257,15 +290,17 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           return;
         }
 
-        const hasContent = deliverableCount > 0 || !!result.summaryPostId;
-
-        if (hasContent && (interest.outputModes?.notification ?? true)) {
+        if (shouldNotify) {
           await triggerTypedEvent(logger, 'api.v1.interest-content-available', {
             interestId: interest.id,
             userId: interest.userId,
             count: deliverableCount,
             runAt,
           });
+          await runRepo.update(
+            { id: claimedRunId, interestId },
+            { notifiedAt: new Date() },
+          );
         }
       } catch (error) {
         const failed = await runRepo.update(leasedRun, {

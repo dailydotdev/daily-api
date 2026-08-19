@@ -69,6 +69,9 @@ export class InterestRun {
   @Column({ type: 'timestamptz', nullable: true })
   finishedAt: Date | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  notifiedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -26,6 +26,7 @@ const cron: Cron = {
       .getRawMany<{ id: string }>();
 
     const runRepo = con.getRepository(InterestRun);
+    const failures: string[] = [];
 
     for (const { id } of interests) {
       try {
@@ -61,11 +62,18 @@ const cron: Cron = {
           runId: scheduled.id,
         });
       } catch (error) {
+        failures.push(id);
         logger.error(
           { interestId: id, err: error },
           'failed to schedule interest run',
         );
       }
+    }
+
+    if (failures.length) {
+      throw new Error(
+        `failed to schedule ${failures.length} of ${interests.length} interest runs`,
+      );
     }
   },
 };
