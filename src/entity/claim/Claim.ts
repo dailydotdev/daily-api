@@ -98,6 +98,13 @@ export class Claim {
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   superseding: string[];
 
+  // Two empty arrays are a real answer for a claim with no code surface, so
+  // without this an unprocessed claim and a legitimately empty one look
+  // identical: the backfill could not tell what it had already done, and a
+  // reader could not tell absence from silence.
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  signaturesBackfilledAt: Date | null;
+
   @Column({ type: 'date', nullable: true, default: null })
   effectiveDate: string | null;
 

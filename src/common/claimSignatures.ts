@@ -1,0 +1,109 @@
+import { AnthropicClient } from '../integrations/anthropic';
+import type { Claim } from '../entity/claim/Claim';
+
+// Kept byte-identical to bragi/prompting/claim_signatures.py, which is the copy
+// eval/claims/run_statement_signatures.py measures. They are duplicated because
+// this runs once from a script and bragi is where production prompts live; if
+// either changes, the other has to change with it and the eval has to be re-run,
+// or we are shipping a prompt nobody has measured.
+export const CLAIM_SIGNATURES_SYSTEM_PROMPT = `You are given one claim from a change ledger: a single sentence stating what changed about one
+technology. Extract the literal code tokens it names, split by what the change does to them.
+
+<tokens>
+- A token is what a developer types: \`forms.URLField\`, \`next/legacy/image\`, \`std::not1\`,
+  \`claude-sonnet-4-5-20250929\`, \`--legacy-peer-deps\`, \`POST /v1/completions\`, \`experimental.appDir\`.
+- Never a version number on its own, never prose, never the entity's own name — those are carried
+  by other fields and repeating them here only creates false matches.
+- Copy character-for-character from the statement. A token you completed, expanded, corrected, or
+  inferred from your own knowledge is worse than no token: these are matched by equality, so an
+  invented one becomes a false accusation against working code. If it is not written in the
+  statement, it does not exist.
+</tokens>
+
+<polarity>
+- \`affected\` is the token a reader has in their own code and would want to be told about. That is
+  broader than what the change takes away: a fix, a gotcha, a security advisory and a new constraint
+  all name a symbol that still exists, and that symbol is the only way a reader ever finds the claim
+  — "search_field raises NameError when passed autosave: true" puts \`search_field\` in affected even
+  though nothing was removed.
+- \`superseding\` is what replaces it, and is therefore the current, correct choice.
+- When one sentence names both sides — "deprecated in favor of X", "replaced by Y", "renamed to Z",
+  "use X instead" — fill both lists. A displacement whose replacement the statement spells out and
+  whose superseding comes back empty has dropped the half the reader actually needs.
+- Filing a replacement under \`affected\` would flag a reader for doing the right thing, so leave out
+  the one token you cannot place — never both sides because one of them was unclear.
+</polarity>
+
+<empty>
+Two empty lists are for a claim with no code surface at all: a pricing round, a service outage, a
+product or model announced with no API name attached. Never invent a token to fill them, and never
+return empty because the claim only names a symbol that still works.
+</empty>
+
+Return only valid JSON matching the schema exactly — no reasoning, preamble, or extra keys.`;
+
+const SIGNATURE_TOOL = {
+  name: 'record_signatures',
+  description: 'Record the literal code tokens the claim names.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      affected: { type: 'array', items: { type: 'string' }, maxItems: 10 },
+      superseding: { type: 'array', items: { type: 'string' }, maxItems: 10 },
+    },
+    required: ['affected', 'superseding'],
+  },
+};
+
+export type ClaimSignatures = { affected: string[]; superseding: string[] };
+
+// A token that is not in the statement cannot have been copied from it, so it
+// was invented — the failure mode that turns a signature into a false
+// accusation against working code. Dropped here rather than trusted.
+const grounded = (tokens: unknown, statement: string): string[] => {
+  if (!Array.isArray(tokens)) {
+    return [];
+  }
+
+  const haystack = statement.toLowerCase();
+
+  return tokens
+    .filter((token): token is string => typeof token === 'string')
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0 && token.length <= 200)
+    .filter((token) => haystack.includes(token.toLowerCase()))
+    .slice(0, 10);
+};
+
+export const extractClaimSignatures = async ({
+  client,
+  model,
+  claim,
+  entityName,
+}: {
+  client: AnthropicClient;
+  model: string;
+  claim: Pick<Claim, 'statement' | 'changeType'>;
+  entityName: string;
+}): Promise<ClaimSignatures> => {
+  const response = await client.createMessage({
+    model,
+    max_tokens: 512,
+    system: CLAIM_SIGNATURES_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `<claim>\n<entity>${entityName}</entity>\n<change_type>${claim.changeType}</change_type>\n<statement>${claim.statement}</statement>\n</claim>\n\nExtract only tokens written in the statement above.`,
+      },
+    ],
+    tools: [SIGNATURE_TOOL],
+    tool_choice: { type: 'tool', name: SIGNATURE_TOOL.name },
+  });
+
+  const input = response.content?.find(({ input }) => !!input)?.input ?? {};
+
+  return {
+    affected: grounded(input.affected, claim.statement),
+    superseding: grounded(input.superseding, claim.statement),
+  };
+};
