@@ -63,13 +63,13 @@ export class InterestRun {
   @Column({ type: 'text', nullable: true })
   summaryPostId: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   finishedAt: Date | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   notifiedAt: Date | null;
 
   @CreateDateColumn()

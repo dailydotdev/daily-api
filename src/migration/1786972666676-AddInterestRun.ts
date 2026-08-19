@@ -14,9 +14,9 @@ export class AddInterestRun1786972666676 implements MigrationInterface {
         "blocks" jsonb,
         "findingsAdded" integer NOT NULL DEFAULT '0',
         "summaryPostId" text,
-        "startedAt" TIMESTAMP WITH TIME ZONE,
-        "finishedAt" TIMESTAMP WITH TIME ZONE,
-        "notifiedAt" TIMESTAMP WITH TIME ZONE,
+        "startedAt" TIMESTAMP,
+        "finishedAt" TIMESTAMP,
+        "notifiedAt" TIMESTAMP,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_interest_run" PRIMARY KEY ("id"),
         CONSTRAINT "FK_interest_run_interest_id"

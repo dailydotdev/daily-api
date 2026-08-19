@@ -59,7 +59,6 @@ export class UserInterest {
   id: string;
 
   @Column({ type: 'text' })
-  @Index('IDX_user_interest_user_id')
   userId: string;
 
   @Column({ type: 'text' })
