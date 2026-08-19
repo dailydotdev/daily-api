@@ -393,7 +393,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               .select('COALESCE(SUM(ut.value), 0)', 'amount')
               .where('ut."receiverId" IS NOT NULL')
               .andWhere('ut."senderId" = :userId', { userId: ctx.userId })
-              .andWhere('ut."productId" IS NOT NULL')
               .andWhere('ut.status = :status', {
                 status: UserTransactionStatus.Success,
               })

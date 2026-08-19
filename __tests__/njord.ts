@@ -1608,6 +1608,20 @@ describe('query transactionSummary', () => {
       },
       {
         processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-2',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: 't-tsq-1',
+        fee: 0,
+        value: 150,
+        valueIncFees: 150,
+        createdAt: new Date(now.getTime() - 3000),
+        flags: {
+          note: 'Streak restore',
+        },
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
         receiverId: 't-tsq-1',
         status: UserTransactionStatus.Error,
         productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
@@ -1687,7 +1701,7 @@ describe('query transactionSummary', () => {
     expect(res.data.transactionSummary).toMatchObject({
       purchased: 1300,
       received: 1285,
-      spent: 200,
+      spent: 350,
     });
   });
 });
