@@ -101,6 +101,16 @@ export const ledgerEntityQuerySchema = z.strictObject({
   name: entityName,
 });
 
+// The describe backlog. An entity nothing else points at and that carries one
+// claim is not reachable by describing an approach — nobody plans "I need to
+// parse argv" and means one particular package — so it stays out of the queue
+// rather than spending a description that could only ever be noise.
+export const ledgerEntityUndescribedSchema = z.strictObject({
+  minClaims: z.coerce.number().int().min(1).max(50).default(2),
+  limit: z.coerce.number().int().positive().max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 export const ledgerEntityCreateSchema = z.strictObject({
   canonicalName: entityName,
   kind: z.enum(enumValues(LedgerEntityKind)),

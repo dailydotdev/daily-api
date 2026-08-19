@@ -21,6 +21,7 @@ import {
   ledgerEntityDiscoverSchema,
   ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
+  ledgerEntityUndescribedSchema,
   ledgerEntityUpdateSchema,
 } from '../../common/schema/claimLedger';
 import {
@@ -58,7 +59,7 @@ const resolveCandidateEntity = async ({
 }: {
   manager: EntityManager;
   candidate: ClaimCandidate;
-}): Promise<LedgerEntity> => {
+}): Promise<{ entity: LedgerEntity; created: boolean }> => {
   const names = [candidate.rawEntityName, ...candidate.entityAliases];
   const matches = await findLedgerEntitiesByName({ con: manager, names });
 
@@ -69,14 +70,19 @@ const resolveCandidateEntity = async ({
   }
 
   if (matches.length === 1) {
-    return matches[0];
+    return { entity: matches[0], created: false };
   }
 
-  return manager.getRepository(LedgerEntity).save({
+  // Most entities are born here rather than through /entities, and an entity
+  // is described once, at creation. The caller cannot do that unless the
+  // response says one was minted.
+  const entity = await manager.getRepository(LedgerEntity).save({
     canonicalName: candidate.rawEntityName,
     kind: candidate.entityKind,
     aliases: candidate.entityAliases,
   });
+
+  return { entity, created: true };
 };
 
 // Any post type can carry a claim, and single table inheritance keeps url and
@@ -177,11 +183,14 @@ const createClaimFromCandidate = async ({
   manager: EntityManager;
   candidate: ClaimCandidate;
   body: z.infer<typeof claimCandidateResolveSchema>;
-}): Promise<string> => {
+}): Promise<{ claimId: string; entityId: string; entityCreated: boolean }> => {
   // An explicit entityId settles what the raw names cannot: a claim about a
   // child product named after its parent, or names shared by two entities.
+  const resolved = body.entityId
+    ? null
+    : await resolveCandidateEntity({ manager, candidate });
   const entityId =
-    body.entityId ?? (await resolveCandidateEntity({ manager, candidate })).id;
+    body.entityId ?? (resolved as { entity: LedgerEntity }).entity.id;
   const effectiveDate = pickOverride(
     body.effectiveDate,
     candidate.effectiveDate,
@@ -198,7 +207,11 @@ const createClaimFromCandidate = async ({
     superseding: pickOverride(body.superseding, candidate.superseding),
   });
 
-  return claim.id;
+  return {
+    claimId: claim.id,
+    entityId,
+    entityCreated: resolved?.created ?? false,
+  };
 };
 
 export default async (fastify: FastifyInstance): Promise<void> => {
@@ -334,12 +347,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    const claimId = await con.transaction(async (manager) => {
+    const resolution = await con.transaction(async (manager) => {
       // Without a claimId the candidate becomes a claim of its own, filed
       // against the ledger entity its names resolve to.
+      const created = body.claimId
+        ? null
+        : await createClaimFromCandidate({ manager, candidate, body });
       const targetClaimId =
-        body.claimId ??
-        (await createClaimFromCandidate({ manager, candidate, body }));
+        body.claimId ?? (created as { claimId: string }).claimId;
 
       // Re-merging the same post into the same claim is a no-op, guarded by the
       // unique index on (claimId, url).
@@ -373,10 +388,68 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           .update(candidate.id, candidateUpdate);
       }
 
-      return targetClaimId;
+      // Merging into an existing claim mints nothing, but the entity is still
+      // worth answering with: inferring it from a name lookup is what the
+      // rollup caveat warns against.
+      const entityId =
+        created?.entityId ??
+        (
+          await manager
+            .getRepository(Claim)
+            .findOne({ select: ['entityId'], where: { id: targetClaimId } })
+        )?.entityId;
+
+      return {
+        claimId: targetClaimId,
+        entityId,
+        entityCreated: created?.entityCreated ?? false,
+      };
     });
 
-    return res.status(200).send({ claimId });
+    return res.status(200).send(resolution);
+  });
+
+  // The describe backlog, most-claimed first, so a tranche taken off the top is
+  // the set most plans are likely to reach for.
+  fastify.get<{
+    Querystring: z.infer<typeof ledgerEntityUndescribedSchema>;
+  }>('/entities/undescribed', async (req, res) => {
+    const query = parseSchema({
+      schema: ledgerEntityUndescribedSchema,
+      value: req.query,
+      res,
+    });
+    if (!query) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const entities = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager
+        .getRepository(LedgerEntity)
+        .createQueryBuilder('le')
+        .leftJoin(Claim, 'c', 'c."entityId" = le.id')
+        .select('le.id', 'id')
+        .addSelect('le."canonicalName"', 'canonicalName')
+        .addSelect('le.kind', 'kind')
+        .addSelect('le.aliases', 'aliases')
+        .addSelect('count(c.id)::int', 'claims')
+        .where('le.description IS NULL')
+        .groupBy('le.id')
+        // An entity something was displaced by is worth describing whatever its
+        // own claim count: it is the replacement a plan will not know to name.
+        .having(
+          'count(c.id) >= :minClaims OR EXISTS (SELECT 1 FROM claim s WHERE s."supersededByEntityId" = le.id)',
+          { minClaims: query.minClaims },
+        )
+        .orderBy('count(c.id)', 'DESC')
+        .addOrderBy('le.id', 'DESC')
+        .limit(query.limit)
+        .offset(query.offset)
+        .getRawMany(),
+    );
+
+    return res.status(200).send({ entities });
   });
 
   // The case no name can answer: a plan that reaches for an approach without
