@@ -9,6 +9,7 @@ import { counters } from '../telemetry';
 import { paddle } from './webhooks/paddle';
 import { apple } from './webhooks/apple';
 import { linear } from './webhooks/linear';
+import { encore } from './webhooks/encore';
 
 type SendgridEvent = {
   email: string;
@@ -119,4 +120,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(paddle, { prefix: '/paddle' });
   fastify.register(apple, { prefix: '/apple' });
   fastify.register(linear, { prefix: '/linear' });
+  fastify.register(encore, { prefix: '/encore' });
 }

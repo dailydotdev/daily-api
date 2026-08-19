@@ -246,8 +246,11 @@ describe('query onboardingTags', () => {
           { name: 'pending' },
           { name: 'politics' },
           { name: 'rust' },
-          { name: 'web-development' },
+          // en_US.UTF8 ignores the hyphen when sorting, so "webdev" is a
+          // prefix of "webdevelopment" and comes first. This is what
+          // production's collation produces.
           { name: 'webdev' },
+          { name: 'web-development' },
         ],
       },
     });
