@@ -73,6 +73,8 @@ const seedCandidate = (postId = postsFixture[0].id as string) =>
     effectiveDate: '2026-04-01',
     directness: ClaimDirectness.Announcement,
     evidence: 'the pages router is deprecated',
+    affected: ['next/router'],
+    superseding: ['next/navigation'],
   });
 
 const seedHierarchy = async () => {
@@ -1462,6 +1464,25 @@ describe('private ledger routes', () => {
       'iOS 27 (pre-release)': [27],
       // A release channel is not a version, so it stays out of the ordering.
       beta: null,
+    });
+  });
+
+  it('should carry the extracted signatures onto the claim a candidate merges into', async () => {
+    await seedCandidate();
+
+    await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    const claim = await con
+      .getRepository(Claim)
+      .findOneByOrFail({ statement: 'Next.js deprecates the pages router.' });
+
+    expect(claim).toMatchObject({
+      affected: ['next/router'],
+      superseding: ['next/navigation'],
     });
   });
 

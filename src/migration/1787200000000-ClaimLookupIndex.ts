@@ -65,6 +65,18 @@ export class ClaimLookupIndex1787200000000 implements MigrationInterface {
         USING GIN ("superseding")
     `);
 
+    // The raw extraction's own signatures, so a re-run can refile them without
+    // going through a reviewer.
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "claim_candidate"
+        ADD COLUMN IF NOT EXISTS "affected" text array NOT NULL DEFAULT '{}'
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "claim_candidate"
+        ADD COLUMN IF NOT EXISTS "superseding" text array NOT NULL DEFAULT '{}'
+    `);
+
     // Semver, calver and bare-integer versions are all dot-separated numeric
     // tuples, which int[] compares element-wise, so one derived column answers
     // "is the version in the plan inside this claim's scope" for every scheme.
@@ -140,6 +152,16 @@ export class ClaimLookupIndex1787200000000 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "claim"
         DROP COLUMN IF EXISTS "versionParsed"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "claim_candidate"
+        DROP COLUMN IF EXISTS "superseding"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "claim_candidate"
+        DROP COLUMN IF EXISTS "affected"
     `);
 
     await queryRunner.query(/* sql */ `

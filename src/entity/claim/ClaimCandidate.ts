@@ -72,6 +72,14 @@ export class ClaimCandidate {
   @Column({ type: 'text' })
   evidence: string;
 
+  // The raw extraction's own signatures, kept beside the claim's so the
+  // candidate-to-claim delta stays readable as extraction ground truth.
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  affected: string[];
+
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  superseding: string[];
+
   @Column({ type: 'text', default: ClaimCandidateStatus.Pending })
   status: ClaimCandidateStatus;
 

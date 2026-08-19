@@ -152,8 +152,8 @@ const createClaimFromCandidate = async ({
     effectiveDate,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
     dateSource: effectiveDate ? ClaimDateSource.Extracted : null,
-    affected: body.affected ?? [],
-    superseding: body.superseding ?? [],
+    affected: pickOverride(body.affected, candidate.affected),
+    superseding: pickOverride(body.superseding, candidate.superseding),
   });
 
   return claim.id;
