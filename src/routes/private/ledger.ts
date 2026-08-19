@@ -18,6 +18,7 @@ import {
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
   ledgerEntityDeleteSchema,
+  ledgerEntityDiscoverSchema,
   ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
   ledgerEntityUpdateSchema,
@@ -28,6 +29,11 @@ import {
   findLedgerEntitiesByName,
   normalizeEvidenceUrl,
 } from '../../common/claimLedger';
+import {
+  LEDGER_EMBEDDING_MODEL,
+  toVectorLiteral,
+} from '../../common/ledgerEmbedding';
+import { embedLedgerText } from '../../integrations/bragi/embedding';
 import { Claim, ClaimDateSource, ClaimStatus } from '../../entity/claim/Claim';
 import {
   ClaimCandidate,
@@ -119,6 +125,29 @@ const resolveCitedUrl = async ({
     .findOneBy({ claimId, url });
 
   return cited ? url : normalized;
+};
+
+// The vector is derived from the description, so the two are written together
+// and a cleared description clears it: a stale vector would answer for text the
+// entity no longer carries.
+const describedColumns = async (
+  description: string | null,
+): Promise<Record<string, unknown>> => {
+  if (!description) {
+    return {
+      description: null,
+      descriptionEmbedding: null,
+      descriptionEmbeddingModel: null,
+    };
+  }
+
+  const [embedding] = await embedLedgerText([description]);
+
+  return {
+    description,
+    descriptionEmbedding: embedding,
+    descriptionEmbeddingModel: LEDGER_EMBEDDING_MODEL,
+  };
 };
 
 const pickOverride = <T>(override: T | undefined, original: T): T =>
@@ -337,6 +366,51 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     return res.status(200).send({ claimId });
   });
 
+  // The case no name can answer: a plan that reaches for an approach without
+  // knowing what implements it. The nearest descriptions come back as entities
+  // to check — the claims filed against them decide whether anything is stale,
+  // so a loose neighbour costs a lookup rather than a false finding.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityDiscoverSchema>;
+  }>('/entities/discover', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityDiscoverSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const [embedding] = await embedLedgerText([body.text]);
+    const con = await createOrGetConnection();
+    const entities = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager
+        .getRepository(LedgerEntity)
+        .createQueryBuilder('le')
+        .select('le.id', 'id')
+        .addSelect('le."canonicalName"', 'canonicalName')
+        .addSelect('le.kind', 'kind')
+        .addSelect('le.description', 'description')
+        .addSelect('1 - (le."descriptionEmbedding" <=> :vector)', 'similarity')
+        .where('le."descriptionEmbedding" IS NOT NULL')
+        .andWhere('le."descriptionEmbeddingModel" = :model')
+        .andWhere(
+          '1 - (le."descriptionEmbedding" <=> :vector) >= :minSimilarity',
+        )
+        .orderBy('le."descriptionEmbedding" <=> :vector')
+        .setParameters({
+          vector: toVectorLiteral(embedding),
+          model: LEDGER_EMBEDDING_MODEL,
+          minSimilarity: body.minSimilarity,
+        })
+        .limit(body.limit)
+        .getRawMany(),
+    );
+
+    return res.status(200).send({ entities });
+  });
+
   // A name can straddle several entities, so the lookup answers with every
   // match and leaves picking one to the reviewer.
   fastify.get<{
@@ -386,9 +460,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       aliases: body.aliases,
       keywordValue: body.keywordValue ?? null,
       parentId: body.parentId ?? null,
+      ...(await describedColumns(body.description ?? null)),
     });
 
-    return res.status(201).send(entity);
+    return res.status(201).send({ ...entity, descriptionEmbedding: undefined });
   });
 
   // Only the fields the reviewer sends change, so a null clears a nullable
@@ -423,6 +498,8 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         keywordValue: body.keywordValue,
       }),
       ...(typeof body.parentId !== 'undefined' && { parentId: body.parentId }),
+      ...(typeof body.description !== 'undefined' &&
+        (await describedColumns(body.description ?? null))),
     };
 
     if (!Object.keys(update).length) {
@@ -457,7 +534,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
     await con.getRepository(LedgerEntity).update(entity.id, update);
 
-    return res.status(200).send({ ...entity, ...update });
+    return res
+      .status(200)
+      .send({ ...entity, ...update, descriptionEmbedding: undefined });
   });
 
   fastify.post<{

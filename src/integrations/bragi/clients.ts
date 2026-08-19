@@ -5,6 +5,8 @@ import {
   AudienceFitResponse,
   ChatMessage,
   ChatResponse,
+  Embedding,
+  EmbeddingResponse,
   LLMProxy,
   ClassifyGearResponse,
   ClassifyRejectionFeedbackResponse,
@@ -43,6 +45,7 @@ import {
   UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 import { GarmrService, GarmrNoopService } from '../garmr';
+import { LEDGER_EMBEDDING_DIMENSION } from '../../common/ledgerEmbedding';
 import type { ServiceClient } from '../../types';
 import { isMockEnabled } from '../../mocks/opportunity/services';
 
@@ -304,6 +307,15 @@ export const getBragiProxyClient = (
               role: 'assistant',
               content: 'Mock tweet content',
             }),
+          }),
+        embedding: async ({ input }: { input: string[] }) =>
+          new EmbeddingResponse({
+            data: input.map(
+              () =>
+                new Embedding({
+                  embedding: new Array(LEDGER_EMBEDDING_DIMENSION).fill(0),
+                }),
+            ),
           }),
       } as unknown as ReturnType<typeof createClient<typeof LLMProxy>>,
       garmr: new GarmrNoopService(),
