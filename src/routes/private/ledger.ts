@@ -130,15 +130,28 @@ const resolveCitedUrl = async ({
 // The vector is derived from the description, so the two are written together
 // and a cleared description clears it: a stale vector would answer for text the
 // entity no longer carries.
-const describedColumns = async (
-  description: string | null,
-): Promise<Record<string, unknown>> => {
+const describedColumns = async ({
+  description,
+  current,
+}: {
+  description: string | null;
+  current?: LedgerEntity;
+}): Promise<Record<string, unknown>> => {
   if (!description) {
     return {
       description: null,
       descriptionEmbedding: null,
       descriptionEmbeddingModel: null,
     };
+  }
+
+  // A sweep rewrites the description it already wrote, and one embedding call
+  // per entity per pass is the whole running cost of that cron.
+  if (
+    current?.description === description &&
+    current?.descriptionEmbeddingModel === LEDGER_EMBEDDING_MODEL
+  ) {
+    return {};
   }
 
   const [embedding] = await embedLedgerText([description]);
@@ -460,7 +473,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       aliases: body.aliases,
       keywordValue: body.keywordValue ?? null,
       parentId: body.parentId ?? null,
-      ...(await describedColumns(body.description ?? null)),
+      ...(await describedColumns({ description: body.description ?? null })),
     });
 
     return res.status(201).send({ ...entity, descriptionEmbedding: undefined });
@@ -499,7 +512,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       }),
       ...(typeof body.parentId !== 'undefined' && { parentId: body.parentId }),
       ...(typeof body.description !== 'undefined' &&
-        (await describedColumns(body.description ?? null))),
+        (await describedColumns({
+          description: body.description ?? null,
+          current: entity,
+        }))),
     };
 
     if (!Object.keys(update).length) {
@@ -684,7 +700,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         aliases.push(name);
       });
 
-      await entityRepo.update(into.id, { aliases });
+      // The description on the absorbed row is the only copy of it, and the
+      // row is about to be deleted, so it moves with the names. Re-embedded
+      // rather than copied: the vector is not loaded with the entity, and a
+      // merge is rare enough that one call costs less than carrying it.
+      await entityRepo.update(into.id, {
+        aliases,
+        ...(!into.description && from.description
+          ? await describedColumns({ description: from.description })
+          : {}),
+      });
       await entityRepo.delete(from.id);
 
       // Verifying the merge against the replica reads it before the merge

@@ -1608,6 +1608,57 @@ describe('private ledger routes', () => {
     expect(Number(embeddingCount)).toEqual(0);
   });
 
+  it('should not pay for an embedding when the description it is sent is the one it already holds', async () => {
+    await seedHierarchy();
+    const vector = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    vector[0] = 0.5;
+    const embed = jest
+      .spyOn(bragiEmbedding, 'embedLedgerText')
+      .mockResolvedValue([vector]);
+    const description = 'A React framework.';
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, description })
+      .expect(200);
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, description })
+      .expect(200);
+
+    expect(embed).toHaveBeenCalledTimes(1);
+  });
+
+  it('should carry the description of an absorbed entity when the one that keeps it has none', async () => {
+    await seedHierarchy();
+    const vector = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    vector[0] = 0.5;
+    jest.spyOn(bragiEmbedding, 'embedLedgerText').mockResolvedValue([vector]);
+
+    // The child is described, the parent it merges into is not, so the only
+    // copy of that text is on the row about to be deleted.
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId, description: 'The routing layer.' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/entities/merge')
+      .set(serviceHeaders)
+      .send({ fromEntityId: childEntityId, intoEntityId: parentEntityId })
+      .expect(200);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: parentEntityId }),
+    ).toMatchObject({
+      description: 'The routing layer.',
+      descriptionEmbeddingModel: LEDGER_EMBEDDING_MODEL,
+    });
+  });
+
   it('should answer discovery with the nearest described entity and skip vectors from another model', async () => {
     await seedHierarchy();
     const near = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
