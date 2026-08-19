@@ -24,6 +24,8 @@ import { Feed } from '../src/entity/Feed';
 import { HotTake } from '../src/entity/user/HotTake';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { deleteKeysByPattern } from '../src/redis';
+import { rateLimiterName } from '../src/directive/rateLimit';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -692,6 +694,20 @@ describe('mutation initToolDiscussion', () => {
     }
   `;
 
+  // A second client fixed to a different user, so the two concurrent calls
+  // in the race test below land in separate rate-limit buckets.
+  let secondUserState: GraphQLTestingState;
+  let secondUserClient: GraphQLTestClient;
+
+  beforeAll(async () => {
+    secondUserState = await initializeGraphQLTesting(
+      () => new MockContext(con, '2'),
+    );
+    secondUserClient = secondUserState.client;
+  });
+
+  afterAll(() => disposeGraphQLTesting(secondUserState));
+
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
     await con.getRepository(Source).save({
@@ -703,6 +719,7 @@ describe('mutation initToolDiscussion', () => {
       private: false,
       image: 'http//image.com/tools',
     });
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
   });
 
   it('should require authentication', () =>
@@ -746,6 +763,7 @@ describe('mutation initToolDiscussion', () => {
       visible: true,
     });
 
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
     const again = await client.mutate(MUTATION, {
       variables: { id: next.id },
     });
@@ -754,6 +772,27 @@ describe('mutation initToolDiscussion', () => {
       .getRepository(DatasetTool)
       .findOneByOrFail({ id: next.id });
     expect(tool.discussionPostId).toEqual(postId);
+  });
+
+  it('should create exactly one discussion post when initialized concurrently', async () => {
+    loggedUser = '1';
+    const react = toolByNormalizedTitle('react');
+
+    const [first, second] = await Promise.all([
+      client.mutate(MUTATION, { variables: { id: react.id } }),
+      secondUserClient.mutate(MUTATION, { variables: { id: react.id } }),
+    ]);
+
+    expect(first.errors).toBeFalsy();
+    expect(second.errors).toBeFalsy();
+    expect(first.data.initToolDiscussion).toEqual(
+      second.data.initToolDiscussion,
+    );
+
+    const posts = await con
+      .getRepository(Post)
+      .findBy({ sourceId: TOOLS_SOURCE, title: 'React discussion' });
+    expect(posts).toHaveLength(1);
   });
 
   it('should accept ordinary post comments on the discussion post', async () => {

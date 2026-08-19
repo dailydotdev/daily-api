@@ -1,4 +1,10 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity()
 @Index('IDX_dataset_tool_title_normalized_unique', ['titleNormalized'], {
@@ -36,6 +42,6 @@ export class DatasetTool {
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', default: () => 'now()' })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

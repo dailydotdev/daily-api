@@ -21,8 +21,8 @@ export class ToolVote {
   @PrimaryColumn({ type: 'uuid' })
   toolId: string;
 
-  @Column({ type: 'smallint', default: UserVote.None })
-  vote: UserVote = UserVote.None;
+  @Column({ type: 'smallint' })
+  vote: UserVote;
 
   @CreateDateColumn()
   createdAt: Date;

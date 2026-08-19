@@ -1,7 +1,8 @@
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { Readable } from 'stream';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { FreeformPost } from '../entity/posts/FreeformPost';
+import { PostOrigin } from '../entity/posts/Post';
 import { TOOLS_SOURCE } from '../entity/Source';
 import { generateShortId } from '../ids';
 import { markdown } from './markdown';
@@ -84,7 +85,7 @@ export const fetchAndUploadToolIcon = async (
 // post comments, so threading, votes, notifications and moderation come from
 // the existing machinery.
 export const createToolDiscussionPost = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   tool: DatasetTool,
 ): Promise<FreeformPost> => {
   const id = await generateShortId();
@@ -98,8 +99,10 @@ export const createToolDiscussionPost = async (
     content,
     contentHtml: markdown.render(content),
     visible: true,
+    visibleAt: new Date(),
     private: false,
     showOnFeed: false,
+    origin: PostOrigin.UserGenerated,
     flags: {
       visible: true,
       private: false,

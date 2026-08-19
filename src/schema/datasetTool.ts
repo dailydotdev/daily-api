@@ -17,7 +17,6 @@ import {
 import { queryReadReplica } from '../common/queryReadReplica';
 import { ToolStackStats } from '../entity/ToolStackStats';
 import { ToolVote } from '../entity/ToolVote';
-import { Post } from '../entity/posts/Post';
 import { UserVote } from '../types';
 import { voteToolSchema } from '../common/schema/toolDiscussion';
 import { GQLEmptyResponse } from './common';
@@ -37,6 +36,9 @@ const MIN_TAKE_MATCH_LENGTH = 4;
 
 const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Rolls back initToolDiscussion's transaction when it loses a concurrent race.
+class ToolDiscussionRaceError extends Error {}
 
 export const typeDefs = /* GraphQL */ `
   extend type DatasetTool {
@@ -138,7 +140,7 @@ export const typeDefs = /* GraphQL */ `
     Get or create the tool's hidden discussion post; comments on it are
     ordinary post comments
     """
-    initToolDiscussion(id: ID!): ID! @auth
+    initToolDiscussion(id: ID!): ID! @auth @rateLimit(limit: 1, duration: 30)
   }
 
   type ToolCategoryStat {
@@ -485,28 +487,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         return tool.discussionPostId;
       }
 
-      const post = await createToolDiscussionPost(ctx.con, tool);
-      const claimed = await ctx.con
-        .getRepository(DatasetTool)
-        .createQueryBuilder()
-        .update()
-        .set({ discussionPostId: post.id })
-        .where('id = :id AND "discussionPostId" IS NULL', { id: tool.id })
-        .execute();
+      try {
+        return await ctx.con.transaction(async (manager) => {
+          const post = await createToolDiscussionPost(manager, tool);
+          const claimed = await manager
+            .getRepository(DatasetTool)
+            .createQueryBuilder()
+            .update()
+            .set({ discussionPostId: post.id })
+            .where('id = :id AND "discussionPostId" IS NULL', { id: tool.id })
+            .execute();
 
-      if (!claimed.affected) {
-        // Lost a concurrent init; use the winner's post.
-        await ctx.con.getRepository(Post).delete({ id: post.id });
-        const fresh = await ctx.con
-          .getRepository(DatasetTool)
-          .findOneByOrFail({ id: tool.id });
-        if (!fresh.discussionPostId) {
-          throw new Error('Failed to initialize tool discussion');
+          if (!claimed.affected) {
+            // Lost a concurrent init; roll back this post and use the winner's.
+            throw new ToolDiscussionRaceError();
+          }
+
+          return post.id;
+        });
+      } catch (error) {
+        if (!(error instanceof ToolDiscussionRaceError)) {
+          throw error;
         }
-        return fresh.discussionPostId;
       }
 
-      return post.id;
+      const fresh = await ctx.con
+        .getRepository(DatasetTool)
+        .findOneByOrFail({ id: tool.id });
+      if (!fresh.discussionPostId) {
+        throw new Error('Failed to initialize tool discussion');
+      }
+      return fresh.discussionPostId;
     },
   },
 };
