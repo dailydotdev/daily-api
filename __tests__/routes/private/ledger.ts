@@ -1724,6 +1724,95 @@ describe('private ledger routes', () => {
     expect(body.entities).toEqual([]);
   });
 
+  it('should report the entity a resolve minted so it can be described in the same turn', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(body).toMatchObject({ entityCreated: true });
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: body.entityId }),
+    ).toMatchObject({ canonicalName: 'Next.js' });
+  });
+
+  it('should report the entity without claiming it minted one when the names already resolve', async () => {
+    await seedHierarchy();
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(body).toMatchObject({
+      entityId: parentEntityId,
+      entityCreated: false,
+    });
+  });
+
+  it('should queue entities worth describing and leave the unreachable ones out', async () => {
+    await seedHierarchy();
+    // The parent carries no claim of its own; the child carries one. Neither
+    // clears the two-claim bar, so only a displacement target should appear.
+    const displaced = await con.getRepository(LedgerEntity).save({
+      canonicalName: 'Pages Router',
+      kind: LedgerEntityKind.Package,
+    });
+    await con
+      .getRepository(Claim)
+      .update(claimId, { supersededByEntityId: displaced.id });
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities.map(({ id }: { id: string }) => id)).toEqual([
+      displaced.id,
+    ]);
+  });
+
+  it('should leave a described entity out of the queue', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).save([
+      {
+        entityId: parentEntityId,
+        changeType: ClaimChangeType.Release,
+        statement: 'one',
+      },
+      {
+        entityId: parentEntityId,
+        changeType: ClaimChangeType.Release,
+        statement: 'two',
+      },
+    ]);
+
+    const before = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+    expect(before.body.entities.map(({ id }: { id: string }) => id)).toContain(
+      parentEntityId,
+    );
+
+    await con
+      .getRepository(LedgerEntity)
+      .update(parentEntityId, { description: 'A React framework.' });
+
+    const after = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+    expect(
+      after.body.entities.map(({ id }: { id: string }) => id),
+    ).not.toContain(parentEntityId);
+  });
+
   it('should reject a claim query carrying neither ids nor an entity window', async () => {
     await request(app.server)
       .get('/p/ledger/claims')
