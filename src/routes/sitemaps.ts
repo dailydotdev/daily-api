@@ -12,6 +12,7 @@ import {
 import { ChannelHighlightDefinition } from '../entity/ChannelHighlightDefinition';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { ToolStackStats } from '../entity/ToolStackStats';
+import { TOOLS_SOURCE } from '../entity/Source';
 import { HighlightsCanonical } from '../entity/HighlightsCanonical';
 import { ArchivePeriodType, ArchiveScopeType } from '../common/archive';
 import { getUserProfileUrl, MIN_INDEXABLE_REPUTATION } from '../common/users';
@@ -166,6 +167,7 @@ const buildPostsSitemapBaseQuery = (
     .from(Post, 'p')
     .leftJoin(User, 'u', 'p."authorId" = u.id')
     .where('p.type NOT IN (:...types)', { types: POSTS_SITEMAP_EXCLUDED_TYPES })
+    .andWhere('p."sourceId" != :toolsSourceId', { toolsSourceId: TOOLS_SOURCE })
     .andWhere('NOT p.private')
     .andWhere('NOT p.banned')
     .andWhere('NOT p.deleted')

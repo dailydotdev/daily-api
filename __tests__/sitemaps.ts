@@ -19,6 +19,8 @@ import {
   User,
 } from '../src/entity';
 import { BriefPost } from '../src/entity/posts/BriefPost';
+import { FreeformPost } from '../src/entity/posts/FreeformPost';
+import { TOOLS_SOURCE } from '../src/entity/Source';
 import {
   ArchivePeriodType,
   ArchiveRankingType,
@@ -143,6 +145,35 @@ describe('GET /sitemaps/posts.txt', () => {
 http://localhost:5002/posts/p4-p4
 http://localhost:5002/posts/p1-p1
 `);
+  });
+
+  it('should exclude tools-source discussion posts while keeping other posts', async () => {
+    await con.getRepository(Source).save({
+      id: TOOLS_SOURCE,
+      name: 'Tools',
+      handle: TOOLS_SOURCE,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+      image: 'http://image.com/tools',
+    });
+    await con.getRepository(FreeformPost).insert({
+      id: 'tools-discussion',
+      shortId: 'tdp1',
+      title: 'Tools Discussion',
+      sourceId: TOOLS_SOURCE,
+      createdAt: now,
+      visible: true,
+      showOnFeed: false,
+      content: 'Community discussion about React on daily.dev.',
+    });
+
+    const res = await request(app.server)
+      .get('/sitemaps/posts.txt')
+      .expect(200);
+
+    expect(res.text).not.toContain('tools-discussion');
+    expect(res.text).toContain('/posts/p4-p4');
   });
 });
 
