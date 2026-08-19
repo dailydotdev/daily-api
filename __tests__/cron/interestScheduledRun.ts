@@ -118,21 +118,43 @@ describe('interestScheduledRun cron', () => {
     expect(firedRunIds).toEqual(runs.map(({ id }) => id).sort());
   });
 
-  it('reuses the same run on a retry instead of queueing a duplicate', async () => {
+  it('keeps a single queued scheduled run per interest across a backlog and re-emits its id', async () => {
     await expectSuccessfulCron(cron);
-    await con
-      .getRepository(InterestRun)
-      .update(
-        { interestId: 'due-null' },
-        { status: InterestRunStatus.Completed },
-      );
-
     await expectSuccessfulCron(cron);
 
     const runs = await con
       .getRepository(InterestRun)
       .findBy({ interestId: 'due-null' });
     expect(runs).toHaveLength(1);
-    expect(runs[0].status).toEqual(InterestRunStatus.Completed);
+    expect(runs[0].status).toEqual(InterestRunStatus.Queued);
+
+    const firedRunIds = (triggerTypedEvent as jest.Mock).mock.calls
+      .filter(
+        (c) =>
+          c[1] === 'api.v1.interest-run-requested' &&
+          c[2].interestId === 'due-null',
+      )
+      .map((c) => c[2].runId);
+    expect(firedRunIds).toEqual([runs[0].id, runs[0].id]);
+  });
+
+  it('schedules a fresh run once the previous scheduled run left the queue', async () => {
+    await expectSuccessfulCron(cron);
+    const [first] = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'due-null' });
+    await con
+      .getRepository(InterestRun)
+      .update({ id: first.id }, { status: InterestRunStatus.Completed });
+
+    await expectSuccessfulCron(cron);
+
+    const runs = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'due-null' });
+    expect(runs).toHaveLength(2);
+    expect(
+      runs.filter(({ status }) => status === InterestRunStatus.Queued),
+    ).toHaveLength(1);
   });
 });
