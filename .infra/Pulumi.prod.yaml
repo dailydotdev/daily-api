@@ -287,6 +287,8 @@ config:
       secure: AAABAPIb9sXoiKXheuSjhaYdiJVZMq6WMxECNwyUFFghXi8xCn3YOKVrK1Gsja+wepnbKlXuKuIo8O3DsqvJAQ==
     encoreOrigin:
       secure: AAABAOYCAMGzeMY9j8K1KT+2tpufEzLWKYcSCGKo/1+4HCK08xNTWODDv65kxZ9nwxx/GKMHkjAeh3zeMCVsF/lobcSTqtITEuXfCih3p8UF
+    encoreWebhookSecret:
+      secure: AAABAH7GvsECSPQvM+yr3QoCvhrrnIx7ZmZIEf+zJ6CvgYXHVVAQJWLFyXpYAKi554m4YQnVQ+nWKEMQ02UFw9DpfHaiBw==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
