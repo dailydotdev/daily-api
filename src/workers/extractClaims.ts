@@ -255,9 +255,32 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
         return;
       }
 
-      await con.transaction((manager) =>
-        manager.getRepository(ClaimCandidate).insert(candidates),
-      );
+      // The check above happens a whole extraction before the write, so two
+      // deliveries of the same post can both find the ledger empty, spend a
+      // minute in bragi and file the same claims twice — which production did.
+      // Reading again here shrinks that window to the gap between these two
+      // statements, and the partial unique index behind the insert closes the
+      // rest: a bare ON CONFLICT DO NOTHING drops whichever run loses.
+      const raced = await con
+        .getRepository(ClaimCandidate)
+        .createQueryBuilder('cc')
+        .select('cc.id', 'id')
+        .where('cc."postId" = :postId', { postId })
+        .limit(1)
+        .getRawOne<{ id: string }>();
+
+      if (raced) {
+        logger.debug(logDetails, 'Claims filed by a concurrent extraction');
+        return;
+      }
+
+      await con
+        .createQueryBuilder()
+        .insert()
+        .into(ClaimCandidate)
+        .values(candidates)
+        .orIgnore()
+        .execute();
     } catch (err) {
       logger.error({ ...logDetails, err }, 'Failed to extract claims');
       throw err;
