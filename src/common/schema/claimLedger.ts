@@ -107,8 +107,21 @@ export const ledgerEntityQuerySchema = z.strictObject({
 // rather than spending a description that could only ever be noise.
 export const ledgerEntityUndescribedSchema = z.strictObject({
   minClaims: z.coerce.number().int().min(1).max(50).default(2),
+  // The skipped listing is how a ruling is reviewed or taken back, so it
+  // answers with every skipped entity rather than only the ones that still
+  // clear the backlog bar.
+  skipped: z.stringbool().default(false),
   limit: z.coerce.number().int().positive().max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
+});
+
+// Some entities are never described as an operational call, and nothing else
+// takes them off the queue: they keep earning claims, so they keep coming back
+// to the top of it. The reason is what makes this a ruling rather than a
+// silenced row, and a null reason lifts the skip.
+export const ledgerEntityDescriptionSkipSchema = z.strictObject({
+  entityId: z.uuid(),
+  reason: note.nullable(),
 });
 
 export const ledgerEntityCreateSchema = z.strictObject({

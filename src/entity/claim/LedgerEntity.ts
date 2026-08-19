@@ -64,6 +64,14 @@ export class LedgerEntity {
   @Column({ type: 'text', nullable: true, default: null })
   descriptionEmbeddingModel: string | null;
 
+  // Some entities are never worth describing as an operational call: nobody
+  // plans "I need somewhere to host the repo" and means GitHub, so a
+  // description would only ever answer the wrong prose. The ruling is kept as
+  // the reason it was made, so the same names stop returning to the top of the
+  // describe backlog every sweep and the next reviewer can see why.
+  @Column({ type: 'text', nullable: true, default: null })
+  descriptionSkipReason: string | null;
+
   // Soft reference to keyword.value, matching how post_keyword references it.
   @Column({ type: 'text', nullable: true, default: null })
   keywordValue: string | null;
