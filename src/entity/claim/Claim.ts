@@ -23,6 +23,15 @@ export enum ClaimChangeType {
   Pricing = 'pricing',
 }
 
+// A claim the extractor dated itself is the only one safe to slice into a
+// month window; the rest carry the date of what reported them, which is an
+// upper bound on when the change actually landed.
+export enum ClaimDateSource {
+  Extracted = 'extracted',
+  EvidencePublished = 'evidence_published',
+  EvidenceCrawled = 'evidence_crawled',
+}
+
 export enum ClaimStatus {
   Candidate = 'candidate',
   Corroborated = 'corroborated',
@@ -32,6 +41,13 @@ export enum ClaimStatus {
 
 @Entity()
 @Index('IDX_claim_entityId_effectiveDate', ['entityId', 'effectiveDate'])
+@Index('IDX_claim_changeType_effectiveDate', ['changeType', 'effectiveDate'])
+@Index('IDX_claim_supersededByClaimId', ['supersededByClaimId'])
+@Index('IDX_claim_supersededByEntityId', ['supersededByEntityId'])
+// GIN indexes over the signature arrays, created in the migration since
+// TypeORM cannot express the index method.
+@Index('IDX_claim_affected', { synchronize: false })
+@Index('IDX_claim_superseding', { synchronize: false })
 export class Claim {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_claim_id',
@@ -56,11 +72,40 @@ export class Claim {
   @Column({ type: 'text', nullable: true, default: null })
   versionScope: string | null;
 
+  // Semver, calver and bare-integer versions are all dot-separated numeric
+  // tuples, and postgres compares int[] element-wise, so one derived column
+  // orders every scheme the corpus actually uses. Release channels ("beta",
+  // "public preview") carry no number and stay null.
+  @Column({
+    type: 'int',
+    array: true,
+    nullable: true,
+    generatedType: 'STORED',
+    asExpression: `string_to_array((regexp_match("versionScope", '([0-9]+(?:\\.[0-9]+)*)'))[1], '.')::int[]`,
+    insert: false,
+    update: false,
+  })
+  versionParsed: number[] | null;
+
+  // What this change makes stale: symbols, import paths, model IDs, endpoints.
+  // Kept apart from the entity's aliases because aliases answer which thing a
+  // claim is about, and these answer which part of it the change touched.
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  affected: string[];
+
+  // What replaces them. A plan reaching for one of these made the current
+  // choice, so matching it here is the opposite of a finding.
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  superseding: string[];
+
   @Column({ type: 'date', nullable: true, default: null })
   effectiveDate: string | null;
 
   @Column({ type: 'date', nullable: true, default: null })
   sunsetDate: string | null;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  dateSource: ClaimDateSource | null;
 
   @Column({ type: 'uuid', nullable: true, default: null })
   supersededByEntityId: string | null;

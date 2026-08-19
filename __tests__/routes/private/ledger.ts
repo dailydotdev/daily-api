@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import type { DataSource } from 'typeorm';
+import { In } from 'typeorm';
 import appFunc from '../../../src';
 import createOrGetConnection from '../../../src/db';
 import { saveFixtures } from '../../helpers';
@@ -12,6 +13,7 @@ import { YouTubePost } from '../../../src/entity/posts/YouTubePost';
 import {
   Claim,
   ClaimChangeType,
+  ClaimDateSource,
   ClaimStatus,
 } from '../../../src/entity/claim/Claim';
 import {
@@ -1335,6 +1337,120 @@ describe('private ledger routes', () => {
       id: claimId,
       entityName: 'Next.js App Router',
       status: ClaimStatus.Rejected,
+    });
+  });
+
+  it('should derive a comparable version tuple from every scheme the corpus uses', async () => {
+    await seedHierarchy();
+    const scopes = [
+      '2.0',
+      'v26',
+      '2026.2',
+      'JDK 25',
+      'iOS 27 (pre-release)',
+      'beta',
+    ];
+    const saved = await con.getRepository(Claim).save(
+      scopes.map((versionScope) => ({
+        entityId: childEntityId,
+        changeType: ClaimChangeType.Breaking,
+        statement: `scope ${versionScope}`,
+        versionScope,
+      })),
+    );
+
+    const parsed = await con.getRepository(Claim).find({
+      select: ['versionScope', 'versionParsed'],
+      where: { id: In(saved.map(({ id }) => id)) },
+      order: { statement: 'ASC' },
+    });
+
+    expect(
+      Object.fromEntries(
+        parsed.map(({ versionScope, versionParsed }) => [
+          versionScope,
+          versionParsed,
+        ]),
+      ),
+    ).toEqual({
+      '2.0': [2, 0],
+      v26: [26],
+      '2026.2': [2026, 2],
+      'JDK 25': [25],
+      'iOS 27 (pre-release)': [27],
+      // A release channel is not a version, so it stays out of the ordering.
+      beta: null,
+    });
+  });
+
+  it('should record the signatures a change makes stale and the ones replacing them', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/claims/update')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        affected: ['next/legacy/image'],
+        superseding: ['next/image'],
+      })
+      .expect(200);
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/claims')
+      .query({ ids: claimId })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.claims[0]).toMatchObject({
+      affected: ['next/legacy/image'],
+      superseding: ['next/image'],
+    });
+  });
+
+  it('should serve an undated claim inside a window and hold it back when the window must be dated', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).update(claimId, {
+      effectiveDate: null,
+      dateSource: null,
+    });
+
+    const window = { entities: 'nextjs', since: '2026-01-01' };
+    const [undatedAllowed, datedOnly] = await Promise.all([
+      request(app.server)
+        .get('/p/ledger/claims')
+        .query(window)
+        .set(serviceHeaders)
+        .expect(200),
+      request(app.server)
+        .get('/p/ledger/claims')
+        .query({ ...window, dated: 'true' })
+        .set(serviceHeaders)
+        .expect(200),
+    ]);
+
+    expect(undatedAllowed.body.claims).toHaveLength(1);
+    expect(datedOnly.body.claims).toEqual([]);
+  });
+
+  it('should mark a date a reviewer sets as the date of the change itself', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).update(claimId, {
+      effectiveDate: '2026-05-02',
+      dateSource: ClaimDateSource.EvidenceCrawled,
+    });
+
+    await request(app.server)
+      .post('/p/ledger/claims/update')
+      .set(serviceHeaders)
+      .send({ claimId, effectiveDate: '2026-03-11' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({
+      effectiveDate: '2026-03-11',
+      dateSource: ClaimDateSource.Extracted,
     });
   });
 

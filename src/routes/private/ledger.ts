@@ -27,7 +27,7 @@ import {
   expandLedgerEntityIds,
   findLedgerEntitiesByName,
 } from '../../common/claimLedger';
-import { Claim, ClaimStatus } from '../../entity/claim/Claim';
+import { Claim, ClaimDateSource, ClaimStatus } from '../../entity/claim/Claim';
 import {
   ClaimCandidate,
   ClaimCandidateStatus,
@@ -114,13 +114,20 @@ const createClaimFromCandidate = async ({
   // child product named after its parent, or names shared by two entities.
   const entityId =
     body.entityId ?? (await resolveCandidateEntity({ manager, candidate })).id;
+  const effectiveDate = pickOverride(
+    body.effectiveDate,
+    candidate.effectiveDate,
+  );
   const claim = await manager.getRepository(Claim).save({
     entityId,
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement: pickOverride(body.statement, candidate.statement),
     versionScope: pickOverride(body.versionScope, candidate.versionScope),
-    effectiveDate: pickOverride(body.effectiveDate, candidate.effectiveDate),
+    effectiveDate,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
+    dateSource: effectiveDate ? ClaimDateSource.Extracted : null,
+    affected: body.affected ?? [],
+    superseding: body.superseding ?? [],
   });
 
   return claim.id;
@@ -697,9 +704,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       }),
       ...(typeof body.effectiveDate !== 'undefined' && {
         effectiveDate: body.effectiveDate,
+        // A reviewer setting the date read the change itself, so it stops
+        // being whatever a backfill inferred from the reporting post.
+        dateSource: body.effectiveDate ? ClaimDateSource.Extracted : null,
       }),
       ...(typeof body.sunsetDate !== 'undefined' && {
         sunsetDate: body.sunsetDate,
+      }),
+      ...(typeof body.affected !== 'undefined' && { affected: body.affected }),
+      ...(typeof body.superseding !== 'undefined' && {
+        superseding: body.superseding,
       }),
       ...(typeof body.supersededByEntityId !== 'undefined' && {
         supersededByEntityId: body.supersededByEntityId,
@@ -977,7 +991,11 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'c."changeType" AS "changeType"',
           'c.statement AS statement',
           'c."versionScope" AS "versionScope"',
+          'c."versionParsed" AS "versionParsed"',
+          'c.affected AS affected',
+          'c.superseding AS superseding',
           'c."effectiveDate" AS "effectiveDate"',
+          'c."dateSource" AS "dateSource"',
           'c."sunsetDate" AS "sunsetDate"',
           'c."supersededByEntityId" AS "supersededByEntityId"',
           'c."supersededByClaimId" AS "supersededByClaimId"',
@@ -1013,16 +1031,24 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         entityIds: matched.map(({ id }) => id),
       });
 
-      return builder
+      builder
         .where('c."entityId" IN (:...entityIds)', { entityIds })
         .andWhere('c.status IN (:...statuses)', {
           statuses: statusRank.slice(statusRank.indexOf(query.minStatus)),
-        })
-        .andWhere(
-          'COALESCE(c."effectiveDate", c."createdAt"::date) >= :since',
-          { since },
-        )
-        .getRawMany();
+        });
+
+      // Falling back to "createdAt" dated every undated claim to the day it was
+      // written, which for a backfill is one day for all of them.
+      return query.dated
+        ? builder
+            .andWhere('c."effectiveDate" >= :since', { since })
+            .getRawMany()
+        : builder
+            .andWhere(
+              '(c."effectiveDate" IS NULL OR c."effectiveDate" >= :since)',
+              { since },
+            )
+            .getRawMany();
     });
 
     return res.status(200).send({ claims });
