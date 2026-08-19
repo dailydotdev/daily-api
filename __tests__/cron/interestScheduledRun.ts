@@ -138,6 +138,52 @@ describe('interestScheduledRun cron', () => {
     expect(firedRunIds).toEqual([runs[0].id, runs[0].id]);
   });
 
+  it('does not queue behind a scheduled run that is still executing', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-active',
+      interestId: 'due-null',
+      status: InterestRunStatus.Running,
+      trigger: InterestRunTrigger.Scheduled,
+      startedAt: new Date(),
+    });
+
+    await expectSuccessfulCron(cron);
+
+    const runs = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'due-null' });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toEqual(InterestRunStatus.Running);
+    expect(
+      (triggerTypedEvent as jest.Mock).mock.calls.filter(
+        (c) => c[2]?.interestId === 'due-null',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('fails a stale running scheduled run and schedules a fresh one', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-stale',
+      interestId: 'due-null',
+      status: InterestRunStatus.Running,
+      trigger: InterestRunTrigger.Scheduled,
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    });
+
+    await expectSuccessfulCron(cron);
+
+    const stale = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-stale' });
+    expect(stale.status).toEqual(InterestRunStatus.Failed);
+
+    const queued = await con.getRepository(InterestRun).findBy({
+      interestId: 'due-null',
+      status: InterestRunStatus.Queued,
+    });
+    expect(queued).toHaveLength(1);
+  });
+
   it('schedules a fresh run once the previous scheduled run left the queue', async () => {
     await expectSuccessfulCron(cron);
     const [first] = await con

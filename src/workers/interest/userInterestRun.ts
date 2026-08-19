@@ -49,7 +49,7 @@ const buildRunBlocks = ({
   return blocks;
 };
 
-const failStaleRunning = ({
+export const failStaleRunning = ({
   con,
   interestId,
 }: {

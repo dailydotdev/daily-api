@@ -36,7 +36,7 @@ export type InterestRunBlock =
 })
 @Index('IDX_interest_run_interest_id_scheduled_queued', ['interestId'], {
   unique: true,
-  where: `status = 'queued' AND trigger = 'scheduled'`,
+  where: `status IN ('queued', 'running') AND trigger = 'scheduled'`,
 })
 export class InterestRun {
   @PrimaryColumn({ type: 'text' })

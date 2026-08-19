@@ -37,6 +37,18 @@ export class AddInterestRun1786972666676 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_interest_run_interest_id_running"
+        ON "interest_run" ("interestId")
+        WHERE status = 'running'
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_interest_run_interest_id_scheduled_queued"
+        ON "interest_run" ("interestId")
+        WHERE status IN ('queued', 'running') AND trigger = 'scheduled'
+    `);
+
+    await queryRunner.query(/* sql */ `
       ALTER TABLE "user_interest"
         ADD "lastRunStatus" text
     `);
