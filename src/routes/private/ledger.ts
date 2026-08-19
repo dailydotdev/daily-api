@@ -18,6 +18,7 @@ import {
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
   ledgerEntityDeleteSchema,
+  ledgerEntityDescriptionSkipSchema,
   ledgerEntityDiscoverSchema,
   ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
@@ -424,8 +425,8 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
-    const entities = await queryReadReplica(con, ({ queryRunner }) =>
-      queryRunner.manager
+    const entities = await queryReadReplica(con, ({ queryRunner }) => {
+      const builder = queryRunner.manager
         .getRepository(LedgerEntity)
         .createQueryBuilder('le')
         .leftJoin(Claim, 'c', 'c."entityId" = le.id')
@@ -436,20 +437,64 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .addSelect('count(c.id)::int', 'claims')
         .where('le.description IS NULL')
         .groupBy('le.id')
-        // An entity something was displaced by is worth describing whatever its
-        // own claim count: it is the replacement a plan will not know to name.
-        .having(
-          'count(c.id) >= :minClaims OR EXISTS (SELECT 1 FROM claim s WHERE s."supersededByEntityId" = le.id)',
-          { minClaims: query.minClaims },
-        )
         .orderBy('count(c.id)', 'DESC')
         .addOrderBy('le.id', 'DESC')
         .limit(query.limit)
-        .offset(query.offset)
-        .getRawMany(),
-    );
+        .offset(query.offset);
+
+      if (query.skipped) {
+        // Reviewing a ruling is not the same question as filling the queue, so
+        // the backlog bar is off here: a skip taken on an entity below it would
+        // otherwise be unreachable, and unliftable.
+        return builder
+          .andWhere('le."descriptionSkipReason" IS NOT NULL')
+          .addSelect('le."descriptionSkipReason"', 'skipReason')
+          .getRawMany();
+      }
+
+      return (
+        builder
+          .andWhere('le."descriptionSkipReason" IS NULL')
+          // An entity something was displaced by is worth describing whatever its
+          // own claim count: it is the replacement a plan will not know to name.
+          .having(
+            'count(c.id) >= :minClaims OR EXISTS (SELECT 1 FROM claim s WHERE s."supersededByEntityId" = le.id)',
+            { minClaims: query.minClaims },
+          )
+          .getRawMany()
+      );
+    });
 
     return res.status(200).send({ entities });
+  });
+
+  // A skip is a ruling about the queue, not about the entity: it keeps its
+  // claims, its names and every lookup that reaches it, and only stops asking
+  // to be described. Sending a null reason puts it back.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityDescriptionSkipSchema>;
+  }>('/entities/undescribed/skip', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityDescriptionSkipSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const { affected } = await con
+      .getRepository(LedgerEntity)
+      .update(body.entityId, { descriptionSkipReason: body.reason });
+
+    if (!affected) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    return res
+      .status(200)
+      .send({ entityId: body.entityId, descriptionSkipReason: body.reason });
   });
 
   // The case no name can answer: a plan that reaches for an approach without

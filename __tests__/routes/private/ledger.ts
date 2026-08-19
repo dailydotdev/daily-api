@@ -1813,6 +1813,108 @@ describe('private ledger routes', () => {
     ).not.toContain(parentEntityId);
   });
 
+  it('should take a skipped entity out of the queue and answer it back on the skipped listing', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).save([
+      {
+        entityId: parentEntityId,
+        changeType: ClaimChangeType.Release,
+        statement: 'one',
+      },
+      {
+        entityId: parentEntityId,
+        changeType: ClaimChangeType.Release,
+        statement: 'two',
+      },
+    ]);
+
+    await request(app.server)
+      .post('/p/ledger/entities/undescribed/skip')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, reason: 'Nobody plans for a host.' })
+      .expect(200);
+
+    const queue = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+    expect(
+      queue.body.entities.map(({ id }: { id: string }) => id),
+    ).not.toContain(parentEntityId);
+
+    const skipped = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .query({ skipped: 'true' })
+      .set(serviceHeaders)
+      .expect(200);
+    expect(skipped.body.entities).toMatchObject([
+      { id: parentEntityId, skipReason: 'Nobody plans for a host.' },
+    ]);
+  });
+
+  it('should list a skip taken on an entity the backlog bar would never have surfaced', async () => {
+    await seedHierarchy();
+
+    await request(app.server)
+      .post('/p/ledger/entities/undescribed/skip')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, reason: 'Too generic to describe.' })
+      .expect(200);
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .query({ skipped: 'true' })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities.map(({ id }: { id: string }) => id)).toEqual([
+      parentEntityId,
+    ]);
+  });
+
+  it('should put a skipped entity back on the queue when the skip is lifted', async () => {
+    await seedHierarchy();
+    const displaced = await con.getRepository(LedgerEntity).save({
+      canonicalName: 'Pages Router',
+      kind: LedgerEntityKind.Package,
+    });
+    await con
+      .getRepository(Claim)
+      .update(claimId, { supersededByEntityId: displaced.id });
+
+    await request(app.server)
+      .post('/p/ledger/entities/undescribed/skip')
+      .set(serviceHeaders)
+      .send({ entityId: displaced.id, reason: 'Ruled out by mistake.' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/entities/undescribed/skip')
+      .set(serviceHeaders)
+      .send({ entityId: displaced.id, reason: null })
+      .expect(200);
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities.map(({ id }: { id: string }) => id)).toEqual([
+      displaced.id,
+    ]);
+  });
+
+  it('should answer 404 when skipping an entity that does not exist', async () => {
+    await request(app.server)
+      .post('/p/ledger/entities/undescribed/skip')
+      .set(serviceHeaders)
+      .send({
+        entityId: '11111111-1111-4111-8111-111111111119',
+        reason: 'Never described.',
+      })
+      .expect(404);
+  });
+
   it('should reject a claim query carrying neither ids nor an entity window', async () => {
     await request(app.server)
       .get('/p/ledger/claims')
