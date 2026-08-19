@@ -20,6 +20,7 @@ export const SessionManager = {
 export const createAgentSession = async () => ({
   session: {
     prompt: async () => undefined,
+    abort: async () => undefined,
     dispose: () => undefined,
   },
 });

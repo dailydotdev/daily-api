@@ -12,6 +12,7 @@ import {
 import type { User } from './user';
 import type { Feed } from './Feed';
 import type { Source } from './Source';
+import { InterestRunStatus } from './InterestRun';
 
 export enum UserInterestStatus {
   Active = 'active',
@@ -58,7 +59,6 @@ export class UserInterest {
   id: string;
 
   @Column({ type: 'text' })
-  @Index('IDX_user_interest_user_id')
   userId: string;
 
   @Column({ type: 'text' })
@@ -94,6 +94,12 @@ export class UserInterest {
 
   @Column({ type: 'text', nullable: true })
   lastRunSummary: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  lastRunStatus: InterestRunStatus | null;
+
+  @Column({ type: 'integer', nullable: true })
+  lastRunFindings: number | null;
 
   @CreateDateColumn()
   createdAt: Date;

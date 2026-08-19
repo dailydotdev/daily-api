@@ -1,10 +1,16 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
 import { InterestFeedback } from '../entity/InterestFeedback';
+import {
+  InterestRun,
+  InterestRunStatus,
+  InterestRunTrigger,
+  type InterestRunBlock,
+} from '../entity/InterestRun';
 import {
   UserInterest,
   UserInterestCadence,
@@ -24,6 +30,7 @@ import type { GQLPost } from './posts';
 import { PostType } from '../entity/posts/Post';
 import {
   createInterestSchema,
+  interestHistorySchema,
   interestIdSchema,
   sendInterestCommandSchema,
   updateInterestSchema,
@@ -56,6 +63,21 @@ export type GQLInterestFinding = {
   createdAt: Date;
 };
 
+export type GQLInterestTurn = {
+  id: string;
+  role: 'user' | 'agent';
+  createdAt: Date;
+  text?: string | null;
+  status?: string | null;
+  trigger?: string | null;
+  feedbackId?: string | null;
+  blocks?: InterestRunBlock[] | null;
+  findingsAdded?: number | null;
+  summaryPostId?: string | null;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+};
+
 export const typeDefs = /* GraphQL */ `
   """
   A long-lived interest the agent hunts content for
@@ -72,6 +94,8 @@ export const typeDefs = /* GraphQL */ `
     sourceId: String
     lastRunAt: DateTime
     lastRunSummary: String
+    lastRunStatus: String
+    lastRunFindings: Int
     createdAt: DateTime!
     updatedAt: DateTime!
   }
@@ -88,6 +112,25 @@ export const typeDefs = /* GraphQL */ `
     status: String!
     post: Post
     createdAt: DateTime!
+  }
+
+  """
+  One turn in an interest's conversation history: a user command (role user)
+  or an agent run (role agent)
+  """
+  type InterestTurn {
+    id: ID!
+    role: String!
+    createdAt: DateTime!
+    text: String
+    status: String
+    trigger: String
+    feedbackId: String
+    blocks: [JSONObject!]
+    findingsAdded: Int
+    summaryPostId: String
+    startedAt: DateTime
+    finishedAt: DateTime
   }
 
   extend type Query {
@@ -110,6 +153,14 @@ export const typeDefs = /* GraphQL */ `
     Get the generated posts hosted in an interest's source
     """
     interestPosts(id: ID!): [Post!]! @auth
+
+    """
+    Get the merged conversation history of an interest: user commands and
+    agent runs, oldest first. Returns the newest turns up to limit; page
+    older turns by passing the oldest received turn's cursor
+    ("<createdAt>|<role>|<id>") as before.
+    """
+    interestHistory(id: ID!, limit: Int, before: String): [InterestTurn!]! @auth
   }
 
   input InterestSourcesInput {
@@ -150,10 +201,14 @@ export const typeDefs = /* GraphQL */ `
     deleteInterest(id: ID!): EmptyResponse! @auth
 
     """
-    Send a natural-language command to an interest (records feedback and
-    re-triggers a run)
+    Send a natural-language command to an interest (records feedback and,
+    unless triggerRun is false, re-triggers a run)
     """
-    sendInterestCommand(id: ID!, text: String!): UserInterest! @auth
+    sendInterestCommand(
+      id: ID!
+      text: String!
+      triggerRun: Boolean
+    ): UserInterest! @auth
   }
 `;
 
@@ -161,6 +216,27 @@ const ensureTeamMember = (ctx: AuthContext): void => {
   if (!ctx.isTeamMember) {
     throw new ForbiddenError('Interest agent is not available');
   }
+};
+
+const DEFAULT_HISTORY_LIMIT = 100;
+
+const turnRank = { user: 0, agent: 1 } as const;
+
+const compareTurnsAsc = (
+  a: Pick<GQLInterestTurn, 'id' | 'role' | 'createdAt'>,
+  b: Pick<GQLInterestTurn, 'id' | 'role' | 'createdAt'>,
+): number => {
+  const diff = a.createdAt.getTime() - b.createdAt.getTime();
+  if (diff !== 0) {
+    return diff;
+  }
+  if (a.role !== b.role) {
+    return turnRank[a.role] - turnRank[b.role];
+  }
+  if (a.id === b.id) {
+    return 0;
+  }
+  return a.id < b.id ? -1 : 1;
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
@@ -285,6 +361,130 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         true,
       );
     },
+    interestHistory: async (
+      _,
+      args: { id: string; limit?: number; before?: string },
+      ctx: AuthContext,
+    ): Promise<GQLInterestTurn[]> => {
+      ensureTeamMember(ctx);
+      const { id, limit, before } = interestHistorySchema.parse(args);
+      const take = limit ?? DEFAULT_HISTORY_LIMIT;
+
+      let cursor: { createdAt: Date; rank: number; id: string } | null = null;
+      if (before) {
+        const [iso, rank, cursorId] = before.split('|');
+        const createdAt = new Date(iso);
+        if (
+          Number.isNaN(createdAt.getTime()) ||
+          !(rank in turnRank) ||
+          !cursorId
+        ) {
+          throw new ValidationError('Invalid history cursor');
+        }
+        cursor = {
+          createdAt,
+          rank: turnRank[rank as keyof typeof turnRank],
+          id: cursorId,
+        };
+      }
+
+      const interest = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(UserInterest).findOne({
+          select: ['id', 'query', 'createdAt'],
+          where: { id, userId: ctx.userId },
+        }),
+      );
+
+      if (!interest) {
+        throw new NotFoundError('Interest not found');
+      }
+
+      const [feedback, runs] = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) => {
+          const feedbackBuilder = queryRunner.manager
+            .getRepository(InterestFeedback)
+            .createQueryBuilder('fb')
+            .select(['fb.id', 'fb.text', 'fb.createdAt'])
+            .where('fb."interestId" = :id', { id })
+            .orderBy('fb."createdAt"', 'DESC')
+            .addOrderBy('fb.id', 'DESC')
+            .limit(take);
+          const runsBuilder = queryRunner.manager
+            .getRepository(InterestRun)
+            .createQueryBuilder('r')
+            .where('r."interestId" = :id', { id })
+            .orderBy('r."createdAt"', 'DESC')
+            .addOrderBy('r.id', 'DESC')
+            .limit(take);
+
+          if (cursor) {
+            const params = {
+              cursorAt: cursor.createdAt,
+              cursorRank: cursor.rank,
+              cursorId: cursor.id,
+            };
+            feedbackBuilder.andWhere(
+              `(fb."createdAt", ${turnRank.user}, fb.id) < (:cursorAt, :cursorRank, :cursorId)`,
+              params,
+            );
+            runsBuilder.andWhere(
+              `(r."createdAt", ${turnRank.agent}, r.id) < (:cursorAt, :cursorRank, :cursorId)`,
+              params,
+            );
+          }
+
+          return Promise.all([
+            feedbackBuilder.getMany(),
+            runsBuilder.getMany(),
+          ]);
+        },
+      );
+
+      const merged: GQLInterestTurn[] = [
+        ...feedback.map(
+          (row): GQLInterestTurn => ({
+            id: row.id,
+            role: 'user',
+            text: row.text,
+            createdAt: row.createdAt,
+          }),
+        ),
+        ...runs.map(
+          (run): GQLInterestTurn => ({
+            id: run.id,
+            role: 'agent',
+            createdAt: run.createdAt,
+            status: run.status,
+            trigger: run.trigger,
+            feedbackId: run.feedbackId,
+            blocks: run.blocks,
+            findingsAdded: run.findingsAdded,
+            summaryPostId: run.summaryPostId,
+            startedAt: run.startedAt,
+            finishedAt: run.finishedAt,
+          }),
+        ),
+      ].sort(compareTurnsAsc);
+
+      const page = merged.slice(-take);
+      const spawnTurn: GQLInterestTurn = {
+        id: `${interest.id}-spawn`,
+        role: 'user',
+        text: interest.query,
+        createdAt: interest.createdAt,
+      };
+      const reachedStart =
+        merged.length < take &&
+        (!cursor ||
+          compareTurnsAsc(spawnTurn, {
+            id: cursor.id,
+            role: cursor.rank === turnRank.user ? 'user' : 'agent',
+            createdAt: cursor.createdAt,
+          }) < 0);
+
+      return reachedStart ? [spawnTurn, ...page] : page;
+    },
   },
   Mutation: {
     createInterest: async (
@@ -300,6 +500,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const interestId = await generateShortId();
       const sourceId = await generateShortId();
       const feedId = await generateShortId();
+      const runId = await generateShortId();
 
       await ctx.con.transaction(async (manager) => {
         await manager.getRepository(AgentSource).save({
@@ -326,10 +527,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           feedId,
           sourceId,
         });
+
+        await manager.getRepository(InterestRun).insert({
+          id: runId,
+          interestId,
+          status: InterestRunStatus.Queued,
+          trigger: InterestRunTrigger.Spawn,
+        });
       });
 
       await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
         interestId,
+        runId,
       });
 
       return graphorm.queryOneOrFail<GQLUserInterest>(ctx, info, (builder) => {
@@ -430,12 +639,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     },
     sendInterestCommand: async (
       _,
-      args: { id: string; text: string },
+      args: { id: string; text: string; triggerRun?: boolean },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
       ensureTeamMember(ctx);
-      const { id, text } = sendInterestCommandSchema.parse(args);
+      const { id, text, triggerRun } = sendInterestCommandSchema.parse(args);
       const { userId } = ctx;
 
       const interest = await ctx.con.getRepository(UserInterest).findOne({
@@ -447,15 +656,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new NotFoundError('Interest not found');
       }
 
-      await ctx.con.getRepository(InterestFeedback).insert({
-        id: await generateShortId(),
-        interestId: id,
-        text,
+      const feedbackId = await generateShortId();
+      const runId = await generateShortId();
+      const shouldRun = triggerRun !== false;
+
+      await ctx.con.transaction(async (manager) => {
+        await manager.getRepository(InterestFeedback).insert({
+          id: feedbackId,
+          interestId: id,
+          text,
+        });
+
+        if (shouldRun) {
+          await manager.getRepository(InterestRun).insert({
+            id: runId,
+            interestId: id,
+            status: InterestRunStatus.Queued,
+            trigger: InterestRunTrigger.Command,
+            feedbackId,
+          });
+        }
       });
 
-      await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
-        interestId: id,
-      });
+      if (shouldRun) {
+        await triggerTypedEvent(ctx.log, 'api.v1.interest-run-requested', {
+          interestId: id,
+          runId,
+        });
+      }
 
       return graphorm.queryOneOrFail<GQLUserInterest>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.where(

@@ -25,6 +25,11 @@ import {
   InterestFindingStatus,
 } from '../src/entity/InterestFinding';
 import { InterestFeedback } from '../src/entity/InterestFeedback';
+import {
+  InterestRun,
+  InterestRunStatus,
+  InterestRunTrigger,
+} from '../src/entity/InterestRun';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture';
@@ -163,10 +168,18 @@ describe('mutation createInterest', () => {
     expect(feed.userId).toEqual('1');
     expect(feed.flags.origin).toEqual(FeedOrigin.Agent);
 
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId });
+    expect(run).toMatchObject({
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Spawn,
+    });
+
     const runCall = (triggerTypedEvent as jest.Mock).mock.calls.find(
       (call) => call[1] === 'api.v1.interest-run-requested',
     );
-    expect(runCall?.[2]).toEqual({ interestId });
+    expect(runCall?.[2]).toEqual({ interestId, runId: run.id });
   });
 
   it('should succeed when the user already has a user source', async () => {
@@ -383,16 +396,58 @@ describe('mutation sendInterestCommand', () => {
       variables: { id: 'uir-1', text: 'explore more' },
     });
     expect(res.errors).toBeFalsy();
-    const runCall = (triggerTypedEvent as jest.Mock).mock.calls.find(
-      (call) => call[1] === 'api.v1.interest-run-requested',
-    );
-    expect(runCall?.[2]).toEqual({ interestId: 'uir-1' });
 
     const feedback = await con
       .getRepository(InterestFeedback)
       .findBy({ interestId: 'uir-1' });
     expect(feedback).toHaveLength(1);
     expect(feedback[0].text).toEqual('explore more');
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run).toMatchObject({
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Command,
+      feedbackId: feedback[0].id,
+    });
+
+    const runCall = (triggerTypedEvent as jest.Mock).mock.calls.find(
+      (call) => call[1] === 'api.v1.interest-run-requested',
+    );
+    expect(runCall?.[2]).toEqual({ interestId: 'uir-1', runId: run.id });
+  });
+
+  it('should store feedback without a run when triggerRun is false', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(
+      `
+      mutation SendInterestCommand($id: ID!, $text: String!, $triggerRun: Boolean) {
+        sendInterestCommand(id: $id, text: $text, triggerRun: $triggerRun) {
+          id
+        }
+      }
+    `,
+      {
+        variables: {
+          id: 'uir-1',
+          text: 'more like this one',
+          triggerRun: false,
+        },
+      },
+    );
+    expect(res.errors).toBeFalsy();
+
+    const feedback = await con
+      .getRepository(InterestFeedback)
+      .findBy({ interestId: 'uir-1' });
+    expect(feedback).toHaveLength(1);
+
+    const runs = await con
+      .getRepository(InterestRun)
+      .findBy({ interestId: 'uir-1' });
+    expect(runs).toHaveLength(0);
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should reject an unknown interest', async () => {
@@ -639,6 +694,153 @@ describe('query interestPosts', () => {
       client,
       { query: INTEREST_POSTS, variables: { id: 'uir-1' } },
       'NOT_FOUND',
+    );
+  });
+});
+
+const INTEREST_HISTORY = `
+  query InterestHistory($id: ID!) {
+    interestHistory(id: $id) {
+      id
+      role
+      createdAt
+      text
+      status
+      trigger
+      feedbackId
+      blocks
+      findingsAdded
+      summaryPostId
+      startedAt
+      finishedAt
+    }
+  }
+`;
+
+describe('query interestHistory', () => {
+  beforeEach(async () => {
+    await con.getRepository(UserInterest).save({
+      id: 'uir-1',
+      userId: '1',
+      query: 'cool zig projects',
+      status: UserInterestStatus.Active,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    await con.getRepository(InterestFeedback).save({
+      id: 'fb-1',
+      interestId: 'uir-1',
+      text: 'fewer announcements',
+      createdAt: new Date('2026-01-02T00:00:00Z'),
+    });
+    await con.getRepository(InterestRun).save([
+      {
+        id: 'run-1',
+        interestId: 'uir-1',
+        status: InterestRunStatus.Completed,
+        trigger: InterestRunTrigger.Spawn,
+        blocks: [{ type: 'text', html: '<p>Spawned.</p>' }],
+        findingsAdded: 3,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      },
+      {
+        id: 'run-2',
+        interestId: 'uir-1',
+        status: InterestRunStatus.Queued,
+        trigger: InterestRunTrigger.Command,
+        feedbackId: 'fb-1',
+        createdAt: new Date('2026-01-02T00:00:00Z'),
+      },
+    ]);
+  });
+
+  it('should merge the spawn turn, feedback, and runs oldest first with user turns winning ties', async () => {
+    loggedUser = '1';
+    const res = await client.query(INTEREST_HISTORY, {
+      variables: { id: 'uir-1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.interestHistory.map(({ id, role }) => ({ id, role })),
+    ).toEqual([
+      { id: 'uir-1-spawn', role: 'user' },
+      { id: 'run-1', role: 'agent' },
+      { id: 'fb-1', role: 'user' },
+      { id: 'run-2', role: 'agent' },
+    ]);
+    expect(res.data.interestHistory[0].text).toEqual('cool zig projects');
+    expect(res.data.interestHistory[1]).toMatchObject({
+      status: InterestRunStatus.Completed,
+      trigger: InterestRunTrigger.Spawn,
+      blocks: [{ type: 'text', html: '<p>Spawned.</p>' }],
+      findingsAdded: 3,
+    });
+    expect(res.data.interestHistory[3]).toMatchObject({
+      status: InterestRunStatus.Queued,
+      feedbackId: 'fb-1',
+    });
+  });
+
+  it('should page older turns through the before cursor', async () => {
+    loggedUser = '1';
+    const firstPage = await client.query(
+      `
+      query InterestHistory($id: ID!, $limit: Int, $before: String) {
+        interestHistory(id: $id, limit: $limit, before: $before) {
+          id
+          role
+          createdAt
+        }
+      }
+    `,
+      { variables: { id: 'uir-1', limit: 2 } },
+    );
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.interestHistory.map(({ id }) => id)).toEqual([
+      'fb-1',
+      'run-2',
+    ]);
+
+    const oldest = firstPage.data.interestHistory[0];
+    const secondPage = await client.query(
+      `
+      query InterestHistory($id: ID!, $limit: Int, $before: String) {
+        interestHistory(id: $id, limit: $limit, before: $before) {
+          id
+          role
+        }
+      }
+    `,
+      {
+        variables: {
+          id: 'uir-1',
+          limit: 2,
+          before: `${new Date(oldest.createdAt).toISOString()}|${oldest.role}|${oldest.id}`,
+        },
+      },
+    );
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.interestHistory.map(({ id }) => id)).toEqual([
+      'uir-1-spawn',
+      'run-1',
+    ]);
+  });
+
+  it('should reject history for a non-owner', async () => {
+    loggedUser = '2';
+    return testQueryErrorCode(
+      client,
+      { query: INTEREST_HISTORY, variables: { id: 'uir-1' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should reject a non-team-member', async () => {
+    loggedUser = '1';
+    isTeamMember = false;
+    return testQueryErrorCode(
+      client,
+      { query: INTEREST_HISTORY, variables: { id: 'uir-1' } },
+      'FORBIDDEN',
     );
   });
 });
