@@ -4,10 +4,6 @@ export class LedgerEntityDescription1787300000000 implements MigrationInterface 
   name = 'LedgerEntityDescription1787300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(/* sql */ `
-      CREATE EXTENSION IF NOT EXISTS vector
-    `);
-
     // What the entity is and what approach it displaced. A plan that never
     // names the entity still describes the problem it solves, and this is the
     // only column that prose can reach.
