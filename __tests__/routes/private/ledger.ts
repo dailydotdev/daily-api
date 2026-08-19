@@ -30,6 +30,11 @@ import {
   LedgerEntityKind,
 } from '../../../src/entity/claim/LedgerEntity';
 import * as claimLedger from '../../../src/common/claimLedger';
+import * as bragiEmbedding from '../../../src/integrations/bragi/embedding';
+import {
+  LEDGER_EMBEDDING_DIMENSION,
+  LEDGER_EMBEDDING_MODEL,
+} from '../../../src/common/ledgerEmbedding';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1555,6 +1560,168 @@ describe('private ledger routes', () => {
       effectiveDate: '2026-03-11',
       dateSource: ClaimDateSource.Extracted,
     });
+  });
+
+  it('should embed a description when it is written and clear the vector when it is removed', async () => {
+    await seedHierarchy();
+    // A distinct vector per call so the stored one is identifiably the
+    // description's own rather than a leftover.
+    const vector = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    vector[0] = 0.5;
+    const embed = jest
+      .spyOn(bragiEmbedding, 'embedLedgerText')
+      .mockResolvedValue([vector]);
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({
+        entityId: parentEntityId,
+        description: 'A React framework, replacing hand-rolled SSR setups.',
+      })
+      .expect(200);
+
+    expect(embed).toHaveBeenCalledWith([
+      'A React framework, replacing hand-rolled SSR setups.',
+    ]);
+    expect(
+      await con
+        .getRepository(LedgerEntity)
+        .findOne({ where: { id: parentEntityId } }),
+    ).toMatchObject({
+      description: 'A React framework, replacing hand-rolled SSR setups.',
+      descriptionEmbeddingModel: LEDGER_EMBEDDING_MODEL,
+    });
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, description: null })
+      .expect(200);
+
+    // A vector outliving the text it came from would answer for a description
+    // the entity no longer carries.
+    const [{ embeddingCount }] = await con.query(
+      `SELECT count("descriptionEmbedding") AS "embeddingCount" FROM ledger_entity WHERE id = $1`,
+      [parentEntityId],
+    );
+    expect(Number(embeddingCount)).toEqual(0);
+  });
+
+  it('should not pay for an embedding when the description it is sent is the one it already holds', async () => {
+    await seedHierarchy();
+    const vector = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    vector[0] = 0.5;
+    const embed = jest
+      .spyOn(bragiEmbedding, 'embedLedgerText')
+      .mockResolvedValue([vector]);
+    const description = 'A React framework.';
+
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, description })
+      .expect(200);
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, description })
+      .expect(200);
+
+    expect(embed).toHaveBeenCalledTimes(1);
+  });
+
+  it('should carry the description of an absorbed entity when the one that keeps it has none', async () => {
+    await seedHierarchy();
+    const vector = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    vector[0] = 0.5;
+    jest.spyOn(bragiEmbedding, 'embedLedgerText').mockResolvedValue([vector]);
+
+    // The child is described, the parent it merges into is not, so the only
+    // copy of that text is on the row about to be deleted.
+    await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: childEntityId, description: 'The routing layer.' })
+      .expect(200);
+
+    await request(app.server)
+      .post('/p/ledger/entities/merge')
+      .set(serviceHeaders)
+      .send({ fromEntityId: childEntityId, intoEntityId: parentEntityId })
+      .expect(200);
+
+    expect(
+      await con.getRepository(LedgerEntity).findOneBy({ id: parentEntityId }),
+    ).toMatchObject({
+      description: 'The routing layer.',
+      descriptionEmbeddingModel: LEDGER_EMBEDDING_MODEL,
+    });
+  });
+
+  it('should answer discovery with the nearest described entity and skip vectors from another model', async () => {
+    await seedHierarchy();
+    const near = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    near[0] = 1;
+    const far = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    far[1] = 1;
+
+    await con.query(
+      `UPDATE ledger_entity SET description = $2, "descriptionEmbedding" = $3, "descriptionEmbeddingModel" = $4 WHERE id = $1`,
+      [
+        parentEntityId,
+        'the framework',
+        `[${near.join(',')}]`,
+        LEDGER_EMBEDDING_MODEL,
+      ],
+    );
+    // Written by a model we no longer query with, so its space is not comparable.
+    await con.query(
+      `UPDATE ledger_entity SET description = $2, "descriptionEmbedding" = $3, "descriptionEmbeddingModel" = $4 WHERE id = $1`,
+      [childEntityId, 'the router', `[${near.join(',')}]`, 'some-older-model'],
+    );
+
+    jest.spyOn(bragiEmbedding, 'embedLedgerText').mockResolvedValue([near]);
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/discover')
+      .set(serviceHeaders)
+      .send({ text: 'hand-rolled server rendering setup' })
+      .expect(200);
+
+    expect(body.entities).toHaveLength(1);
+    expect(body.entities[0]).toMatchObject({
+      id: parentEntityId,
+      description: 'the framework',
+    });
+    expect(body.entities[0].similarity).toBeCloseTo(1);
+  });
+
+  it('should leave out a described entity the text is nowhere near', async () => {
+    await seedHierarchy();
+    const stored = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    stored[0] = 1;
+    const query = new Array(LEDGER_EMBEDDING_DIMENSION).fill(0);
+    query[1] = 1;
+
+    await con.query(
+      `UPDATE ledger_entity SET description = $2, "descriptionEmbedding" = $3, "descriptionEmbeddingModel" = $4 WHERE id = $1`,
+      [
+        parentEntityId,
+        'the framework',
+        `[${stored.join(',')}]`,
+        LEDGER_EMBEDDING_MODEL,
+      ],
+    );
+    jest.spyOn(bragiEmbedding, 'embedLedgerText').mockResolvedValue([query]);
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/discover')
+      .set(serviceHeaders)
+      .send({ text: 'something unrelated entirely' })
+      .expect(200);
+
+    expect(body.entities).toEqual([]);
   });
 
   it('should reject a claim query carrying neither ids nor an entity window', async () => {

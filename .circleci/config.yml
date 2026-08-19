@@ -32,7 +32,7 @@ jobs:
     resource_class: large
     docker:
       - image: cimg/node:24.18
-      - image: postgres:18-alpine
+      - image: pgvector/pgvector:pg18
         environment:
           POSTGRES_DB: api_test
           POSTGRES_PASSWORD: 12345

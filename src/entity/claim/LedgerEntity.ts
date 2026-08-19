@@ -6,6 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { LEDGER_EMBEDDING_DIMENSION } from '../../common/ledgerEmbedding';
 
 export enum LedgerEntityKind {
   Package = 'package',
@@ -41,6 +42,27 @@ export class LedgerEntity {
 
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   aliases: string[];
+
+  // What the entity is and, above all, what approach it displaced, written the
+  // way someone would describe the problem before they knew this thing existed.
+  // A plan that never names MCP still says "hand-rolled function-calling
+  // adapter", and this is the only column that sentence can reach.
+  @Column({ type: 'text', nullable: true, default: null })
+  description: string | null;
+
+  @Column({
+    type: 'vector',
+    length: LEDGER_EMBEDDING_DIMENSION,
+    nullable: true,
+    default: null,
+    select: false,
+  })
+  descriptionEmbedding: number[] | null;
+
+  // The model the vector came from, so a model change is detectable instead of
+  // silently comparing two incompatible spaces.
+  @Column({ type: 'text', nullable: true, default: null })
+  descriptionEmbeddingModel: string | null;
 
   // Soft reference to keyword.value, matching how post_keyword references it.
   @Column({ type: 'text', nullable: true, default: null })
