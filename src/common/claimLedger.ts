@@ -57,6 +57,27 @@ export const findLedgerEntitiesByName = ({
     })
     .getMany();
 
+// The extractor names the replacement as a string, and a name resolves to an
+// entity only if one already exists: an entity minted here would carry no claim
+// of its own, and entities are demand-driven. Ambiguity resolves to null rather
+// than a guess — a wrong displacement link points a reader at the wrong
+// replacement, which is worse than an absent one, so it goes to review instead.
+export const resolveSupersededByEntityId = async ({
+  con,
+  name,
+}: {
+  con: DataSource | EntityManager;
+  name: string | null;
+}): Promise<string | null> => {
+  if (!name) {
+    return null;
+  }
+
+  const matches = await findLedgerEntitiesByName({ con, names: [name] });
+
+  return matches.length === 1 ? matches[0].id : null;
+};
+
 // Every name an entity answers to must be unique across the whole ledger,
 // otherwise a claim can be filed against two different rows for one artifact.
 export const assertLedgerNamesAvailable = async ({

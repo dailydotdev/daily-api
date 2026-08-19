@@ -1724,6 +1724,62 @@ describe('private ledger routes', () => {
     expect(body.entities).toEqual([]);
   });
 
+  it('should link the claim to the replacement the candidate names', async () => {
+    await seedHierarchy();
+    const replacement = await con.getRepository(LedgerEntity).save({
+      canonicalName: 'App Router',
+      kind: LedgerEntityKind.Package,
+      aliases: ['app-router'],
+    });
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { supersededBy: 'app-router' });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ supersededByEntityId: replacement.id });
+  });
+
+  it('should leave the link empty rather than guess when the name is ambiguous or unknown', async () => {
+    await seedHierarchy();
+    // Two entities answer to the name, so picking one would point a reader at
+    // the wrong replacement.
+    await con.getRepository(LedgerEntity).save([
+      {
+        canonicalName: 'Router One',
+        kind: LedgerEntityKind.Package,
+        aliases: ['router'],
+      },
+      {
+        canonicalName: 'Router Two',
+        kind: LedgerEntityKind.Package,
+        aliases: ['router'],
+      },
+    ]);
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { supersededBy: 'router' });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    const claim = await con
+      .getRepository(Claim)
+      .findOneBy({ id: body.claimId });
+    expect(claim?.supersededByEntityId).toBeNull();
+  });
+
   it('should report the entity a resolve minted so it can be described in the same turn', async () => {
     await seedCandidate();
 
