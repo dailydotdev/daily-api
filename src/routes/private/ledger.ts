@@ -26,6 +26,7 @@ import {
   assertLedgerNamesAvailable,
   expandLedgerEntityIds,
   findLedgerEntitiesByName,
+  normalizeEvidenceUrl,
 } from '../../common/claimLedger';
 import { Claim, ClaimStatus } from '../../entity/claim/Claim';
 import {
@@ -94,6 +95,31 @@ const findEvidenceSource = ({
       slug: string;
       publishedAt: Date | null;
     }>();
+
+// Rows written before urls were normalized keep their trailing slash, so the
+// form the reviewer sends is looked up first and the normalized form only
+// stands in for a variant of a row already stored normalized.
+const resolveCitedUrl = async ({
+  con,
+  claimId,
+  url,
+}: {
+  con: DataSource;
+  claimId: string;
+  url: string;
+}): Promise<string> => {
+  const normalized = normalizeEvidenceUrl(url);
+
+  if (normalized === url) {
+    return url;
+  }
+
+  const cited = await con
+    .getRepository(ClaimEvidence)
+    .findOneBy({ claimId, url });
+
+  return cited ? url : normalized;
+};
 
 const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
@@ -234,14 +260,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     // one the reviewer supplies, the post's own, or the post's permalink for the
     // post types that carry no url of their own.
     const source = await findEvidenceSource({ con, postId: candidate.postId });
-    const url =
+    const citedUrl =
       body.url ??
       source?.url ??
       (source ? getDiscussionLink(source.slug) : null);
 
-    if (!url) {
+    if (!citedUrl) {
       return res.status(404).send({ error: 'Claim candidate post not found' });
     }
+
+    const url = normalizeEvidenceUrl(citedUrl);
 
     if (
       body.claimId &&
@@ -777,12 +805,12 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
       // The kept claim may already cite a url, and (claimId, url) is unique, so
       // the duplicate row is dropped instead of moved.
-      const taken = new Set(cited.map(({ url }) => url));
+      const taken = new Set(cited.map(({ url }) => normalizeEvidenceUrl(url)));
       const duplicated = absorbed
-        .filter(({ url }) => taken.has(url))
+        .filter(({ url }) => taken.has(normalizeEvidenceUrl(url)))
         .map(({ id }) => id);
       const moved = absorbed
-        .filter(({ url }) => !taken.has(url))
+        .filter(({ url }) => !taken.has(normalizeEvidenceUrl(url)))
         .map(({ id }) => id);
 
       if (duplicated.length) {
@@ -875,10 +903,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Claim not found' });
     }
 
+    const url = normalizeEvidenceUrl(body.url);
+
     if (
-      await con
-        .getRepository(ClaimEvidence)
-        .findOneBy({ claimId: body.claimId, url: body.url })
+      await con.getRepository(ClaimEvidence).findOneBy({
+        claimId: body.claimId,
+        url: In([...new Set([url, body.url])]),
+      })
     ) {
       throw new ConflictError('Claim already cites this url as evidence');
     }
@@ -886,7 +917,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const evidence = await con.getRepository(ClaimEvidence).save({
       claimId: body.claimId,
       postId: null,
-      url: body.url,
+      url,
       sourceClass: body.sourceClass,
       publishedAt: body.publishedAt ?? null,
     });
@@ -910,10 +941,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const url = await resolveCitedUrl({
+      con,
+      claimId: body.claimId,
+      url: body.url,
+    });
     const { affected } = await con
       .getRepository(ClaimEvidence)
       .update(
-        { claimId: body.claimId, url: body.url },
+        { claimId: body.claimId, url },
         { sourceClass: body.sourceClass },
       );
 
@@ -939,9 +975,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const url = await resolveCitedUrl({
+      con,
+      claimId: body.claimId,
+      url: body.url,
+    });
     const { affected } = await con
       .getRepository(ClaimEvidence)
-      .delete({ claimId: body.claimId, url: body.url });
+      .delete({ claimId: body.claimId, url });
 
     if (!affected) {
       return res.status(404).send({ error: 'Claim evidence not found' });
