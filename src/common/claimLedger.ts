@@ -4,6 +4,30 @@ import { LedgerEntity } from '../entity/claim/LedgerEntity';
 
 const MAX_HIERARCHY_DEPTH = 5;
 
+// Evidence dedupes on (claimId, url), so one source filed once with a trailing
+// slash and once without counted twice towards corroboration. Only the trailing
+// slash is trimmed: case and query strings can pick out a different page.
+export const normalizeEvidenceUrl = (url: string): string => {
+  const trimmed = url.trim();
+
+  try {
+    const parsed = new URL(trimmed);
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+
+    // A bare origin has nothing but the slash, and dropping it would leave the
+    // url without a path at all.
+    if (!pathname || pathname === parsed.pathname) {
+      return trimmed;
+    }
+
+    parsed.pathname = pathname;
+
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+};
+
 // The canonical name and every alias, lowercased into one array. Declared as an
 // immutable function so a GIN index can be built over it: matching with && then
 // answers the whole lookup from the index, where the equivalent lower() and
