@@ -16,11 +16,9 @@ import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import { markdown } from '../../common/markdown';
 import { generateShortId } from '../../ids';
-import { ONE_MINUTE_IN_MS } from '../../common/constants';
 import type { InterestAgentRunState } from '../../common/interest/tools/context';
 
 const MAX_PICKS = 3;
-const RUN_EXECUTION_DEADLINE_MS = 30 * ONE_MINUTE_IN_MS;
 const STALE_RUNNING_RECLAIM_MINUTES = 45;
 const UNIQUE_VIOLATION = '23505';
 
@@ -109,22 +107,6 @@ const claimRun = async ({
   }
 };
 
-const runWithDeadline = (
-  args: Parameters<typeof runInterestAgent>[0],
-): Promise<InterestAgentRunState> => {
-  let deadline: ReturnType<typeof setTimeout> | undefined;
-
-  return Promise.race([
-    runInterestAgent(args),
-    new Promise<never>((_, reject) => {
-      deadline = setTimeout(
-        () => reject(new Error('interest run exceeded its execution deadline')),
-        RUN_EXECUTION_DEADLINE_MS,
-      );
-    }),
-  ]).finally(() => clearTimeout(deadline));
-};
-
 export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'> =
   {
     subscription: 'api.user-interest-run',
@@ -195,16 +177,96 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
         startedAt: lease,
       };
 
-      await con
-        .getRepository(UserInterest)
-        .update(
-          { id: interest.id },
-          { lastRunStatus: InterestRunStatus.Running },
-        );
-
-      let result: InterestAgentRunState;
       try {
-        result = await runWithDeadline({ con, logger, interest });
+        await con
+          .getRepository(UserInterest)
+          .update(
+            { id: interest.id },
+            { lastRunStatus: InterestRunStatus.Running },
+          );
+
+        const result: InterestAgentRunState = await runInterestAgent({
+          con,
+          logger,
+          interest,
+        });
+
+        const deliverableBuilder = () =>
+          whereFindingDeliverable(
+            con
+              .getRepository(InterestFinding)
+              .createQueryBuilder('f')
+              .where('f."interestId" = :interestId', {
+                interestId: interest.id,
+              })
+              .andWhere('f.status = :status', {
+                status: InterestFindingStatus.New,
+              }),
+            'f',
+          );
+
+        const [deliverableCount, picks] = await Promise.all([
+          deliverableBuilder().getCount(),
+          deliverableBuilder()
+            .select('f."postId"', 'postId')
+            .orderBy('f.score', 'DESC')
+            .limit(MAX_PICKS)
+            .getRawMany<{ postId: string }>(),
+        ]);
+
+        const leaseHeld = await con.transaction(async (manager) => {
+          const completed = await manager
+            .getRepository(InterestRun)
+            .update(leasedRun, {
+              status: InterestRunStatus.Completed,
+              finishedAt: new Date(),
+              blocks: buildRunBlocks({ result, picks, deliverableCount }),
+              findingsAdded: deliverableCount,
+              summaryPostId: result.summaryPostId,
+            });
+
+          if (!completed.affected) {
+            return false;
+          }
+
+          await manager
+            .getRepository(InterestFinding)
+            .update(
+              { interestId: interest.id, status: InterestFindingStatus.New },
+              { status: InterestFindingStatus.Surfaced },
+            );
+
+          await manager.getRepository(UserInterest).update(
+            { id: interest.id },
+            {
+              lastRunAt: new Date(runAt),
+              lastRunSummary: result.agentSummary ?? interest.lastRunSummary,
+              lastRunStatus: InterestRunStatus.Completed,
+              lastRunFindings: deliverableCount,
+            },
+          );
+
+          return true;
+        });
+
+        if (!leaseHeld) {
+          logger.warn(
+            { interestId, runId: claimedRunId },
+            'interest run lease lost before completion',
+          );
+          return;
+        }
+
+        const hasContent = deliverableCount > 0 || !!result.summaryPostId;
+
+        if (hasContent && (interest.outputModes?.notification ?? true)) {
+          await triggerTypedEvent(logger, 'api.v1.interest-content-available', {
+            interestId: interest.id,
+            userId: interest.userId,
+            count: deliverableCount,
+            runAt,
+          });
+        }
       } catch (error) {
         const failed = await runRepo.update(leasedRun, {
           status: InterestRunStatus.Failed,
@@ -219,81 +281,6 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             );
         }
         throw error;
-      }
-
-      const deliverableBuilder = () =>
-        whereFindingDeliverable(
-          con
-            .getRepository(InterestFinding)
-            .createQueryBuilder('f')
-            .where('f."interestId" = :interestId', { interestId: interest.id })
-            .andWhere('f.status = :status', {
-              status: InterestFindingStatus.New,
-            }),
-          'f',
-        );
-
-      const [deliverableCount, picks] = await Promise.all([
-        deliverableBuilder().getCount(),
-        deliverableBuilder()
-          .select('f."postId"', 'postId')
-          .orderBy('f.score', 'DESC')
-          .limit(MAX_PICKS)
-          .getRawMany<{ postId: string }>(),
-      ]);
-
-      const leaseHeld = await con.transaction(async (manager) => {
-        const completed = await manager
-          .getRepository(InterestRun)
-          .update(leasedRun, {
-            status: InterestRunStatus.Completed,
-            finishedAt: new Date(),
-            blocks: buildRunBlocks({ result, picks, deliverableCount }),
-            findingsAdded: deliverableCount,
-            summaryPostId: result.summaryPostId,
-          });
-
-        if (!completed.affected) {
-          return false;
-        }
-
-        await manager
-          .getRepository(InterestFinding)
-          .update(
-            { interestId: interest.id, status: InterestFindingStatus.New },
-            { status: InterestFindingStatus.Surfaced },
-          );
-
-        await manager.getRepository(UserInterest).update(
-          { id: interest.id },
-          {
-            lastRunAt: new Date(runAt),
-            lastRunSummary: result.agentSummary ?? interest.lastRunSummary,
-            lastRunStatus: InterestRunStatus.Completed,
-            lastRunFindings: deliverableCount,
-          },
-        );
-
-        return true;
-      });
-
-      if (!leaseHeld) {
-        logger.warn(
-          { interestId, runId: claimedRunId },
-          'interest run lease lost before completion',
-        );
-        return;
-      }
-
-      const hasContent = deliverableCount > 0 || !!result.summaryPostId;
-
-      if (hasContent && (interest.outputModes?.notification ?? true)) {
-        await triggerTypedEvent(logger, 'api.v1.interest-content-available', {
-          interestId: interest.id,
-          userId: interest.userId,
-          count: deliverableCount,
-          runAt,
-        });
       }
     },
   };

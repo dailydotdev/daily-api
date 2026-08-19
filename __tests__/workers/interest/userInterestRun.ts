@@ -25,6 +25,7 @@ import { usersFixture } from '../../fixture/user';
 import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { triggerTypedEvent } from '../../../src/common/typedPubsub';
+import { markdown } from '../../../src/common/markdown';
 import { runInterestAgent } from '../../../src/common/interest/runInterestAgent';
 
 jest.mock('../../../src/common/typedPubsub', () => ({
@@ -459,6 +460,45 @@ describe('userInterestRun worker', () => {
       .getRepository(InterestRun)
       .findOneByOrFail({ id: 'run-1' });
     expect(run.status).toEqual(InterestRunStatus.Queued);
+  });
+
+  it('fails the held lease when completion breaks after the agent succeeded', async () => {
+    (runInterestAgent as jest.Mock).mockResolvedValue({
+      findingsAdded: 0,
+      summaryPostId: null,
+      agentSummary: 'went fine',
+      finalMessage: 'went fine',
+    });
+    const render = jest.spyOn(markdown, 'render').mockImplementation(() => {
+      throw new Error('render boom');
+    });
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Command,
+    });
+
+    try {
+      await expect(
+        invokeTypedBackground<'api.v1.interest-run-requested'>(worker, {
+          interestId: 'uir-1',
+          runId: 'run-1',
+        }),
+      ).rejects.toThrow('render boom');
+    } finally {
+      render.mockRestore();
+    }
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Failed);
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.lastRunStatus).toEqual(InterestRunStatus.Failed);
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('abandons completion when another delivery has taken over the lease', async () => {

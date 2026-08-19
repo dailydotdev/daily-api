@@ -21,6 +21,7 @@ import { InterestFeedback } from '../../entity/InterestFeedback';
 import type { UserInterest } from '../../entity/UserInterest';
 import { getDiscussionLink } from '../links';
 import { remoteConfig } from '../../remoteConfig';
+import { ONE_MINUTE_IN_MS } from '../constants';
 import { DEFAULT_INTEREST_MAX_TAGS } from './feedTags';
 import { createInterestAgentModel } from './agentModel';
 import { createCandidatePipeline } from './tools/candidates';
@@ -33,6 +34,7 @@ import { MAX_RUN_SUMMARY_LENGTH, UNTRUSTED_OPEN } from './tools/constants';
 
 const DEFAULT_MAX_TOOL_CALLS_PER_RUN = 200;
 const MAX_PENDING_FINDINGS = 20;
+const RUN_EXECUTION_DEADLINE_MS = 30 * ONE_MINUTE_IN_MS;
 
 const buildSystemPrompt = (
   interest: UserInterest,
@@ -375,13 +377,29 @@ export const runInterestAgent = async ({
     }
   });
 
+  let deadlineHit = false;
+  const deadline = setTimeout(() => {
+    deadlineHit = true;
+    session.abort().catch((error) => {
+      log.error(
+        { interestId: interest.id, err: error },
+        'interest agent abort failed',
+      );
+    });
+  }, RUN_EXECUTION_DEADLINE_MS);
+
   try {
     await session.prompt(
       `Run a discovery pass for the interest "${interest.query}" and deliver what you find.`,
     );
   } finally {
+    clearTimeout(deadline);
     unsubscribe();
     session.dispose();
+  }
+
+  if (deadlineHit) {
+    throw new Error('interest agent run exceeded its execution deadline');
   }
 
   log.info(
