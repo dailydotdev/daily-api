@@ -24,6 +24,9 @@ export enum ClaimCandidateStatus {
 @Entity()
 @Index('IDX_claim_candidate_status', ['status'])
 @Index('IDX_claim_candidate_postId', ['postId'])
+// Partial on the migration's cutover so the duplicates already filed by
+// redelivered extractions stay untouched — see the migration for the shape.
+@Index('IDX_claim_candidate_postId_statement_unique', { synchronize: false })
 export class ClaimCandidate {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_claim_candidate_id',
@@ -69,8 +72,21 @@ export class ClaimCandidate {
   @Column({ type: 'text' })
   evidence: string;
 
+  // The raw extraction's own signatures, kept beside the claim's so the
+  // candidate-to-claim delta stays readable as extraction ground truth.
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  affected: string[];
+
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  superseding: string[];
+
   @Column({ type: 'text', default: ClaimCandidateStatus.Pending })
   status: ClaimCandidateStatus;
+
+  // The rule the reviewer cited when resolving the candidate, so the recall
+  // audit can read the reasoning instead of guessing it from the outcome.
+  @Column({ type: 'text', nullable: true, default: null })
+  note: string | null;
 
   @Column({ type: 'uuid', nullable: true, default: null })
   claimId: string | null;

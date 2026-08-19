@@ -4,16 +4,45 @@ import { LedgerEntity } from '../entity/claim/LedgerEntity';
 
 const MAX_HIERARCHY_DEPTH = 5;
 
+// Evidence dedupes on (claimId, url), so one source filed once with a trailing
+// slash and once without counted twice towards corroboration. Only the trailing
+// slash is trimmed: case and query strings can pick out a different page.
+export const normalizeEvidenceUrl = (url: string): string => {
+  const trimmed = url.trim();
+
+  try {
+    const parsed = new URL(trimmed);
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+
+    // A bare origin has nothing but the slash, and dropping it would leave the
+    // url without a path at all.
+    if (!pathname || pathname === parsed.pathname) {
+      return trimmed;
+    }
+
+    parsed.pathname = pathname;
+
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+};
+
+// The canonical name and every alias, lowercased into one array. Declared as an
+// immutable function so a GIN index can be built over it: matching with && then
+// answers the whole lookup from the index, where the equivalent lower() and
+// unnest() predicates force a sequential scan.
+const searchNames =
+  'ledger_entity_search_names(le."canonicalName", le."aliases")';
+
 export const findLedgerEntitiesByName = ({
   con,
   names,
 }: {
   con: DataSource | EntityManager;
   names: string[];
-}): Promise<LedgerEntity[]> => {
-  const normalized = names.map((name) => name.trim().toLowerCase());
-
-  return con
+}): Promise<LedgerEntity[]> =>
+  con
     .getRepository(LedgerEntity)
     .createQueryBuilder('le')
     .select([
@@ -23,13 +52,10 @@ export const findLedgerEntitiesByName = ({
       'le.aliases',
       'le.parentId',
     ])
-    .where('lower(le."canonicalName") = ANY(:names)', { names: normalized })
-    .orWhere(
-      'EXISTS (SELECT 1 FROM unnest(le."aliases") alias WHERE lower(alias) = ANY(:names))',
-      { names: normalized },
-    )
+    .where(`${searchNames} && :names`, {
+      names: names.map((name) => name.trim().toLowerCase()),
+    })
     .getMany();
-};
 
 // Every name an entity answers to must be unique across the whole ledger,
 // otherwise a claim can be filed against two different rows for one artifact.

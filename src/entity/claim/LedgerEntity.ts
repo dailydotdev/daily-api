@@ -20,10 +20,12 @@ export enum LedgerEntityKind {
 }
 
 @Entity()
-// Unique on lower("canonicalName") and a GIN index over the alias array, both
-// created in the migration since TypeORM cannot express either.
+// Unique on lower("canonicalName"), a GIN index over the normalized lookup
+// names and a trigram index for near-miss matching, all created in the
+// migration since TypeORM cannot express any of them.
 @Index('UQ_ledger_entity_canonical_name_lower', { synchronize: false })
-@Index('IDX_ledger_entity_aliases', { synchronize: false })
+@Index('IDX_ledger_entity_search_names', { synchronize: false })
+@Index('IDX_ledger_entity_canonical_name_trgm', { synchronize: false })
 @Index('IDX_ledger_entity_parentId', ['parentId'])
 export class LedgerEntity {
   @PrimaryGeneratedColumn('uuid', {

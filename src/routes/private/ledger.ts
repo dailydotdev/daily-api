@@ -11,11 +11,13 @@ import {
   claimEvidenceDeleteSchema,
   claimEvidenceUpdateSchema,
   claimMergeSchema,
+  claimMoveSchema,
   claimStatusUpdateSchema,
   claimUpdateSchema,
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
+  ledgerEntityDeleteSchema,
   ledgerEntityMergeSchema,
   ledgerEntityQuerySchema,
   ledgerEntityUpdateSchema,
@@ -24,8 +26,9 @@ import {
   assertLedgerNamesAvailable,
   expandLedgerEntityIds,
   findLedgerEntitiesByName,
+  normalizeEvidenceUrl,
 } from '../../common/claimLedger';
-import { Claim, ClaimStatus } from '../../entity/claim/Claim';
+import { Claim, ClaimDateSource, ClaimStatus } from '../../entity/claim/Claim';
 import {
   ClaimCandidate,
   ClaimCandidateStatus,
@@ -93,6 +96,31 @@ const findEvidenceSource = ({
       publishedAt: Date | null;
     }>();
 
+// Rows written before urls were normalized keep their trailing slash, so the
+// form the reviewer sends is looked up first and the normalized form only
+// stands in for a variant of a row already stored normalized.
+const resolveCitedUrl = async ({
+  con,
+  claimId,
+  url,
+}: {
+  con: DataSource;
+  claimId: string;
+  url: string;
+}): Promise<string> => {
+  const normalized = normalizeEvidenceUrl(url);
+
+  if (normalized === url) {
+    return url;
+  }
+
+  const cited = await con
+    .getRepository(ClaimEvidence)
+    .findOneBy({ claimId, url });
+
+  return cited ? url : normalized;
+};
+
 const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
 
@@ -112,13 +140,20 @@ const createClaimFromCandidate = async ({
   // child product named after its parent, or names shared by two entities.
   const entityId =
     body.entityId ?? (await resolveCandidateEntity({ manager, candidate })).id;
+  const effectiveDate = pickOverride(
+    body.effectiveDate,
+    candidate.effectiveDate,
+  );
   const claim = await manager.getRepository(Claim).save({
     entityId,
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement: pickOverride(body.statement, candidate.statement),
     versionScope: pickOverride(body.versionScope, candidate.versionScope),
-    effectiveDate: pickOverride(body.effectiveDate, candidate.effectiveDate),
+    effectiveDate,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
+    dateSource: effectiveDate ? ClaimDateSource.Extracted : null,
+    affected: pickOverride(body.affected, candidate.affected),
+    superseding: pickOverride(body.superseding, candidate.superseding),
   });
 
   return claim.id;
@@ -201,15 +236,29 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     // or pile redundant evidence onto one.
     const isSplit =
       candidate.status === ClaimCandidateStatus.Merged && body.split === true;
+    // A policy ruling can legitimize a class of denials after the fact, so a
+    // denied candidate merges after all, but only on an explicit exception: a
+    // denial is otherwise final and a runner replaying its work must not undo
+    // a reviewer's call.
+    const isRevive =
+      candidate.status === ClaimCandidateStatus.Denied && body.revive === true;
 
-    if (candidate.status !== ClaimCandidateStatus.Pending && !isSplit) {
+    if (
+      candidate.status !== ClaimCandidateStatus.Pending &&
+      !isSplit &&
+      !isRevive
+    ) {
       throw new ConflictError('Claim candidate is already resolved');
     }
+
+    // The playbook asks for a rule-citing rationale per decision, and it is only
+    // worth anything to the recall audit if it sits on the row it explains.
+    const note = typeof body.note === 'undefined' ? {} : { note: body.note };
 
     if (body.action === 'deny') {
       await con
         .getRepository(ClaimCandidate)
-        .update(candidate.id, { status: ClaimCandidateStatus.Denied });
+        .update(candidate.id, { status: ClaimCandidateStatus.Denied, ...note });
 
       return res.status(200).send({ success: true });
     }
@@ -218,14 +267,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     // one the reviewer supplies, the post's own, or the post's permalink for the
     // post types that carry no url of their own.
     const source = await findEvidenceSource({ con, postId: candidate.postId });
-    const url =
+    const citedUrl =
       body.url ??
       source?.url ??
       (source ? getDiscussionLink(source.slug) : null);
 
-    if (!url) {
+    if (!citedUrl) {
       return res.status(404).send({ error: 'Claim candidate post not found' });
     }
+
+    const url = normalizeEvidenceUrl(citedUrl);
 
     if (
       body.claimId &&
@@ -264,12 +315,20 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .orIgnore()
         .execute();
 
-      // A split leaves the candidate pointing at the first claim it produced.
-      if (!isSplit) {
-        await manager.getRepository(ClaimCandidate).update(candidate.id, {
+      // A split leaves the candidate pointing at the first claim it produced,
+      // so only its note moves.
+      const candidateUpdate = {
+        ...(!isSplit && {
           status: ClaimCandidateStatus.Merged,
           claimId: targetClaimId,
-        });
+        }),
+        ...note,
+      };
+
+      if (Object.keys(candidateUpdate).length) {
+        await manager
+          .getRepository(ClaimCandidate)
+          .update(candidate.id, candidateUpdate);
       }
 
       return targetClaimId;
@@ -509,7 +568,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    await con.transaction(async (manager) => {
+    const merged = await con.transaction(async (manager) => {
       const entityRepo = manager.getRepository(LedgerEntity);
       const claimRepo = manager.getRepository(Claim);
 
@@ -548,7 +607,68 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
       await entityRepo.update(into.id, { aliases });
       await entityRepo.delete(from.id);
+
+      // Verifying the merge against the replica reads it before the merge
+      // lands, so the entity the reviewer ends up with is answered from inside
+      // the transaction that made it.
+      return entityRepo.findOne({
+        select: ['id', 'canonicalName', 'aliases', 'parentId'],
+        where: { id: into.id },
+      });
     });
+
+    return res.status(200).send(merged);
+  });
+
+  // Extraction probes entities into existence that never take a claim, and
+  // merging one away only moves its names onto a neighbour, so an entity
+  // nothing stands on is dropped outright.
+  fastify.post<{
+    Body: z.infer<typeof ledgerEntityDeleteSchema>;
+  }>('/entities/delete', async (req, res) => {
+    const body = parseSchema({
+      schema: ledgerEntityDeleteSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const entity = await con
+      .getRepository(LedgerEntity)
+      .findOneBy({ id: body.entityId });
+
+    if (!entity) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    // Deleting cascades to the claims filed against the entity and orphans its
+    // children, so both have to be empty before the row can go.
+    const [claims, children] = await Promise.all([
+      con
+        .getRepository(Claim)
+        .countBy([
+          { entityId: entity.id },
+          { supersededByEntityId: entity.id },
+        ]),
+      con.getRepository(LedgerEntity).countBy({ parentId: entity.id }),
+    ]);
+
+    if (claims) {
+      return res
+        .status(400)
+        .send({ error: 'Ledger entity is still referenced by claims' });
+    }
+
+    if (children) {
+      return res
+        .status(400)
+        .send({ error: 'Ledger entity still has child entities' });
+    }
+
+    await con.getRepository(LedgerEntity).delete(entity.id);
 
     return res.status(200).send({ success: true });
   });
@@ -612,9 +732,16 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       }),
       ...(typeof body.effectiveDate !== 'undefined' && {
         effectiveDate: body.effectiveDate,
+        // A reviewer setting the date read the change itself, so it stops
+        // being whatever a backfill inferred from the reporting post.
+        dateSource: body.effectiveDate ? ClaimDateSource.Extracted : null,
       }),
       ...(typeof body.sunsetDate !== 'undefined' && {
         sunsetDate: body.sunsetDate,
+      }),
+      ...(typeof body.affected !== 'undefined' && { affected: body.affected }),
+      ...(typeof body.superseding !== 'undefined' && {
+        superseding: body.superseding,
       }),
       ...(typeof body.supersededByEntityId !== 'undefined' && {
         supersededByEntityId: body.supersededByEntityId,
@@ -692,12 +819,12 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
       // The kept claim may already cite a url, and (claimId, url) is unique, so
       // the duplicate row is dropped instead of moved.
-      const taken = new Set(cited.map(({ url }) => url));
+      const taken = new Set(cited.map(({ url }) => normalizeEvidenceUrl(url)));
       const duplicated = absorbed
-        .filter(({ url }) => taken.has(url))
+        .filter(({ url }) => taken.has(normalizeEvidenceUrl(url)))
         .map(({ id }) => id);
       const moved = absorbed
-        .filter(({ url }) => !taken.has(url))
+        .filter(({ url }) => !taken.has(normalizeEvidenceUrl(url)))
         .map(({ id }) => id);
 
       if (duplicated.length) {
@@ -730,6 +857,46 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     return res.status(200).send({ success: true });
   });
 
+  // A claim filed against the wrong entity is otherwise unrepairable: the
+  // entity is chosen when the claim is created and nothing since could change
+  // it. Its evidence hangs off the post, not the entity, so it stays as it is.
+  fastify.post<{
+    Body: z.infer<typeof claimMoveSchema>;
+  }>('/claims/move', async (req, res) => {
+    const body = parseSchema({
+      schema: claimMoveSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const con = await createOrGetConnection();
+    const [claim, entity] = await Promise.all([
+      con.getRepository(Claim).findOneBy({ id: body.claimId }),
+      con.getRepository(LedgerEntity).findOneBy({ id: body.entityId }),
+    ]);
+
+    if (!claim) {
+      return res.status(404).send({ error: 'Claim not found' });
+    }
+
+    if (!entity) {
+      return res.status(404).send({ error: 'Ledger entity not found' });
+    }
+
+    if (claim.entityId === entity.id) {
+      return res
+        .status(400)
+        .send({ error: 'Claim already belongs to this ledger entity' });
+    }
+
+    await con.getRepository(Claim).update(claim.id, { entityId: entity.id });
+
+    return res.status(200).send({ success: true });
+  });
+
   // Evidence a reviewer verified against a primary source: no post backs it,
   // so the url and its source class are all the proof there is.
   fastify.post<{
@@ -750,10 +917,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return res.status(404).send({ error: 'Claim not found' });
     }
 
+    const url = normalizeEvidenceUrl(body.url);
+
     if (
-      await con
-        .getRepository(ClaimEvidence)
-        .findOneBy({ claimId: body.claimId, url: body.url })
+      await con.getRepository(ClaimEvidence).findOneBy({
+        claimId: body.claimId,
+        url: In([...new Set([url, body.url])]),
+      })
     ) {
       throw new ConflictError('Claim already cites this url as evidence');
     }
@@ -761,7 +931,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const evidence = await con.getRepository(ClaimEvidence).save({
       claimId: body.claimId,
       postId: null,
-      url: body.url,
+      url,
       sourceClass: body.sourceClass,
       publishedAt: body.publishedAt ?? null,
     });
@@ -785,10 +955,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const url = await resolveCitedUrl({
+      con,
+      claimId: body.claimId,
+      url: body.url,
+    });
     const { affected } = await con
       .getRepository(ClaimEvidence)
       .update(
-        { claimId: body.claimId, url: body.url },
+        { claimId: body.claimId, url },
         { sourceClass: body.sourceClass },
       );
 
@@ -814,9 +989,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const url = await resolveCitedUrl({
+      con,
+      claimId: body.claimId,
+      url: body.url,
+    });
     const { affected } = await con
       .getRepository(ClaimEvidence)
-      .delete({ claimId: body.claimId, url: body.url });
+      .delete({ claimId: body.claimId, url });
 
     if (!affected) {
       return res.status(404).send({ error: 'Claim evidence not found' });
@@ -838,22 +1018,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    const { entities, ids, since } = query;
     const claims = await queryReadReplica(con, async ({ queryRunner }) => {
-      const matched = await findLedgerEntitiesByName({
-        con: queryRunner.manager,
-        names: query.entities,
-      });
-
-      if (!matched.length) {
-        return [];
-      }
-
-      const entityIds = await expandLedgerEntityIds({
-        con: queryRunner.manager,
-        entityIds: matched.map(({ id }) => id),
-      });
-
-      return queryRunner.manager
+      const builder = queryRunner.manager
         .getRepository(Claim)
         .createQueryBuilder('c')
         .innerJoin(LedgerEntity, 'le', 'le.id = c."entityId"')
@@ -865,26 +1032,64 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'c."changeType" AS "changeType"',
           'c.statement AS statement',
           'c."versionScope" AS "versionScope"',
+          'c."versionParsed" AS "versionParsed"',
+          'c.affected AS affected',
+          'c.superseding AS superseding',
           'c."effectiveDate" AS "effectiveDate"',
+          'c."dateSource" AS "dateSource"',
           'c."sunsetDate" AS "sunsetDate"',
           'c."supersededByEntityId" AS "supersededByEntityId"',
           'c."supersededByClaimId" AS "supersededByClaimId"',
           'c.status AS status',
           `COALESCE(json_agg(json_build_object('url', ce.url, 'postId', ce."postId", 'sourceClass', ce."sourceClass", 'publishedAt', ce."publishedAt")) FILTER (WHERE ce.id IS NOT NULL), '[]') AS evidence`,
         ])
-        .where('c."entityId" IN (:...entityIds)', { entityIds })
-        .andWhere('c.status IN (:...statuses)', {
-          statuses: statusRank.slice(statusRank.indexOf(query.minStatus)),
-        })
-        .andWhere(
-          'COALESCE(c."effectiveDate", c."createdAt"::date) >= :since',
-          { since: query.since },
-        )
         .groupBy('c.id')
         .addGroupBy('le."canonicalName"')
         .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
-        .addOrderBy('c.id', 'DESC')
-        .getRawMany();
+        .addOrderBy('c.id', 'DESC');
+
+      // Ids name the claims outright, so the status floor and the date window
+      // would only hide a claim the caller already holds the id of.
+      if (ids) {
+        return builder.where('c.id IN (:...ids)', { ids }).getRawMany();
+      }
+
+      if (!entities || !since) {
+        return [];
+      }
+
+      const matched = await findLedgerEntitiesByName({
+        con: queryRunner.manager,
+        names: entities,
+      });
+
+      if (!matched.length) {
+        return [];
+      }
+
+      const entityIds = await expandLedgerEntityIds({
+        con: queryRunner.manager,
+        entityIds: matched.map(({ id }) => id),
+      });
+
+      builder
+        .where('c."entityId" IN (:...entityIds)', { entityIds })
+        .andWhere('c.status IN (:...statuses)', {
+          statuses: statusRank.slice(statusRank.indexOf(query.minStatus)),
+        });
+
+      // Falling back to "createdAt" dated every undated claim to the day it was
+      // written, which for a backfill is one day for all of them.
+      return query.dated
+        ? builder
+            .andWhere('c."effectiveDate" >= :since', { since })
+            .getRawMany()
+        : builder
+            .andWhere(
+              '(c."effectiveDate" IS NULL OR c."effectiveDate" >= :since)',
+              { since },
+            )
+            .getRawMany();
     });
 
     return res.status(200).send({ claims });

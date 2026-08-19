@@ -67,6 +67,17 @@ const contentPublished = (overrides: Partial<Data> = {}): Data =>
     ...overrides,
   }) as Data;
 
+const candidateFixture = () => ({
+  postId: 'cp1',
+  rawEntityName: 'react',
+  entityAliases: [],
+  entityKind: LedgerEntityKind.Package,
+  changeType: ClaimChangeType.Removal,
+  statement: 'React 19 removes defaultProps for function components.',
+  directness: ClaimDirectness.Announcement,
+  evidence: 'React 19 removes defaultProps.',
+});
+
 let con: DataSource;
 
 beforeAll(async () => {
@@ -127,6 +138,8 @@ describe('extractClaims worker', () => {
             supersededBy: '',
             directness: ProtoClaimDirectness.ANNOUNCEMENT,
             evidence: 'React 19 removes defaultProps.',
+            affected: ['defaultProps'],
+            superseding: ['default parameters'],
           }),
           new ProtoClaim({
             entityName: 'react',
@@ -170,6 +183,8 @@ describe('extractClaims worker', () => {
       supersededBy: null,
       directness: ClaimDirectness.Announcement,
       status: ClaimCandidateStatus.Pending,
+      affected: ['defaultProps'],
+      superseding: ['default parameters'],
     });
   });
 
@@ -377,16 +392,7 @@ describe('extractClaims worker', () => {
   });
 
   it('should not extract again once the post has candidates', async () => {
-    await con.getRepository(ClaimCandidate).save({
-      postId: 'cp1',
-      rawEntityName: 'react',
-      entityAliases: [],
-      entityKind: LedgerEntityKind.Package,
-      changeType: ClaimChangeType.Removal,
-      statement: 'React 19 removes defaultProps.',
-      directness: ClaimDirectness.Announcement,
-      evidence: 'React 19 removes defaultProps.',
-    });
+    await con.getRepository(ClaimCandidate).save(candidateFixture());
 
     await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
       worker,
@@ -396,5 +402,56 @@ describe('extractClaims worker', () => {
     expect(mockExtractClaims).not.toHaveBeenCalled();
     expect(mockDownload).not.toHaveBeenCalled();
     expect(await con.getRepository(ClaimCandidate).count()).toEqual(1);
+  });
+
+  it('should file nothing when another delivery files while extracting', async () => {
+    mockExtractClaims.mockImplementation(async () => {
+      await con.getRepository(ClaimCandidate).insert(candidateFixture());
+
+      return new ExtractClaimsResponse({
+        id: 'op-1',
+        model: 'test',
+        claims: [
+          new ProtoClaim({
+            entityName: 'react',
+            entityKind: ProtoClaimEntityKind.PACKAGE,
+            changeType: ProtoClaimChangeType.REMOVAL,
+            statement: candidateFixture().statement,
+            directness: ProtoClaimDirectness.ANNOUNCEMENT,
+            evidence: 'React 19 removes defaultProps.',
+          }),
+        ],
+      });
+    });
+
+    await expectSuccessfulTypedBackground<'yggdrasil.v1.content-published'>(
+      worker,
+      contentPublished(),
+    );
+
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(1);
+  });
+
+  it('should ignore a statement already filed for the post', async () => {
+    await con.getRepository(ClaimCandidate).insert(candidateFixture());
+    await con
+      .createQueryBuilder()
+      .insert()
+      .into(ClaimCandidate)
+      .values(candidateFixture())
+      .orIgnore()
+      .execute();
+
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(1);
+  });
+
+  it('should leave duplicates filed before the index was added alone', async () => {
+    const createdAt = new Date('2026-08-13T00:00:00.000Z');
+    await con.getRepository(ClaimCandidate).insert([
+      { ...candidateFixture(), createdAt },
+      { ...candidateFixture(), createdAt },
+    ]);
+
+    expect(await con.getRepository(ClaimCandidate).count()).toEqual(2);
   });
 });
