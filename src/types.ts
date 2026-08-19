@@ -80,6 +80,7 @@ declare global {
       ENCORE_ORIGIN?: string;
       ENCORE_API_KEY?: string;
       ENCORE_CLIENT_ID?: string;
+      ENCORE_WEBHOOK_SECRET?: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
