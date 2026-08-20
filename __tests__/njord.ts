@@ -15,10 +15,13 @@ import {
   Comment,
   PostType,
   Source,
+  SourceType,
+  TOOLS_SOURCE,
   User,
   UserPost,
 } from '../src/entity';
 import { sourcesFixture, usersFixture } from './fixture';
+import { UserCompany } from '../src/entity/UserCompany';
 
 import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
@@ -362,6 +365,16 @@ describe('award post mutation', () => {
       }),
     );
 
+    await con.getRepository(Source).save({
+      id: TOOLS_SOURCE,
+      name: 'Tools',
+      handle: TOOLS_SOURCE,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+      image: 'http://image.com/tools',
+    });
+
     await saveFixtures(con, ArticlePost, [
       {
         id: 'p-awpm-1',
@@ -372,6 +385,22 @@ describe('award post mutation', () => {
         image: 'https://daily.dev/image.jpg',
         score: 1,
         sourceId: 's-awpm-a',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        authorId: 't-awpm-2',
+        awards: 0,
+      },
+      {
+        id: 'p-awpm-tools',
+        shortId: 'sp-awpm-tools',
+        title: 'P-AWPM-TOOLS',
+        url: 'http://p-awpm-tools.com',
+        canonicalUrl: 'http://p-awpm-tools-c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: TOOLS_SOURCE,
         createdAt: new Date(),
         tagsStr: 'javascript,webdev',
         type: PostType.Article,
@@ -631,6 +660,57 @@ describe('award post mutation', () => {
 
     expect(transaction.referenceId).toEqual(post.id);
     expect(transaction.referenceType).toEqual(UserTransactionType.Post);
+  });
+
+  it('should reject a note on a tools discussion post when the user has no verified company', async () => {
+    loggedUser = 't-awpm-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 'p-awpm-tools',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+
+    const comment = await con.getRepository(Comment).findOne({
+      where: { userId: 't-awpm-1' },
+    });
+    expect(comment).toBeNull();
+
+    const userPost = await con.getRepository(UserPost).findOne({
+      where: { userId: 't-awpm-1', postId: 'p-awpm-tools' },
+    });
+    expect(userPost).toBeNull();
+  });
+
+  it('should award a note on a tools discussion post when the user has a verified company', async () => {
+    loggedUser = 't-awpm-1';
+    await con.getRepository(UserCompany).save({
+      userId: 't-awpm-1',
+      email: 't-awpm-1@company.dev',
+      code: '123456',
+      verified: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+        entityId: 'p-awpm-tools',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeUndefined();
+
+    const comment = await con.getRepository(Comment).findOneOrFail({
+      where: { userId: 't-awpm-1', postId: 'p-awpm-tools' },
+    });
+    expect(comment.content).toBe('Test test!');
   });
 
   it('should not award when user does not have access to cores', async () => {
@@ -933,6 +1013,16 @@ describe('award comment mutation', () => {
       }),
     );
 
+    await con.getRepository(Source).save({
+      id: TOOLS_SOURCE,
+      name: 'Tools',
+      handle: TOOLS_SOURCE,
+      type: SourceType.Machine,
+      active: true,
+      private: false,
+      image: 'http://image.com/tools',
+    });
+
     await saveFixtures(con, ArticlePost, [
       {
         id: 'p-awcm-1',
@@ -943,6 +1033,22 @@ describe('award comment mutation', () => {
         image: 'https://daily.dev/image.jpg',
         score: 1,
         sourceId: 's-awcm-a',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        authorId: 't-awcm-2',
+        awards: 0,
+      },
+      {
+        id: 'p-awcm-tools',
+        shortId: 'sp-awcm-tools',
+        title: 'P-awcm-tools',
+        url: 'http://p-awcm-tools.com',
+        canonicalUrl: 'http://p-awcm-tools-c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: TOOLS_SOURCE,
         createdAt: new Date(),
         tagsStr: 'javascript,webdev',
         type: PostType.Article,
@@ -973,6 +1079,13 @@ describe('award comment mutation', () => {
         postId: 'p-awcm-1',
         userId: 't-awcm-2',
         content: 'Test sub comment',
+        createdAt: new Date(),
+      },
+      {
+        id: 'c-awcm-tools-1',
+        postId: 'p-awcm-tools',
+        userId: 't-awcm-2',
+        content: 'Test tools discussion comment',
         createdAt: new Date(),
       },
     ]);
@@ -1183,6 +1296,57 @@ describe('award comment mutation', () => {
 
     expect(transaction.referenceId).toEqual(comment.id);
     expect(transaction.referenceType).toEqual(UserTransactionType.Comment);
+  });
+
+  it('should reject a note on a comment in a tools discussion when the user has no verified company', async () => {
+    loggedUser = 't-awcm-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-tools-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+
+    const awardComment = await con.getRepository(Comment).findOne({
+      where: { userId: 't-awcm-1' },
+    });
+    expect(awardComment).toBeNull();
+
+    const userComment = await con.getRepository(UserComment).findOne({
+      where: { userId: 't-awcm-1', commentId: 'c-awcm-tools-1' },
+    });
+    expect(userComment).toBeNull();
+  });
+
+  it('should award a note on a comment in a tools discussion when the user has a verified company', async () => {
+    loggedUser = 't-awcm-1';
+    await con.getRepository(UserCompany).save({
+      userId: 't-awcm-1',
+      email: 't-awcm-1@company.dev',
+      code: '123456',
+      verified: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+        entityId: 'c-awcm-tools-1',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeUndefined();
+
+    const awardComment = await con.getRepository(Comment).findOneOrFail({
+      where: { userId: 't-awcm-1', postId: 'p-awcm-tools' },
+    });
+    expect(awardComment.content).toBe('Test test!');
   });
 
   it('should award nested comment', async () => {

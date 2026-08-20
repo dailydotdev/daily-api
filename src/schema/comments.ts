@@ -621,6 +621,12 @@ export const saveComment = async (
   comment: Comment,
   sourceId?: string,
 ): Promise<Comment> => {
+  // Single choke point for every comment-creation path (commentOnPost,
+  // commentOnComment, njord award notes, ...) so none of them can bypass
+  // the tools-discussion verified-email gate.
+  if (sourceId === TOOLS_SOURCE) {
+    await ensureVerifiedForToolDiscussion(con, comment.userId);
+  }
   const mentions = await getMentions(
     con,
     comment.content,
@@ -1071,12 +1077,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         const post = await ctx.con
           .getRepository(Post)
           .findOneByOrFail({ id: postId });
-        if (post.sourceId === TOOLS_SOURCE) {
-          await ensureVerifiedForToolDiscussion(ctx.con, ctx.userId);
-        }
         const source = await ensureSourcePermissions(ctx, post.sourceId);
+        // Passed through to saveComment for both mention-scoping (squads)
+        // and the tools-discussion verified-email gate.
         const squadId =
-          source.type === SourceType.Squad ? source.id : undefined;
+          source.type === SourceType.Squad || post.sourceId === TOOLS_SOURCE
+            ? source.id
+            : undefined;
         const comment = await ctx.con.transaction(async (entityManager) => {
           const commentId = await generateShortId();
           const createdComment = entityManager.getRepository(Comment).create({
@@ -1138,15 +1145,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               relations: ['post'],
             });
           const post = await parentComment.post;
-          if (post.sourceId === TOOLS_SOURCE) {
-            await ensureVerifiedForToolDiscussion(ctx.con, ctx.userId);
-          }
           const source = await ensureSourcePermissions(ctx, post.sourceId);
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
           const squadId =
-            source.type === SourceType.Squad ? source.id : undefined;
+            source.type === SourceType.Squad || post.sourceId === TOOLS_SOURCE
+              ? source.id
+              : undefined;
 
           const createdComment = entityManager.getRepository(Comment).create({
             id: await generateShortId(),
