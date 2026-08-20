@@ -28,12 +28,14 @@ export const normalizeEvidenceUrl = (url: string): string => {
   }
 };
 
-// The canonical name and every alias, lowercased into one array. Declared as an
-// immutable function so a GIN index can be built over it: matching with && then
-// answers the whole lookup from the index, where the equivalent lower() and
-// unnest() predicates force a sequential scan.
+// The canonical name and every alias — code-only included, since a name is
+// unique across the whole ledger no matter which array holds it — lowercased
+// into one array. Declared as an immutable function so a GIN index can be
+// built over it: matching with && then answers the whole lookup from the
+// index, where the equivalent lower() and unnest() predicates force a
+// sequential scan.
 const searchNames =
-  'ledger_entity_search_names(le."canonicalName", le."aliases")';
+  'ledger_entity_search_names(le."canonicalName", le."aliases", le."codeOnlyAliases")';
 
 export const findLedgerEntitiesByName = ({
   con,
@@ -50,6 +52,7 @@ export const findLedgerEntitiesByName = ({
       'le.canonicalName',
       'le.kind',
       'le.aliases',
+      'le.codeOnlyAliases',
       'le.parentId',
     ])
     .where(`${searchNames} && :names`, {

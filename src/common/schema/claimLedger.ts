@@ -128,6 +128,7 @@ export const ledgerEntityCreateSchema = z.strictObject({
   canonicalName: entityName,
   kind: z.enum(enumValues(LedgerEntityKind)),
   aliases: z.array(entityName).max(50).default([]),
+  codeOnlyAliases: z.array(entityName).max(50).default([]),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
   description: description.nullish(),
@@ -156,9 +157,14 @@ export const ledgerEntityDiscoverSchema = z.strictObject({
   minSimilarity: z.coerce.number().min(0).max(1).default(0.2),
 });
 
+// codeOnly marks a registry name that doubles as an ordinary English word
+// (`requests`, `next`): it resolves from code-shaped tokens but never from
+// prose. Decided once, at filing time; to change the marker, remove the alias
+// and file it again.
 export const ledgerEntityAliasSchema = z.strictObject({
   entityId: z.uuid(),
   alias: entityName,
+  codeOnly: z.boolean().default(false),
 });
 
 // Extraction files the same artifact twice under names that only later turn out

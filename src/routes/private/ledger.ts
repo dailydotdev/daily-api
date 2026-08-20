@@ -624,13 +624,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const con = await createOrGetConnection();
     await assertLedgerNamesAvailable({
       con,
-      names: [body.canonicalName, ...body.aliases],
+      names: [body.canonicalName, ...body.aliases, ...body.codeOnlyAliases],
     });
 
     const entity = await con.getRepository(LedgerEntity).save({
       canonicalName: body.canonicalName,
       kind: body.kind,
       aliases: body.aliases,
+      codeOnlyAliases: body.codeOnlyAliases,
       keywordValue: body.keywordValue ?? null,
       parentId: body.parentId ?? null,
       ...(await describedColumns({ description: body.description ?? null })),
@@ -744,25 +745,32 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
     // Two reviewers aliasing the same entity at once each wrote back the array
     // they had read, so one alias was lost: the append and its dedupe both
-    // happen in the row's own update instead.
+    // happen in the row's own update instead. The dedupe spans both arrays —
+    // a name already filed keeps the marker it was filed with.
+    const appendUnlessFiled = (column: string) => () =>
+      `CASE WHEN EXISTS (SELECT 1 FROM unnest(aliases || "codeOnlyAliases") existing WHERE lower(existing) = lower(:alias)) THEN "${column}" ELSE "${column}" || ARRAY[:alias]::text[] END`;
     const { affected, raw } = await con
       .getRepository(LedgerEntity)
       .createQueryBuilder()
       .update()
-      .set({
-        aliases: () =>
-          `CASE WHEN EXISTS (SELECT 1 FROM unnest(aliases) existing WHERE lower(existing) = lower(:alias)) THEN aliases ELSE aliases || ARRAY[:alias]::text[] END`,
-      })
+      .set(
+        body.codeOnly
+          ? { codeOnlyAliases: appendUnlessFiled('codeOnlyAliases') }
+          : { aliases: appendUnlessFiled('aliases') },
+      )
       .where({ id: entity.id })
       .setParameter('alias', body.alias)
-      .returning('aliases')
+      .returning(['aliases', 'codeOnlyAliases'])
       .execute();
 
     if (!affected) {
       return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    return res.status(200).send({ aliases: raw[0].aliases });
+    return res.status(200).send({
+      aliases: raw[0].aliases,
+      codeOnlyAliases: raw[0].codeOnlyAliases,
+    });
   });
 
   fastify.post<{
@@ -778,24 +786,31 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     }
 
     const con = await createOrGetConnection();
+    // A name lives in at most one of the two arrays, so removal clears both
+    // rather than asking the caller to know which one holds it.
+    const withoutAlias = (column: string) => () =>
+      `ARRAY(SELECT existing FROM unnest("${column}") existing WHERE lower(existing) <> lower(:alias))`;
     const { affected, raw } = await con
       .getRepository(LedgerEntity)
       .createQueryBuilder()
       .update()
       .set({
-        aliases: () =>
-          `ARRAY(SELECT existing FROM unnest(aliases) existing WHERE lower(existing) <> lower(:alias))`,
+        aliases: withoutAlias('aliases'),
+        codeOnlyAliases: withoutAlias('codeOnlyAliases'),
       })
       .where({ id: body.entityId })
       .setParameter('alias', body.alias)
-      .returning('aliases')
+      .returning(['aliases', 'codeOnlyAliases'])
       .execute();
 
     if (!affected) {
       return res.status(404).send({ error: 'Ledger entity not found' });
     }
 
-    return res.status(200).send({ aliases: raw[0].aliases });
+    return res.status(200).send({
+      aliases: raw[0].aliases,
+      codeOnlyAliases: raw[0].codeOnlyAliases,
+    });
   });
 
   // Extraction can file one artifact as two entities, so the duplicate is
@@ -835,21 +850,32 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       await entityRepo.update({ parentId: from.id }, { parentId: into.id });
 
       // A name the duplicate answered to may already belong to a third entity,
-      // and every name in the ledger is unique, so that one is dropped.
+      // and every name in the ledger is unique, so that one is dropped. Names
+      // move with the marker they were filed under: code-only stays code-only.
       const names = [from.canonicalName, ...from.aliases];
-      const owners = await findLedgerEntitiesByName({ con: manager, names });
+      const owners = await findLedgerEntitiesByName({
+        con: manager,
+        names: [...names, ...from.codeOnlyAliases],
+      });
       const unavailable = new Set(
         owners
           .filter(({ id }) => id !== from.id && id !== into.id)
-          .flatMap((owner) => [owner.canonicalName, ...owner.aliases])
+          .flatMap((owner) => [
+            owner.canonicalName,
+            ...owner.aliases,
+            ...owner.codeOnlyAliases,
+          ])
           .map((name) => name.toLowerCase()),
       );
       const kept = new Set(
-        [into.canonicalName, ...into.aliases].map((name) => name.toLowerCase()),
+        [into.canonicalName, ...into.aliases, ...into.codeOnlyAliases].map(
+          (name) => name.toLowerCase(),
+        ),
       );
       const aliases = [...into.aliases];
+      const codeOnlyAliases = [...into.codeOnlyAliases];
 
-      names.forEach((name) => {
+      const claim = (name: string, target: string[]): void => {
         const normalized = name.toLowerCase();
 
         if (kept.has(normalized) || unavailable.has(normalized)) {
@@ -857,8 +883,11 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         }
 
         kept.add(normalized);
-        aliases.push(name);
-      });
+        target.push(name);
+      };
+
+      names.forEach((name) => claim(name, aliases));
+      from.codeOnlyAliases.forEach((name) => claim(name, codeOnlyAliases));
 
       // The description on the absorbed row is the only copy of it, and the
       // row is about to be deleted, so it moves with the names. Re-embedded
@@ -866,6 +895,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       // merge is rare enough that one call costs less than carrying it.
       await entityRepo.update(into.id, {
         aliases,
+        codeOnlyAliases,
         ...(!into.description && from.description
           ? await describedColumns({ description: from.description })
           : {}),
@@ -876,7 +906,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       // lands, so the entity the reviewer ends up with is answered from inside
       // the transaction that made it.
       return entityRepo.findOne({
-        select: ['id', 'canonicalName', 'aliases', 'parentId'],
+        select: [
+          'id',
+          'canonicalName',
+          'aliases',
+          'codeOnlyAliases',
+          'parentId',
+        ],
         where: { id: into.id },
       });
     });
