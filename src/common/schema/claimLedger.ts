@@ -129,6 +129,7 @@ export const ledgerEntityCreateSchema = z.strictObject({
   kind: z.enum(enumValues(LedgerEntityKind)),
   aliases: z.array(entityName).max(50).default([]),
   codeOnlyAliases: z.array(entityName).max(50).default([]),
+  codeOnlyCanonical: z.boolean().default(false),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
   description: description.nullish(),
@@ -138,6 +139,10 @@ export const ledgerEntityCreateSchema = z.strictObject({
 export const ledgerEntityUpdateSchema = z.strictObject({
   entityId: z.uuid(),
   canonicalName: entityName.optional(),
+  // Unlike an alias marker, this one is editable in place: a rename can turn an
+  // unambiguous canonical name into an ambiguous one, and the entity cannot be
+  // re-filed the way an alias can.
+  codeOnlyCanonical: z.boolean().optional(),
   kind: z.enum(enumValues(LedgerEntityKind)).optional(),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),

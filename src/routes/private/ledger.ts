@@ -632,6 +632,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       kind: body.kind,
       aliases: body.aliases,
       codeOnlyAliases: body.codeOnlyAliases,
+      codeOnlyCanonical: body.codeOnlyCanonical,
       keywordValue: body.keywordValue ?? null,
       parentId: body.parentId ?? null,
       ...(await describedColumns({ description: body.description ?? null })),
@@ -666,6 +667,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const update = {
       ...(typeof body.canonicalName !== 'undefined' && {
         canonicalName: body.canonicalName,
+      }),
+      ...(typeof body.codeOnlyCanonical !== 'undefined' && {
+        codeOnlyCanonical: body.codeOnlyCanonical,
       }),
       ...(typeof body.kind !== 'undefined' && { kind: body.kind }),
       ...(typeof body.keywordValue !== 'undefined' && {
@@ -911,6 +915,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'canonicalName',
           'aliases',
           'codeOnlyAliases',
+          'codeOnlyCanonical',
           'parentId',
         ],
         where: { id: into.id },

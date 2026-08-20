@@ -314,6 +314,67 @@ describe('private ledger routes', () => {
     });
   });
 
+  it('should mark a canonical name code-only at creation and expose it on lookup', async () => {
+    const { body: created } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({
+        canonicalName: 'Go',
+        kind: LedgerEntityKind.Runtime,
+        codeOnlyCanonical: true,
+      })
+      .expect(201);
+
+    expect(created).toMatchObject({
+      canonicalName: 'Go',
+      codeOnlyCanonical: true,
+    });
+
+    // The marker is about prose matching only — the name still resolves.
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities')
+      .query({ name: 'go' })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities).toEqual([
+      expect.objectContaining({
+        canonicalName: 'Go',
+        codeOnlyCanonical: true,
+      }),
+    ]);
+  });
+
+  it('should default a canonical name to prose-visible', async () => {
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({ canonicalName: 'Fastify', kind: LedgerEntityKind.Package })
+      .expect(201);
+
+    expect(body.codeOnlyCanonical).toBe(false);
+  });
+
+  it('should flip the canonical marker on update, since a rename can create the ambiguity', async () => {
+    await seedHierarchy();
+
+    const { body: marked } = await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, codeOnlyCanonical: true })
+      .expect(200);
+
+    expect(marked.codeOnlyCanonical).toBe(true);
+
+    const { body: cleared } = await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, codeOnlyCanonical: false })
+      .expect(200);
+
+    expect(cleared.codeOnlyCanonical).toBe(false);
+  });
+
   it('should reject removing an alias from an entity that does not exist', () =>
     request(app.server)
       .post('/p/ledger/entities/alias/remove')
@@ -359,6 +420,7 @@ describe('private ledger routes', () => {
       canonicalName: 'Next.js App Router',
       aliases: ['App Router', 'app-router'],
       codeOnlyAliases: [],
+      codeOnlyCanonical: false,
       parentId: parentEntityId,
     });
     expect(
@@ -478,6 +540,7 @@ describe('private ledger routes', () => {
         kind: LedgerEntityKind.Package,
         aliases: ['nextjs'],
         codeOnlyAliases: [],
+        codeOnlyCanonical: false,
         parentId: null,
       },
     ]);

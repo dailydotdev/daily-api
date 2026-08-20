@@ -53,6 +53,7 @@ export const findLedgerEntitiesByName = ({
       'le.kind',
       'le.aliases',
       'le.codeOnlyAliases',
+      'le.codeOnlyCanonical',
       'le.parentId',
     ])
     .where(`${searchNames} && :names`, {
