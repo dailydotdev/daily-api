@@ -16,9 +16,11 @@ import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import { markdown } from '../../common/markdown';
 import { generateShortId } from '../../ids';
+import { remoteConfig } from '../../remoteConfig';
 import type { InterestAgentRunState } from '../../common/interest/tools/context';
 
-const MAX_PICKS = 3;
+const DEFAULT_MAX_PICKS = 3;
+const DEFAULT_MIN_FINDINGS_FOR_FEED_LINK = 1;
 const STALE_RUNNING_RECLAIM_MINUTES = 45;
 const UNIQUE_VIOLATION = '23505';
 
@@ -26,10 +28,12 @@ const buildRunBlocks = ({
   result,
   picks,
   deliverableCount,
+  minFindingsForFeedLink,
 }: {
   result: InterestAgentRunState;
   picks: { postId: string }[];
   deliverableCount: number;
+  minFindingsForFeedLink: number;
 }): InterestRunBlock[] => {
   const blocks: InterestRunBlock[] = [];
   const text = result.finalMessage ?? result.agentSummary;
@@ -39,7 +43,7 @@ const buildRunBlocks = ({
   if (picks.length) {
     blocks.push({ type: 'picks', postIds: picks.map(({ postId }) => postId) });
   }
-  if (deliverableCount > picks.length) {
+  if (deliverableCount > 0 && deliverableCount >= minFindingsForFeedLink) {
     blocks.push({
       type: 'feedLink',
       label: `Open all ${deliverableCount} findings`,
@@ -233,12 +237,14 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             'f',
           );
 
+        const maxPicks =
+          remoteConfig.vars.interestAgentMaxPicksPerRun ?? DEFAULT_MAX_PICKS;
         const [deliverableCount, picks] = await Promise.all([
           deliverableBuilder().getCount(),
           deliverableBuilder()
             .select('f."postId"', 'postId')
             .orderBy('f.score', 'DESC')
-            .limit(MAX_PICKS)
+            .limit(maxPicks)
             .getRawMany<{ postId: string }>(),
         ]);
 
@@ -252,7 +258,14 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             .update(leasedRun, {
               status: InterestRunStatus.Completed,
               finishedAt: new Date(),
-              blocks: buildRunBlocks({ result, picks, deliverableCount }),
+              blocks: buildRunBlocks({
+                result,
+                picks,
+                deliverableCount,
+                minFindingsForFeedLink:
+                  remoteConfig.vars.interestAgentMinFindingsForFeedLink ??
+                  DEFAULT_MIN_FINDINGS_FOR_FEED_LINK,
+              }),
               findingsAdded: deliverableCount,
               summaryPostId: result.summaryPostId,
               notifiedAt: shouldNotify ? null : new Date(),

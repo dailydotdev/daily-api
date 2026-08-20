@@ -26,6 +26,7 @@ import { postsFixture } from '../../fixture/post';
 import { sourcesFixture } from '../../fixture';
 import { triggerTypedEvent } from '../../../src/common/typedPubsub';
 import { markdown } from '../../../src/common/markdown';
+import { remoteConfig } from '../../../src/remoteConfig';
 import { runInterestAgent } from '../../../src/common/interest/runInterestAgent';
 
 jest.mock('../../../src/common/typedPubsub', () => ({
@@ -283,6 +284,7 @@ describe('userInterestRun worker', () => {
         ),
       },
       { type: 'picks', postIds: ['p1', 'p2'] },
+      { type: 'feedLink', label: 'Open all 2 findings', count: 2 },
     ]);
 
     const interest = await con
@@ -307,7 +309,7 @@ describe('userInterestRun worker', () => {
     });
   });
 
-  it('adds a feed link block when more findings were delivered than picks shown', async () => {
+  it('caps picks and adds the feed link for any delivering run', async () => {
     await Promise.all(
       ['p1', 'p2', 'p3', 'p4'].map((postId) =>
         seedFinding(postId, InterestFindingStatus.New),
@@ -322,11 +324,43 @@ describe('userInterestRun worker', () => {
     const run = await con
       .getRepository(InterestRun)
       .findOneByOrFail({ interestId: 'uir-1' });
+    const picks = run.blocks?.find((block) => block.type === 'picks');
+    expect(picks).toMatchObject({ postIds: expect.any(Array) });
+    expect((picks as { postIds: string[] }).postIds).toHaveLength(3);
     expect(run.blocks).toContainEqual({
       type: 'feedLink',
       label: 'Open all 4 findings',
       count: 4,
     });
+  });
+
+  it('honors the remote config picks and feed link knobs', async () => {
+    remoteConfig.vars.interestAgentMaxPicksPerRun = 1;
+    remoteConfig.vars.interestAgentMinFindingsForFeedLink = 5;
+    try {
+      await Promise.all(
+        ['p1', 'p2'].map((postId) =>
+          seedFinding(postId, InterestFindingStatus.New),
+        ),
+      );
+
+      await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+        worker,
+        { interestId: 'uir-1' },
+      );
+
+      const run = await con
+        .getRepository(InterestRun)
+        .findOneByOrFail({ interestId: 'uir-1' });
+      const picks = run.blocks?.find((block) => block.type === 'picks');
+      expect((picks as { postIds: string[] }).postIds).toHaveLength(1);
+      expect(run.blocks?.some((block) => block.type === 'feedLink')).toBe(
+        false,
+      );
+    } finally {
+      delete remoteConfig.vars.interestAgentMaxPicksPerRun;
+      delete remoteConfig.vars.interestAgentMinFindingsForFeedLink;
+    }
   });
 
   it('marks the run failed and rethrows when the agent errors', async () => {

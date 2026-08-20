@@ -1139,6 +1139,7 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) =>
           `COALESCE(cast(${alias}."digestFlags"->>'date' as timestamp), ${alias}."metadataChangedAt")`,
+        transform: transformDate,
       },
       collectionSources: {
         relation: {

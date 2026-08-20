@@ -311,6 +311,36 @@ describe('query interestFindings', () => {
     ).toEqual(['p2', 'p1']);
   });
 
+  it('should serialize the raw-selected post dates the workspace fragments request', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { metadataChangedAt: new Date() });
+    const res = await client.query(
+      `
+      query InterestFindings($id: ID!) {
+        interestFindings(id: $id) {
+          postId
+          post {
+            id
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `,
+      { variables: { id: 'uir-1' } },
+    );
+    expect(res.errors).toBeFalsy();
+    res.data.interestFindings.forEach(
+      (finding: { post: { updatedAt: string | null } }) => {
+        if (finding.post.updatedAt) {
+          expect(new Date(finding.post.updatedAt).getTime()).not.toBeNaN();
+        }
+      },
+    );
+  });
+
   it('should hide findings whose post was banned or deleted after delivery', async () => {
     loggedUser = '1';
     await con.getRepository(ArticlePost).update({ id: 'p2' }, { banned: true });
