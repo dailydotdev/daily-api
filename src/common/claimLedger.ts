@@ -62,12 +62,40 @@ export const findLedgerEntitiesByName = ({
 // of its own, and entities are demand-driven. Ambiguity resolves to null rather
 // than a guess — a wrong displacement link points a reader at the wrong
 // replacement, which is worse than an absent one, so it goes to review instead.
+// Anything that qualifies a name: whitespace, and the punctuation registry
+// identifiers are built from (`app-router`, `laravel/framework`, `@scope/pkg`).
+const NAME_QUALIFIER = /[-\s/@._:]/;
+
+// A single-word alias of a qualified name drops the very word that makes it
+// unique — "Konnect" for "Kong Konnect", "Neo" for "Pulumi Neo". Uniqueness
+// INSIDE the ledger does not make such a name unambiguous in the world, so it
+// matches products the ledger has never heard of and the link points a reader
+// at an unrelated replacement. Machine identifiers are exempt: they carry their
+// own qualifier and are what a lockfile actually says.
+const isUnderqualifiedAlias = ({
+  entity,
+  name,
+}: {
+  entity: LedgerEntity;
+  name: string;
+}): boolean => {
+  const canonicalName = entity.canonicalName.trim();
+
+  if (name === canonicalName.toLowerCase()) {
+    return false;
+  }
+
+  return !NAME_QUALIFIER.test(name) && NAME_QUALIFIER.test(canonicalName);
+};
+
 export const resolveSupersededByEntityId = async ({
   con,
   name,
+  statement,
 }: {
   con: DataSource | EntityManager;
   name: string | null;
+  statement?: string | null;
 }): Promise<string | null> => {
   if (!name) {
     return null;
@@ -75,7 +103,26 @@ export const resolveSupersededByEntityId = async ({
 
   const matches = await findLedgerEntitiesByName({ con, names: [name] });
 
-  return matches.length === 1 ? matches[0].id : null;
+  if (matches.length !== 1) {
+    return null;
+  }
+
+  const [entity] = matches;
+  const matchedName = name.trim().toLowerCase();
+
+  // The claim naming the replacement in full is the corroboration a bare word
+  // cannot supply on its own. Without it the link stays empty and goes to
+  // review, which is the same answer ambiguity already gets.
+  if (
+    isUnderqualifiedAlias({ entity, name: matchedName }) &&
+    !(statement ?? '')
+      .toLowerCase()
+      .includes(entity.canonicalName.trim().toLowerCase())
+  ) {
+    return null;
+  }
+
+  return entity.id;
 };
 
 // Every name an entity answers to must be unique across the whole ledger,

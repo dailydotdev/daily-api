@@ -1780,6 +1780,78 @@ describe('private ledger routes', () => {
     expect(claim?.supersededByEntityId).toBeNull();
   });
 
+  it('should refuse a bare-word alias of a qualified name unless the claim says the name in full', async () => {
+    await seedHierarchy();
+    // "Konnect" is unique in the ledger and not unique in the world: it also
+    // names a KiCAD plugin the ledger has never heard of.
+    await con.getRepository(LedgerEntity).save({
+      canonicalName: 'Kong Konnect',
+      kind: LedgerEntityKind.Service,
+      aliases: ['Konnect'],
+    });
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { supersededBy: 'Konnect' });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ supersededByEntityId: null });
+  });
+
+  it('should accept a bare-word alias when the claim corroborates it with the full name', async () => {
+    await seedHierarchy();
+    const replacement = await con.getRepository(LedgerEntity).save({
+      canonicalName: 'Grafana Alloy',
+      kind: LedgerEntityKind.Tool,
+      aliases: ['Alloy'],
+    });
+    await seedCandidate();
+    await con.getRepository(ClaimCandidate).update(candidateId, {
+      supersededBy: 'Alloy',
+      statement: 'Grafana Agent is replaced by Grafana Alloy.',
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ supersededByEntityId: replacement.id });
+  });
+
+  it('should keep an unqualified canonical name resolving on its own', async () => {
+    await seedHierarchy();
+    const replacement = await con.getRepository(LedgerEntity).save({
+      canonicalName: 'PipeWire',
+      kind: LedgerEntityKind.Package,
+      aliases: [],
+    });
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { supersededBy: 'PipeWire' });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ supersededByEntityId: replacement.id });
+  });
+
   it('should report the entity a resolve minted so it can be described in the same turn', async () => {
     await seedCandidate();
 
@@ -1867,6 +1939,26 @@ describe('private ledger routes', () => {
     expect(
       after.body.entities.map(({ id }: { id: string }) => id),
     ).not.toContain(parentEntityId);
+  });
+
+  it('should not let a claim superseded by its own entity carry it into the describe queue', async () => {
+    await seedHierarchy();
+    // The seeded claim belongs to the child entity, so pointing it at that same
+    // entity is a version succeeding itself. One claim only, so the entity is
+    // under the backlog bar and would reach the queue solely through the
+    // displacement arm.
+    await con
+      .getRepository(Claim)
+      .update(claimId, { supersededByEntityId: childEntityId });
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities/undescribed')
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities.map(({ id }: { id: string }) => id)).not.toContain(
+      childEntityId,
+    );
   });
 
   it('should take a skipped entity out of the queue and answer it back on the skipped listing', async () => {
