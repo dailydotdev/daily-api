@@ -146,6 +146,12 @@ const mergeClaims = (body: Record<string, unknown>) =>
     .set(serviceHeaders)
     .send(body);
 
+const lookupClaims = (body: Record<string, unknown>) =>
+  request(app.server)
+    .post('/p/ledger/claims/lookup')
+    .set(serviceHeaders)
+    .send(body);
+
 describe('private ledger routes', () => {
   it('should return not found when not authorized', () =>
     request(app.server).get('/p/ledger/candidates').expect(404));
@@ -2085,5 +2091,90 @@ describe('private ledger routes', () => {
       .expect(200);
 
     expect(body.claims).toEqual([]);
+  });
+
+  it('should serve claims whose signatures overlap the tokens, naming the side each token matched on', async () => {
+    await seedHierarchy();
+    await con.getRepository(Claim).update(claimId, {
+      affected: ['next/Router'],
+      superseding: ['next/Navigation'],
+    });
+    await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Release,
+      statement: 'Something unrelated shipped.',
+      affected: ['some/other'],
+    });
+
+    const { body } = await lookupClaims({
+      tokens: ['NEXT/ROUTER', 'next/navigation', 'left-pad'],
+    }).expect(200);
+
+    expect(body.claims).toHaveLength(1);
+    expect(body.claims[0]).toMatchObject({
+      id: claimId,
+      entityName: 'Next.js App Router',
+      changeType: ClaimChangeType.Breaking,
+      status: ClaimStatus.Corroborated,
+      affected: ['next/Router'],
+      affectedMatches: ['next/router'],
+      supersedingMatches: ['next/navigation'],
+    });
+    expect(body.claims[0].evidence).toEqual([
+      expect.objectContaining({ url: 'https://nextjs.org/blog/caching' }),
+    ]);
+  });
+
+  it('should exclude lookup matches below the requested minimum status', async () => {
+    await seedHierarchy();
+    await con
+      .getRepository(Claim)
+      .update(claimId, { affected: ['next/router'] });
+    await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Breaking,
+      statement: 'Withdrawn on review.',
+      affected: ['next/router'],
+      status: ClaimStatus.Rejected,
+    });
+
+    const floored = await lookupClaims({
+      tokens: ['next/router'],
+      minStatus: ClaimStatus.Verified,
+    }).expect(200);
+    const all = await lookupClaims({ tokens: ['next/router'] }).expect(200);
+
+    expect(floored.body.claims).toEqual([]);
+    // The rejected claim matches the token and still stays out: rejected is
+    // below every floor.
+    expect(all.body.claims.map(({ id }: { id: string }) => id)).toEqual([
+      claimId,
+    ]);
+  });
+
+  it('should hold back a lookup match dated before the floor and keep an undated one', async () => {
+    await seedHierarchy();
+    await con
+      .getRepository(Claim)
+      .update(claimId, { affected: ['next/router'] });
+    const undated = await con.getRepository(Claim).save({
+      entityId: childEntityId,
+      changeType: ClaimChangeType.Deprecation,
+      statement: 'The router is deprecated, date unknown.',
+      affected: ['next/router'],
+    });
+
+    const { body } = await lookupClaims({
+      tokens: ['next/router'],
+      since: '2026-06-01',
+    }).expect(200);
+
+    expect(body.claims.map(({ id }: { id: string }) => id)).toEqual([
+      undated.id,
+    ]);
+  });
+
+  it('should reject a lookup carrying no tokens', async () => {
+    await lookupClaims({ tokens: [] }).expect(400);
   });
 });
