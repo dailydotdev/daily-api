@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { anthropicClient } from '../../integrations/anthropic/client';
+import { agentAnthropicClient } from '../../integrations/anthropic/client';
 import type { AnthropicResponse } from '../../integrations/anthropic/types';
 import type { UserInterest } from '../../entity/UserInterest';
 
@@ -65,7 +65,7 @@ export const discoverExternalUrls = async ({
 
   let response: AnthropicResponse;
   try {
-    response = await anthropicClient.createMessage({
+    response = await agentAnthropicClient.createMessage({
       model: process.env.INTEREST_AGENT_MODEL || 'claude-opus-4-8',
       max_tokens: 4096,
       system,
