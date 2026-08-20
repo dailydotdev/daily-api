@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import { ForbiddenError } from 'apollo-server-errors';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
@@ -13,6 +14,7 @@ import {
 import {
   createToolDiscussionPost,
   ensureVerifiedForToolDiscussion,
+  findClaimableCompanyId,
   normalizeTitle,
 } from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -21,7 +23,7 @@ import { ToolVote } from '../entity/ToolVote';
 import { UserVote } from '../types';
 import { voteToolSchema } from '../common/schema/toolDiscussion';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError } from '../errors';
+import { ConflictError, NotFoundError } from '../errors';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
@@ -94,6 +96,16 @@ export const typeDefs = /* GraphQL */ `
     The tool's official source/squad on daily.dev, if curated
     """
     officialSource: Source
+
+    """
+    Company that has claimed ownership of this tool page, if any
+    """
+    claimedBy: Company
+
+    """
+    Whether the viewer is eligible to claim this tool page
+    """
+    viewerCanClaim: Boolean!
   }
 
   extend type Query {
@@ -154,6 +166,11 @@ export const typeDefs = /* GraphQL */ `
     ordinary post comments
     """
     initToolDiscussion(id: ID!): ID! @auth @rateLimit(limit: 1, duration: 30)
+
+    """
+    Claim ownership of a tool page on behalf of the viewer's verified company
+    """
+    claimTool(id: ID!): DatasetTool! @auth
   }
 
   type ToolCategoryStat {
@@ -494,6 +511,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }),
   },
 
+  DatasetTool: {
+    // A plain field resolver, not a GraphORM mapping: it runs identically
+    // whether the parent came from a GraphORM query (datasetTool) or a plain
+    // entity returned outside GraphORM (autocompleteTools), unlike GraphORM
+    // select/transform fields which only resolve on the former path.
+    viewerCanClaim: async (
+      tool: DatasetTool,
+      _: unknown,
+      ctx: Context,
+    ): Promise<boolean> => {
+      const { userId } = ctx;
+      if (!userId || !tool.url) {
+        return false;
+      }
+
+      const companyId = await findClaimableCompanyId(ctx.con, userId, tool.url);
+      return !!companyId;
+    },
+  },
+
   Mutation: {
     voteTool: async (
       _,
@@ -570,6 +607,73 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         throw new Error('Failed to initialize tool discussion');
       }
       return fresh.discussionPostId;
+    },
+
+    claimTool: async (
+      _,
+      args: { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<DatasetTool> => {
+      const tool = await ctx.con
+        .getRepository(DatasetTool)
+        .findOneBy({ id: args.id });
+      if (!tool) {
+        throw new NotFoundError('Tool not found');
+      }
+      if (!tool.url) {
+        throw new ForbiddenError(
+          'This tool has no website to verify ownership against',
+        );
+      }
+
+      const companyId = await findClaimableCompanyId(
+        ctx.con,
+        ctx.userId,
+        tool.url,
+      );
+      if (!companyId) {
+        throw new ForbiddenError(
+          "Claiming requires a verified work email at the tool's company",
+        );
+      }
+
+      const claimed = await ctx.con
+        .getRepository(DatasetTool)
+        .createQueryBuilder()
+        .update()
+        .set({
+          claimedByCompanyId: companyId,
+          claimedByUserId: ctx.userId,
+          claimedAt: new Date(),
+        })
+        .where('id = :id AND "claimedByCompanyId" IS NULL', { id: tool.id })
+        .execute();
+
+      if (!claimed.affected) {
+        // Lost a concurrent claim, or already claimed before this call.
+        const existing = await ctx.con
+          .getRepository(DatasetTool)
+          .findOneByOrFail({ id: tool.id });
+
+        if (existing.claimedByCompanyId !== companyId) {
+          throw new ConflictError(
+            'This tool has already been claimed by another company',
+          );
+        }
+      }
+
+      return graphorm.queryOneOrFail<DatasetTool>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+            id: tool.id,
+          });
+          return builder;
+        },
+        DatasetTool,
+      );
     },
   },
 };

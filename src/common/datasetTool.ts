@@ -1,4 +1,5 @@
 import type { DataSource, EntityManager } from 'typeorm';
+import { ArrayOverlap, In } from 'typeorm';
 import { Readable } from 'stream';
 import { ForbiddenError } from 'apollo-server-errors';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
@@ -6,6 +7,8 @@ import { FreeformPost } from '../entity/posts/FreeformPost';
 import { PostOrigin } from '../entity/posts/Post';
 import { TOOLS_SOURCE } from '../entity/Source';
 import { UserCompany } from '../entity/UserCompany';
+import { Company } from '../entity/Company';
+import { getDomainVariants } from './companyEnrichment';
 import { generateShortId } from '../ids';
 import { markdown } from './markdown';
 import { uploadToolIcon } from './cloudinary';
@@ -157,4 +160,55 @@ export const findOrCreateDatasetTool = async (
   }
 
   return tool;
+};
+
+// Tolerates URLs stored with or without a scheme; anything unparseable can't
+// be verified against, so callers treat a null result as ineligible.
+export const getToolDomain = (url: string): string | null => {
+  try {
+    return new URL(url).hostname.toLowerCase() || null;
+  } catch {
+    try {
+      return new URL(`https://${url}`).hostname.toLowerCase() || null;
+    } catch {
+      return null;
+    }
+  }
+};
+
+// A tool can be claimed by a viewer with a verified work email at a company
+// whose domains cover the tool's own site. Reuses the same domain-variant
+// overlap check enrichment uses to match a domain to an existing Company.
+export const findClaimableCompanyId = async (
+  con: DataSource | EntityManager,
+  userId: string,
+  toolUrl: string,
+): Promise<string | null> => {
+  const domain = getToolDomain(toolUrl);
+  if (!domain) {
+    return null;
+  }
+
+  const companyIds = (
+    await con.getRepository(UserCompany).find({
+      where: { userId, verified: true },
+      select: ['companyId'],
+    })
+  )
+    .map(({ companyId }) => companyId)
+    .filter((id): id is string => !!id);
+
+  if (!companyIds.length) {
+    return null;
+  }
+
+  const company = await con.getRepository(Company).findOne({
+    where: {
+      id: In(companyIds),
+      domains: ArrayOverlap(getDomainVariants(domain)),
+    },
+    select: ['id'],
+  });
+
+  return company?.id ?? null;
 };

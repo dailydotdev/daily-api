@@ -2966,7 +2966,11 @@ const obj = new GraphORM({
     },
   },
   DatasetTool: {
-    requiredColumns: ['id', 'title'],
+    // url and claimedByCompanyId back the viewerCanClaim field resolver,
+    // which runs on plain-entity paths (e.g. autocompleteTools) too - those
+    // never hit this select, so it must always be present regardless of what
+    // the client actually requested.
+    requiredColumns: ['id', 'title', 'url', 'claimedByCompanyId'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -2987,6 +2991,13 @@ const obj = new GraphORM({
               )
               .andWhere(`"${childAlias}"."private" = false`)
               .andWhere(`"${childAlias}"."active" = true`),
+        },
+      },
+      claimedBy: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'claimedByCompanyId',
         },
       },
       stackCount: {
