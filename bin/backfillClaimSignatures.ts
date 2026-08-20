@@ -59,6 +59,7 @@ const arg = (name: string): string | undefined =>
     .addSelect('c.statement', 'statement')
     .addSelect('c."changeType"', 'changeType')
     .addSelect('le."canonicalName"', 'entityName')
+    .addSelect('le.aliases', 'entityAliases')
     .where('c."signaturesBackfilledAt" IS NULL')
     .andWhere('c."changeType" IN (:...changeTypes)', { changeTypes })
     .orderBy('c.id', 'ASC')
@@ -68,6 +69,7 @@ const arg = (name: string): string | undefined =>
       statement: string;
       changeType: ClaimChangeType;
       entityName: string;
+      entityAliases: string[];
     }>();
 
   console.log(
@@ -100,6 +102,7 @@ const arg = (name: string): string | undefined =>
               model,
               claim,
               entityName: claim.entityName,
+              entityAliases: claim.entityAliases,
             });
 
             return { id: claim.id, ...signatures };
