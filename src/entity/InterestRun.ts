@@ -26,7 +26,7 @@ export enum InterestRunTrigger {
 export type InterestRunBlock =
   | { type: 'text'; html: string }
   | { type: 'picks'; caption?: string; postIds: string[] }
-  | { type: 'feedLink'; label: string; count: number };
+  | { type: 'feedLink'; label: string; count: number; postIds?: string[] };
 
 @Entity()
 @Index('IDX_interest_run_interest_id_created', ['interestId', 'createdAt'])
