@@ -35,21 +35,29 @@ export async function getOrCreateUserAchievement(
 ): Promise<UserAchievement> {
   const repo = con.getRepository(UserAchievement);
 
-  let userAchievement = await repo.findOne({
+  const existing = await repo.findOne({
     where: { userId, achievementId },
   });
 
-  if (!userAchievement) {
-    userAchievement = repo.create({
+  if (existing) {
+    return existing;
+  }
+
+  await repo
+    .createQueryBuilder()
+    .insert()
+    .values({
       userId,
       achievementId,
       progress: 0,
       unlockedAt: null,
-    });
-    await repo.save(userAchievement);
-  }
+    })
+    .orIgnore()
+    .execute();
 
-  return userAchievement;
+  return repo.findOneOrFail({
+    where: { userId, achievementId },
+  });
 }
 
 export async function updateUserAchievementProgress(

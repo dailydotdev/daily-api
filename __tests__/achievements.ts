@@ -17,7 +17,10 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { UserCompany } from '../src/entity/UserCompany';
 import { UserAchievement } from '../src/entity/user/UserAchievement';
-import { updateUserAchievementProgress } from '../src/common/achievement';
+import {
+  getOrCreateUserAchievement,
+  updateUserAchievementProgress,
+} from '../src/common/achievement';
 import {
   createMockLogger,
   disposeGraphQLTesting,
@@ -183,6 +186,30 @@ const UNTRACK_ACHIEVEMENT_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+describe('getOrCreateUserAchievement', () => {
+  it('should handle concurrent creation of the same row without duplicate key errors', async () => {
+    const results = await Promise.all([
+      getOrCreateUserAchievement(con, '1', achievementIds.a1),
+      getOrCreateUserAchievement(con, '1', achievementIds.a1),
+    ]);
+
+    results.forEach((result) =>
+      expect(result).toMatchObject({
+        userId: '1',
+        achievementId: achievementIds.a1,
+        progress: 0,
+        unlockedAt: null,
+      }),
+    );
+
+    const count = await con.getRepository(UserAchievement).countBy({
+      userId: '1',
+      achievementId: achievementIds.a1,
+    });
+    expect(count).toEqual(1);
+  });
+});
 
 describe('query userAchievements', () => {
   it('should return all achievements for own profile with progress', async () => {
