@@ -284,7 +284,12 @@ describe('userInterestRun worker', () => {
         ),
       },
       { type: 'picks', postIds: ['p1', 'p2'] },
-      { type: 'feedLink', label: 'Open all 2 findings', count: 2 },
+      {
+        type: 'feedLink',
+        label: 'Open all 2 findings',
+        count: 2,
+        postIds: ['p1', 'p2'],
+      },
     ]);
 
     const interest = await con
@@ -327,11 +332,17 @@ describe('userInterestRun worker', () => {
     const picks = run.blocks?.find((block) => block.type === 'picks');
     expect(picks).toMatchObject({ postIds: expect.any(Array) });
     expect((picks as { postIds: string[] }).postIds).toHaveLength(3);
-    expect(run.blocks).toContainEqual({
-      type: 'feedLink',
+    const feedLink = run.blocks?.find((block) => block.type === 'feedLink');
+    expect(feedLink).toMatchObject({
       label: 'Open all 4 findings',
       count: 4,
     });
+    expect((feedLink as { postIds: string[] }).postIds.slice().sort()).toEqual([
+      'p1',
+      'p2',
+      'p3',
+      'p4',
+    ]);
   });
 
   it('honors the remote config picks and feed link knobs', async () => {
