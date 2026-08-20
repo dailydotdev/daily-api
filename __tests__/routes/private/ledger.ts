@@ -225,6 +225,95 @@ describe('private ledger routes', () => {
     expect(absent.aliases).toEqual([]);
   });
 
+  it('should file a code-only alias apart from prose aliases and remove it by name', async () => {
+    await seedHierarchy();
+    const { body: added } = await request(app.server)
+      .post('/p/ledger/entities/alias')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, alias: 'next', codeOnly: true })
+      .expect(200);
+
+    expect(added).toEqual({ aliases: ['nextjs'], codeOnlyAliases: ['next'] });
+
+    const { body: removed } = await request(app.server)
+      .post('/p/ledger/entities/alias/remove')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, alias: 'NEXT' })
+      .expect(200);
+
+    expect(removed).toEqual({ aliases: ['nextjs'], codeOnlyAliases: [] });
+  });
+
+  it('should keep the marker a name was first filed with', async () => {
+    await seedHierarchy();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/alias')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, alias: 'NextJS', codeOnly: true })
+      .expect(200);
+
+    expect(body).toEqual({ aliases: ['nextjs'], codeOnlyAliases: [] });
+  });
+
+  it('should reject a name that collides with a code-only alias', async () => {
+    await seedHierarchy();
+    await con
+      .getRepository(LedgerEntity)
+      .update(parentEntityId, { codeOnlyAliases: ['next'] });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({ canonicalName: 'Next', kind: LedgerEntityKind.Package })
+      .expect(409);
+
+    expect(body.error).toContain('already in use');
+  });
+
+  it('should look up an entity by its code-only alias', async () => {
+    await seedHierarchy();
+    await con
+      .getRepository(LedgerEntity)
+      .update(parentEntityId, { codeOnlyAliases: ['next'] });
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities')
+      .query({ name: 'next' })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities).toEqual([
+      expect.objectContaining({
+        id: parentEntityId,
+        codeOnlyAliases: ['next'],
+      }),
+    ]);
+  });
+
+  it('should move code-only aliases with their marker on merge', async () => {
+    await seedHierarchy();
+    const duplicateEntityId = '11111111-1111-4111-8111-111111111116';
+    await con.getRepository(LedgerEntity).save({
+      id: duplicateEntityId,
+      canonicalName: 'App Router',
+      kind: LedgerEntityKind.Package,
+      aliases: [],
+      codeOnlyAliases: ['app-router'],
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/merge')
+      .set(serviceHeaders)
+      .send({ fromEntityId: duplicateEntityId, intoEntityId: childEntityId })
+      .expect(200);
+
+    expect(body).toMatchObject({
+      aliases: ['App Router'],
+      codeOnlyAliases: ['app-router'],
+    });
+  });
+
   it('should reject removing an alias from an entity that does not exist', () =>
     request(app.server)
       .post('/p/ledger/entities/alias/remove')
@@ -269,6 +358,7 @@ describe('private ledger routes', () => {
       id: childEntityId,
       canonicalName: 'Next.js App Router',
       aliases: ['App Router', 'app-router'],
+      codeOnlyAliases: [],
       parentId: parentEntityId,
     });
     expect(
@@ -387,6 +477,7 @@ describe('private ledger routes', () => {
         canonicalName: 'Next.js',
         kind: LedgerEntityKind.Package,
         aliases: ['nextjs'],
+        codeOnlyAliases: [],
         parentId: null,
       },
     ]);

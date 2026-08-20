@@ -43,6 +43,14 @@ export class LedgerEntity {
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   aliases: string[];
 
+  // Registry names that double as ordinary English words (`requests`, `next`,
+  // `node`). They answer name lookups exactly like aliases, but prose matching
+  // in the rot detector must never see them — "handle requests from the next
+  // page" names no package. The prose-ambiguity call is made once, here, when
+  // the name is filed; every consumer inherits it.
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  codeOnlyAliases: string[];
+
   // What the entity is and, above all, what approach it displaced, written the
   // way someone would describe the problem before they knew this thing existed.
   // A plan that never names MCP still says "hand-rolled function-calling
