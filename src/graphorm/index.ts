@@ -2965,13 +2965,20 @@ const obj = new GraphORM({
     },
   },
   DatasetTool: {
-    requiredColumns: ['id', 'title'],
+    requiredColumns: ['id', 'title', 'officialSourceId'],
     fields: {
       createdAt: {
         transform: transformDate,
       },
       slug: {
         select: (_, alias) => `"${alias}"."titleNormalized"`,
+      },
+      officialSource: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'officialSourceId',
+        },
       },
       stackCount: {
         select: (_, alias) =>
