@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { anthropicClient } from '../../../src/integrations/anthropic/client';
+import { agentAnthropicClient } from '../../../src/integrations/anthropic/client';
 import { discoverExternalUrls } from '../../../src/common/interest/discoverExternalUrls';
 
 const logger = {
@@ -13,7 +13,7 @@ const interest = {
 
 const mockContent = (text: string) =>
   jest
-    .spyOn(anthropicClient, 'createMessage')
+    .spyOn(agentAnthropicClient, 'createMessage')
     .mockResolvedValue({ content: [{ type: 'text', text }] } as never);
 
 afterEach(() => {
@@ -95,7 +95,7 @@ describe('discoverExternalUrls', () => {
 
   it('returns an empty array (does not throw) when the client fails', async () => {
     jest
-      .spyOn(anthropicClient, 'createMessage')
+      .spyOn(agentAnthropicClient, 'createMessage')
       .mockRejectedValue(new Error('boom'));
     const result = await discoverExternalUrls({
       interest,

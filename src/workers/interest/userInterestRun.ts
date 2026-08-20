@@ -11,9 +11,14 @@ import {
   InterestRunTrigger,
   type InterestRunBlock,
 } from '../../entity/InterestRun';
+import { Post } from '../../entity/posts/Post';
 import { runInterestAgent } from '../../common/interest/runInterestAgent';
+import { generateInterestTitle } from '../../common/interest/generateInterestTitle';
 import { whereFindingDeliverable } from '../../common/interest/exclusions';
 import { triggerTypedEvent } from '../../common/typedPubsub';
+import { updateFlagsStatement } from '../../common/utils';
+import { Feed } from '../../entity/Feed';
+import { AgentSource } from '../../entity/Source';
 import { markdown } from '../../common/markdown';
 import { generateShortId } from '../../ids';
 import { remoteConfig } from '../../remoteConfig';
@@ -29,15 +34,19 @@ const buildRunBlocks = ({
   picks,
   deliverableCount,
   minFindingsForFeedLink,
+  summaryPostHtml,
 }: {
   result: InterestAgentRunState;
   picks: { postId: string }[];
   deliverableCount: number;
   minFindingsForFeedLink: number;
+  summaryPostHtml: string | null;
 }): InterestRunBlock[] => {
   const blocks: InterestRunBlock[] = [];
   const text = result.finalMessage ?? result.agentSummary;
-  if (text) {
+  if (summaryPostHtml) {
+    blocks.push({ type: 'text', html: summaryPostHtml });
+  } else if (text) {
     blocks.push({ type: 'text', html: markdown.render(text) });
   }
   if (picks.length) {
@@ -217,10 +226,57 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             { lastRunStatus: InterestRunStatus.Running },
           );
 
+        if (!interest.title) {
+          const title = await generateInterestTitle({ interest, logger });
+          if (title) {
+            await con.transaction(async (manager) => {
+              const titled = await manager
+                .getRepository(UserInterest)
+                .createQueryBuilder()
+                .update(UserInterest)
+                .set({ title })
+                .where('id = :id AND title IS NULL', { id: interest.id })
+                .execute();
+
+              if (!titled.affected) {
+                return;
+              }
+
+              if (interest.sourceId) {
+                await manager
+                  .getRepository(AgentSource)
+                  .update({ id: interest.sourceId }, { name: title });
+              }
+
+              if (interest.feedId) {
+                await manager.getRepository(Feed).update(
+                  { id: interest.feedId },
+                  {
+                    flags: updateFlagsStatement<Feed>({ name: title }),
+                  },
+                );
+              }
+            });
+          }
+        }
+
         const result: InterestAgentRunState = await runInterestAgent({
           con,
           logger,
           interest,
+          onProgress: (progress) => {
+            con
+              .getRepository(InterestRun)
+              .update(
+                {
+                  id: leasedRun.id,
+                  interestId,
+                  status: InterestRunStatus.Running,
+                },
+                { progress },
+              )
+              .catch(() => undefined);
+          },
         });
 
         const deliverableBuilder = () =>
@@ -248,6 +304,13 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             .getRawMany<{ postId: string }>(),
         ]);
 
+        const summaryPost = result.summaryPostId
+          ? await con.getRepository(Post).findOne({
+              select: ['id', 'contentHtml'],
+              where: { id: result.summaryPostId },
+            })
+          : null;
+
         const hasContent = deliverableCount > 0 || !!result.summaryPostId;
         const shouldNotify =
           hasContent && (interest.outputModes?.notification ?? true);
@@ -258,10 +321,12 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
             .update(leasedRun, {
               status: InterestRunStatus.Completed,
               finishedAt: new Date(),
+              progress: null,
               blocks: buildRunBlocks({
                 result,
                 picks,
                 deliverableCount,
+                summaryPostHtml: summaryPost?.contentHtml ?? null,
                 minFindingsForFeedLink:
                   remoteConfig.vars.interestAgentMinFindingsForFeedLink ??
                   DEFAULT_MIN_FINDINGS_FOR_FEED_LINK,

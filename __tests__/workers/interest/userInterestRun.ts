@@ -8,6 +8,7 @@ import {
 import { userInterestRunWorker as worker } from '../../../src/workers/interest/userInterestRun';
 import { typedWorkers } from '../../../src/workers';
 import { ArticlePost, Source, User } from '../../../src/entity';
+import { FreeformPost } from '../../../src/entity/posts/FreeformPost';
 import {
   UserInterest,
   UserInterestStatus,
@@ -27,7 +28,13 @@ import { sourcesFixture } from '../../fixture';
 import { triggerTypedEvent } from '../../../src/common/typedPubsub';
 import { markdown } from '../../../src/common/markdown';
 import { remoteConfig } from '../../../src/remoteConfig';
-import { runInterestAgent } from '../../../src/common/interest/runInterestAgent';
+import {
+  getInterestToolProgressLabel,
+  runInterestAgent,
+} from '../../../src/common/interest/runInterestAgent';
+import { generateInterestTitle } from '../../../src/common/interest/generateInterestTitle';
+import { Feed, FeedOrigin } from '../../../src/entity/Feed';
+import { AgentSource } from '../../../src/entity/Source';
 
 jest.mock('../../../src/common/typedPubsub', () => ({
   ...(jest.requireActual('../../../src/common/typedPubsub') as Record<
@@ -38,7 +45,14 @@ jest.mock('../../../src/common/typedPubsub', () => ({
 }));
 
 jest.mock('../../../src/common/interest/runInterestAgent', () => ({
+  ...(jest.requireActual(
+    '../../../src/common/interest/runInterestAgent',
+  ) as Record<string, unknown>),
   runInterestAgent: jest.fn(),
+}));
+
+jest.mock('../../../src/common/interest/generateInterestTitle', () => ({
+  generateInterestTitle: jest.fn(),
 }));
 
 let con: DataSource;
@@ -64,6 +78,7 @@ beforeEach(async () => {
     summaryPostId: null,
     summary: 'Added 0 finding(s) this run.',
   });
+  (generateInterestTitle as jest.Mock).mockResolvedValue(null);
 });
 
 const seedFinding = (postId: string, status: InterestFindingStatus) =>
@@ -227,6 +242,36 @@ describe('userInterestRun worker', () => {
     );
 
     expect(runInterestAgent).not.toHaveBeenCalled();
+  });
+
+  it('uses the written summary post content as the reply text block', async () => {
+    await con.getRepository(FreeformPost).save({
+      id: 'sp-1',
+      shortId: 'sp-1',
+      title: 'Zig this week',
+      content: 'The full write-up',
+      contentHtml: '<h3>Zig this week</h3><p>The full write-up.</p>',
+      sourceId: 'a',
+    });
+    (runInterestAgent as jest.Mock).mockResolvedValue({
+      findingsAdded: 0,
+      summaryPostId: 'sp-1',
+      agentSummary: 'Wrote a weekly digest.',
+      finalMessage: 'Wrote a weekly digest.',
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run.blocks?.[0]).toEqual({
+      type: 'text',
+      html: '<h3>Zig this week</h3><p>The full write-up.</p>',
+    });
   });
 
   it('completes the provided run with blocks and mirrors the state onto the interest', async () => {
@@ -665,5 +710,120 @@ describe('userInterestRun worker', () => {
       .getRepository(InterestRun)
       .findOneByOrFail({ id: 'run-1' });
     expect(run.status).toEqual(InterestRunStatus.Failed);
+  });
+
+  it('generates a title on first run and renames the agent source and feed', async () => {
+    await con.getRepository(AgentSource).save({
+      id: 'isrc-title',
+      name: 'cool zig projects',
+      handle: 'agent-isrc-title',
+      private: true,
+    });
+    await con.getRepository(Feed).save({
+      id: 'feed-title',
+      userId: usersFixture[0].id,
+      flags: { name: 'cool zig projects', origin: FeedOrigin.Agent },
+    });
+    await con
+      .getRepository(UserInterest)
+      .update(
+        { id: 'uir-1' },
+        { sourceId: 'isrc-title', feedId: 'feed-title' },
+      );
+    (generateInterestTitle as jest.Mock).mockResolvedValue('Zig Radar');
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.title).toEqual('Zig Radar');
+
+    const source = await con
+      .getRepository(AgentSource)
+      .findOneByOrFail({ id: 'isrc-title' });
+    expect(source.name).toEqual('Zig Radar');
+
+    const feed = await con
+      .getRepository(Feed)
+      .findOneByOrFail({ id: 'feed-title' });
+    expect(feed.flags).toMatchObject({
+      name: 'Zig Radar',
+      origin: FeedOrigin.Agent,
+    });
+  });
+
+  it('skips title generation when the interest already has a title', async () => {
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { title: 'Existing Title' });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    expect(generateInterestTitle).not.toHaveBeenCalled();
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.title).toEqual('Existing Title');
+  });
+
+  it('completes the run untouched when title generation returns null', async () => {
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    expect(generateInterestTitle).toHaveBeenCalled();
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: 'uir-1' });
+    expect(interest.title).toBeNull();
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+  });
+
+  it('clears the progress when the run completes', async () => {
+    await con.getRepository(InterestRun).save({
+      id: 'run-1',
+      interestId: 'uir-1',
+      status: InterestRunStatus.Queued,
+      trigger: InterestRunTrigger.Command,
+      progress: 'Reading posts',
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1', runId: 'run-1' },
+    );
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ id: 'run-1' });
+    expect(run.status).toEqual(InterestRunStatus.Completed);
+    expect(run.progress).toBeNull();
+  });
+});
+
+describe('getInterestToolProgressLabel', () => {
+  it('maps tool names to friendly labels and falls back to Working', () => {
+    expect(getInterestToolProgressLabel('search_daily_dev')).toEqual(
+      'Searching daily.dev',
+    );
+    expect(getInterestToolProgressLabel('add_finding')).toEqual(
+      'Adding findings to your feed',
+    );
+    expect(getInterestToolProgressLabel('set_run_summary')).toEqual(
+      'Wrapping up',
+    );
+    expect(getInterestToolProgressLabel('unknown_tool')).toEqual('Working');
   });
 });

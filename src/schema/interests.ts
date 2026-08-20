@@ -40,6 +40,7 @@ export type GQLUserInterest = Pick<
   UserInterest,
   | 'id'
   | 'query'
+  | 'title'
   | 'status'
   | 'cadence'
   | 'fomoThreshold'
@@ -74,6 +75,7 @@ export type GQLInterestTurn = {
   blocks?: InterestRunBlock[] | null;
   findingsAdded?: number | null;
   summaryPostId?: string | null;
+  progress?: string | null;
   startedAt?: Date | null;
   finishedAt?: Date | null;
 };
@@ -85,6 +87,7 @@ export const typeDefs = /* GraphQL */ `
   type UserInterest {
     id: ID!
     query: String!
+    title: String
     status: String!
     cadence: String!
     fomoThreshold: Float!
@@ -129,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
     blocks: [JSONObject!]
     findingsAdded: Int
     summaryPostId: String
+    progress: String
     startedAt: DateTime
     finishedAt: DateTime
   }
@@ -184,11 +188,21 @@ export const typeDefs = /* GraphQL */ `
     outputModes: InterestOutputModesInput
   }
 
+  input CreateInterestSettingsInput {
+    cadence: String
+    fomoThreshold: Float
+    sources: InterestSourcesInput
+    outputModes: InterestOutputModesInput
+  }
+
   extend type Mutation {
     """
     Spawn a new interest and trigger its first hunt
     """
-    createInterest(query: String!): UserInterest! @auth
+    createInterest(
+      query: String!
+      settings: CreateInterestSettingsInput
+    ): UserInterest! @auth
 
     """
     Update an interest's status, cadence, FOMO threshold, sources, or output modes
@@ -461,6 +475,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             blocks: run.blocks,
             findingsAdded: run.findingsAdded,
             summaryPostId: run.summaryPostId,
+            progress: run.progress,
             startedAt: run.startedAt,
             finishedAt: run.finishedAt,
           }),
@@ -489,12 +504,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     createInterest: async (
       _,
-      args: { query: string },
+      args: { query: string; settings?: unknown },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
       ensureTeamMember(ctx);
-      const { query } = createInterestSchema.parse(args);
+      const { query, settings } = createInterestSchema.parse(args);
       const { userId } = ctx;
 
       const interestId = await generateShortId();
@@ -521,9 +536,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           userId,
           query,
           status: UserInterestStatus.Active,
-          cadence: UserInterestCadence.Hourly,
-          sources: defaultUserInterestSources,
-          outputModes: defaultUserInterestOutputModes,
+          cadence: settings?.cadence ?? UserInterestCadence.Hourly,
+          sources: {
+            ...defaultUserInterestSources,
+            ...settings?.sources,
+          },
+          outputModes: {
+            ...defaultUserInterestOutputModes,
+            ...settings?.outputModes,
+          },
+          ...(typeof settings?.fomoThreshold !== 'undefined' && {
+            fomoThreshold: settings.fomoThreshold,
+          }),
           feedId,
           sourceId,
         });

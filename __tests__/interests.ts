@@ -182,6 +182,84 @@ describe('mutation createInterest', () => {
     expect(runCall?.[2]).toEqual({ interestId, runId: run.id });
   });
 
+  it('should merge provided settings over the defaults', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(
+      `
+      mutation CreateInterest($query: String!, $settings: CreateInterestSettingsInput) {
+        createInterest(query: $query, settings: $settings) {
+          id
+          cadence
+          fomoThreshold
+          sources
+          outputModes
+        }
+      }
+    `,
+      {
+        variables: {
+          query: 'cool zig projects',
+          settings: {
+            cadence: UserInterestCadence.Daily,
+            fomoThreshold: 0.8,
+            sources: { github: true },
+            outputModes: { digest: true },
+          },
+        },
+      },
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createInterest).toMatchObject({
+      cadence: UserInterestCadence.Daily,
+      fomoThreshold: 0.8,
+      sources: { dailyDev: true, web: true, github: true },
+      outputModes: {
+        feed: true,
+        post: true,
+        digest: true,
+        notification: true,
+      },
+    });
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest).toMatchObject({
+      cadence: UserInterestCadence.Daily,
+      fomoThreshold: 0.8,
+      sources: { dailyDev: true, web: true, github: true },
+      outputModes: {
+        feed: true,
+        post: true,
+        digest: true,
+        notification: true,
+      },
+    });
+  });
+
+  it('should keep the defaults when settings are omitted', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest).toMatchObject({
+      cadence: UserInterestCadence.Hourly,
+      fomoThreshold: 0.5,
+      sources: { dailyDev: true, web: true, github: false },
+      outputModes: {
+        feed: true,
+        post: true,
+        digest: false,
+        notification: true,
+      },
+    });
+  });
+
   it('should succeed when the user already has a user source', async () => {
     loggedUser = '1';
     await con.getRepository(SourceUser).save({
@@ -260,6 +338,26 @@ describe('query interest', () => {
       id: 'uir-1',
       query: 'cool zig projects',
     });
+  });
+
+  it('should return the generated title', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { title: 'Zig Radar' });
+    const res = await client.query(
+      `
+      query Interest($id: ID!) {
+        interest(id: $id) {
+          id
+          title
+        }
+      }
+    `,
+      { variables: { id: 'uir-1' } },
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.interest).toEqual({ id: 'uir-1', title: 'Zig Radar' });
   });
 
   it('should not return another user interest', async () => {
@@ -741,6 +839,7 @@ const INTEREST_HISTORY = `
       blocks
       findingsAdded
       summaryPostId
+      progress
       startedAt
       finishedAt
     }
@@ -775,9 +874,10 @@ describe('query interestHistory', () => {
       {
         id: 'run-2',
         interestId: 'uir-1',
-        status: InterestRunStatus.Queued,
+        status: InterestRunStatus.Running,
         trigger: InterestRunTrigger.Command,
         feedbackId: 'fb-1',
+        progress: 'Reading posts',
         createdAt: new Date('2026-01-02T00:00:00Z'),
       },
     ]);
@@ -805,9 +905,11 @@ describe('query interestHistory', () => {
       findingsAdded: 3,
     });
     expect(res.data.interestHistory[3]).toMatchObject({
-      status: InterestRunStatus.Queued,
+      status: InterestRunStatus.Running,
       feedbackId: 'fb-1',
+      progress: 'Reading posts',
     });
+    expect(res.data.interestHistory[1].progress).toBeNull();
   });
 
   it('should page older turns through the before cursor', async () => {

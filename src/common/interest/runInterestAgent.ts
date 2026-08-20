@@ -36,6 +36,25 @@ const DEFAULT_MAX_TOOL_CALLS_PER_RUN = 200;
 const MAX_PENDING_FINDINGS = 20;
 const RUN_EXECUTION_DEADLINE_MS = 30 * ONE_MINUTE_IN_MS;
 
+export const interestToolProgressLabels: Record<string, string> = {
+  search_daily_dev: 'Searching daily.dev',
+  query_feed: 'Browsing feeds',
+  read_post: 'Reading posts',
+  read_comments: 'Reading comments',
+  get_source: 'Checking sources',
+  search_sources: 'Checking sources',
+  get_tag: 'Checking tags',
+  search_tags: 'Checking tags',
+  discover_external: 'Searching the web',
+  add_finding: 'Adding findings to your feed',
+  write_post: 'Writing a post',
+  set_interest_tags: 'Tuning the interest',
+  set_run_summary: 'Wrapping up',
+};
+
+export const getInterestToolProgressLabel = (toolName: string): string =>
+  interestToolProgressLabels[toolName] ?? 'Working';
+
 const buildSystemPrompt = (
   interest: UserInterest,
   feedback: Pick<InterestFeedback, 'text' | 'createdAt'>[],
@@ -296,10 +315,12 @@ export const runInterestAgent = async ({
   con,
   logger,
   interest,
+  onProgress,
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
   interest: UserInterest;
+  onProgress?: (progress: string) => void;
 }): Promise<InterestAgentRunState> => {
   if (!interest.sourceId) {
     throw new Error('interest is missing a provisioned source');
@@ -351,8 +372,15 @@ export const runInterestAgent = async ({
     tools: activeTools,
   });
 
+  let lastProgressLabel: string | null = null;
   const unsubscribe = session.subscribe((event) => {
-    if (event.type === 'message_end') {
+    if (event.type === 'tool_execution_start') {
+      const label = getInterestToolProgressLabel(event.toolName);
+      if (label !== lastProgressLabel) {
+        lastProgressLabel = label;
+        onProgress?.(label);
+      }
+    } else if (event.type === 'message_end') {
       const message = event.message as {
         role?: string;
         content?: { type?: string; text?: string }[];

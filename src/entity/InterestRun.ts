@@ -61,6 +61,9 @@ export class InterestRun {
   findingsAdded: number;
 
   @Column({ type: 'text', nullable: true })
+  progress: string | null;
+
+  @Column({ type: 'text', nullable: true })
   summaryPostId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
