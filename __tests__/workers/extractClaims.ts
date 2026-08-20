@@ -138,7 +138,7 @@ describe('extractClaims worker', () => {
             supersededBy: '',
             directness: ProtoClaimDirectness.ANNOUNCEMENT,
             evidence: 'React 19 removes defaultProps.',
-            affected: ['defaultProps'],
+            affected: ['defaultProps', 'name'],
             superseding: ['default parameters'],
           }),
           new ProtoClaim({
@@ -183,8 +183,11 @@ describe('extractClaims worker', () => {
       supersededBy: null,
       directness: ClaimDirectness.Announcement,
       status: ClaimCandidateStatus.Pending,
+      // "name" and "default parameters" fall below the specificity bar
+      // (playbook §13 v5.9) — every segment common — and are dropped before
+      // the write; exact-equality matching would fire them on any codebase.
       affected: ['defaultProps'],
-      superseding: ['default parameters'],
+      superseding: [],
     });
   });
 
