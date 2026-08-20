@@ -14,6 +14,7 @@ import {
   claimMoveSchema,
   claimStatusUpdateSchema,
   claimUpdateSchema,
+  claimsLookupSchema,
   claimsQuerySchema,
   ledgerEntityAliasSchema,
   ledgerEntityCreateSchema,
@@ -173,6 +174,35 @@ const describedColumns = async ({
 
 const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
+
+const claimRowsBuilder = (manager: EntityManager) =>
+  manager
+    .getRepository(Claim)
+    .createQueryBuilder('c')
+    .innerJoin(LedgerEntity, 'le', 'le.id = c."entityId"')
+    .leftJoin(ClaimEvidence, 'ce', 'ce."claimId" = c.id')
+    .select([
+      'c.id AS id',
+      'c."entityId" AS "entityId"',
+      'le."canonicalName" AS "entityName"',
+      'c."changeType" AS "changeType"',
+      'c.statement AS statement',
+      'c."versionScope" AS "versionScope"',
+      'c."versionParsed" AS "versionParsed"',
+      'c.affected AS affected',
+      'c.superseding AS superseding',
+      'c."effectiveDate" AS "effectiveDate"',
+      'c."dateSource" AS "dateSource"',
+      'c."sunsetDate" AS "sunsetDate"',
+      'c."supersededByEntityId" AS "supersededByEntityId"',
+      'c."supersededByClaimId" AS "supersededByClaimId"',
+      'c.status AS status',
+      `COALESCE(json_agg(json_build_object('url', ce.url, 'postId', ce."postId", 'sourceClass', ce."sourceClass", 'publishedAt', ce."publishedAt")) FILTER (WHERE ce.id IS NOT NULL), '[]') AS evidence`,
+    ])
+    .groupBy('c.id')
+    .addGroupBy('le."canonicalName"')
+    .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
+    .addOrderBy('c.id', 'DESC');
 
 // Reviewer overrides shape the claim only: the candidate keeps the extractor's
 // original output, so the candidate-to-claim delta stays usable as ground truth
@@ -1254,33 +1284,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const con = await createOrGetConnection();
     const { entities, ids, since } = query;
     const claims = await queryReadReplica(con, async ({ queryRunner }) => {
-      const builder = queryRunner.manager
-        .getRepository(Claim)
-        .createQueryBuilder('c')
-        .innerJoin(LedgerEntity, 'le', 'le.id = c."entityId"')
-        .leftJoin(ClaimEvidence, 'ce', 'ce."claimId" = c.id')
-        .select([
-          'c.id AS id',
-          'c."entityId" AS "entityId"',
-          'le."canonicalName" AS "entityName"',
-          'c."changeType" AS "changeType"',
-          'c.statement AS statement',
-          'c."versionScope" AS "versionScope"',
-          'c."versionParsed" AS "versionParsed"',
-          'c.affected AS affected',
-          'c.superseding AS superseding',
-          'c."effectiveDate" AS "effectiveDate"',
-          'c."dateSource" AS "dateSource"',
-          'c."sunsetDate" AS "sunsetDate"',
-          'c."supersededByEntityId" AS "supersededByEntityId"',
-          'c."supersededByClaimId" AS "supersededByClaimId"',
-          'c.status AS status',
-          `COALESCE(json_agg(json_build_object('url', ce.url, 'postId', ce."postId", 'sourceClass', ce."sourceClass", 'publishedAt', ce."publishedAt")) FILTER (WHERE ce.id IS NOT NULL), '[]') AS evidence`,
-        ])
-        .groupBy('c.id')
-        .addGroupBy('le."canonicalName"')
-        .orderBy('c."effectiveDate"', 'DESC', 'NULLS LAST')
-        .addOrderBy('c.id', 'DESC');
+      const builder = claimRowsBuilder(queryRunner.manager);
 
       // Ids name the claims outright, so the status floor and the date window
       // would only hide a claim the caller already holds the id of.
@@ -1324,6 +1328,61 @@ export default async (fastify: FastifyInstance): Promise<void> => {
               { since },
             )
             .getRawMany();
+    });
+
+    return res.status(200).send({ claims });
+  });
+
+  // The detector's question runs the other way around: not "what changed on
+  // this entity" but "which claims touch the symbols this plan names". The
+  // matches come back per array so the caller can tell a stale symbol from
+  // the replacement of one.
+  fastify.post<{
+    Body: z.infer<typeof claimsLookupSchema>;
+  }>('/claims/lookup', async (req, res) => {
+    const body = parseSchema({
+      schema: claimsLookupSchema,
+      value: req.body,
+      res,
+    });
+    if (!body) {
+      return;
+    }
+
+    const tokens = [
+      ...new Set(body.tokens.map((token) => token.toLowerCase())),
+    ];
+    const con = await createOrGetConnection();
+    const claims = await queryReadReplica(con, ({ queryRunner }) => {
+      const builder = claimRowsBuilder(queryRunner.manager)
+        .addSelect(
+          `ARRAY(SELECT DISTINCT lower(a) FROM unnest(c.affected) a WHERE lower(a) = ANY(:tokens::text[]))`,
+          'affectedMatches',
+        )
+        .addSelect(
+          `ARRAY(SELECT DISTINCT lower(s) FROM unnest(c.superseding) s WHERE lower(s) = ANY(:tokens::text[]))`,
+          'supersedingMatches',
+        )
+        // Spelled exactly as the expression indexes are, so the GIN indexes
+        // serve the overlap case-insensitively.
+        .where(
+          '(ledger_signature_norm(c.affected) && :tokens::text[] OR ledger_signature_norm(c.superseding) && :tokens::text[])',
+        )
+        .andWhere('c.status IN (:...statuses)', {
+          statuses: statusRank.slice(statusRank.indexOf(body.minStatus)),
+        })
+        .setParameter('tokens', tokens);
+
+      // An undated claim hides a change rather than placing it, so the floor
+      // only holds back claims dated before it, as the entity window does.
+      if (body.since) {
+        builder.andWhere(
+          '(c."effectiveDate" IS NULL OR c."effectiveDate" >= :since)',
+          { since: body.since },
+        );
+      }
+
+      return builder.getRawMany();
     });
 
     return res.status(200).send({ claims });
