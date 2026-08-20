@@ -272,3 +272,18 @@ export const claimsQuerySchema = z
     error: 'entities and since are required without ids',
     path: ['ids'],
   });
+
+// A detector carries the tokens a plan literally names, so the lookup matches
+// them against the signature arrays directly instead of going through the
+// entities they belong to.
+export const claimsLookupSchema = z.strictObject({
+  tokens: z.array(z.string().trim().min(1).max(200)).min(1).max(100),
+  minStatus: z
+    .literal([
+      ClaimStatus.Candidate,
+      ClaimStatus.Corroborated,
+      ClaimStatus.Verified,
+    ])
+    .default(ClaimStatus.Candidate),
+  since: z.iso.date().optional(),
+});
