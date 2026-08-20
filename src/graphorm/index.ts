@@ -2973,6 +2973,21 @@ const obj = new GraphORM({
       slug: {
         select: (_, alias) => `"${alias}"."titleNormalized"`,
       },
+      officialSource: {
+        relation: {
+          isMany: false,
+          // A curated officialSourceId should never point at a private or
+          // deactivated source, but resolve to null rather than leak/expose
+          // one if it ever does.
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(
+                `"${childAlias}"."id" = "${parentAlias}"."officialSourceId"`,
+              )
+              .andWhere(`"${childAlias}"."private" = false`)
+              .andWhere(`"${childAlias}"."active" = true`),
+        },
+      },
       stackCount: {
         select: (_, alias) =>
           `(SELECT COUNT(*) FROM user_stack us WHERE us."toolId" = "${alias}"."id")`,

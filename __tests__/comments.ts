@@ -19,8 +19,10 @@ import {
   Source,
   SourceMember,
   SourceType,
+  TOOLS_SOURCE,
   User,
 } from '../src/entity';
+import { UserCompany } from '../src/entity/UserCompany';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -958,6 +960,64 @@ describe('mutation commentOnPost', () => {
     expect(post.comments).toEqual(6);
   });
 
+  describe('tools discussion gating', () => {
+    beforeEach(async () => {
+      await con.getRepository(Source).save({
+        id: TOOLS_SOURCE,
+        name: 'Tools',
+        handle: TOOLS_SOURCE,
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+        image: 'http://image.com/tools',
+      });
+      await con.getRepository(ArticlePost).save({
+        id: 'ptools1',
+        shortId: 'sptools1',
+        title: 'Tool discussion',
+        sourceId: TOOLS_SOURCE,
+        visible: true,
+      });
+    });
+
+    it('should throw forbidden when the user has no verified company', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { postId: 'ptools1', content: 'comment' },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should allow the comment when the user has a verified company', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserCompany).save({
+        userId: '1',
+        email: 'ido@company.dev',
+        code: '123456',
+        verified: true,
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'ptools1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+    });
+
+    it('should not affect comments on a normal post without a verified company', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+    });
+  });
+
   it('should extract standalone post links as content embeds', async () => {
     loggedUser = '1';
     const firstUrl = 'http://localhost:5002/posts/p2';
@@ -1369,6 +1429,62 @@ describe('mutation commentOnComment', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  describe('tools discussion gating', () => {
+    beforeEach(async () => {
+      await con.getRepository(Source).save({
+        id: TOOLS_SOURCE,
+        name: 'Tools',
+        handle: TOOLS_SOURCE,
+        type: SourceType.Machine,
+        active: true,
+        private: false,
+        image: 'http://image.com/tools',
+      });
+      await con.getRepository(ArticlePost).save({
+        id: 'ptools1',
+        shortId: 'sptools1',
+        title: 'Tool discussion',
+        sourceId: TOOLS_SOURCE,
+        visible: true,
+      });
+      await con.getRepository(Comment).save({
+        id: 'ctools1',
+        postId: 'ptools1',
+        userId: '2',
+        content: 'root comment',
+        contentHtml: '<p>root comment</p>',
+      });
+    });
+
+    it('should throw forbidden when the user has no verified company', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { commentId: 'ctools1', content: 'comment' },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should allow the comment when the user has a verified company', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserCompany).save({
+        userId: '1',
+        email: 'ido@company.dev',
+        code: '123456',
+        verified: true,
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { commentId: 'ctools1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+    });
   });
 
   it('should comment on a comment', async () => {
