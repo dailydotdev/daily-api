@@ -119,10 +119,6 @@ import {
   getRedisObject,
   setRedisObjectWithExpiry,
 } from '../../redis';
-import {
-  ContributionSubmission,
-  ContributionSubmissionStatus,
-} from '../../entity/contribution/ContributionSubmission';
 import { counters } from '../../telemetry';
 import {
   cancelEntityReminderWorkflow,
@@ -1635,28 +1631,6 @@ const onSubmissionChange = async (
   }
 };
 
-const onContributionSubmissionChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<ContributionSubmission>,
-) => {
-  const { op, after, before } = data.payload;
-  if (op !== 'c' && op !== 'u') {
-    return;
-  }
-
-  const isApproved = (status?: ContributionSubmissionStatus) =>
-    status === ContributionSubmissionStatus.Approved;
-
-  if (!after || !isApproved(after.status) || isApproved(before?.status)) {
-    return;
-  }
-
-  await triggerTypedEvent(logger, 'api.v1.contribution-action-completed', {
-    submission: after,
-  });
-};
-
 const onSourceMemberChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -2942,9 +2916,6 @@ const worker: Worker = {
           break;
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
-          break;
-        case getTableName(con, ContributionSubmission):
-          await onContributionSubmissionChange(con, logger, data);
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);

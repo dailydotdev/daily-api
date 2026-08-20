@@ -16,7 +16,6 @@ import {
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
-import contributions from './private/contributions';
 import companyVerification from './private/companyVerification';
 import ledger from './private/ledger';
 import digestEmailPreview from './private/digestEmailPreview';
@@ -67,7 +66,6 @@ const vordrUsersSchema = z.object({
 });
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.register(contributions, { prefix: '/contributions' });
   fastify.register(companyVerification, { prefix: '/company-verification' });
   fastify.register(ledger, { prefix: '/ledger' });
   fastify.register(digestEmailPreview, { prefix: '/digest/email-preview' });

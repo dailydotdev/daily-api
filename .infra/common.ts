@@ -31,10 +31,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
-    subscription: 'api.user-activated-contribution-referral',
-  },
-  {
-    topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-squad',
   },
   {
@@ -266,18 +262,6 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.source-member-role-changed',
     subscription: 'api.source-member-role-changed-notification',
-  },
-  {
-    topic: 'api.v1.contribution-action-completed',
-    subscription: 'api.contribution-action-completed-real-time',
-  },
-  {
-    topic: 'api.v1.contribution-action-completed',
-    subscription: 'api.contribution-action-completed-slack',
-  },
-  {
-    topic: 'api.v1.contribution-action-completed',
-    subscription: 'api.contribution-action-completed-milestone',
   },
   {
     topic: 'analytics-api.v1.experiment-allocated',
