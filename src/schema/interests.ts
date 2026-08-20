@@ -25,6 +25,7 @@ import { generateShortId } from '../ids';
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { whereFindingDeliverable } from '../common/interest/exclusions';
+import { generateInterestTitle } from '../common/interest/generateInterestTitle';
 import { GQLEmptyResponse } from './common';
 import type { GQLPost } from './posts';
 import { PostType } from '../entity/posts/Post';
@@ -40,6 +41,7 @@ export type GQLUserInterest = Pick<
   UserInterest,
   | 'id'
   | 'query'
+  | 'title'
   | 'status'
   | 'cadence'
   | 'fomoThreshold'
@@ -85,6 +87,7 @@ export const typeDefs = /* GraphQL */ `
   type UserInterest {
     id: ID!
     query: String!
+    title: String
     status: String!
     cadence: String!
     fomoThreshold: Float!
@@ -502,10 +505,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const feedId = await generateShortId();
       const runId = await generateShortId();
 
+      const title = await generateInterestTitle({
+        interest: { id: interestId, query },
+        logger: ctx.log,
+      });
+      const name = (title ?? query).slice(0, 100);
+
       await ctx.con.transaction(async (manager) => {
         await manager.getRepository(AgentSource).save({
           id: sourceId,
-          name: query.slice(0, 100),
+          name,
           handle: `agent-${sourceId}`,
           private: true,
         });
@@ -513,13 +522,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         await manager.getRepository(Feed).save({
           id: feedId,
           userId,
-          flags: { name: query.slice(0, 100), origin: FeedOrigin.Agent },
+          flags: { name, origin: FeedOrigin.Agent },
         });
 
         await manager.getRepository(UserInterest).save({
           id: interestId,
           userId,
           query,
+          title,
           status: UserInterestStatus.Active,
           cadence: UserInterestCadence.Hourly,
           sources: defaultUserInterestSources,

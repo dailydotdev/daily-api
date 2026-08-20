@@ -64,6 +64,9 @@ export class UserInterest {
   @Column({ type: 'text' })
   query: string;
 
+  @Column({ type: 'text', nullable: true })
+  title: string | null;
+
   @Column({ type: 'text', default: UserInterestStatus.Active })
   status: UserInterestStatus;
 
