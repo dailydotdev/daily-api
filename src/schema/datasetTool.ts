@@ -262,16 +262,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         MAX_ALTERNATIVES,
       );
 
-      const tool = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(DatasetTool)
-          .findOneBy({ id: args.id }),
-      );
-
-      if (!tool?.category) {
-        return [];
-      }
-
+      // Comparing against a subquery that returns NULL (no category, or the
+      // tool doesn't exist) never matches, so both edge cases naturally
+      // yield [] without a separate existence check.
       return graphorm.query<DatasetTool>(
         ctx,
         info,
@@ -282,10 +275,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               'alt',
               `alt."toolId" = "${builder.alias}"."id"`,
             )
-            .where(`"${builder.alias}"."category" = :category`, {
-              category: tool.category,
-            })
+            .where(
+              `"${builder.alias}"."category" = (SELECT category FROM dataset_tool WHERE id = :id)`,
+            )
             .andWhere(`"${builder.alias}"."id" != :id`, { id: args.id })
+            .setParameter('id', args.id)
             .orderBy('alt."stackCount"', 'DESC')
             .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
             .limit(first);

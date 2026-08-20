@@ -205,6 +205,30 @@ describe('query datasetTool', () => {
     });
   });
 
+  it('should return null official source when it points at a private or inactive source', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    const tool = toolByNormalizedTitle('nextdotjs');
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: tool.id }, { officialSourceId: 'p' });
+
+    const res = await client.query(
+      `
+        query DatasetTool($slug: String!) {
+          datasetTool(slug: $slug) {
+            officialSource {
+              id
+            }
+          }
+        }
+      `,
+      { variables: { slug: 'nextdotjs' } },
+    );
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.datasetTool.officialSource).toBeNull();
+  });
+
   it('should return null official source when not curated', async () => {
     const res = await client.query(
       `
@@ -274,6 +298,15 @@ describe('query toolAlternatives', () => {
     const next = toolByNormalizedTitle('nextdotjs');
 
     const res = await client.query(QUERY, { variables: { id: next.id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolAlternatives).toEqual([]);
+  });
+
+  it('should return empty when the tool does not exist', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: '00000000-0000-0000-0000-000000000000' },
+    });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.toolAlternatives).toEqual([]);
