@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   disposeGraphQLTesting,
@@ -26,6 +26,7 @@ import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPr
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { deleteKeysByPattern } from '../src/redis';
 import { rateLimiterName } from '../src/directive/rateLimit';
+import { UserCompany } from '../src/entity/UserCompany';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -175,6 +176,108 @@ describe('query datasetTool', () => {
       { query: QUERY, variables: { slug: 'doesnotexist' } },
       'NOT_FOUND',
     ));
+
+  it('should resolve the official source when curated', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    const tool = toolByNormalizedTitle('nextdotjs');
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: tool.id }, { officialSourceId: 'a' });
+
+    const res = await client.query(
+      `
+        query DatasetTool($slug: String!) {
+          datasetTool(slug: $slug) {
+            officialSource {
+              id
+              handle
+            }
+          }
+        }
+      `,
+      { variables: { slug: 'nextdotjs' } },
+    );
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.datasetTool.officialSource).toEqual({
+      id: 'a',
+      handle: 'a',
+    });
+  });
+
+  it('should return null official source when not curated', async () => {
+    const res = await client.query(
+      `
+        query DatasetTool($slug: String!) {
+          datasetTool(slug: $slug) {
+            officialSource {
+              id
+            }
+          }
+        }
+      `,
+      { variables: { slug: 'nextdotjs' } },
+    );
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.datasetTool.officialSource).toBeNull();
+  });
+});
+
+describe('query toolAlternatives', () => {
+  const QUERY = `
+    query ToolAlternatives($id: ID!, $first: Int) {
+      toolAlternatives(id: $id, first: $first) {
+        id
+        title
+      }
+    }
+  `;
+
+  it('should return same-category tools ordered by stack count desc, excluding itself', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    const react = toolByNormalizedTitle('react');
+    const fastify = toolByNormalizedTitle('fastify');
+    const redis = toolByNormalizedTitle('redis');
+    await con
+      .getRepository(DatasetTool)
+      .update(
+        { id: In([next.id, react.id, fastify.id]) },
+        { category: 'Frameworks' },
+      );
+    await con
+      .getRepository(DatasetTool)
+      .update({ id: redis.id }, { category: 'Databases' });
+
+    await con
+      .getRepository(UserStack)
+      .save([
+        stackItem('1', next.id),
+        stackItem('1', react.id, 1),
+        stackItem('2', react.id, 0),
+        stackItem('1', fastify.id, 2),
+        stackItem('2', fastify.id, 1),
+        stackItem('3', fastify.id, 0),
+      ]);
+    await refreshToolStats();
+
+    const res = await client.query(QUERY, { variables: { id: next.id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolAlternatives).toEqual([
+      { id: fastify.id, title: 'Fastify' },
+      { id: react.id, title: 'React' },
+    ]);
+  });
+
+  it('should return empty when the tool has no category', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    const res = await client.query(QUERY, { variables: { id: next.id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.toolAlternatives).toEqual([]);
+  });
 });
 
 describe('query toolsAlsoStacked', () => {
@@ -719,6 +822,10 @@ describe('mutation initToolDiscussion', () => {
       private: false,
       image: 'http//image.com/tools',
     });
+    await con.getRepository(UserCompany).save([
+      { userId: '1', email: 'user1@daily.dev', code: '123456', verified: true },
+      { userId: '2', email: 'user2@daily.dev', code: '123456', verified: true },
+    ]);
     await deleteKeysByPattern(`${rateLimiterName}:*`);
   });
 
@@ -741,6 +848,18 @@ describe('mutation initToolDiscussion', () => {
         variables: { id: '00000000-0000-0000-0000-000000000000' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should require a verified work email', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserCompany).delete({ userId: '1' });
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: next.id } },
+      'FORBIDDEN',
     );
   });
 
