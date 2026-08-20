@@ -1,9 +1,9 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class LedgerEntityCodeOnlyAliases1787600000000
+export class LedgerEntityCodeOnlyAliases1787700000000
   implements MigrationInterface
 {
-  name = 'LedgerEntityCodeOnlyAliases1787600000000';
+  name = 'LedgerEntityCodeOnlyAliases1787700000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Registry names that double as ordinary English words (`requests`,
