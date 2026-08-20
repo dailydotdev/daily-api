@@ -197,6 +197,7 @@ const createClaimFromCandidate = async ({
     body.effectiveDate,
     candidate.effectiveDate,
   );
+  const statement = pickOverride(body.statement, candidate.statement);
   const claim = await manager.getRepository(Claim).save({
     entityId,
     // The candidate carries the replacement as the name the post used; without
@@ -204,9 +205,10 @@ const createClaimFromCandidate = async ({
     supersededByEntityId: await resolveSupersededByEntityId({
       con: manager,
       name: candidate.supersededBy,
+      statement,
     }),
     changeType: pickOverride(body.changeType, candidate.changeType),
-    statement: pickOverride(body.statement, candidate.statement),
+    statement,
     versionScope: pickOverride(body.versionScope, candidate.versionScope),
     effectiveDate,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
@@ -462,10 +464,13 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       return (
         builder
           .andWhere('le."descriptionSkipReason" IS NULL')
-          // An entity something was displaced by is worth describing whatever its
-          // own claim count: it is the replacement a plan will not know to name.
+          // An entity something else was displaced by is worth describing
+          // whatever its own claim count: it is the replacement a plan will not
+          // know to name. A claim superseded by its OWN entity is a version
+          // succeeding an earlier version of the same thing, which every plan
+          // already names, so it earns no priority here.
           .having(
-            'count(c.id) >= :minClaims OR EXISTS (SELECT 1 FROM claim s WHERE s."supersededByEntityId" = le.id)',
+            'count(c.id) >= :minClaims OR EXISTS (SELECT 1 FROM claim s WHERE s."supersededByEntityId" = le.id AND s."entityId" <> le.id)',
             { minClaims: query.minClaims },
           )
           .getRawMany()
