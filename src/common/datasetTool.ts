@@ -1,9 +1,11 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import { Readable } from 'stream';
+import { ForbiddenError } from 'apollo-server-errors';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { FreeformPost } from '../entity/posts/FreeformPost';
 import { PostOrigin } from '../entity/posts/Post';
 import { TOOLS_SOURCE } from '../entity/Source';
+import { UserCompany } from '../entity/UserCompany';
 import { generateShortId } from '../ids';
 import { markdown } from './markdown';
 import { uploadToolIcon } from './cloudinary';
@@ -109,6 +111,22 @@ export const createToolDiscussionPost = async (
       showOnFeed: false,
     },
   });
+};
+
+// Tool discussions (comments on the TOOLS_SOURCE host post) are limited to
+// users who have verified at least one work email, so takes carry some
+// professional accountability. Votes stay open to everyone.
+export const ensureVerifiedForToolDiscussion = async (
+  con: DataSource | EntityManager,
+  userId: string,
+): Promise<void> => {
+  const isVerified = await con
+    .getRepository(UserCompany)
+    .existsBy({ userId, verified: true });
+
+  if (!isVerified) {
+    throw new ForbiddenError('Verify your work email to join tool discussions');
+  }
 };
 
 export const findOrCreateDatasetTool = async (

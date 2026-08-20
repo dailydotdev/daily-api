@@ -12,6 +12,7 @@ import {
 } from '../entity/contentPreference/types';
 import {
   createToolDiscussionPost,
+  ensureVerifiedForToolDiscussion,
   normalizeTitle,
 } from '../common/datasetTool';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -24,6 +25,8 @@ import { NotFoundError } from '../errors';
 
 const MAX_ALSO_STACKED = 10;
 const DEFAULT_ALSO_STACKED = 6;
+const MAX_ALTERNATIVES = 20;
+const DEFAULT_ALTERNATIVES = 6;
 const MAX_TOP_TOOLS = 24;
 const DEFAULT_TOP_TOOLS = 6;
 const MAX_STACKERS = 10;
@@ -86,6 +89,11 @@ export const typeDefs = /* GraphQL */ `
     Hidden post hosting the tool's discussion, once initialized
     """
     discussionPostId: ID
+
+    """
+    The tool's official source/squad on daily.dev, if curated
+    """
+    officialSource: Source
   }
 
   extend type Query {
@@ -98,6 +106,11 @@ export const typeDefs = /* GraphQL */ `
     Tools that most often appear in the same stacks as the given tool
     """
     toolsAlsoStacked(id: ID!, first: Int): [DatasetTool!]!
+
+    """
+    Tools in the same category as the given tool, ranked by stack count
+    """
+    toolAlternatives(id: ID!, first: Int): [DatasetTool!]!
 
     """
     Users who have the tool in their stack, highest reputation first
@@ -230,6 +243,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             )
             .setParameter('toolId', args.id)
             .orderBy('co."cnt"', 'DESC')
+            .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
+            .limit(first);
+          return builder;
+        },
+        true,
+      );
+    },
+
+    toolAlternatives: async (
+      _,
+      args: { id: string; first?: number },
+      ctx: Context,
+      info,
+    ): Promise<DatasetTool[]> => {
+      const first = Math.min(
+        args.first ?? DEFAULT_ALTERNATIVES,
+        MAX_ALTERNATIVES,
+      );
+
+      // Comparing against a subquery that returns NULL (no category, or the
+      // tool doesn't exist) never matches, so both edge cases naturally
+      // yield [] without a separate existence check.
+      return graphorm.query<DatasetTool>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .innerJoin(
+              ToolStackStats,
+              'alt',
+              `alt."toolId" = "${builder.alias}"."id"`,
+            )
+            .where(
+              `"${builder.alias}"."category" = (SELECT category FROM dataset_tool WHERE id = :id)`,
+            )
+            .andWhere(`"${builder.alias}"."id" != :id`, { id: args.id })
+            .setParameter('id', args.id)
+            .orderBy('alt."stackCount"', 'DESC')
             .addOrderBy(`"${builder.alias}"."title"`, 'ASC')
             .limit(first);
           return builder;
@@ -483,6 +534,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       if (!tool) {
         throw new NotFoundError('Tool not found');
       }
+      await ensureVerifiedForToolDiscussion(ctx.con, ctx.userId);
       if (tool.discussionPostId) {
         return tool.discussionPostId;
       }
