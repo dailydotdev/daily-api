@@ -60,3 +60,24 @@ export const anthropicClient = new AnthropicClient(
     garmr: garmrAnthropicService,
   },
 );
+
+const garmrAgentAnthropicService = new GarmrService({
+  service: 'anthropic-agent',
+  breakerOpts: {
+    halfOpenAfter: 10 * 1000,
+    threshold: 0.2,
+    duration: 30 * 1000,
+    minimumRps: 0,
+  },
+  retryOpts: {
+    maxAttempts: 3,
+    backoff: 500,
+  },
+});
+
+export const agentAnthropicClient = new AnthropicClient(
+  process.env.AGENT_ANTHROPIC_API_KEY || '',
+  {
+    garmr: garmrAgentAnthropicService,
+  },
+);
