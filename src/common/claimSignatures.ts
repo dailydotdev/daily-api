@@ -57,6 +57,16 @@ const SIGNATURE_TOOL = {
 
 export type ClaimSignatures = { affected: string[]; superseding: string[] };
 
+// A CVE identifier names an advisory, not anything a reader has in their code.
+// It cannot match a plan and only widens the surface a detector scans.
+const CVE = /^cve-\d{4}-\d{4,}$/i;
+
+const normalize = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+
 // A token that is not in the statement cannot have been copied from it, so it
 // was invented — the failure mode that turns a signature into a false
 // accusation against working code. Dropped here rather than trusted.
@@ -80,11 +90,13 @@ export const extractClaimSignatures = async ({
   model,
   claim,
   entityName,
+  entityAliases = [],
 }: {
   client: AnthropicClient;
   model: string;
   claim: Pick<Claim, 'statement' | 'changeType'>;
   entityName: string;
+  entityAliases?: string[];
 }): Promise<ClaimSignatures> => {
   const response = await client.createMessage({
     model,
@@ -101,9 +113,32 @@ export const extractClaimSignatures = async ({
   });
 
   const input = response.content?.find(({ input }) => !!input)?.input ?? {};
+  // The entity is already on the claim, and a token repeating it matches every
+  // plan that mentions the technology at all rather than the change — the
+  // prompt says so, and this makes it true.
+  const entityNames = new Set(
+    [entityName, ...entityAliases].map(normalize).filter(Boolean),
+  );
+  const usable = (tokens: string[]): string[] =>
+    tokens.filter(
+      (token) => !CVE.test(token) && !entityNames.has(normalize(token)),
+    );
+
+  const affected = usable(grounded(input.affected, claim.statement));
+  const superseding = usable(grounded(input.superseding, claim.statement));
+  // A token on both sides says the reader should both stop and keep using it.
+  // Whichever side was meant, the pair carries no information and one half of
+  // it would flag someone for making the current choice.
+  const contradictory = new Set(
+    affected
+      .map(normalize)
+      .filter((token) => superseding.map(normalize).includes(token)),
+  );
 
   return {
-    affected: grounded(input.affected, claim.statement),
-    superseding: grounded(input.superseding, claim.statement),
+    affected: affected.filter((token) => !contradictory.has(normalize(token))),
+    superseding: superseding.filter(
+      (token) => !contradictory.has(normalize(token)),
+    ),
   };
 };
