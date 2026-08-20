@@ -17,6 +17,7 @@ import {
   Source,
   SourceMember,
   SourceType,
+  TOOLS_SOURCE,
   User,
 } from '../entity';
 import {
@@ -41,6 +42,7 @@ import {
   saveMentions,
 } from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
+import { ensureVerifiedForToolDiscussion } from '../common/datasetTool';
 import { generateShortId } from '../ids';
 import { UserVote } from '../types';
 import { UserComment } from '../entity/user/UserComment';
@@ -1069,6 +1071,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         const post = await ctx.con
           .getRepository(Post)
           .findOneByOrFail({ id: postId });
+        if (post.sourceId === TOOLS_SOURCE) {
+          await ensureVerifiedForToolDiscussion(ctx.con, ctx.userId);
+        }
         const source = await ensureSourcePermissions(ctx, post.sourceId);
         const squadId =
           source.type === SourceType.Squad ? source.id : undefined;
@@ -1133,6 +1138,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               relations: ['post'],
             });
           const post = await parentComment.post;
+          if (post.sourceId === TOOLS_SOURCE) {
+            await ensureVerifiedForToolDiscussion(ctx.con, ctx.userId);
+          }
           const source = await ensureSourcePermissions(ctx, post.sourceId);
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
