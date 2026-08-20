@@ -37,8 +37,9 @@ const buildRunBlocks = ({
 }): InterestRunBlock[] => {
   const blocks: InterestRunBlock[] = [];
   const text = result.finalMessage ?? result.agentSummary;
-  if (text) {
-    blocks.push({ type: 'text', html: markdown.render(text) });
+  const html = result.summaryPostHtml ?? (text ? markdown.render(text) : null);
+  if (html) {
+    blocks.push({ type: 'text', html });
   }
   if (picks.length) {
     blocks.push({ type: 'picks', postIds: picks.map(({ postId }) => postId) });

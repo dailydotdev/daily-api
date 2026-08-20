@@ -40,13 +40,14 @@ export const writePostTool = ({
       return jsonResult({ error: 'interest_has_no_source' });
     }
     const id = await generateShortId();
+    const contentHtml = markdown.render(params.content);
     const saved = await insertFreeformPost({
       con,
       args: {
         id,
         title: params.title,
         content: params.content,
-        contentHtml: markdown.render(params.content),
+        contentHtml,
         authorId: interest.userId,
         sourceId,
       },
@@ -59,6 +60,7 @@ export const writePostTool = ({
       },
     );
     state.summaryPostId = saved.id;
+    state.summaryPostHtml = contentHtml;
     return jsonResult({ postId: saved.id });
   },
 });

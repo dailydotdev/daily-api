@@ -217,6 +217,7 @@ export const createInterestAgentTools = async ({
   const state: InterestAgentRunState = {
     findingsAdded: 0,
     summaryPostId: null,
+    summaryPostHtml: null,
     agentSummary: null,
     finalMessage: null,
   };
