@@ -149,10 +149,15 @@ export const ledgerEntityUpdateSchema = z.strictObject({
 export const ledgerEntityDiscoverSchema = z.strictObject({
   text: z.string().trim().min(1).max(2000),
   limit: z.coerce.number().int().positive().max(25).default(10),
-  // A floor against garbage only. Measured on the retrieval this exists for,
-  // an unrelated entity scores ~0.27 and a correct one ~0.32-0.48, so no single
-  // cutoff separates them: rank carries the signal and the claims filed against
-  // the candidates settle it, which is why nothing here decides on the score.
+  // A floor against garbage only. Measured on the retrieval this exists for
+  // (rot-bench RESULTS.md, 49 authored cases, 2026-08-20): correct hits span
+  // 0.43-0.87 and the loudest wrong candidate per case spans 0.36-0.71, so the
+  // ranges overlap and no single cutoff separates them — a threshold low enough
+  // to keep every correct hit still admits the top wrong candidate in 45 of 49
+  // cases. Rank carries the signal and the claims filed against the candidates
+  // settle it, which is why nothing here decides on the score. On plan-shaped
+  // prose this floor never actually fires (lowest score returned anywhere was
+  // 0.2846); it earns its place against genuinely off-topic input.
   minSimilarity: z.coerce.number().min(0).max(1).default(0.2),
 });
 
