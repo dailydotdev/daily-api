@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { anthropicClient } from '../../integrations/anthropic/client';
+import { agentAnthropicClient } from '../../integrations/anthropic/client';
 import type { UserInterest } from '../../entity/UserInterest';
 
 export const generateInterestTitle = async ({
@@ -19,7 +19,7 @@ export const generateInterestTitle = async ({
   ].join('\n');
 
   try {
-    const response = await anthropicClient.createMessage({
+    const response = await agentAnthropicClient.createMessage({
       model: process.env.INTEREST_TITLE_MODEL || 'claude-haiku-4-5',
       max_tokens: 30,
       system,
