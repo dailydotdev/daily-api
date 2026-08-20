@@ -51,6 +51,14 @@ export class LedgerEntity {
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   codeOnlyAliases: string[];
 
+  // The same prose-ambiguity ruling as codeOnlyAliases, for the canonical name
+  // itself: `Go`, `Bun`, `Cursor` and `Wine` are ordinary English words before
+  // they are anything else. The name still answers every lookup — it is the
+  // entity's identity — but a consumer matching plan prose must skip it, which
+  // an alias marker cannot express because a canonical name is not an alias.
+  @Column({ type: 'boolean', default: false })
+  codeOnlyCanonical: boolean;
+
   // What the entity is and, above all, what approach it displaced, written the
   // way someone would describe the problem before they knew this thing existed.
   // A plan that never names MCP still says "hand-rolled function-calling
