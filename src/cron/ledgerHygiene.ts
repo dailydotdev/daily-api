@@ -5,6 +5,7 @@ import {
   ClaimCandidateStatus,
 } from '../entity/claim/ClaimCandidate';
 import { evidenceDerivedDate } from '../common/claimLedger';
+import { linkEntityKeywords } from '../common/ledgerKeywords';
 
 // Claims a consumer actually reads. `rejected` rows are merge-absorbed: their
 // evidence moved to the surviving claim, so they are undatable by construction
@@ -81,6 +82,10 @@ export const ledgerHygieneCron: Cron = {
   name: 'ledger-hygiene',
   handler: async (con, logger) => {
     const dated = await dateFromEvidence(con);
+
+    // Entities arrive continuously, so the keyword link has to be maintained
+    // rather than backfilled once — the same lesson the dating queue taught.
+    await linkEntityKeywords({ con });
 
     const [pending, undated, unsigned, newest] = await Promise.all([
       con
