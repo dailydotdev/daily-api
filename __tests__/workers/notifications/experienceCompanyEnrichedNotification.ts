@@ -36,12 +36,15 @@ describe('experienceCompanyEnrichedNotification worker', () => {
   });
 
   it('should send notification for work experience enrichment', async () => {
-    // Get the current work experience (the one with no endedAt)
+    // Get the current work experience (the one with no endedAt). Suites in
+    // the same CI container share the database and earlier suites leave
+    // user-1 work experiences behind, so the title keeps this deterministic.
     const savedExperience = await con.getRepository(UserExperience).findOne({
       where: {
         userId: '1',
         type: UserExperienceType.Work,
         endedAt: null,
+        title: 'Senior Software Engineer',
       },
     });
 
