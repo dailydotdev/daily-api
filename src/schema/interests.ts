@@ -192,11 +192,22 @@ export const typeDefs = /* GraphQL */ `
     outputModes: InterestOutputModesInput
   }
 
+  input CreateInterestSettingsInput {
+    cadence: String
+    fomoThreshold: Float
+    sources: InterestSourcesInput
+    outputModes: InterestOutputModesInput
+  }
+
   extend type Mutation {
     """
-    Spawn a new interest and trigger its first hunt
+    Spawn a new interest and trigger its first hunt, optionally overriding
+    the default settings
     """
-    createInterest(query: String!): UserInterest! @auth
+    createInterest(
+      query: String!
+      settings: CreateInterestSettingsInput
+    ): UserInterest! @auth
 
     """
     Update an interest's status, cadence, FOMO threshold, sources, or output modes
@@ -498,12 +509,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     createInterest: async (
       _,
-      args: { query: string },
+      args: { query: string; settings?: unknown },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
       ensureTeamMember(ctx);
-      const { query } = createInterestSchema.parse(args);
+      const { query, settings } = createInterestSchema.parse(args);
       const { userId } = ctx;
 
       const interestId = await generateShortId();
@@ -537,9 +548,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           query,
           title,
           status: UserInterestStatus.Active,
-          cadence: UserInterestCadence.Hourly,
-          sources: defaultUserInterestSources,
-          outputModes: defaultUserInterestOutputModes,
+          cadence: settings?.cadence ?? UserInterestCadence.Hourly,
+          fomoThreshold: settings?.fomoThreshold,
+          sources: { ...defaultUserInterestSources, ...settings?.sources },
+          outputModes: {
+            ...defaultUserInterestOutputModes,
+            ...settings?.outputModes,
+          },
           feedId,
           sourceId,
         });
