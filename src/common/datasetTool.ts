@@ -6,6 +6,8 @@ import { FreeformPost } from '../entity/posts/FreeformPost';
 import { PostOrigin } from '../entity/posts/Post';
 import { TOOLS_SOURCE } from '../entity/Source';
 import { UserCompany } from '../entity/UserCompany';
+import { Company } from '../entity/Company';
+import { getDomainVariants } from './companyEnrichment';
 import { generateShortId } from '../ids';
 import { markdown } from './markdown';
 import { uploadToolIcon } from './cloudinary';
@@ -157,4 +159,88 @@ export const findOrCreateDatasetTool = async (
   }
 
   return tool;
+};
+
+// Tolerates URLs stored with or without a scheme; anything unparseable can't
+// be verified against, so callers treat a null result as ineligible.
+export const getToolDomain = (url: string): string | null => {
+  try {
+    return new URL(url).hostname.toLowerCase() || null;
+  } catch {
+    try {
+      return new URL(`https://${url}`).hostname.toLowerCase() || null;
+    } catch {
+      return null;
+    }
+  }
+};
+
+// Multi-tenant hosts where the tool's own url identifies the platform, not
+// its vendor - a verified employee of the platform (e.g. GitHub) should not
+// become eligible to claim every tool hosted there. Fails closed: unknown
+// hosts stay claimable, this list is what curation can extend over time.
+export const SHARED_HOST_BLOCKLIST = [
+  'github.com',
+  'gitlab.com',
+  'bitbucket.org',
+  'npmjs.com',
+  'pypi.org',
+  'rubygems.org',
+  'crates.io',
+  'pkg.go.dev',
+  'marketplace.visualstudio.com',
+  'plugins.jetbrains.com',
+  'chromewebstore.google.com',
+  'chrome.google.com',
+  'addons.mozilla.org',
+  'sourceforge.net',
+  'apps.apple.com',
+  'play.google.com',
+];
+
+export const isSharedHost = (domain: string): boolean =>
+  SHARED_HOST_BLOCKLIST.some(
+    (host) => domain === host || domain.endsWith(`.${host}`),
+  );
+
+export type VerifiedCompanyDomains = { companyId: string; domains: string[] };
+
+// The viewer's verified companies and their domains, fetched once per request
+// (see DataLoaderService.verifiedCompanies) and reused across every tool that
+// resolver touches, instead of a DB round trip per parent.
+export const getViewerVerifiedCompanies = (
+  con: DataSource | EntityManager,
+  userId: string,
+): Promise<VerifiedCompanyDomains[]> =>
+  con
+    .getRepository(UserCompany)
+    .createQueryBuilder('uc')
+    .innerJoin(Company, 'c', 'c.id = uc."companyId"')
+    .where('uc."userId" = :userId', { userId })
+    .andWhere('uc.verified = true')
+    .select('c.id', 'companyId')
+    .addSelect('c.domains', 'domains')
+    .getRawMany<VerifiedCompanyDomains>();
+
+// A tool can be claimed by a viewer with a verified work email at a company
+// whose domains cover the tool's own site. Pure and DB-free: callers pass in
+// the viewer's already-fetched verified companies (see
+// getViewerVerifiedCompanies) so this can run once per tool without a query.
+export const findClaimableCompanyId = (
+  verifiedCompanies: VerifiedCompanyDomains[],
+  toolUrl: string,
+): string | null => {
+  const domain = getToolDomain(toolUrl);
+  if (!domain || isSharedHost(domain)) {
+    return null;
+  }
+
+  // Reuses the same domain-variant overlap check enrichment uses to match a
+  // domain to an existing Company.
+  const variants = new Set(getDomainVariants(domain));
+  const match = verifiedCompanies.find(({ domains }) =>
+    domains.some((companyDomain) => variants.has(companyDomain)),
+  );
+
+  return match?.companyId ?? null;
 };

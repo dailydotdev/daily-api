@@ -1304,6 +1304,65 @@ describe('article new comment', () => {
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
   });
 
+  it('should not add notification to the parent comment author, they get a reply notification', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        scoutId: null,
+        authorId: '1',
+      },
+    );
+    await con.getRepository(Comment).save({
+      id: 'c0',
+      postId: 'p1',
+      userId: '1',
+      content: 'parent comment',
+      contentHtml: '<p>parent comment</p>',
+    });
+    await con.getRepository(Comment).update({ id: 'c1' }, { parentId: 'c0' });
+    const actual = await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '2',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
+    expect(actual).toBeFalsy();
+  });
+
+  it('should still notify the other post owner when the reply targets one of them', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        scoutId: '1',
+        authorId: '3',
+      },
+    );
+    await con.getRepository(Comment).save({
+      id: 'c0',
+      postId: 'p1',
+      userId: '1',
+      content: 'parent comment',
+      contentHtml: '<p>parent comment</p>',
+    });
+    await con.getRepository(Comment).update({ id: 'c1' }, { parentId: 'c0' });
+    const actual = await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '2',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
+    expect(actual.length).toEqual(1);
+    expect(actual[0].ctx.userIds).toEqual(['3']);
+  });
+
   it('should filter out blocked users when generating notifications', async () => {
     await con.getRepository(Feed).save({
       id: '1',

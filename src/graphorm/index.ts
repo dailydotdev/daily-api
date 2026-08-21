@@ -2966,7 +2966,15 @@ const obj = new GraphORM({
     },
   },
   DatasetTool: {
-    requiredColumns: ['id', 'title'],
+    // url and claimedByCompanyId are read directly off the parent object by
+    // the viewerCanClaim field resolver below (it short-circuits to false
+    // once a tool has no url, or is already claimed), so both must always be
+    // selected regardless of what the client actually requested - the
+    // resolver also runs on plain-entity paths (e.g. autocompleteTools) that
+    // never go through this select at all. The claimedBy relation itself
+    // needs no entry here: like officialSource, it correlates directly
+    // against the parent alias in a subquery, not against this select list.
+    requiredColumns: ['id', 'title', 'url', 'claimedByCompanyId'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -2987,6 +2995,13 @@ const obj = new GraphORM({
               )
               .andWhere(`"${childAlias}"."private" = false`)
               .andWhere(`"${childAlias}"."active" = true`),
+        },
+      },
+      claimedBy: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'claimedByCompanyId',
         },
       },
       stackCount: {

@@ -44,15 +44,15 @@ const buildRunBlocks = ({
   if (picks.length) {
     blocks.push({ type: 'picks', postIds: picks.map(({ postId }) => postId) });
   }
-  if (
-    deliverables.length > 0 &&
-    deliverables.length >= minFindingsForFeedLink
-  ) {
+  const rest = deliverables.slice(picks.length);
+  if (rest.length > 0 && rest.length >= minFindingsForFeedLink) {
     blocks.push({
       type: 'feedLink',
-      label: `Open all ${deliverables.length} findings`,
-      count: deliverables.length,
-      postIds: deliverables.map(({ postId }) => postId),
+      label: picks.length
+        ? `Open ${rest.length} other ${rest.length === 1 ? 'finding' : 'findings'}`
+        : `Open all ${rest.length} findings`,
+      count: rest.length,
+      postIds: rest.map(({ postId }) => postId),
     });
   }
   return blocks;

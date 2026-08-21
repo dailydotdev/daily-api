@@ -24,16 +24,17 @@ const interestOutputModesSchema = z
   .partial()
   .optional();
 
-export const createInterestSchema = z.object({
-  query: z.string().min(1).max(500),
-});
-
 export const updateInterestSchema = z.object({
   status: z.enum(enumValues(UserInterestStatus)).optional(),
   cadence: z.enum(enumValues(UserInterestCadence)).optional(),
   fomoThreshold: z.number().min(0).max(1).optional(),
   sources: interestSourcesSchema,
   outputModes: interestOutputModesSchema,
+});
+
+export const createInterestSchema = z.object({
+  query: z.string().min(1).max(500),
+  settings: updateInterestSchema.omit({ status: true }).optional(),
 });
 
 export const interestIdSchema = z.object({

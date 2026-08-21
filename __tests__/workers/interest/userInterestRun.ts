@@ -284,12 +284,6 @@ describe('userInterestRun worker', () => {
         ),
       },
       { type: 'picks', postIds: ['p1', 'p2'] },
-      {
-        type: 'feedLink',
-        label: 'Open all 2 findings',
-        count: 2,
-        postIds: ['p1', 'p2'],
-      },
     ]);
 
     const interest = await con
@@ -339,7 +333,7 @@ describe('userInterestRun worker', () => {
     });
   });
 
-  it('caps picks and adds the feed link for any delivering run', async () => {
+  it('caps picks and links only the findings beyond the picks', async () => {
     await Promise.all(
       ['p1', 'p2', 'p3', 'p4'].map((postId) =>
         seedFinding(postId, InterestFindingStatus.New),
@@ -359,15 +353,13 @@ describe('userInterestRun worker', () => {
     expect((picks as { postIds: string[] }).postIds).toHaveLength(3);
     const feedLink = run.blocks?.find((block) => block.type === 'feedLink');
     expect(feedLink).toMatchObject({
-      label: 'Open all 4 findings',
-      count: 4,
+      label: 'Open 1 other finding',
+      count: 1,
     });
-    expect((feedLink as { postIds: string[] }).postIds.slice().sort()).toEqual([
-      'p1',
-      'p2',
-      'p3',
-      'p4',
-    ]);
+    const pickedIds = (picks as { postIds: string[] }).postIds;
+    const restIds = (feedLink as { postIds: string[] }).postIds;
+    expect(restIds).toHaveLength(1);
+    expect([...pickedIds, ...restIds].sort()).toEqual(['p1', 'p2', 'p3', 'p4']);
   });
 
   it('honors the remote config picks and feed link knobs', async () => {

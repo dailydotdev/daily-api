@@ -75,8 +75,8 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 const CREATE_INTEREST = `
-  mutation CreateInterest($query: String!) {
-    createInterest(query: $query) {
+  mutation CreateInterest($query: String!, $settings: CreateInterestSettingsInput) {
+    createInterest(query: $query, settings: $settings) {
       id
       query
       title
@@ -210,6 +210,51 @@ describe('mutation createInterest', () => {
         notification: true,
       },
     });
+  });
+
+  it('should merge the provided settings over the defaults', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: {
+        query: 'cool zig projects',
+        settings: {
+          cadence: UserInterestCadence.Weekly,
+          fomoThreshold: 0.8,
+          outputModes: { digest: true, post: false },
+        },
+      },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest).toMatchObject({
+      cadence: UserInterestCadence.Weekly,
+      fomoThreshold: 0.8,
+      sources: { dailyDev: true, web: true, github: false },
+      outputModes: {
+        feed: true,
+        post: false,
+        digest: true,
+        notification: true,
+      },
+    });
+  });
+
+  it('should reject an out-of-range fomoThreshold', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: CREATE_INTEREST,
+        variables: {
+          query: 'cool zig projects',
+          settings: { fomoThreshold: 1.5 },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
   });
 
   it('should use the generated title for the interest, source, and feed', async () => {
@@ -831,6 +876,7 @@ const INTEREST_HISTORY = `
       role
       createdAt
       text
+      relationships
       status
       trigger
       feedbackId
@@ -856,6 +902,16 @@ describe('query interestHistory', () => {
       id: 'fb-1',
       interestId: 'uir-1',
       text: 'fewer announcements',
+      relationships: [
+        {
+          id: 'rel-1',
+          entity: 'post',
+          entityId: 'p1',
+          url: null,
+          title: 'P1',
+          summary: null,
+        },
+      ],
       createdAt: new Date('2026-01-02T00:00:00Z'),
     });
     await con.getRepository(InterestRun).save([
@@ -894,6 +950,16 @@ describe('query interestHistory', () => {
       { id: 'run-2', role: 'agent' },
     ]);
     expect(res.data.interestHistory[0].text).toEqual('cool zig projects');
+    expect(res.data.interestHistory[2].relationships).toEqual([
+      {
+        id: 'rel-1',
+        entity: 'post',
+        entityId: 'p1',
+        url: null,
+        title: 'P1',
+        summary: null,
+      },
+    ]);
     expect(res.data.interestHistory[1]).toMatchObject({
       status: InterestRunStatus.Completed,
       trigger: InterestRunTrigger.Spawn,

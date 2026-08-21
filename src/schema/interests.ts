@@ -4,7 +4,10 @@ import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
-import { InterestFeedback } from '../entity/InterestFeedback';
+import {
+  InterestFeedback,
+  type InterestFeedbackRelationship,
+} from '../entity/InterestFeedback';
 import {
   InterestRun,
   InterestRunStatus,
@@ -70,6 +73,7 @@ export type GQLInterestTurn = {
   role: 'user' | 'agent';
   createdAt: Date;
   text?: string | null;
+  relationships?: InterestFeedbackRelationship[] | null;
   status?: string | null;
   trigger?: string | null;
   feedbackId?: string | null;
@@ -126,6 +130,7 @@ export const typeDefs = /* GraphQL */ `
     role: String!
     createdAt: DateTime!
     text: String
+    relationships: [JSONObject!]
     status: String
     trigger: String
     feedbackId: String
@@ -187,11 +192,22 @@ export const typeDefs = /* GraphQL */ `
     outputModes: InterestOutputModesInput
   }
 
+  input CreateInterestSettingsInput {
+    cadence: String
+    fomoThreshold: Float
+    sources: InterestSourcesInput
+    outputModes: InterestOutputModesInput
+  }
+
   extend type Mutation {
     """
-    Spawn a new interest and trigger its first hunt
+    Spawn a new interest and trigger its first hunt, optionally overriding
+    the default settings
     """
-    createInterest(query: String!): UserInterest! @auth
+    createInterest(
+      query: String!
+      settings: CreateInterestSettingsInput
+    ): UserInterest! @auth
 
     """
     Update an interest's status, cadence, FOMO threshold, sources, or output modes
@@ -408,7 +424,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           const feedbackBuilder = queryRunner.manager
             .getRepository(InterestFeedback)
             .createQueryBuilder('fb')
-            .select(['fb.id', 'fb.text', 'fb.createdAt'])
+            .select(['fb.id', 'fb.text', 'fb.relationships', 'fb.createdAt'])
             .where('fb."interestId" = :id', { id })
             .orderBy('fb."createdAt"', 'DESC')
             .addOrderBy('fb.id', 'DESC')
@@ -450,6 +466,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             id: row.id,
             role: 'user',
             text: row.text,
+            relationships: row.relationships,
             createdAt: row.createdAt,
           }),
         ),
@@ -492,12 +509,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     createInterest: async (
       _,
-      args: { query: string },
+      args: { query: string; settings?: unknown },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserInterest> => {
       ensureTeamMember(ctx);
-      const { query } = createInterestSchema.parse(args);
+      const { query, settings } = createInterestSchema.parse(args);
       const { userId } = ctx;
 
       const interestId = await generateShortId();
@@ -531,9 +548,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           query,
           title,
           status: UserInterestStatus.Active,
-          cadence: UserInterestCadence.Hourly,
-          sources: defaultUserInterestSources,
-          outputModes: defaultUserInterestOutputModes,
+          cadence: settings?.cadence ?? UserInterestCadence.Hourly,
+          fomoThreshold: settings?.fomoThreshold,
+          sources: { ...defaultUserInterestSources, ...settings?.sources },
+          outputModes: {
+            ...defaultUserInterestOutputModes,
+            ...settings?.outputModes,
+          },
           feedId,
           sourceId,
         });
