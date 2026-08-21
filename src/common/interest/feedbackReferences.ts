@@ -93,7 +93,7 @@ const fetchVisiblePosts = async ({
     .andWhere('p.deleted = false')
     .andWhere('p.banned = false')
     .andWhere(
-      '((p.private = false AND p."showOnFeed" = true) OR p."sourceId" = :interestSourceId)',
+      '((p.visible = true AND p.private = false AND p."showOnFeed" = true) OR p."sourceId" = :interestSourceId)',
       { interestSourceId: interest.sourceId },
     )
     .getRawMany<{

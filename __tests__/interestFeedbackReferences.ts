@@ -151,22 +151,39 @@ describe('sweepInterestFeedbackReferences', () => {
   });
 
   it('should not resolve posts the interest cannot see', async () => {
-    await con.getRepository(ArticlePost).save({
-      id: 'priv1',
-      shortId: 'priv1',
-      title: 'Private post',
-      url: 'http://priv1.com',
-      sourceId: 'a',
-      private: true,
-      visible: true,
-      type: PostType.Article,
-    });
-    await saveFeedback('fb-6', 'hidden @dailydev:post:priv1');
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'priv1',
+        shortId: 'priv1',
+        title: 'Private post',
+        url: 'http://priv1.com',
+        sourceId: 'a',
+        private: true,
+        visible: true,
+        type: PostType.Article,
+      },
+      {
+        id: 'invis1',
+        shortId: 'invis1',
+        title: 'Invisible post',
+        url: 'http://invis1.com',
+        sourceId: 'a',
+        private: false,
+        visible: false,
+        type: PostType.Article,
+      },
+    ]);
+    await saveFeedback(
+      'fb-6',
+      'hidden @dailydev:post:priv1 and @dailydev:post:invis1',
+    );
 
     await sweep();
 
     const row = await getFeedback('fb-6');
-    expect(row.text).toEqual('hidden @dailydev:post:priv1:null');
+    expect(row.text).toEqual(
+      'hidden @dailydev:post:priv1:null and @dailydev:post:invis1:null',
+    );
     expect(row.relationships).toEqual([]);
   });
 
