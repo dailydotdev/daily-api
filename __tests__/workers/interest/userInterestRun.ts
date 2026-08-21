@@ -299,6 +299,31 @@ describe('userInterestRun worker', () => {
     expect(interest.lastRunFindings).toEqual(2);
   });
 
+  it('uses the written summary post content as the reply text block', async () => {
+    (runInterestAgent as jest.Mock).mockResolvedValue({
+      findingsAdded: 0,
+      summaryPostId: 'post-1',
+      summaryPostHtml: '<h2>Zig this week</h2><p>Two strong finds.</p>',
+      agentSummary: 'Zig 0.14 landed.',
+      finalMessage: 'Delivered a summary post.',
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run.blocks).toEqual([
+      {
+        type: 'text',
+        html: '<h2>Zig this week</h2><p>Two strong finds.</p>',
+      },
+    ]);
+  });
+
   it('creates a scheduled run row when the message carries no runId', async () => {
     await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
       worker,

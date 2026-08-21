@@ -246,6 +246,15 @@ describe('read_post', () => {
     expect(res.engagement.downvotes).toEqual(3);
   });
 
+  it('exposes the article domain but never its external URL', async () => {
+    const { captured } = await getTools();
+
+    const res = await call(captured, 'read_post', { postId: 'p1' });
+    expect(res.domain).toEqual('p1.com');
+    expect(res.url).toBeUndefined();
+    expect(res.permalink).toContain('/posts/');
+  });
+
   it.each([
     [
       'a closing tag',
@@ -530,6 +539,31 @@ describe('write_post', () => {
     expect(
       await call(captured, 'write_post', { title: 'T2', content: 'C2' }),
     ).toMatchObject({ error: 'already_written', postId: first.postId });
+  });
+
+  it('rejects external links and accepts daily.dev permalinks', async () => {
+    const { captured } = await getTools();
+    await call(captured, 'add_finding', {
+      postId: 'p1',
+      score: 0.9,
+      rationale: 'on topic',
+    });
+
+    expect(
+      await call(captured, 'write_post', {
+        title: 'T',
+        content: `See [P1](https://someblog.com/article) and ${process.env.COMMENTS_PREFIX}/posts/p1.`,
+      }),
+    ).toMatchObject({
+      error: 'external_links',
+      links: ['https://someblog.com/article'],
+    });
+
+    const accepted = await call(captured, 'write_post', {
+      title: 'T',
+      content: `See [P1](${process.env.COMMENTS_PREFIX}/posts/p1).`,
+    });
+    expect(accepted.postId).toBeTruthy();
   });
 });
 

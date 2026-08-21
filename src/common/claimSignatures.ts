@@ -1,5 +1,6 @@
 import { AnthropicClient } from '../integrations/anthropic';
 import type { Claim } from '../entity/claim/Claim';
+import { isTooGenericToEmit } from './signatureSpecificity';
 
 // Kept byte-identical to bragi/prompting/claim_signatures.py, which is the copy
 // eval/claims/run_statement_signatures.py measures. They are duplicated because
@@ -119,9 +120,16 @@ export const extractClaimSignatures = async ({
   const entityNames = new Set(
     [entityName, ...entityAliases].map(normalize).filter(Boolean),
   );
+  // The specificity bar (playbook §13 v5.9): matching is exact-equality, so a
+  // generic token like "name" accuses every codebase on earth. When a change's
+  // only symbol is generic, empty is correct — the claim still fires through
+  // its entity at the detector's lower tiers.
   const usable = (tokens: string[]): string[] =>
     tokens.filter(
-      (token) => !CVE.test(token) && !entityNames.has(normalize(token)),
+      (token) =>
+        !CVE.test(token) &&
+        !entityNames.has(normalize(token)) &&
+        !isTooGenericToEmit(token),
     );
 
   const affected = usable(grounded(input.affected, claim.statement));

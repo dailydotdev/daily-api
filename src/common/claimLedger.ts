@@ -1,6 +1,44 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import { ConflictError } from '../errors';
 import { LedgerEntity } from '../entity/claim/LedgerEntity';
+import { ClaimDateSource } from '../entity/claim/Claim';
+
+// The date a claim gets when extraction did not state one, derived from the
+// post that reports it. Both fallbacks are an UPPER BOUND — a post published in
+// June can describe a March change — which is exactly what `dateSource` records
+// so a month-sliced study can exclude them (see product-wiki/claim-ledger.md
+// §6: only `extracted` is the change's own date).
+//
+// Shared deliberately: the resolve route applies this when the claim is born
+// and the hygiene cron applies it to claims that gained evidence later. Two
+// copies of this rule would drift, and the field they write is the one every
+// window query filters on.
+export const evidenceDerivedDate = (
+  source: {
+    publishedAt?: Date | null;
+    createdAt?: Date | null;
+  } | null,
+): { effectiveDate: string; dateSource: ClaimDateSource } | null => {
+  // `effectiveDate` is a DATE column, so the timestamp is truncated to the day
+  // it names — the same `::date` the backfill applies.
+  const asDate = (value: Date): string => value.toISOString().slice(0, 10);
+
+  if (source?.publishedAt) {
+    return {
+      effectiveDate: asDate(source.publishedAt),
+      dateSource: ClaimDateSource.EvidencePublished,
+    };
+  }
+
+  if (source?.createdAt) {
+    return {
+      effectiveDate: asDate(source.createdAt),
+      dateSource: ClaimDateSource.EvidenceCrawled,
+    };
+  }
+
+  return null;
+};
 
 const MAX_HIERARCHY_DEPTH = 5;
 
