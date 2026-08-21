@@ -722,6 +722,93 @@ describe('private ledger routes', () => {
     ).toMatchObject([{ url: 'https://forgejo.org/2026-03-monthly-report' }]);
   });
 
+  it('should date a claim from the post it cites when extraction stated no date', async () => {
+    await con.getRepository(ArticlePost).update(postsFixture[0].id as string, {
+      publishedAt: new Date('2026-03-04T09:00:00.000Z'),
+    });
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { effectiveDate: null });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({
+      effectiveDate: '2026-03-04',
+      dateSource: ClaimDateSource.EvidencePublished,
+    });
+  });
+
+  it('should fall back to the post crawl date when the post carries no publishedAt', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update(postsFixture[0].id as string, { publishedAt: null });
+    await seedCandidate();
+    await con
+      .getRepository(ClaimCandidate)
+      .update(candidateId, { effectiveDate: null });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    const claim = await con
+      .getRepository(Claim)
+      .findOneBy({ id: body.claimId });
+
+    expect(claim?.dateSource).toEqual(ClaimDateSource.EvidenceCrawled);
+    expect(claim?.effectiveDate).not.toBeNull();
+  });
+
+  it('should leave a pre-release claim undated rather than dating it from the post that reports it', async () => {
+    await con.getRepository(ArticlePost).update(postsFixture[0].id as string, {
+      publishedAt: new Date('2026-03-04T09:00:00.000Z'),
+    });
+    await seedCandidate();
+    await con.getRepository(ClaimCandidate).update(candidateId, {
+      effectiveDate: null,
+      versionScope: '19 (pre-release)',
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({ effectiveDate: null, dateSource: null });
+  });
+
+  it('should keep an extracted date extracted, never overwriting it from evidence', async () => {
+    await con.getRepository(ArticlePost).update(postsFixture[0].id as string, {
+      publishedAt: new Date('2026-03-04T09:00:00.000Z'),
+    });
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({ candidateId, action: 'merge' })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: body.claimId }),
+    ).toMatchObject({
+      effectiveDate: '2026-04-01',
+      dateSource: ClaimDateSource.Extracted,
+    });
+  });
+
   it('should list pending candidates', async () => {
     await seedCandidate();
 

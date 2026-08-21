@@ -4,7 +4,10 @@ import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
-import { InterestFeedback } from '../entity/InterestFeedback';
+import {
+  InterestFeedback,
+  type InterestFeedbackRelationship,
+} from '../entity/InterestFeedback';
 import {
   InterestRun,
   InterestRunStatus,
@@ -70,6 +73,7 @@ export type GQLInterestTurn = {
   role: 'user' | 'agent';
   createdAt: Date;
   text?: string | null;
+  relationships?: InterestFeedbackRelationship[] | null;
   status?: string | null;
   trigger?: string | null;
   feedbackId?: string | null;
@@ -126,6 +130,7 @@ export const typeDefs = /* GraphQL */ `
     role: String!
     createdAt: DateTime!
     text: String
+    relationships: [JSONObject!]
     status: String
     trigger: String
     feedbackId: String
@@ -419,7 +424,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           const feedbackBuilder = queryRunner.manager
             .getRepository(InterestFeedback)
             .createQueryBuilder('fb')
-            .select(['fb.id', 'fb.text', 'fb.createdAt'])
+            .select(['fb.id', 'fb.text', 'fb.relationships', 'fb.createdAt'])
             .where('fb."interestId" = :id', { id })
             .orderBy('fb."createdAt"', 'DESC')
             .addOrderBy('fb.id', 'DESC')
@@ -461,6 +466,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             id: row.id,
             role: 'user',
             text: row.text,
+            relationships: row.relationships,
             createdAt: row.createdAt,
           }),
         ),

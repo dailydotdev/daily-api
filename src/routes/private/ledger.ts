@@ -28,11 +28,13 @@ import {
 } from '../../common/schema/claimLedger';
 import {
   assertLedgerNamesAvailable,
+  evidenceDerivedDate,
   expandLedgerEntityIds,
   findLedgerEntitiesByName,
   normalizeEvidenceUrl,
   resolveSupersededByEntityId,
 } from '../../common/claimLedger';
+import { isPreReleaseScope } from '../../common/ledgerHygiene';
 import {
   LEDGER_EMBEDDING_MODEL,
   toVectorLiteral,
@@ -104,11 +106,13 @@ const findEvidenceSource = ({
     .select('p."url"', 'url')
     .addSelect('p."slug"', 'slug')
     .addSelect('p."publishedAt"', 'publishedAt')
+    .addSelect('p."createdAt"', 'createdAt')
     .where('p.id = :postId', { postId })
     .getRawOne<{
       url: string | null;
       slug: string;
       publishedAt: Date | null;
+      createdAt: Date | null;
     }>();
 
 // Rows written before urls were normalized keep their trailing slash, so the
@@ -211,10 +215,12 @@ const createClaimFromCandidate = async ({
   manager,
   candidate,
   body,
+  source,
 }: {
   manager: EntityManager;
   candidate: ClaimCandidate;
   body: z.infer<typeof claimCandidateResolveSchema>;
+  source: { publishedAt: Date | null; createdAt: Date | null } | null;
 }): Promise<{ claimId: string; entityId: string; entityCreated: boolean }> => {
   // An explicit entityId settles what the raw names cannot: a claim about a
   // child product named after its parent, or names shared by two entities.
@@ -227,6 +233,21 @@ const createClaimFromCandidate = async ({
     body.effectiveDate,
     candidate.effectiveDate,
   );
+  // The post that is about to be cited as evidence is already loaded, and its
+  // date is the same value `bin/backfillClaimDates.ts` would recover later.
+  // Reading it here is what stops an undated-claim queue from forming at all:
+  // every claim born without a stated date used to wait for a manual backfill
+  // run to be given one from data the request already held.
+  //
+  // A pre-GA claim is the one exception: R24 keeps its `effectiveDate` NULL
+  // because nothing bites before GA, so dating it from the post that merely
+  // REPORTS the unreleased work would place a change that has not happened.
+  // Without this the operator would owe a manual null on every pre-release row.
+  const versionScope = pickOverride(body.versionScope, candidate.versionScope);
+  const derived =
+    effectiveDate || isPreReleaseScope(versionScope)
+      ? null
+      : evidenceDerivedDate(source);
   const statement = pickOverride(body.statement, candidate.statement);
   const claim = await manager.getRepository(Claim).save({
     entityId,
@@ -239,10 +260,12 @@ const createClaimFromCandidate = async ({
     }),
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement,
-    versionScope: pickOverride(body.versionScope, candidate.versionScope),
-    effectiveDate,
+    versionScope,
+    effectiveDate: effectiveDate ?? derived?.effectiveDate ?? null,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
-    dateSource: effectiveDate ? ClaimDateSource.Extracted : null,
+    dateSource: effectiveDate
+      ? ClaimDateSource.Extracted
+      : (derived?.dateSource ?? null),
     affected: pickOverride(body.affected, candidate.affected),
     superseding: pickOverride(body.superseding, candidate.superseding),
   });
@@ -392,7 +415,12 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       // against the ledger entity its names resolve to.
       const created = body.claimId
         ? null
-        : await createClaimFromCandidate({ manager, candidate, body });
+        : await createClaimFromCandidate({
+            manager,
+            candidate,
+            body,
+            source: source ?? null,
+          });
       const targetClaimId =
         body.claimId ?? (created as { claimId: string }).claimId;
 

@@ -41,6 +41,12 @@ export const crons: Cron[] = [
     schedule: '35 */1 * * *',
   },
   {
+    // Every six hours: often enough that a stalled review lane is reported
+    // within a working day, rare enough that the counters stay cheap.
+    name: 'ledger-hygiene',
+    schedule: '20 */6 * * *',
+  },
+  {
     name: 'clean-zombie-images',
     schedule: '3 5 * * *',
   },
