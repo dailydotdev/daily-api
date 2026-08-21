@@ -831,6 +831,7 @@ const INTEREST_HISTORY = `
       role
       createdAt
       text
+      relationships
       status
       trigger
       feedbackId
@@ -856,6 +857,16 @@ describe('query interestHistory', () => {
       id: 'fb-1',
       interestId: 'uir-1',
       text: 'fewer announcements',
+      relationships: [
+        {
+          id: 'rel-1',
+          entity: 'post',
+          entityId: 'p1',
+          url: null,
+          title: 'P1',
+          summary: null,
+        },
+      ],
       createdAt: new Date('2026-01-02T00:00:00Z'),
     });
     await con.getRepository(InterestRun).save([
@@ -894,6 +905,16 @@ describe('query interestHistory', () => {
       { id: 'run-2', role: 'agent' },
     ]);
     expect(res.data.interestHistory[0].text).toEqual('cool zig projects');
+    expect(res.data.interestHistory[2].relationships).toEqual([
+      {
+        id: 'rel-1',
+        entity: 'post',
+        entityId: 'p1',
+        url: null,
+        title: 'P1',
+        summary: null,
+      },
+    ]);
     expect(res.data.interestHistory[1]).toMatchObject({
       status: InterestRunStatus.Completed,
       trigger: InterestRunTrigger.Spawn,
