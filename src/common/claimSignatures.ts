@@ -1,7 +1,10 @@
 import { AnthropicClient } from '../integrations/anthropic';
 import { ClaimChangeType, type Claim } from '../entity/claim/Claim';
 import { isTooGenericToEmit } from './signatureSpecificity';
-import { normalizeSignatureToken as normalize } from './ledgerEntityNames';
+import {
+  isEntityPhrase,
+  normalizeSignatureToken as normalize,
+} from './ledgerEntityNames';
 
 // Where a signature changes what a reader does. `release` and `new_capability`
 // are two thirds of the ledger and make nothing stale — measured at 0/45 and
@@ -129,14 +132,10 @@ export const extractClaimSignatures = async ({
   const input = response.content?.find(({ input }) => !!input)?.input ?? {};
   // The entity is already on the claim, and a token repeating it matches every
   // plan that mentions the technology at all rather than the change — the
-  // prompt says so, and this makes it true. `proseEntityNames` widens the same
-  // rule to every entity the ledger knows: "Couchbase" on a Spring AI claim is
-  // no more a code surface than "Spring AI" would be, and it fires on every
-  // plan that mentions Couchbase for any reason.
-  const entityNames = new Set([
-    ...[entityName, ...entityAliases].map(normalize).filter(Boolean),
-    ...(proseEntityNames ?? []),
-  ]);
+  // prompt says so, and this makes it true.
+  const entityNames = new Set(
+    [entityName, ...entityAliases].map(normalize).filter(Boolean),
+  );
   // The specificity bar (playbook §13 v5.9): matching is exact-equality, so a
   // generic token like "name" accuses every codebase on earth. When a change's
   // only symbol is generic, empty is correct — the claim still fires through
@@ -146,6 +145,7 @@ export const extractClaimSignatures = async ({
       (token) =>
         !CVE.test(token) &&
         !entityNames.has(normalize(token)) &&
+        !isEntityPhrase(token, proseEntityNames ?? new Set()) &&
         !isTooGenericToEmit(token),
     );
 

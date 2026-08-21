@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   clearProseEntityNameCache,
+  isEntityPhrase,
   loadProseEntityNames,
   normalizeSignatureToken,
 } from '../../src/common/ledgerEntityNames';
@@ -49,5 +50,15 @@ describe('loadProseEntityNames', () => {
     expect(names.has(normalizeSignatureToken('browser_toolset_20260801'))).toBe(
       false,
     );
+  });
+
+  it('should reject a multi-word name but keep a single-word one, which may be a real token', async () => {
+    const names = await loadProseEntityNames(con);
+
+    expect(isEntityPhrase('Node.js', names)).toBe(false);
+    expect(
+      isEntityPhrase('Swift Package Manager', new Set(['swiftpackagemanager'])),
+    ).toBe(true);
+    expect(isEntityPhrase('use cache', names)).toBe(false);
   });
 });

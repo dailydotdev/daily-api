@@ -16,8 +16,8 @@ import { Source } from '../entity/Source';
 import { downloadTextFromUri } from '../common/googleCloud';
 import { isTooGenericToEmit } from '../common/signatureSpecificity';
 import {
+  isEntityPhrase,
   loadProseEntityNames,
-  normalizeSignatureToken,
 } from '../common/ledgerEntityNames';
 import {
   isTwitterSocialType,
@@ -219,14 +219,11 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
         filed.map(({ statement }) => statement.trim()),
       );
 
-      // A token that is exactly a technology's name is not a code surface —
-      // it fires on every plan that mentions the technology at all, which the
-      // entity tiers already cover version-gated. Cached for an hour, so this
-      // is one query per process rather than one per post.
+      // Cached for an hour, so this is one query per process rather than one
+      // per post.
       const proseEntityNames = await loadProseEntityNames(con);
       const usableSignature = (token: string): boolean =>
-        !isTooGenericToEmit(token) &&
-        !proseEntityNames.has(normalizeSignatureToken(token));
+        !isTooGenericToEmit(token) && !isEntityPhrase(token, proseEntityNames);
 
       const candidates = response.claims.reduce<Partial<ClaimCandidate>[]>(
         (acc, claim) => {

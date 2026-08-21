@@ -1325,8 +1325,9 @@ describe('private ledger routes', () => {
   it('should drop hand-written signatures that are generic or just an entity name', async () => {
     // /claims/update lets a reviewer set these arrays directly, so the bar has
     // to hold here too — a hand-written "name" accuses every codebase on earth
-    // exactly as an extracted one does, and "Next.js" fires on every plan that
-    // mentions the framework rather than this change.
+    // exactly as an extracted one does, and "Next.js App Router" is prose no
+    // file imports. The single-word "nextjs" is what a package.json pins, so
+    // it survives.
     await seedHierarchy();
     clearProseEntityNameCache();
 
@@ -1335,7 +1336,7 @@ describe('private ledger routes', () => {
       .set(serviceHeaders)
       .send({
         claimId,
-        affected: ['name', 'Next.js', 'nextjs', 'unstable_cache'],
+        affected: ['name', 'Next.js App Router', 'nextjs', 'unstable_cache'],
         superseding: ['use cache'],
       })
       .expect(200);
@@ -1343,7 +1344,7 @@ describe('private ledger routes', () => {
     expect(
       await con.getRepository(Claim).findOneBy({ id: claimId }),
     ).toMatchObject({
-      affected: ['unstable_cache'],
+      affected: ['nextjs', 'unstable_cache'],
       superseding: ['use cache'],
     });
   });

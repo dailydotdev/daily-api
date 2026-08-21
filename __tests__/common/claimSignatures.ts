@@ -111,16 +111,19 @@ describe('extractClaimSignatures', () => {
     ).resolves.toEqual({ affected: [], superseding: [] });
   });
 
-  it('should drop a token naming a different entity the ledger already knows', async () => {
-    // "Couchbase" on a Spring AI claim is no more a code surface than
-    // "Spring AI" would be: it fires on every plan that mentions Couchbase for
-    // any reason, which the entity tiers already cover version-gated.
+  it('should drop a multi-word technology name while keeping a single-word one', async () => {
+    // "Django REST Framework" cannot be a lexical token, so a plan containing
+    // it is describing the technology in prose. "celery" is what a
+    // requirements.txt pins, so it stays and the detector gates the match.
     await expect(
       run(
-        { affected: ['Celery', 'forms.URLField'], superseding: [] },
-        'Django 6.0 dropped Celery support and changed forms.URLField.',
-        new Set(['celery']),
+        {
+          affected: ['Django REST Framework', 'celery', 'forms.URLField'],
+          superseding: [],
+        },
+        'Django 6.0 dropped Django REST Framework and celery support alongside the forms.URLField change.',
+        new Set(['djangorestframework', 'celery']),
       ),
-    ).resolves.toMatchObject({ affected: ['forms.URLField'] });
+    ).resolves.toMatchObject({ affected: ['celery', 'forms.URLField'] });
   });
 });

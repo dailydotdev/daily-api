@@ -27,8 +27,8 @@ import {
   ledgerEntityUpdateSchema,
 } from '../../common/schema/claimLedger';
 import {
+  isEntityPhrase,
   loadProseEntityNames,
-  normalizeSignatureToken,
 } from '../../common/ledgerEntityNames';
 import {
   assertLedgerNamesAvailable,
@@ -184,9 +184,7 @@ const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
 
 // The half of the specificity bar the schema cannot apply, because it needs the
-// ledger's own names. A token that is exactly a technology's name is not a code
-// surface: it fires on every plan that mentions the technology at all, which
-// the entity tiers already cover version-gated.
+// ledger's own names.
 const withoutEntityNames = async ({
   con,
   tokens,
@@ -200,7 +198,7 @@ const withoutEntityNames = async ({
 
   const names = await loadProseEntityNames(con);
 
-  return tokens.filter((token) => !names.has(normalizeSignatureToken(token)));
+  return tokens.filter((token) => !isEntityPhrase(token, names));
 };
 
 const claimRowsBuilder = (manager: EntityManager) =>

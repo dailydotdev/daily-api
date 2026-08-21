@@ -18,15 +18,9 @@ export const normalizeSignatureToken = (value: string): string =>
 //
 // Why signatures reject these: a signature is matched by exact equality
 // against a plan, and Tier A is meant to say "your code touches the thing
-// that changed". A token that merely repeats a technology's name says
-// "your plan mentions this technology" — which the entity tiers already say,
-// version-gated and therefore more precisely. Emitting it as a signature adds
-// no reach and fires on every plan that names the technology at all.
-//
-// Measured on production 2026-08-21: 1,103 distinct signature tokens were
-// exactly an entity name — "Claude Code", "Python 3.10", "React 19", "Redis",
-// "Docker" among the most repeated. This is the same failure as the generic
-// word list one layer up, where the token is specific but still not a surface.
+// that changed". A multi-word technology name says "your plan mentions this
+// technology" instead — which the entity tiers already say, version-gated and
+// therefore more precisely.
 let cached: { names: Set<string>; loadedAt: number } | null = null;
 
 export const loadProseEntityNames = async (
@@ -72,3 +66,25 @@ export const loadProseEntityNames = async (
 export const clearProseEntityNameCache = (): void => {
   cached = null;
 };
+
+// A signature token is rejected only when it is BOTH a known technology name
+// and a multi-word phrase. The two halves are load-bearing together:
+//
+// - Single-word entity names are frequently real code surfaces. `esbuild`,
+//   `curl`, `minimatch` and `Vitest` are what a package.json pins;
+//   `encoding/json/v2` and `System.Text.Json` are what a file imports;
+//   `GPT-5.3-Codex` is what a request body sets. Dropping those would delete
+//   real signal, which is the same reason the specificity bar deliberately
+//   leaves bare lowercase words alone and lets the detector gate the match on
+//   the claim's entity being resolved in the same input.
+// - A name with a space in it cannot be a lexical token. Nothing imports
+//   "React Server Components" or pins "Swift Package Manager"; a plan that
+//   contains those strings is describing the technology in prose, which is
+//   precisely what Tier A is not for.
+//
+// Measured on production 2026-08-21: 434 tokens across 397 claims — "Claude
+// Code", "Responses API", "Jetpack Compose", "Gemini 3.5 Flash", "Opus 4.6".
+// Widening it to single-word names would have taken 1,738 tokens, and the
+// sample showed the extra 1,304 were mostly package names and import paths.
+export const isEntityPhrase = (token: string, names: Set<string>): boolean =>
+  /\s/.test(token) && names.has(normalizeSignatureToken(token));
