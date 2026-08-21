@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import request from 'supertest';
+import { clearProseEntityNameCache } from '../../../src/common/ledgerEntityNames';
 import type { DataSource } from 'typeorm';
 import { In } from 'typeorm';
 import appFunc from '../../../src';
@@ -1318,6 +1319,32 @@ describe('private ledger routes', () => {
       effectiveDate: null,
       changeType: ClaimChangeType.Breaking,
       status: ClaimStatus.Corroborated,
+    });
+  });
+
+  it('should drop hand-written signatures that are generic or just an entity name', async () => {
+    // /claims/update lets a reviewer set these arrays directly, so the bar has
+    // to hold here too — a hand-written "name" accuses every codebase on earth
+    // exactly as an extracted one does, and "Next.js" fires on every plan that
+    // mentions the framework rather than this change.
+    await seedHierarchy();
+    clearProseEntityNameCache();
+
+    await request(app.server)
+      .post('/p/ledger/claims/update')
+      .set(serviceHeaders)
+      .send({
+        claimId,
+        affected: ['name', 'Next.js', 'nextjs', 'unstable_cache'],
+        superseding: ['use cache'],
+      })
+      .expect(200);
+
+    expect(
+      await con.getRepository(Claim).findOneBy({ id: claimId }),
+    ).toMatchObject({
+      affected: ['unstable_cache'],
+      superseding: ['use cache'],
     });
   });
 

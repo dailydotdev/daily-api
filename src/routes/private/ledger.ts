@@ -27,6 +27,10 @@ import {
   ledgerEntityUpdateSchema,
 } from '../../common/schema/claimLedger';
 import {
+  loadProseEntityNames,
+  normalizeSignatureToken,
+} from '../../common/ledgerEntityNames';
+import {
   assertLedgerNamesAvailable,
   evidenceDerivedDate,
   expandLedgerEntityIds,
@@ -179,6 +183,26 @@ const describedColumns = async ({
 const pickOverride = <T>(override: T | undefined, original: T): T =>
   typeof override === 'undefined' ? original : override;
 
+// The half of the specificity bar the schema cannot apply, because it needs the
+// ledger's own names. A token that is exactly a technology's name is not a code
+// surface: it fires on every plan that mentions the technology at all, which
+// the entity tiers already cover version-gated.
+const withoutEntityNames = async ({
+  con,
+  tokens,
+}: {
+  con: DataSource | EntityManager;
+  tokens: string[];
+}): Promise<string[]> => {
+  if (!tokens.length) {
+    return tokens;
+  }
+
+  const names = await loadProseEntityNames(con);
+
+  return tokens.filter((token) => !names.has(normalizeSignatureToken(token)));
+};
+
 const claimRowsBuilder = (manager: EntityManager) =>
   manager
     .getRepository(Claim)
@@ -266,8 +290,14 @@ const createClaimFromCandidate = async ({
     dateSource: effectiveDate
       ? ClaimDateSource.Extracted
       : (derived?.dateSource ?? null),
-    affected: pickOverride(body.affected, candidate.affected),
-    superseding: pickOverride(body.superseding, candidate.superseding),
+    affected: await withoutEntityNames({
+      con: manager,
+      tokens: pickOverride(body.affected, candidate.affected),
+    }),
+    superseding: await withoutEntityNames({
+      con: manager,
+      tokens: pickOverride(body.superseding, candidate.superseding),
+    }),
   });
 
   return {
@@ -1072,9 +1102,14 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       ...(typeof body.sunsetDate !== 'undefined' && {
         sunsetDate: body.sunsetDate,
       }),
-      ...(typeof body.affected !== 'undefined' && { affected: body.affected }),
+      ...(typeof body.affected !== 'undefined' && {
+        affected: await withoutEntityNames({ con, tokens: body.affected }),
+      }),
       ...(typeof body.superseding !== 'undefined' && {
-        superseding: body.superseding,
+        superseding: await withoutEntityNames({
+          con,
+          tokens: body.superseding,
+        }),
       }),
       ...(typeof body.supersededByEntityId !== 'undefined' && {
         supersededByEntityId: body.supersededByEntityId,
