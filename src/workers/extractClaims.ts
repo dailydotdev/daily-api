@@ -16,6 +16,10 @@ import { Source } from '../entity/Source';
 import { downloadTextFromUri } from '../common/googleCloud';
 import { isTooGenericToEmit } from '../common/signatureSpecificity';
 import {
+  loadProseEntityNames,
+  normalizeSignatureToken,
+} from '../common/ledgerEntityNames';
+import {
   isTwitterSocialType,
   mapTwitterSocialPayload,
 } from '../common/twitterSocial';
@@ -215,6 +219,15 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
         filed.map(({ statement }) => statement.trim()),
       );
 
+      // A token that is exactly a technology's name is not a code surface —
+      // it fires on every plan that mentions the technology at all, which the
+      // entity tiers already cover version-gated. Cached for an hour, so this
+      // is one query per process rather than one per post.
+      const proseEntityNames = await loadProseEntityNames(con);
+      const usableSignature = (token: string): boolean =>
+        !isTooGenericToEmit(token) &&
+        !proseEntityNames.has(normalizeSignatureToken(token));
+
       const candidates = response.claims.reduce<Partial<ClaimCandidate>[]>(
         (acc, claim) => {
           const changeType = changeTypeMap[claim.changeType];
@@ -249,12 +262,8 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             // by exact equality, so a generic token ("name", "GET") accuses
             // every codebase on earth. Enforced here rather than in bragi so
             // every write path shares one rule with the statement backfill.
-            affected: claim.affected.filter(
-              (token) => !isTooGenericToEmit(token),
-            ),
-            superseding: claim.superseding.filter(
-              (token) => !isTooGenericToEmit(token),
-            ),
+            affected: claim.affected.filter(usableSignature),
+            superseding: claim.superseding.filter(usableSignature),
           });
 
           return acc;

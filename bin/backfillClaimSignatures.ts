@@ -7,6 +7,7 @@ import {
   SIGNABLE_CHANGE_TYPES,
   extractClaimSignatures,
 } from '../src/common/claimSignatures';
+import { loadProseEntityNames } from '../src/common/ledgerEntityNames';
 
 // Claims filed before extraction emitted signatures carry none, and the tokens
 // are already in their statements — extraction requires a statement to be
@@ -47,6 +48,7 @@ const arg = (name: string): string | undefined =>
 
   const con = await createOrGetConnection();
   const client = new AnthropicClient(apiKey);
+  const proseEntityNames = await loadProseEntityNames(con);
 
   const pending = await con
     .getRepository(Claim)
@@ -100,6 +102,7 @@ const arg = (name: string): string | undefined =>
               claim,
               entityName: claim.entityName,
               entityAliases: claim.entityAliases,
+              proseEntityNames,
             });
 
             return { id: claim.id, ...signatures };

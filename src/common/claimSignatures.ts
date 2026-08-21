@@ -1,6 +1,7 @@
 import { AnthropicClient } from '../integrations/anthropic';
 import { ClaimChangeType, type Claim } from '../entity/claim/Claim';
 import { isTooGenericToEmit } from './signatureSpecificity';
+import { normalizeSignatureToken as normalize } from './ledgerEntityNames';
 
 // Where a signature changes what a reader does. `release` and `new_capability`
 // are two thirds of the ledger and make nothing stale — measured at 0/45 and
@@ -78,12 +79,6 @@ export type ClaimSignatures = { affected: string[]; superseding: string[] };
 // It cannot match a plan and only widens the surface a detector scans.
 const CVE = /^cve-\d{4}-\d{4,}$/i;
 
-const normalize = (value: string): string =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .trim();
-
 // A token that is not in the statement cannot have been copied from it, so it
 // was invented — the failure mode that turns a signature into a false
 // accusation against working code. Dropped here rather than trusted.
@@ -108,12 +103,14 @@ export const extractClaimSignatures = async ({
   claim,
   entityName,
   entityAliases = [],
+  proseEntityNames,
 }: {
   client: AnthropicClient;
   model: string;
   claim: Pick<Claim, 'statement' | 'changeType'>;
   entityName: string;
   entityAliases?: string[];
+  proseEntityNames?: Set<string>;
 }): Promise<ClaimSignatures> => {
   const response = await client.createMessage({
     model,
@@ -132,10 +129,14 @@ export const extractClaimSignatures = async ({
   const input = response.content?.find(({ input }) => !!input)?.input ?? {};
   // The entity is already on the claim, and a token repeating it matches every
   // plan that mentions the technology at all rather than the change — the
-  // prompt says so, and this makes it true.
-  const entityNames = new Set(
-    [entityName, ...entityAliases].map(normalize).filter(Boolean),
-  );
+  // prompt says so, and this makes it true. `proseEntityNames` widens the same
+  // rule to every entity the ledger knows: "Couchbase" on a Spring AI claim is
+  // no more a code surface than "Spring AI" would be, and it fires on every
+  // plan that mentions Couchbase for any reason.
+  const entityNames = new Set([
+    ...[entityName, ...entityAliases].map(normalize).filter(Boolean),
+    ...(proseEntityNames ?? []),
+  ]);
   // The specificity bar (playbook §13 v5.9): matching is exact-equality, so a
   // generic token like "name" accuses every codebase on earth. When a change's
   // only symbol is generic, empty is correct — the claim still fires through

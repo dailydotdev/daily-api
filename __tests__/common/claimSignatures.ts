@@ -10,13 +10,18 @@ const clientReturning = (input: Record<string, unknown>): AnthropicClient =>
     createMessage: async () => ({ content: [{ input }] }),
   }) as unknown as AnthropicClient;
 
-const run = (input: Record<string, unknown>, statementText = statement) =>
+const run = (
+  input: Record<string, unknown>,
+  statementText = statement,
+  proseEntityNames?: Set<string>,
+) =>
   extractClaimSignatures({
     client: clientReturning(input),
     model: 'test-model',
     claim: { statement: statementText, changeType: ClaimChangeType.Breaking },
     entityName: 'Django',
     entityAliases: ['django', 'Django Framework'],
+    proseEntityNames,
   });
 
 describe('extractClaimSignatures', () => {
@@ -104,5 +109,18 @@ describe('extractClaimSignatures', () => {
     await expect(
       run({ affected: 'not-an-array', superseding: [42, '', '   '] }),
     ).resolves.toEqual({ affected: [], superseding: [] });
+  });
+
+  it('should drop a token naming a different entity the ledger already knows', async () => {
+    // "Couchbase" on a Spring AI claim is no more a code surface than
+    // "Spring AI" would be: it fires on every plan that mentions Couchbase for
+    // any reason, which the entity tiers already cover version-gated.
+    await expect(
+      run(
+        { affected: ['Celery', 'forms.URLField'], superseding: [] },
+        'Django 6.0 dropped Celery support and changed forms.URLField.',
+        new Set(['celery']),
+      ),
+    ).resolves.toMatchObject({ affected: ['forms.URLField'] });
   });
 });
