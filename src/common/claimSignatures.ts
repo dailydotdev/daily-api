@@ -1,6 +1,22 @@
 import { AnthropicClient } from '../integrations/anthropic';
-import type { Claim } from '../entity/claim/Claim';
+import { ClaimChangeType, type Claim } from '../entity/claim/Claim';
 import { isTooGenericToEmit } from './signatureSpecificity';
+
+// Where a signature changes what a reader does. `release` and `new_capability`
+// are two thirds of the ledger and make nothing stale — measured at 0/45 and
+// 1/49 fill in production — so they are not worth the call, and a claim of
+// those types staying unstamped forever is the correct end state rather than a
+// backlog. Anything counting "how much of the ledger still needs signatures"
+// has to filter on this, or it measures a population that never shrinks.
+export const SIGNABLE_CHANGE_TYPES = [
+  ClaimChangeType.Breaking,
+  ClaimChangeType.Deprecation,
+  ClaimChangeType.Removal,
+  ClaimChangeType.Displacement,
+  ClaimChangeType.Security,
+  ClaimChangeType.Gotcha,
+  ClaimChangeType.Fix,
+];
 
 // Kept byte-identical to bragi/prompting/claim_signatures.py, which is the copy
 // eval/claims/run_statement_signatures.py measures. They are duplicated because

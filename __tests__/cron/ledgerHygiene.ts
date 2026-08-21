@@ -92,6 +92,28 @@ describe('ledgerHygiene cron', () => {
     ).toMatchObject({ effectiveDate: null, dateSource: null });
   });
 
+  it('should not count release claims as awaiting the signature pass', async () => {
+    // Above UNSIGNED_WARN, so an unfiltered count would warn. The backfill
+    // never stamps `release`, so these are done, not pending.
+    await con.getRepository(Claim).save(
+      Array.from({ length: 201 }, (_, index) => ({
+        entityId,
+        changeType: ClaimChangeType.Release,
+        statement: `A release claim the signature pass skips by design. ${index}`,
+        status: ClaimStatus.Candidate,
+      })),
+    );
+    const logger = { warn: jest.fn(), error: jest.fn(), info: jest.fn() };
+
+    await cron.handler(con, logger as never);
+
+    expect(
+      logger.warn.mock.calls.some(([, message]) =>
+        String(message).includes('signature pass'),
+      ),
+    ).toBe(false);
+  });
+
   it('should not re-date a claim that already carries an extracted date', async () => {
     await con.getRepository(Claim).update(datableClaimId, {
       effectiveDate: '2026-01-01',

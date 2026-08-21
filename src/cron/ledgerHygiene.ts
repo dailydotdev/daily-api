@@ -11,6 +11,7 @@ import {
   dateClaimsFromEvidence,
 } from '../common/ledgerHygiene';
 import { linkEntityKeywords } from '../common/ledgerKeywords';
+import { SIGNABLE_CHANGE_TYPES } from '../common/claimSignatures';
 
 // Thresholds are the point of this cron. Every ledger maintenance pass is a
 // script somebody remembers to run, and a lane that has stopped looks exactly
@@ -20,7 +21,13 @@ import { linkEntityKeywords } from '../common/ledgerKeywords';
 const REVIEW_STALL_HOURS = 12;
 const PENDING_POOL_WARN = 750;
 const UNDATED_WARN = 100;
-const UNSIGNED_WARN = 500;
+// Counted over signable change types only. The first version of this counted
+// every consumable claim and read 34,320 against a threshold of 500 — but
+// 34,275 of those were `release`/`new_capability` rows the backfill is designed
+// never to stamp, so the number could not fall below the threshold no matter
+// what anyone did. An alert that is always firing is the one a reader learns to
+// skim, which is the failure this whole cron exists to prevent.
+const UNSIGNED_WARN = 200;
 
 export const ledgerHygieneCron: Cron = {
   name: 'ledger-hygiene',
@@ -57,6 +64,9 @@ export const ledgerHygieneCron: Cron = {
         .where('c."signaturesBackfilledAt" IS NULL')
         .andWhere('c.status IN (:...statuses)', {
           statuses: CONSUMABLE_STATUSES,
+        })
+        .andWhere('c."changeType" IN (:...changeTypes)', {
+          changeTypes: SIGNABLE_CHANGE_TYPES,
         })
         .getCount(),
       con
