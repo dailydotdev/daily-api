@@ -28,16 +28,18 @@ import { deleteKeysByPattern } from '../src/redis';
 import { rateLimiterName } from '../src/directive/rateLimit';
 import { UserCompany } from '../src/entity/UserCompany';
 import { Company } from '../src/entity/Company';
+import { Roles } from '../src/roles';
 
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
+let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser, roles),
   );
   client = state.client;
 });
@@ -72,6 +74,7 @@ let tools: DatasetTool[];
 
 beforeEach(async () => {
   loggedUser = null;
+  roles = [];
   await saveFixtures(con, User, usersFixture);
   tools = await con.getRepository(DatasetTool).save(toolsFixture);
 });
@@ -1009,6 +1012,7 @@ describe('mutation claimTool', () => {
 
   beforeEach(async () => {
     await con.getRepository(Company).save([matchingCompany, otherCompany]);
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
   });
 
   it('should require authentication', () =>
@@ -1203,6 +1207,95 @@ describe('mutation claimTool', () => {
     expect(anonymous.data.datasetTool.viewerCanClaim).toEqual(false);
   });
 
+  it('should report viewerCanClaim false once claimed, for both the claiming company and another', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    await con.getRepository(UserCompany).save([
+      {
+        userId: '1',
+        email: 'user1@nextjs.org',
+        code: '123456',
+        verified: true,
+        companyId: matchingCompany.id,
+      },
+      {
+        userId: '2',
+        email: 'user2@nextjs.org',
+        code: '123456',
+        verified: true,
+        companyId: matchingCompany.id,
+      },
+    ]);
+    await con
+      .getRepository(Company)
+      .update({ id: otherCompany.id }, { domains: ['nextjs.org'] });
+    await con.getRepository(UserCompany).save({
+      userId: '3',
+      email: 'user3@nextjs.org',
+      code: '123456',
+      verified: true,
+      companyId: otherCompany.id,
+    });
+
+    loggedUser = '1';
+    await client.mutate(MUTATION, { variables: { id: next.id } });
+
+    // The viewer whose own company claimed it - nothing left to claim.
+    const sameCompany = await client.query(CAN_CLAIM_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(sameCompany.data.datasetTool.viewerCanClaim).toEqual(false);
+
+    // A different eligible-by-domain viewer - claimTool would only CONFLICT.
+    loggedUser = '3';
+    const otherCompanyViewer = await client.query(CAN_CLAIM_QUERY, {
+      variables: { slug: 'nextdotjs' },
+    });
+    expect(otherCompanyViewer.data.datasetTool.viewerCanClaim).toEqual(false);
+  });
+
+  it('should not allow claiming a tool hosted on a known shared/multi-tenant host', async () => {
+    const [sharedHostTool] = await con.getRepository(DatasetTool).save([
+      {
+        title: 'Shared Host Tool',
+        titleNormalized: 'sharedhosttool',
+        url: 'https://github.com/some-org/some-tool',
+        faviconSource: 'none',
+      },
+    ]);
+    await con.getRepository(Company).save({
+      id: 'githubco',
+      name: 'GitHub',
+      image: 'https://daily.dev/github.jpg',
+      domains: ['github.com'],
+    });
+    await con.getRepository(UserCompany).save({
+      userId: '1',
+      email: 'user1@github.com',
+      code: '123456',
+      verified: true,
+      companyId: 'githubco',
+    });
+
+    loggedUser = '1';
+    const canClaim = await client.query(
+      `
+        query DatasetTool($slug: String!) {
+          datasetTool(slug: $slug) {
+            viewerCanClaim
+          }
+        }
+      `,
+      { variables: { slug: 'sharedhosttool' } },
+    );
+    expect(canClaim.data.datasetTool.viewerCanClaim).toEqual(false);
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: sharedHostTool.id } },
+      'FORBIDDEN',
+    );
+  });
+
   // autocompleteTools returns plain TypeORM entities rather than a GraphORM
   // result, which is exactly the path a GraphORM-only computed field would
   // break on; viewerCanClaim is a plain field resolver so it must still work.
@@ -1236,5 +1329,82 @@ describe('mutation claimTool', () => {
     expect(res.data.autocompleteTools).toEqual([
       { id: next.id, viewerCanClaim: true },
     ]);
+  });
+});
+
+describe('mutation unclaimTool', () => {
+  const MUTATION = `
+    mutation UnclaimTool($id: ID!) {
+      unclaimTool(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should forbid a non-moderator', async () => {
+    loggedUser = '1';
+    const next = toolByNormalizedTitle('nextdotjs');
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: next.id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should fail on unknown tool for a moderator', () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should let a moderator clear an existing claim', async () => {
+    const next = toolByNormalizedTitle('nextdotjs');
+    const company = {
+      id: 'nextco',
+      name: 'Next Co',
+      image: 'https://daily.dev/nextco.jpg',
+      domains: ['nextjs.org'],
+    };
+    await con.getRepository(Company).save(company);
+    await con.getRepository(DatasetTool).update(
+      { id: next.id },
+      {
+        claimedByCompanyId: company.id,
+        claimedByUserId: '1',
+        claimedAt: new Date(),
+      },
+    );
+
+    loggedUser = '2';
+    roles = [Roles.Moderator];
+    const res = await client.mutate(MUTATION, {
+      variables: { id: next.id },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const tool = await con
+      .getRepository(DatasetTool)
+      .findOneByOrFail({ id: next.id });
+    expect(tool.claimedByCompanyId).toBeNull();
+    expect(tool.claimedByUserId).toBeNull();
+    expect(tool.claimedAt).toBeNull();
   });
 });

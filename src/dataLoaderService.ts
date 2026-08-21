@@ -10,6 +10,10 @@ import type { FindOneOptions } from 'typeorm';
 import { getRedisObject } from './redis';
 import { generateStorageKey, StorageKey, StorageTopic } from './config';
 import { getLiveRoomParticipantCounts } from './common/liveRoom/participantCount';
+import {
+  getViewerVerifiedCompanies,
+  type VerifiedCompanyDomains,
+} from './common/datasetTool';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -235,6 +239,22 @@ export class DataLoaderService {
         });
       },
       cacheKeyFn: ({ userId, select }) => defaultCacheKeyFn({ userId, select }),
+    });
+  }
+
+  get verifiedCompanies() {
+    return this.getLoader<{ userId: string }, VerifiedCompanyDomains[]>({
+      type: 'verifiedCompanies',
+      loadFn: async ({ userId }) => {
+        if (!userId) {
+          return [];
+        }
+
+        return queryReadReplica(this.ctx.con, ({ queryRunner }) =>
+          getViewerVerifiedCompanies(queryRunner.manager, userId),
+        );
+      },
+      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
     });
   }
 

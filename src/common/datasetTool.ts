@@ -1,5 +1,4 @@
 import type { DataSource, EntityManager } from 'typeorm';
-import { ArrayOverlap, In } from 'typeorm';
 import { Readable } from 'stream';
 import { ForbiddenError } from 'apollo-server-errors';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
@@ -176,39 +175,72 @@ export const getToolDomain = (url: string): string | null => {
   }
 };
 
-// A tool can be claimed by a viewer with a verified work email at a company
-// whose domains cover the tool's own site. Reuses the same domain-variant
-// overlap check enrichment uses to match a domain to an existing Company.
-export const findClaimableCompanyId = async (
+// Multi-tenant hosts where the tool's own url identifies the platform, not
+// its vendor - a verified employee of the platform (e.g. GitHub) should not
+// become eligible to claim every tool hosted there. Fails closed: unknown
+// hosts stay claimable, this list is what curation can extend over time.
+export const SHARED_HOST_BLOCKLIST = [
+  'github.com',
+  'gitlab.com',
+  'bitbucket.org',
+  'npmjs.com',
+  'pypi.org',
+  'rubygems.org',
+  'crates.io',
+  'pkg.go.dev',
+  'marketplace.visualstudio.com',
+  'plugins.jetbrains.com',
+  'chromewebstore.google.com',
+  'chrome.google.com',
+  'addons.mozilla.org',
+  'sourceforge.net',
+  'apps.apple.com',
+  'play.google.com',
+];
+
+export const isSharedHost = (domain: string): boolean =>
+  SHARED_HOST_BLOCKLIST.some(
+    (host) => domain === host || domain.endsWith(`.${host}`),
+  );
+
+export type VerifiedCompanyDomains = { companyId: string; domains: string[] };
+
+// The viewer's verified companies and their domains, fetched once per request
+// (see DataLoaderService.verifiedCompanies) and reused across every tool that
+// resolver touches, instead of a DB round trip per parent.
+export const getViewerVerifiedCompanies = (
   con: DataSource | EntityManager,
   userId: string,
+): Promise<VerifiedCompanyDomains[]> =>
+  con
+    .getRepository(UserCompany)
+    .createQueryBuilder('uc')
+    .innerJoin(Company, 'c', 'c.id = uc."companyId"')
+    .where('uc."userId" = :userId', { userId })
+    .andWhere('uc.verified = true')
+    .select('c.id', 'companyId')
+    .addSelect('c.domains', 'domains')
+    .getRawMany<VerifiedCompanyDomains>();
+
+// A tool can be claimed by a viewer with a verified work email at a company
+// whose domains cover the tool's own site. Pure and DB-free: callers pass in
+// the viewer's already-fetched verified companies (see
+// getViewerVerifiedCompanies) so this can run once per tool without a query.
+export const findClaimableCompanyId = (
+  verifiedCompanies: VerifiedCompanyDomains[],
   toolUrl: string,
-): Promise<string | null> => {
+): string | null => {
   const domain = getToolDomain(toolUrl);
-  if (!domain) {
+  if (!domain || isSharedHost(domain)) {
     return null;
   }
 
-  const companyIds = (
-    await con.getRepository(UserCompany).find({
-      where: { userId, verified: true },
-      select: ['companyId'],
-    })
-  )
-    .map(({ companyId }) => companyId)
-    .filter((id): id is string => !!id);
+  // Reuses the same domain-variant overlap check enrichment uses to match a
+  // domain to an existing Company.
+  const variants = new Set(getDomainVariants(domain));
+  const match = verifiedCompanies.find(({ domains }) =>
+    domains.some((companyDomain) => variants.has(companyDomain)),
+  );
 
-  if (!companyIds.length) {
-    return null;
-  }
-
-  const company = await con.getRepository(Company).findOne({
-    where: {
-      id: In(companyIds),
-      domains: ArrayOverlap(getDomainVariants(domain)),
-    },
-    select: ['id'],
-  });
-
-  return company?.id ?? null;
+  return match?.companyId ?? null;
 };

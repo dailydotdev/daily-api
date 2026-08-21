@@ -21,7 +21,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { ToolStackStats } from '../entity/ToolStackStats';
 import { ToolVote } from '../entity/ToolVote';
 import { UserVote } from '../types';
-import { voteToolSchema } from '../common/schema/toolDiscussion';
+import { toolIdSchema, voteToolSchema } from '../common/schema/toolDiscussion';
 import { GQLEmptyResponse } from './common';
 import { ConflictError, NotFoundError } from '../errors';
 
@@ -170,7 +170,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Claim ownership of a tool page on behalf of the viewer's verified company
     """
-    claimTool(id: ID!): DatasetTool! @auth
+    claimTool(id: ID!): DatasetTool! @auth @rateLimit(limit: 1, duration: 30)
+
+    """
+    Remove an existing claim from a tool page
+    """
+    unclaimTool(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
   }
 
   type ToolCategoryStat {
@@ -522,11 +527,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: Context,
     ): Promise<boolean> => {
       const { userId } = ctx;
-      if (!userId || !tool.url) {
+      // A tool that is already claimed - by any company, including the
+      // viewer's own - has nothing left for this viewer to actionably claim,
+      // so it's never reported as claimable. Both checks are cheap and run
+      // before any lookup.
+      if (!userId || !tool.url || tool.claimedByCompanyId) {
         return false;
       }
 
-      const companyId = await findClaimableCompanyId(ctx.con, userId, tool.url);
+      const verifiedCompanies = await ctx.dataLoader.verifiedCompanies.load({
+        userId,
+      });
+      const companyId = findClaimableCompanyId(verifiedCompanies, tool.url);
       return !!companyId;
     },
   },
@@ -565,9 +577,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       args: { id: string },
       ctx: AuthContext,
     ): Promise<string> => {
-      const tool = await ctx.con
-        .getRepository(DatasetTool)
-        .findOneBy({ id: args.id });
+      const { id } = toolIdSchema.parse(args);
+      const tool = await ctx.con.getRepository(DatasetTool).findOneBy({ id });
       if (!tool) {
         throw new NotFoundError('Tool not found');
       }
@@ -615,9 +626,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       ctx: AuthContext,
       info,
     ): Promise<DatasetTool> => {
-      const tool = await ctx.con
-        .getRepository(DatasetTool)
-        .findOneBy({ id: args.id });
+      const { id } = toolIdSchema.parse(args);
+      const tool = await ctx.con.getRepository(DatasetTool).findOneBy({ id });
       if (!tool) {
         throw new NotFoundError('Tool not found');
       }
@@ -627,11 +637,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         );
       }
 
-      const companyId = await findClaimableCompanyId(
-        ctx.con,
-        ctx.userId,
-        tool.url,
-      );
+      const verifiedCompanies = await ctx.dataLoader.verifiedCompanies.load({
+        userId: ctx.userId,
+      });
+      const companyId = findClaimableCompanyId(verifiedCompanies, tool.url);
       if (!companyId) {
         throw new ForbiddenError(
           "Claiming requires a verified work email at the tool's company",
@@ -674,6 +683,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         },
         DatasetTool,
       );
+    },
+
+    // Claims carry no self-service revocation: claimedAt/claimedByUserId are
+    // kept for audit, and a wrong or contested claim is fixed here rather
+    // than by manual DB surgery.
+    unclaimTool: async (
+      _,
+      args: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id } = toolIdSchema.parse(args);
+
+      const result = await ctx.con.getRepository(DatasetTool).update(
+        { id },
+        {
+          claimedByCompanyId: null,
+          claimedByUserId: null,
+          claimedAt: null,
+        },
+      );
+
+      if (!result.affected) {
+        throw new NotFoundError('Tool not found');
+      }
+
+      return { _: true };
     },
   },
 };
