@@ -54,6 +54,17 @@ type PostDetailRow = {
   sharedSummary: string | null;
 };
 
+const toDomain = (url: string | null): string | null => {
+  if (!url) {
+    return null;
+  }
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+};
+
 export const readPostTool = ({
   con,
   log,
@@ -160,7 +171,7 @@ export const readPostTool = ({
       summary: wrapUntrusted(post.summary),
       description: wrapUntrusted(post.description),
       content: wrapUntrusted(post.content),
-      url: post.url,
+      domain: toDomain(post.url),
       permalink: getDiscussionLink(post.slug ?? post.id),
       readTime: post.readTime,
       publishedAt: (post.publishedAt ?? post.createdAt)?.toISOString(),

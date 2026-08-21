@@ -14,6 +14,7 @@ import { LedgerEntityKind } from '../entity/claim/LedgerEntity';
 import { PostType } from '../entity/posts/Post';
 import { Source } from '../entity/Source';
 import { downloadTextFromUri } from '../common/googleCloud';
+import { isTooGenericToEmit } from '../common/signatureSpecificity';
 import {
   isTwitterSocialType,
   mapTwitterSocialPayload,
@@ -244,8 +245,16 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             directness:
               directnessMap[claim.directness] ?? ClaimDirectness.Report,
             evidence: claim.evidence,
-            affected: claim.affected,
-            superseding: claim.superseding,
+            // The specificity bar (playbook §13 v5.9): signatures are matched
+            // by exact equality, so a generic token ("name", "GET") accuses
+            // every codebase on earth. Enforced here rather than in bragi so
+            // every write path shares one rule with the statement backfill.
+            affected: claim.affected.filter(
+              (token) => !isTooGenericToEmit(token),
+            ),
+            superseding: claim.superseding.filter(
+              (token) => !isTooGenericToEmit(token),
+            ),
           });
 
           return acc;

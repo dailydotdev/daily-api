@@ -34,6 +34,7 @@ import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture';
 import { triggerTypedEvent } from '../src/common/typedPubsub';
+import { generateInterestTitle } from '../src/common/interest/generateInterestTitle';
 
 jest.mock('../src/common/typedPubsub', () => ({
   ...(jest.requireActual('../src/common/typedPubsub') as Record<
@@ -41,6 +42,10 @@ jest.mock('../src/common/typedPubsub', () => ({
     unknown
   >),
   triggerTypedEvent: jest.fn(),
+}));
+
+jest.mock('../src/common/interest/generateInterestTitle', () => ({
+  generateInterestTitle: jest.fn(),
 }));
 
 let con: DataSource;
@@ -61,6 +66,7 @@ beforeEach(async () => {
   loggedUser = null;
   isTeamMember = true;
   jest.resetAllMocks();
+  (generateInterestTitle as jest.Mock).mockResolvedValue(null);
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -73,6 +79,7 @@ const CREATE_INTEREST = `
     createInterest(query: $query) {
       id
       query
+      title
       status
       cadence
       feedId
@@ -182,6 +189,75 @@ describe('mutation createInterest', () => {
     expect(runCall?.[2]).toEqual({ interestId, runId: run.id });
   });
 
+  it('should provision with the default settings', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest).toMatchObject({
+      cadence: UserInterestCadence.Hourly,
+      fomoThreshold: 0.5,
+      sources: { dailyDev: true, web: true, github: false },
+      outputModes: {
+        feed: true,
+        post: true,
+        digest: false,
+        notification: true,
+      },
+    });
+  });
+
+  it('should use the generated title for the interest, source, and feed', async () => {
+    loggedUser = '1';
+    (generateInterestTitle as jest.Mock).mockResolvedValue('Zig Radar');
+
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createInterest.title).toEqual('Zig Radar');
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest.title).toEqual('Zig Radar');
+
+    const source = await con
+      .getRepository(AgentSource)
+      .findOneByOrFail({ id: interest.sourceId as string });
+    expect(source.name).toEqual('Zig Radar');
+
+    const feed = await con
+      .getRepository(Feed)
+      .findOneByOrFail({ id: interest.feedId as string });
+    expect(feed.flags.name).toEqual('Zig Radar');
+  });
+
+  it('should fall back to the query as the name when title generation fails', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(CREATE_INTEREST, {
+      variables: { query: 'cool zig projects' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createInterest.title).toBeNull();
+
+    const interest = await con
+      .getRepository(UserInterest)
+      .findOneByOrFail({ id: res.data.createInterest.id });
+    expect(interest.title).toBeNull();
+
+    const source = await con
+      .getRepository(AgentSource)
+      .findOneByOrFail({ id: interest.sourceId as string });
+    expect(source.name).toEqual('cool zig projects');
+  });
+
   it('should succeed when the user already has a user source', async () => {
     loggedUser = '1';
     await con.getRepository(SourceUser).save({
@@ -260,6 +336,26 @@ describe('query interest', () => {
       id: 'uir-1',
       query: 'cool zig projects',
     });
+  });
+
+  it('should return the generated title', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(UserInterest)
+      .update({ id: 'uir-1' }, { title: 'Zig Radar' });
+    const res = await client.query(
+      `
+      query Interest($id: ID!) {
+        interest(id: $id) {
+          id
+          title
+        }
+      }
+    `,
+      { variables: { id: 'uir-1' } },
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.interest).toEqual({ id: 'uir-1', title: 'Zig Radar' });
   });
 
   it('should not return another user interest', async () => {
@@ -735,6 +831,7 @@ const INTEREST_HISTORY = `
       role
       createdAt
       text
+      relationships
       status
       trigger
       feedbackId
@@ -760,6 +857,16 @@ describe('query interestHistory', () => {
       id: 'fb-1',
       interestId: 'uir-1',
       text: 'fewer announcements',
+      relationships: [
+        {
+          id: 'rel-1',
+          entity: 'post',
+          entityId: 'p1',
+          url: null,
+          title: 'P1',
+          summary: null,
+        },
+      ],
       createdAt: new Date('2026-01-02T00:00:00Z'),
     });
     await con.getRepository(InterestRun).save([
@@ -775,7 +882,7 @@ describe('query interestHistory', () => {
       {
         id: 'run-2',
         interestId: 'uir-1',
-        status: InterestRunStatus.Queued,
+        status: InterestRunStatus.Running,
         trigger: InterestRunTrigger.Command,
         feedbackId: 'fb-1',
         createdAt: new Date('2026-01-02T00:00:00Z'),
@@ -798,6 +905,16 @@ describe('query interestHistory', () => {
       { id: 'run-2', role: 'agent' },
     ]);
     expect(res.data.interestHistory[0].text).toEqual('cool zig projects');
+    expect(res.data.interestHistory[2].relationships).toEqual([
+      {
+        id: 'rel-1',
+        entity: 'post',
+        entityId: 'p1',
+        url: null,
+        title: 'P1',
+        summary: null,
+      },
+    ]);
     expect(res.data.interestHistory[1]).toMatchObject({
       status: InterestRunStatus.Completed,
       trigger: InterestRunTrigger.Spawn,
@@ -805,7 +922,7 @@ describe('query interestHistory', () => {
       findingsAdded: 3,
     });
     expect(res.data.interestHistory[3]).toMatchObject({
-      status: InterestRunStatus.Queued,
+      status: InterestRunStatus.Running,
       feedbackId: 'fb-1',
     });
   });

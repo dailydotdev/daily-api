@@ -15,6 +15,13 @@ import { extractClaimSignatures } from '../src/common/claimSignatures';
 // Resumable by design: every claim is stamped when it is processed, whether or
 // not it yielded tokens, so a re-run picks up exactly where the last one
 // stopped. A claim whose call failed is left unstamped and comes back around.
+//
+// Tokens pass the specificity bar (playbook §13 v5.9) inside
+// extractClaimSignatures before they are written — the first 14,923 stamps ran
+// without it, flooded rot-bench's harness with tier-A false findings, and were
+// cleaned in prod on 2026-08-20. After the run completes, verify with one pass
+// of rot-bench/scripts/gen-signature-cleanup-sql.ts: its analysis query should
+// count zero claims carrying a generic token.
 
 // Where a signature changes what a reader does. `release` and `new_capability`
 // are two thirds of the ledger and make nothing stale — measured at 0/45 and

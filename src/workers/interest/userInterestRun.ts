@@ -27,27 +27,32 @@ const UNIQUE_VIOLATION = '23505';
 const buildRunBlocks = ({
   result,
   picks,
-  deliverableCount,
+  deliverables,
   minFindingsForFeedLink,
 }: {
   result: InterestAgentRunState;
   picks: { postId: string }[];
-  deliverableCount: number;
+  deliverables: { postId: string }[];
   minFindingsForFeedLink: number;
 }): InterestRunBlock[] => {
   const blocks: InterestRunBlock[] = [];
   const text = result.finalMessage ?? result.agentSummary;
-  if (text) {
-    blocks.push({ type: 'text', html: markdown.render(text) });
+  const html = result.summaryPostHtml ?? (text ? markdown.render(text) : null);
+  if (html) {
+    blocks.push({ type: 'text', html });
   }
   if (picks.length) {
     blocks.push({ type: 'picks', postIds: picks.map(({ postId }) => postId) });
   }
-  if (deliverableCount > 0 && deliverableCount >= minFindingsForFeedLink) {
+  if (
+    deliverables.length > 0 &&
+    deliverables.length >= minFindingsForFeedLink
+  ) {
     blocks.push({
       type: 'feedLink',
-      label: `Open all ${deliverableCount} findings`,
-      count: deliverableCount,
+      label: `Open all ${deliverables.length} findings`,
+      count: deliverables.length,
+      postIds: deliverables.map(({ postId }) => postId),
     });
   }
   return blocks;
@@ -223,30 +228,25 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
           interest,
         });
 
-        const deliverableBuilder = () =>
-          whereFindingDeliverable(
-            con
-              .getRepository(InterestFinding)
-              .createQueryBuilder('f')
-              .where('f."interestId" = :interestId', {
-                interestId: interest.id,
-              })
-              .andWhere('f.status = :status', {
-                status: InterestFindingStatus.New,
-              }),
-            'f',
-          );
-
         const maxPicks =
           remoteConfig.vars.interestAgentMaxPicksPerRun ?? DEFAULT_MAX_PICKS;
-        const [deliverableCount, picks] = await Promise.all([
-          deliverableBuilder().getCount(),
-          deliverableBuilder()
-            .select('f."postId"', 'postId')
-            .orderBy('f.score', 'DESC')
-            .limit(maxPicks)
-            .getRawMany<{ postId: string }>(),
-        ]);
+        const deliverables = await whereFindingDeliverable(
+          con
+            .getRepository(InterestFinding)
+            .createQueryBuilder('f')
+            .where('f."interestId" = :interestId', {
+              interestId: interest.id,
+            })
+            .andWhere('f.status = :status', {
+              status: InterestFindingStatus.New,
+            }),
+          'f',
+        )
+          .select('f."postId"', 'postId')
+          .orderBy('f.score', 'DESC')
+          .getRawMany<{ postId: string }>();
+        const deliverableCount = deliverables.length;
+        const picks = deliverables.slice(0, maxPicks);
 
         const hasContent = deliverableCount > 0 || !!result.summaryPostId;
         const shouldNotify =
@@ -261,7 +261,7 @@ export const userInterestRunWorker: TypedWorker<'api.v1.interest-run-requested'>
               blocks: buildRunBlocks({
                 result,
                 picks,
-                deliverableCount,
+                deliverables,
                 minFindingsForFeedLink:
                   remoteConfig.vars.interestAgentMinFindingsForFeedLink ??
                   DEFAULT_MIN_FINDINGS_FOR_FEED_LINK,

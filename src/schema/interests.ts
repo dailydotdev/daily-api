@@ -4,7 +4,10 @@ import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Feed, FeedOrigin } from '../entity/Feed';
 import { AgentSource } from '../entity/Source';
-import { InterestFeedback } from '../entity/InterestFeedback';
+import {
+  InterestFeedback,
+  type InterestFeedbackRelationship,
+} from '../entity/InterestFeedback';
 import {
   InterestRun,
   InterestRunStatus,
@@ -25,6 +28,7 @@ import { generateShortId } from '../ids';
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { whereFindingDeliverable } from '../common/interest/exclusions';
+import { generateInterestTitle } from '../common/interest/generateInterestTitle';
 import { GQLEmptyResponse } from './common';
 import type { GQLPost } from './posts';
 import { PostType } from '../entity/posts/Post';
@@ -40,6 +44,7 @@ export type GQLUserInterest = Pick<
   UserInterest,
   | 'id'
   | 'query'
+  | 'title'
   | 'status'
   | 'cadence'
   | 'fomoThreshold'
@@ -68,6 +73,7 @@ export type GQLInterestTurn = {
   role: 'user' | 'agent';
   createdAt: Date;
   text?: string | null;
+  relationships?: InterestFeedbackRelationship[] | null;
   status?: string | null;
   trigger?: string | null;
   feedbackId?: string | null;
@@ -85,6 +91,7 @@ export const typeDefs = /* GraphQL */ `
   type UserInterest {
     id: ID!
     query: String!
+    title: String
     status: String!
     cadence: String!
     fomoThreshold: Float!
@@ -123,6 +130,7 @@ export const typeDefs = /* GraphQL */ `
     role: String!
     createdAt: DateTime!
     text: String
+    relationships: [JSONObject!]
     status: String
     trigger: String
     feedbackId: String
@@ -405,7 +413,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           const feedbackBuilder = queryRunner.manager
             .getRepository(InterestFeedback)
             .createQueryBuilder('fb')
-            .select(['fb.id', 'fb.text', 'fb.createdAt'])
+            .select(['fb.id', 'fb.text', 'fb.relationships', 'fb.createdAt'])
             .where('fb."interestId" = :id', { id })
             .orderBy('fb."createdAt"', 'DESC')
             .addOrderBy('fb.id', 'DESC')
@@ -447,6 +455,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
             id: row.id,
             role: 'user',
             text: row.text,
+            relationships: row.relationships,
             createdAt: row.createdAt,
           }),
         ),
@@ -502,10 +511,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       const feedId = await generateShortId();
       const runId = await generateShortId();
 
+      const title = await generateInterestTitle({
+        interest: { id: interestId, query },
+        logger: ctx.log,
+      });
+      const name = (title ?? query).slice(0, 100);
+
       await ctx.con.transaction(async (manager) => {
         await manager.getRepository(AgentSource).save({
           id: sourceId,
-          name: query.slice(0, 100),
+          name,
           handle: `agent-${sourceId}`,
           private: true,
         });
@@ -513,13 +528,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         await manager.getRepository(Feed).save({
           id: feedId,
           userId,
-          flags: { name: query.slice(0, 100), origin: FeedOrigin.Agent },
+          flags: { name, origin: FeedOrigin.Agent },
         });
 
         await manager.getRepository(UserInterest).save({
           id: interestId,
           userId,
           query,
+          title,
           status: UserInterestStatus.Active,
           cadence: UserInterestCadence.Hourly,
           sources: defaultUserInterestSources,

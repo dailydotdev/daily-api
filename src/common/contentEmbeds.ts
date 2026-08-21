@@ -50,7 +50,7 @@ const isAllowedDailyDevUrl = (url: URL): boolean => {
   return url.host === getCommentsHost();
 };
 
-const isDlyToUrl = (url: URL): boolean =>
+export const isDlyToUrl = (url: URL): boolean =>
   url.protocol === 'https:' && url.host === 'dly.to';
 
 const getPostReferenceFromUrl = (url: URL): string | undefined => {
@@ -117,7 +117,7 @@ const fetchRedirectLocation = async (url: URL): Promise<string | undefined> => {
   }
 };
 
-const resolveDlyToUrl = async (url: URL): Promise<URL | undefined> => {
+export const resolveDlyToUrl = async (url: URL): Promise<URL | undefined> => {
   let current = url;
 
   for (let index = 0; index < DLY_TO_REDIRECT_LIMIT; index += 1) {

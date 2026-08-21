@@ -74,6 +74,31 @@ describe('extractClaimSignatures', () => {
     ).resolves.toEqual({ affected: ['forms.URLField'], superseding: [] });
   });
 
+  it('should drop a token too generic to identify the API on its own', async () => {
+    // The specificity bar (playbook §13 v5.9): matching is exact-equality, so
+    // `affected: ["name"]` accuses every codebase on earth — the 2026-08-20
+    // backfill shipped exactly that and rot-bench's harness pilot got 15
+    // identical tier-A false findings on an unrelated diff.
+    await expect(
+      run(
+        {
+          affected: ['name', 'GET', 'user.name', 'forms.URLField'],
+          superseding: ['application/json'],
+        },
+        'GET requests with a name or user.name of application/json break forms.URLField.',
+      ),
+    ).resolves.toEqual({ affected: ['forms.URLField'], superseding: [] });
+  });
+
+  it('should keep a bare package name, which the detector gates at match time instead', async () => {
+    await expect(
+      run(
+        { affected: ['axios'], superseding: [] },
+        'A typosquat of axios steals credentials on install.',
+      ),
+    ).resolves.toEqual({ affected: ['axios'], superseding: [] });
+  });
+
   it('should survive a response that carries no usable input', async () => {
     await expect(run({})).resolves.toEqual({ affected: [], superseding: [] });
     await expect(

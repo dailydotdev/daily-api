@@ -284,7 +284,12 @@ describe('userInterestRun worker', () => {
         ),
       },
       { type: 'picks', postIds: ['p1', 'p2'] },
-      { type: 'feedLink', label: 'Open all 2 findings', count: 2 },
+      {
+        type: 'feedLink',
+        label: 'Open all 2 findings',
+        count: 2,
+        postIds: ['p1', 'p2'],
+      },
     ]);
 
     const interest = await con
@@ -292,6 +297,31 @@ describe('userInterestRun worker', () => {
       .findOneByOrFail({ id: 'uir-1' });
     expect(interest.lastRunStatus).toEqual(InterestRunStatus.Completed);
     expect(interest.lastRunFindings).toEqual(2);
+  });
+
+  it('uses the written summary post content as the reply text block', async () => {
+    (runInterestAgent as jest.Mock).mockResolvedValue({
+      findingsAdded: 0,
+      summaryPostId: 'post-1',
+      summaryPostHtml: '<h2>Zig this week</h2><p>Two strong finds.</p>',
+      agentSummary: 'Zig 0.14 landed.',
+      finalMessage: 'Delivered a summary post.',
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.interest-run-requested'>(
+      worker,
+      { interestId: 'uir-1' },
+    );
+
+    const run = await con
+      .getRepository(InterestRun)
+      .findOneByOrFail({ interestId: 'uir-1' });
+    expect(run.blocks).toEqual([
+      {
+        type: 'text',
+        html: '<h2>Zig this week</h2><p>Two strong finds.</p>',
+      },
+    ]);
   });
 
   it('creates a scheduled run row when the message carries no runId', async () => {
@@ -327,11 +357,17 @@ describe('userInterestRun worker', () => {
     const picks = run.blocks?.find((block) => block.type === 'picks');
     expect(picks).toMatchObject({ postIds: expect.any(Array) });
     expect((picks as { postIds: string[] }).postIds).toHaveLength(3);
-    expect(run.blocks).toContainEqual({
-      type: 'feedLink',
+    const feedLink = run.blocks?.find((block) => block.type === 'feedLink');
+    expect(feedLink).toMatchObject({
       label: 'Open all 4 findings',
       count: 4,
     });
+    expect((feedLink as { postIds: string[] }).postIds.slice().sort()).toEqual([
+      'p1',
+      'p2',
+      'p3',
+      'p4',
+    ]);
   });
 
   it('honors the remote config picks and feed link knobs', async () => {
