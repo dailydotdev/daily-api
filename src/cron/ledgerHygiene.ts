@@ -1,20 +1,16 @@
 import { Cron } from './cron';
-import { Claim, ClaimDateSource, ClaimStatus } from '../entity/claim/Claim';
+import { Claim } from '../entity/claim/Claim';
 import {
   ClaimCandidate,
   ClaimCandidateStatus,
 } from '../entity/claim/ClaimCandidate';
-import { evidenceDerivedDate } from '../common/claimLedger';
+import {
+  CONSUMABLE_STATUSES,
+  clearPreReleaseDates,
+  clearSelfDisplacementLinks,
+  dateClaimsFromEvidence,
+} from '../common/ledgerHygiene';
 import { linkEntityKeywords } from '../common/ledgerKeywords';
-
-// Claims a consumer actually reads. `rejected` rows are merge-absorbed: their
-// evidence moved to the surviving claim, so they are undatable by construction
-// and counting them makes a finished backfill look like a permanent backlog.
-const CONSUMABLE = [
-  ClaimStatus.Candidate,
-  ClaimStatus.Corroborated,
-  ClaimStatus.Verified,
-];
 
 // Thresholds are the point of this cron. Every ledger maintenance pass is a
 // script somebody remembers to run, and a lane that has stopped looks exactly
@@ -26,66 +22,19 @@ const PENDING_POOL_WARN = 750;
 const UNDATED_WARN = 100;
 const UNSIGNED_WARN = 500;
 
-// Claims that gained evidence after they were created: the resolve route dates
-// a claim from the post it cites at birth, so this only ever sees rows that
-// were undatable then and became datable since.
-const dateFromEvidence = async (con: Parameters<Cron['handler']>[0]) => {
-  const undated = await con
-    .getRepository(Claim)
-    .createQueryBuilder('c')
-    .select('c.id', 'id')
-    .addSelect('MIN(COALESCE(e."publishedAt", p."publishedAt"))', 'publishedAt')
-    .addSelect('MIN(p."createdAt")', 'createdAt')
-    .innerJoin('claim_evidence', 'e', 'e."claimId" = c.id')
-    .leftJoin('post', 'p', 'p.id = e."postId"')
-    .where('c."effectiveDate" IS NULL')
-    .andWhere('c.status IN (:...statuses)', { statuses: CONSUMABLE })
-    .groupBy('c.id')
-    .getRawMany<{
-      id: string;
-      publishedAt: Date | null;
-      createdAt: Date | null;
-    }>();
-
-  // Evidence dates cluster hard, so one UPDATE per distinct (date, source)
-  // beats one per claim by orders of magnitude.
-  const groups = new Map<string, string[]>();
-
-  undated.forEach((row) => {
-    const derived = evidenceDerivedDate(row);
-
-    if (!derived) {
-      return;
-    }
-
-    const key = `${derived.effectiveDate}|${derived.dateSource}`;
-    groups.set(key, [...(groups.get(key) ?? []), row.id]);
-  });
-
-  let dated = 0;
-
-  for (const [key, ids] of groups) {
-    const [effectiveDate, dateSource] = key.split('|');
-
-    await con.getRepository(Claim).update(ids, {
-      effectiveDate,
-      dateSource: dateSource as ClaimDateSource,
-    });
-
-    dated += ids.length;
-  }
-
-  return dated;
-};
-
 export const ledgerHygieneCron: Cron = {
   name: 'ledger-hygiene',
   handler: async (con, logger) => {
-    const dated = await dateFromEvidence(con);
-
-    // Entities arrive continuously, so the keyword link has to be maintained
-    // rather than backfilled once — the same lesson the dating queue taught.
-    await linkEntityKeywords({ con });
+    // Each repair is a named rule in src/common/ledgerHygiene.ts; this file
+    // only decides what runs and what is worth waking someone for. Every one is
+    // here because it RECURS — a defect extraction keeps re-emitting, or a
+    // field that goes stale as rows arrive. One-shot repairs belong in bin/.
+    const repaired = {
+      datedFromEvidence: await dateClaimsFromEvidence(con),
+      selfDisplacementCleared: await clearSelfDisplacementLinks(con),
+      preReleaseDatesCleared: await clearPreReleaseDates(con),
+      keywordsLinked: await linkEntityKeywords({ con }),
+    };
 
     const [pending, undated, unsigned, newest] = await Promise.all([
       con
@@ -95,13 +44,20 @@ export const ledgerHygieneCron: Cron = {
         .getRepository(Claim)
         .createQueryBuilder('c')
         .where('c."effectiveDate" IS NULL')
-        .andWhere('c.status IN (:...statuses)', { statuses: CONSUMABLE })
+        .andWhere('c.status IN (:...statuses)', {
+          statuses: CONSUMABLE_STATUSES,
+        })
+        .andWhere(
+          `(c."versionScope" IS NULL OR lower(c."versionScope") NOT LIKE '%(pre-release)%')`,
+        )
         .getCount(),
       con
         .getRepository(Claim)
         .createQueryBuilder('c')
         .where('c."signaturesBackfilledAt" IS NULL')
-        .andWhere('c.status IN (:...statuses)', { statuses: CONSUMABLE })
+        .andWhere('c.status IN (:...statuses)', {
+          statuses: CONSUMABLE_STATUSES,
+        })
         .getCount(),
       con
         .getRepository(Claim)
@@ -116,6 +72,14 @@ export const ledgerHygieneCron: Cron = {
 
     // Only the abnormal is logged: a healthy pass is visible in the data, and a
     // routine success line trains a reader to skim past the one that matters.
+    // A repair that found something IS abnormal — these defects recur, so a
+    // non-zero count is how the upstream cause stays visible.
+    const fixed = Object.entries(repaired).filter(([, count]) => count > 0);
+
+    if (fixed.length) {
+      logger.warn(Object.fromEntries(fixed), 'ledger hygiene repaired rows');
+    }
+
     if (
       stalledHours !== null &&
       stalledHours > REVIEW_STALL_HOURS &&
@@ -133,7 +97,7 @@ export const ledgerHygieneCron: Cron = {
 
     if (undated > UNDATED_WARN) {
       logger.warn(
-        { undated, datedThisRun: dated },
+        { undated, datedThisRun: repaired.datedFromEvidence },
         'ledger claims are undated beyond what evidence can repair',
       );
     }
