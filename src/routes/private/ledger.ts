@@ -34,6 +34,7 @@ import {
   normalizeEvidenceUrl,
   resolveSupersededByEntityId,
 } from '../../common/claimLedger';
+import { isPreReleaseScope } from '../../common/ledgerHygiene';
 import {
   LEDGER_EMBEDDING_MODEL,
   toVectorLiteral,
@@ -237,7 +238,16 @@ const createClaimFromCandidate = async ({
   // Reading it here is what stops an undated-claim queue from forming at all:
   // every claim born without a stated date used to wait for a manual backfill
   // run to be given one from data the request already held.
-  const derived = effectiveDate ? null : evidenceDerivedDate(source);
+  //
+  // A pre-GA claim is the one exception: R24 keeps its `effectiveDate` NULL
+  // because nothing bites before GA, so dating it from the post that merely
+  // REPORTS the unreleased work would place a change that has not happened.
+  // Without this the operator would owe a manual null on every pre-release row.
+  const versionScope = pickOverride(body.versionScope, candidate.versionScope);
+  const derived =
+    effectiveDate || isPreReleaseScope(versionScope)
+      ? null
+      : evidenceDerivedDate(source);
   const statement = pickOverride(body.statement, candidate.statement);
   const claim = await manager.getRepository(Claim).save({
     entityId,
@@ -250,7 +260,7 @@ const createClaimFromCandidate = async ({
     }),
     changeType: pickOverride(body.changeType, candidate.changeType),
     statement,
-    versionScope: pickOverride(body.versionScope, candidate.versionScope),
+    versionScope,
     effectiveDate: effectiveDate ?? derived?.effectiveDate ?? null,
     sunsetDate: pickOverride(body.sunsetDate, candidate.sunsetDate),
     dateSource: effectiveDate
