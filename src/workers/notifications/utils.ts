@@ -164,6 +164,21 @@ export async function articleNewCommentHandler(
   const { post, source } = postCtx;
   const excludedUsers = [comment.userId];
 
+  // Replies already generate a dedicated reply notification
+  // (comment_reply / squad_reply) for the author of the parent comment.
+  // Exclude them here, otherwise a post owner replying inside their own post
+  // receives two near-identical notifications for the same comment.
+  if (comment.parentId) {
+    const parent = await repo.findOne({
+      where: { id: comment.parentId },
+      select: ['userId'],
+    });
+
+    if (parent) {
+      excludedUsers.push(parent.userId);
+    }
+  }
+
   if (source.type === SourceType.Squad) {
     await insertOrIgnoreAction(
       con,
