@@ -9,6 +9,15 @@ import {
 } from 'typeorm';
 import type { UserInterest } from './UserInterest';
 
+export type InterestFeedbackRelationship = {
+  id: string;
+  entity: 'post';
+  entityId: string;
+  url: string | null;
+  title: string | null;
+  summary: string | null;
+};
+
 @Entity()
 @Index('IDX_interest_feedback_interest_id_created', ['interestId', 'createdAt'])
 export class InterestFeedback {
@@ -23,6 +32,9 @@ export class InterestFeedback {
 
   @Column({ type: 'timestamptz', nullable: true })
   appliedAt: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  relationships: InterestFeedbackRelationship[] | null;
 
   @CreateDateColumn()
   createdAt: Date;
