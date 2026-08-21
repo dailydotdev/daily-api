@@ -4,6 +4,7 @@ import { ClaimCandidateStatus } from '../../entity/claim/ClaimCandidate';
 import { LedgerEntityKind } from '../../entity/claim/LedgerEntity';
 import { ClaimEvidenceSourceClass } from '../../entity/claim/ClaimEvidence';
 import { enumValues } from './utils';
+import { isTooGenericToEmit } from '../signatureSpecificity';
 
 const entityName = z.string().trim().min(1).max(200);
 const keywordValue = z.string().trim().min(1).max(200);
@@ -13,7 +14,19 @@ const note = z.string().trim().min(1).max(500);
 const description = z.string().trim().min(1).max(1000);
 // Symbols, import paths, model IDs and endpoints, kept as the literal token a
 // plan would carry so matching stays an equality check.
-const signatures = z.array(z.string().trim().min(1).max(200)).max(50);
+// The specificity bar applies wherever signatures are written, not only where
+// they are extracted: /claims/update and /candidates/resolve let a reviewer set
+// these arrays by hand, and a hand-written "name" accuses every codebase on
+// earth exactly as an extracted one does. Filtered rather than rejected — the
+// operator's other overrides in the same call are still valid, and a change
+// whose only symbol is generic legitimately carries none.
+//
+// Only the half that needs no database lives here. The entity-name half needs
+// the ledger's own names, so the routes apply it after parsing.
+const signatures = z
+  .array(z.string().trim().min(1).max(200))
+  .max(50)
+  .transform((tokens) => tokens.filter((token) => !isTooGenericToEmit(token)));
 
 const commaSeparated = z
   .union([z.string(), z.array(z.string())])

@@ -1,6 +1,26 @@
 import { AnthropicClient } from '../integrations/anthropic';
-import type { Claim } from '../entity/claim/Claim';
+import { ClaimChangeType, type Claim } from '../entity/claim/Claim';
 import { isTooGenericToEmit } from './signatureSpecificity';
+import {
+  isEntityPhrase,
+  normalizeSignatureToken as normalize,
+} from './ledgerEntityNames';
+
+// Where a signature changes what a reader does. `release` and `new_capability`
+// are two thirds of the ledger and make nothing stale — measured at 0/45 and
+// 1/49 fill in production — so they are not worth the call, and a claim of
+// those types staying unstamped forever is the correct end state rather than a
+// backlog. Anything counting "how much of the ledger still needs signatures"
+// has to filter on this, or it measures a population that never shrinks.
+export const SIGNABLE_CHANGE_TYPES = [
+  ClaimChangeType.Breaking,
+  ClaimChangeType.Deprecation,
+  ClaimChangeType.Removal,
+  ClaimChangeType.Displacement,
+  ClaimChangeType.Security,
+  ClaimChangeType.Gotcha,
+  ClaimChangeType.Fix,
+];
 
 // Kept byte-identical to bragi/prompting/claim_signatures.py, which is the copy
 // eval/claims/run_statement_signatures.py measures. They are duplicated because
@@ -62,12 +82,6 @@ export type ClaimSignatures = { affected: string[]; superseding: string[] };
 // It cannot match a plan and only widens the surface a detector scans.
 const CVE = /^cve-\d{4}-\d{4,}$/i;
 
-const normalize = (value: string): string =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .trim();
-
 // A token that is not in the statement cannot have been copied from it, so it
 // was invented — the failure mode that turns a signature into a false
 // accusation against working code. Dropped here rather than trusted.
@@ -92,12 +106,14 @@ export const extractClaimSignatures = async ({
   claim,
   entityName,
   entityAliases = [],
+  proseEntityNames,
 }: {
   client: AnthropicClient;
   model: string;
   claim: Pick<Claim, 'statement' | 'changeType'>;
   entityName: string;
   entityAliases?: string[];
+  proseEntityNames?: Set<string>;
 }): Promise<ClaimSignatures> => {
   const response = await client.createMessage({
     model,
@@ -129,6 +145,7 @@ export const extractClaimSignatures = async ({
       (token) =>
         !CVE.test(token) &&
         !entityNames.has(normalize(token)) &&
+        !isEntityPhrase(token, proseEntityNames ?? new Set()) &&
         !isTooGenericToEmit(token),
     );
 

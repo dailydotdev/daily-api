@@ -16,6 +16,10 @@ import { Source } from '../entity/Source';
 import { downloadTextFromUri } from '../common/googleCloud';
 import { isTooGenericToEmit } from '../common/signatureSpecificity';
 import {
+  isEntityPhrase,
+  loadProseEntityNames,
+} from '../common/ledgerEntityNames';
+import {
   isTwitterSocialType,
   mapTwitterSocialPayload,
 } from '../common/twitterSocial';
@@ -215,6 +219,12 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
         filed.map(({ statement }) => statement.trim()),
       );
 
+      // Cached for an hour, so this is one query per process rather than one
+      // per post.
+      const proseEntityNames = await loadProseEntityNames(con);
+      const usableSignature = (token: string): boolean =>
+        !isTooGenericToEmit(token) && !isEntityPhrase(token, proseEntityNames);
+
       const candidates = response.claims.reduce<Partial<ClaimCandidate>[]>(
         (acc, claim) => {
           const changeType = changeTypeMap[claim.changeType];
@@ -249,12 +259,8 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             // by exact equality, so a generic token ("name", "GET") accuses
             // every codebase on earth. Enforced here rather than in bragi so
             // every write path shares one rule with the statement backfill.
-            affected: claim.affected.filter(
-              (token) => !isTooGenericToEmit(token),
-            ),
-            superseding: claim.superseding.filter(
-              (token) => !isTooGenericToEmit(token),
-            ),
+            affected: claim.affected.filter(usableSignature),
+            superseding: claim.superseding.filter(usableSignature),
           });
 
           return acc;

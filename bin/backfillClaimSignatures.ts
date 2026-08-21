@@ -3,7 +3,11 @@ import createOrGetConnection from '../src/db';
 import { Claim, ClaimChangeType } from '../src/entity/claim/Claim';
 import { LedgerEntity } from '../src/entity/claim/LedgerEntity';
 import { AnthropicClient } from '../src/integrations/anthropic';
-import { extractClaimSignatures } from '../src/common/claimSignatures';
+import {
+  SIGNABLE_CHANGE_TYPES,
+  extractClaimSignatures,
+} from '../src/common/claimSignatures';
+import { loadProseEntityNames } from '../src/common/ledgerEntityNames';
 
 // Claims filed before extraction emitted signatures carry none, and the tokens
 // are already in their statements — extraction requires a statement to be
@@ -23,19 +27,6 @@ import { extractClaimSignatures } from '../src/common/claimSignatures';
 // of rot-bench/scripts/gen-signature-cleanup-sql.ts: its analysis query should
 // count zero claims carrying a generic token.
 
-// Where a signature changes what a reader does. `release` and `new_capability`
-// are two thirds of the ledger and make nothing stale — measured at 0/45 and
-// 1/49 fill in production — so they are not worth the call.
-const DEFAULT_CHANGE_TYPES = [
-  ClaimChangeType.Breaking,
-  ClaimChangeType.Deprecation,
-  ClaimChangeType.Removal,
-  ClaimChangeType.Displacement,
-  ClaimChangeType.Security,
-  ClaimChangeType.Gotcha,
-  ClaimChangeType.Fix,
-];
-
 const BATCH_SIZE = 50;
 const CONCURRENCY = 8;
 
@@ -48,7 +39,7 @@ const arg = (name: string): string | undefined =>
   const model = arg('model') ?? 'claude-sonnet-4-6';
   const changeTypes = arg('change-types')
     ? (arg('change-types') as string).split(',').map((t) => t.trim())
-    : DEFAULT_CHANGE_TYPES;
+    : SIGNABLE_CHANGE_TYPES;
 
   const apiKey = process.env.AGENT_ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -57,6 +48,7 @@ const arg = (name: string): string | undefined =>
 
   const con = await createOrGetConnection();
   const client = new AnthropicClient(apiKey);
+  const proseEntityNames = await loadProseEntityNames(con);
 
   const pending = await con
     .getRepository(Claim)
@@ -110,6 +102,7 @@ const arg = (name: string): string | undefined =>
               claim,
               entityName: claim.entityName,
               entityAliases: claim.entityAliases,
+              proseEntityNames,
             });
 
             return { id: claim.id, ...signatures };

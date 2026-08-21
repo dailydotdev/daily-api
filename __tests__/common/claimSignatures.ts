@@ -10,13 +10,18 @@ const clientReturning = (input: Record<string, unknown>): AnthropicClient =>
     createMessage: async () => ({ content: [{ input }] }),
   }) as unknown as AnthropicClient;
 
-const run = (input: Record<string, unknown>, statementText = statement) =>
+const run = (
+  input: Record<string, unknown>,
+  statementText = statement,
+  proseEntityNames?: Set<string>,
+) =>
   extractClaimSignatures({
     client: clientReturning(input),
     model: 'test-model',
     claim: { statement: statementText, changeType: ClaimChangeType.Breaking },
     entityName: 'Django',
     entityAliases: ['django', 'Django Framework'],
+    proseEntityNames,
   });
 
 describe('extractClaimSignatures', () => {
@@ -104,5 +109,21 @@ describe('extractClaimSignatures', () => {
     await expect(
       run({ affected: 'not-an-array', superseding: [42, '', '   '] }),
     ).resolves.toEqual({ affected: [], superseding: [] });
+  });
+
+  it('should drop a multi-word technology name while keeping a single-word one', async () => {
+    // "Django REST Framework" cannot be a lexical token, so a plan containing
+    // it is describing the technology in prose. "celery" is what a
+    // requirements.txt pins, so it stays and the detector gates the match.
+    await expect(
+      run(
+        {
+          affected: ['Django REST Framework', 'celery', 'forms.URLField'],
+          superseding: [],
+        },
+        'Django 6.0 dropped Django REST Framework and celery support alongside the forms.URLField change.',
+        new Set(['djangorestframework', 'celery']),
+      ),
+    ).resolves.toMatchObject({ affected: ['celery', 'forms.URLField'] });
   });
 });
