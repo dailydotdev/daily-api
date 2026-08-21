@@ -27,9 +27,9 @@ beforeEach(async () => {
     { value: 'python', status: KeywordStatus.Allow },
     { value: 'visual-studio-code', status: KeywordStatus.Allow },
     { value: 'nodejs', status: KeywordStatus.Allow },
-    { value: 'node.js', status: KeywordStatus.Synonym, synonym: 'nodejs' },
-    { value: 'deadend', status: KeywordStatus.Synonym, synonym: 'nowhere' },
-    { value: 'nowhere', status: KeywordStatus.Deny },
+    { value: 'backend', status: KeywordStatus.Allow },
+    { value: 'blockchain', status: KeywordStatus.Allow },
+    { value: 'ffmpeg', status: KeywordStatus.Synonym, synonym: 'backend' },
     { value: 'pendingtag', status: KeywordStatus.Pending },
     { value: 'contested', status: KeywordStatus.Allow },
   ]);
@@ -63,21 +63,22 @@ describe('ledger keyword links', () => {
     ).toMatchObject({ keywordValue: 'visual-studio-code' });
   });
 
-  it('should follow a synonym to the allowed keyword it redirects to', async () => {
+  it('should never follow a synonym, because the taxonomy redirects into categories', async () => {
     await saveFixtures(con, LedgerEntity, [
-      { id: uuid(3), canonicalName: 'Node.js', kind: LedgerEntityKind.Runtime },
+      { id: uuid(3), canonicalName: 'FFmpeg', kind: LedgerEntityKind.Package },
     ]);
 
-    await linkEntityKeywords({ con });
-
-    expect(
-      await con.getRepository(LedgerEntity).findOneBy({ id: uuid(3) }),
-    ).toMatchObject({ keywordValue: 'nodejs' });
+    expect(await linkEntityKeywords({ con })).toEqual(0);
   });
 
-  it('should not follow a synonym that redirects to a denied keyword', async () => {
+  it('should never link through an alias, which is only the form a post used', async () => {
     await saveFixtures(con, LedgerEntity, [
-      { id: uuid(4), canonicalName: 'deadend', kind: LedgerEntityKind.Tool },
+      {
+        id: uuid(4),
+        canonicalName: 'Stratis Storage',
+        kind: LedgerEntityKind.Tool,
+        aliases: ['blockchain'],
+      },
     ]);
 
     expect(await linkEntityKeywords({ con })).toEqual(0);
@@ -91,14 +92,20 @@ describe('ledger keyword links', () => {
     expect(await linkEntityKeywords({ con })).toEqual(0);
   });
 
+  // Canonical names carry a lower() unique constraint, so two entities can only
+  // reach one tag when a slugified multi-word name lands on another entity's
+  // literal name.
   it('should leave a keyword unlinked when two entities compete for it', async () => {
     await saveFixtures(con, LedgerEntity, [
-      { id: uuid(6), canonicalName: 'contested', kind: LedgerEntityKind.Tool },
+      {
+        id: uuid(6),
+        canonicalName: 'visual-studio-code',
+        kind: LedgerEntityKind.Tool,
+      },
       {
         id: uuid(7),
-        canonicalName: 'Something Else',
-        kind: LedgerEntityKind.Tool,
-        aliases: ['contested'],
+        canonicalName: 'Visual Studio Code',
+        kind: LedgerEntityKind.Service,
       },
     ]);
 
@@ -119,20 +126,13 @@ describe('ledger keyword links', () => {
     expect(await linkEntityKeywords({ con })).toEqual(0);
   });
 
-  it('should prefer the canonical route over an alias route', async () => {
+  it('should credit the canonical route when the name needs no slugifying', async () => {
     await saveFixtures(con, LedgerEntity, [
-      {
-        id: uuid(10),
-        canonicalName: 'Python',
-        kind: LedgerEntityKind.Runtime,
-        aliases: ['nodejs'],
-      },
+      { id: uuid(10), canonicalName: 'nodejs', kind: LedgerEntityKind.Runtime },
     ]);
 
-    const links = await findEntityKeywordLinks({ con });
-
-    expect(links).toEqual([
-      expect.objectContaining({ keywordValue: 'python', via: 'canonical' }),
+    expect(await findEntityKeywordLinks({ con })).toEqual([
+      expect.objectContaining({ keywordValue: 'nodejs', via: 'canonical' }),
     ]);
   });
 });

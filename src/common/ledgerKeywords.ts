@@ -9,42 +9,39 @@ import { Keyword, KeywordStatus } from '../entity/Keyword';
 // sampling rule, not "which entities were hot in month M".
 //
 // The link only ever reaches the head of the ledger, and that is correct rather
-// than a shortfall: the allowed keyword vocabulary is a curated ~1k tags, so at
-// most ~500 of 16k entities can match. Those are exactly the entities the
-// weighting is about.
+// than a shortfall: the allowed keyword vocabulary is a curated ~1k tags, so
+// only a few hundred of 16k entities can match. Those are exactly the entities
+// the weighting is about.
 //
-// Deliberately NOT matched: `pending` and `deny` keywords. `pending` is the
-// 2.4M-row raw tail every post drags in, and matching it would attach noise to
-// the field a sampling rule reads.
-const MATCHABLE = [KeywordStatus.Allow, KeywordStatus.Synonym];
+// ONLY EXACT NAME MATCHES AGAINST AN ALLOWED TAG. The two looser routes were
+// built, measured against prod, and deleted:
+//
+// - **Synonyms are category rollups, not spellings.** The taxonomy redirects
+//   niche terms into broad buckets: `playstation` and `confluence` both point at
+//   `tech-news` (116,149 posts), `llvm` at `general-programming` (85,555),
+//   `ffmpeg` at `backend`, `mlflow` at `machine-learning`. 339 of 340 redirects
+//   were of this shape and exactly one was a spelling variant. Following them
+//   would credit an entity with a whole category's attention, which is worse
+//   than leaving the field null — a sampling rule trusts this number.
+// - **Aliases mis-link roughly one in six.** `Stratis Storage` reaches
+//   `blockchain` (a different Stratis), `Progress Telerik` reaches `xamarin`,
+//   `Xanadu Aurora` reaches `aurora`. An alias is the surface form some post
+//   used, which is not evidence that the tag counts this entity.
+//
+// Both remain available to an operator by hand via `/entities/update`, where a
+// human can see that the tag really does count this entity.
+const nameForms = (canonicalName: string): string[] => {
+  const lowered = canonicalName.trim().toLowerCase().replace(/\s+/g, ' ');
+  const slug = lowered.replace(/ /g, '-');
+
+  return lowered === slug ? [lowered] : [lowered, slug];
+};
 
 export type KeywordLink = {
   entityId: string;
   canonicalName: string;
   keywordValue: string;
-  // How the name reached the keyword, so a reviewer can judge the weaker routes
-  // without re-deriving them.
-  via: 'canonical' | 'slug' | 'synonym' | 'alias';
-};
-
-// A keyword value is a lowercase slug, so a canonical name reaches it either
-// directly or with its spaces collapsed to dashes ("Visual Studio Code" →
-// "visual-studio-code").
-const nameForms = (canonicalName: string): string[] => {
-  const lowered = canonicalName.trim().toLowerCase();
-  const slug = lowered.replace(/\s+/g, '-');
-
-  return lowered === slug ? [lowered] : [lowered, slug];
-};
-
-// Resolution order is strongest-evidence-first: the entity's own name beats its
-// slug, which beats a synonym redirect, which beats an alias. An alias is the
-// weakest because aliases are the surface forms a post happened to use.
-const rank: Record<KeywordLink['via'], number> = {
-  canonical: 0,
-  slug: 1,
-  synonym: 2,
-  alias: 3,
+  via: 'canonical' | 'slug';
 };
 
 export const findEntityKeywordLinks = async ({
@@ -55,7 +52,7 @@ export const findEntityKeywordLinks = async ({
   const entities = await con
     .getRepository(LedgerEntity)
     .createQueryBuilder('le')
-    .select(['le.id', 'le.canonicalName', 'le.aliases', 'le.codeOnlyAliases'])
+    .select(['le.id', 'le.canonicalName'])
     .where('le."keywordValue" IS NULL')
     .getMany();
 
@@ -63,81 +60,45 @@ export const findEntityKeywordLinks = async ({
     return [];
   }
 
-  const keywords = await con
-    .getRepository(Keyword)
-    .createQueryBuilder('k')
-    .select(['k.value', 'k.status', 'k.synonym'])
-    .where('k.status IN (:...statuses)', { statuses: MATCHABLE })
-    .getMany();
-
-  const byValue = new Map(keywords.map((k) => [k.value, k]));
-
-  // A synonym is only useful when it lands on an allowed keyword; a redirect
-  // into a denied or pending value is a dead end, not a link.
-  const resolve = (value: string): string | null => {
-    const keyword = byValue.get(value);
-
-    if (!keyword) {
-      return null;
-    }
-
-    if (keyword.status === KeywordStatus.Allow) {
-      return keyword.value;
-    }
-
-    const target = keyword.synonym ? byValue.get(keyword.synonym) : undefined;
-
-    return target?.status === KeywordStatus.Allow ? target.value : null;
-  };
+  const allowed = new Set(
+    (
+      await con
+        .getRepository(Keyword)
+        .createQueryBuilder('k')
+        .select('k.value', 'value')
+        .where('k.status = :status', { status: KeywordStatus.Allow })
+        .getRawMany<{ value: string }>()
+    ).map(({ value }) => value),
+  );
 
   const candidates: KeywordLink[] = [];
 
   entities.forEach((entity) => {
-    const forms = nameForms(entity.canonicalName);
-
-    forms.forEach((form, index) => {
-      const value = resolve(form);
-
-      if (!value) {
-        return;
-      }
-
-      const direct = byValue.get(form)?.status === KeywordStatus.Allow;
-      candidates.push({
-        entityId: entity.id,
-        canonicalName: entity.canonicalName,
-        keywordValue: value,
-        via: direct ? (index === 0 ? 'canonical' : 'slug') : 'synonym',
-      });
-    });
-
-    [...entity.aliases, ...entity.codeOnlyAliases].forEach((alias) => {
-      const value = resolve(alias.trim().toLowerCase());
-
-      if (value) {
+    nameForms(entity.canonicalName).forEach((form, index) => {
+      if (allowed.has(form)) {
         candidates.push({
           entityId: entity.id,
           canonicalName: entity.canonicalName,
-          keywordValue: value,
-          via: 'alias',
+          keywordValue: form,
+          via: index === 0 ? 'canonical' : 'slug',
         });
       }
     });
   });
 
-  // One keyword, one entity. Two entities competing for a tag means the tag
-  // cannot say which one the corpus was paying attention to, so neither is
-  // linked and the ambiguity is left visible rather than resolved by luck.
-  const byKeyword = new Map<string, KeywordLink[]>();
+  // One entity keeps at most one link, and its own name beats its slug.
   const bestPerEntity = new Map<string, KeywordLink>();
 
   candidates.forEach((candidate) => {
-    const held = bestPerEntity.get(candidate.entityId);
-
-    if (!held || rank[candidate.via] < rank[held.via]) {
+    if (!bestPerEntity.has(candidate.entityId)) {
       bestPerEntity.set(candidate.entityId, candidate);
     }
   });
+
+  // One keyword, one entity. Two entities competing for a tag means the tag
+  // cannot say which one the corpus was paying attention to, so neither is
+  // linked and the ambiguity stays visible rather than resolved by luck.
+  const byKeyword = new Map<string, KeywordLink[]>();
 
   [...bestPerEntity.values()].forEach((link) => {
     byKeyword.set(link.keywordValue, [
@@ -169,8 +130,6 @@ export const linkEntityKeywords = async ({
 }): Promise<number> => {
   const links = await findEntityKeywordLinks({ con });
 
-  // Grouped by keyword so one UPDATE covers each value; the set is small enough
-  // that this stays a handful of statements.
   for (const link of links) {
     await con
       .getRepository(LedgerEntity)
