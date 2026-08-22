@@ -99,6 +99,15 @@ permanently hides real results for that artifact and nobody will ever see that i
 - It is a runtime, compiler or language distributed by its own project rather than through a registry
   (Node.js, Python, Go the language, Ruby, .NET). The registry a language INSTALLS FROM is not the
   registry the language itself is published on — if the row is the language, that is \`unknown\`.
+- **It is one PROJECT that ships official clients on several registries.** This is the trap that
+  catches the most rows, because exactly one of those registries feels like the main one and is not.
+  Apache Kafka has kafka-clients on maven, kafka-python on pypi and librdkafka in C. Delta Lake has
+  delta-core on maven and delta-spark on pypi. gRPC, Apache Arrow, OpenTelemetry, Protocol Buffers,
+  Apache Spark, Selenium and every cloud provider's SDK family are the same shape. Naming one of
+  them deletes the project's entire surface in the other languages. The test: if you can name a
+  SECOND language whose users install this from their own registry, the answer is \`unknown\`.
+  Answer only when the artifact lives on ONE registry and a user of another language reaches it by
+  a DIFFERENT, separately-named package.
 - It is a first-party binary or a container image.
 - You would be reasoning from "this is written in X, so it is probably on X's registry". That is a
   guess about a language, not knowledge about a registry.
