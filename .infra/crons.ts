@@ -47,6 +47,13 @@ export const crons: Cron[] = [
     schedule: '20 */6 * * *',
   },
   {
+    // Daily. Evidence for one fact arrives over days, so a faster cadence only
+    // re-reads the same pile; the first run after deploy carries the whole
+    // history and is the one that needs the deadline headroom.
+    name: 'ledger-corroboration',
+    schedule: '40 3 * * *',
+  },
+  {
     name: 'clean-zombie-images',
     schedule: '3 5 * * *',
   },

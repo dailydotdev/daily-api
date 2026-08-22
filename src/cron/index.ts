@@ -18,6 +18,7 @@ import validateActiveUsers from './validateActiveUsers';
 import { updateSourcePublicThreshold } from './updateSourcePublicThreshold';
 import { cleanZombieUserCompany } from './cleanZombieUserCompany';
 import { ledgerHygieneCron } from './ledgerHygiene';
+import { ledgerCorroborationCron } from './ledgerCorroboration';
 import { calculateTopReaders } from './calculateTopReaders';
 import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
@@ -67,6 +68,7 @@ export const crons: Cron[] = [
   syncSubscriptionWithCIO,
   cleanZombieUserCompany,
   ledgerHygieneCron,
+  ledgerCorroborationCron,
   updateSourcePublicThreshold,
   calculateTopReaders,
   validateActiveUsers,
