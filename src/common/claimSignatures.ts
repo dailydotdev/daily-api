@@ -136,10 +136,11 @@ export const extractClaimSignatures = async ({
   const entityNames = new Set(
     [entityName, ...entityAliases].map(normalize).filter(Boolean),
   );
-  // The specificity bar (playbook §13 v5.9): matching is exact-equality, so a
-  // generic token like "name" accuses every codebase on earth. When a change's
-  // only symbol is generic, empty is correct — the claim still fires through
-  // its entity at the detector's lower tiers.
+  // The specificity bar (smith-brain/docs/claim-ledger-review-playbook.md
+  // §13, v5.9): matching is exact-equality, so a generic token like "name"
+  // accuses every codebase on earth. When a change's only symbol is generic,
+  // empty is correct — the claim still fires through its entity at the
+  // detector's lower tiers.
   const usable = (tokens: string[]): string[] =>
     tokens.filter(
       (token) =>

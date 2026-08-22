@@ -80,10 +80,11 @@ describe('extractClaimSignatures', () => {
   });
 
   it('should drop a token too generic to identify the API on its own', async () => {
-    // The specificity bar (playbook §13 v5.9): matching is exact-equality, so
-    // `affected: ["name"]` accuses every codebase on earth — the 2026-08-20
-    // backfill shipped exactly that and rot-bench's harness pilot got 15
-    // identical tier-A false findings on an unrelated diff.
+    // The specificity bar (smith-brain/docs/claim-ledger-review-playbook.md
+    // §13, v5.9): matching is exact-equality, so `affected: ["name"]` accuses
+    // every codebase on earth — the 2026-08-20 backfill shipped exactly that
+    // and rot-bench's harness pilot got 15 identical tier-A false findings on
+    // an unrelated diff.
     await expect(
       run(
         {

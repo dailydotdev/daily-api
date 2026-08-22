@@ -255,10 +255,11 @@ const worker: TypedWorker<'yggdrasil.v1.content-published'> = {
             directness:
               directnessMap[claim.directness] ?? ClaimDirectness.Report,
             evidence: claim.evidence,
-            // The specificity bar (playbook §13 v5.9): signatures are matched
-            // by exact equality, so a generic token ("name", "GET") accuses
-            // every codebase on earth. Enforced here rather than in bragi so
-            // every write path shares one rule with the statement backfill.
+            // The specificity bar (smith-brain/docs/claim-ledger-review-
+            // playbook.md §13, v5.9): signatures are matched by exact equality,
+            // so a generic token ("name", "GET") accuses every codebase on
+            // earth. Enforced here rather than in bragi so every write path
+            // shares one rule with the statement backfill.
             affected: claim.affected.filter(usableSignature),
             superseding: claim.superseding.filter(usableSignature),
           });
