@@ -226,9 +226,10 @@ export const unionEcosystems = (
   normalizeEcosystems(groups.flatMap((group) => group ?? []));
 
 // Everything mechanically derivable about one entity, from the names it answers
-// to and the evidence its claims cite. The single home of the rule: the route
-// that mints an entity, the backfill script and the writers all call this, so
-// there is exactly one answer to "what registry is this".
+// to and the evidence its claims cite. The single home of the rule — the create
+// route, the candidate-resolve mint and `bin/backfillEntityEcosystems.ts` all
+// call this and none of them decides anything for itself, so a re-run of the
+// backfill always agrees with what ongoing inflow has been writing.
 export const deriveEcosystems = ({
   kind,
   names,
