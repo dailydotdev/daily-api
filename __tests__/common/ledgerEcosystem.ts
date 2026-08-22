@@ -84,7 +84,8 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Model,
-        names: ['Amazon Nova 2 Lite', 'amazon.nova-2-lite-v1:0'],
+        canonicalName: 'Amazon Nova 2 Lite',
+        aliases: ['amazon.nova-2-lite-v1:0'],
       }),
     ).toEqual([]);
   });
@@ -124,7 +125,7 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Package,
-        names: ['Authlib'],
+        canonicalName: 'Authlib',
         evidenceUrls,
       }),
     ).toEqual([LedgerEcosystem.Pypi]);
@@ -132,7 +133,7 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Spec,
-        names: ['OAuth 2.1'],
+        canonicalName: 'OAuth 2.1',
         evidenceUrls,
       }),
     ).toEqual([]);
@@ -144,7 +145,7 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Service,
-        names: ['@vercel/blob'],
+        canonicalName: '@vercel/blob',
       }),
     ).toEqual([LedgerEcosystem.Npm]);
   });
@@ -153,7 +154,8 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Package,
-        names: ['Ecto', 'ecto'],
+        canonicalName: 'Ecto',
+        aliases: ['ecto'],
         evidenceUrls: [
           'https://hex.pm/packages/ecto',
           'https://elixir-lang.org/blog/whatever',
@@ -164,10 +166,64 @@ describe('ledger ecosystem derivation', () => {
     expect(
       deriveEcosystems({
         kind: LedgerEntityKind.Package,
-        names: ['@scope/thing'],
+        canonicalName: '@scope/thing',
         evidenceUrls: ['https://pypi.org/project/thing/'],
       }),
     ).toEqual([LedgerEcosystem.Npm, LedgerEcosystem.Pypi]);
+  });
+
+  // Measured on the prod ledger before a single row was written: `Gemini API`
+  // carries the alias `@google/genai` and `Apache Kafka` carries
+  // `org.apache.kafka:kafka-clients`. Those are ONE CLIENT LIBRARY for a
+  // cross-language thing, not the thing's own coordinate — reading a registry
+  // off either would delete every finding on the API's Python surface.
+  it('should not let one sdk coordinate filed as an alias confine a cross-language entity', () => {
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Api,
+        canonicalName: 'Gemini API',
+        aliases: ['@google/genai'],
+      }),
+    ).toEqual([]);
+
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Runtime,
+        canonicalName: 'Apache Kafka',
+        aliases: ['org.apache.kafka:kafka-clients'],
+      }),
+    ).toEqual([]);
+  });
+
+  // A `package` entity and its coordinate are the same object, so there the
+  // alias IS the entity's own name and speaks for it.
+  it('should take a coordinate alias for a package, whose canonical is just its bare name', () => {
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Package,
+        canonicalName: 'gova',
+        aliases: ['github.com/nv404/gova'],
+      }),
+    ).toEqual([LedgerEcosystem.Go]);
+
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Package,
+        canonicalName: 'KPayment',
+        aliases: ['com.kttipay:kpayment-core'],
+      }),
+    ).toEqual([LedgerEcosystem.Maven]);
+  });
+
+  // A coordinate as the CANONICAL name means the entity is that artifact,
+  // whatever kind it is filed under.
+  it('should take a coordinate canonical name for any kind', () => {
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Other,
+        canonicalName: '@shadcn/react',
+      }),
+    ).toEqual([LedgerEcosystem.Npm]);
   });
 
   it('should dedupe a union and order it so two equal sets are equal arrays', () => {

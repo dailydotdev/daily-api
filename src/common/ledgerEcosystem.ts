@@ -225,22 +225,38 @@ export const unionEcosystems = (
 ): LedgerEcosystem[] =>
   normalizeEcosystems(groups.flatMap((group) => group ?? []));
 
-// Everything mechanically derivable about one entity, from the names it answers
-// to and the evidence its claims cite. The single home of the rule — the create
-// route, the candidate-resolve mint and `bin/backfillEntityEcosystems.ts` all
-// call this and none of them decides anything for itself, so a re-run of the
-// backfill always agrees with what ongoing inflow has been writing.
+// Everything mechanically derivable about one entity, from the name it IS, the
+// names it answers to, and the evidence its claims cite. The single home of the
+// rule — the create route, the candidate-resolve mint and
+// `bin/backfillEntityEcosystems.ts` all call this and none of them decides
+// anything for itself, so a re-run of the backfill always agrees with what
+// ongoing inflow has been writing.
+//
+// The canonical name and an alias are NOT interchangeable here, and the
+// difference was measured on prod before a single row was written. A coordinate
+// as the canonical name means the entity IS that artifact. A coordinate as an
+// ALIAS of a differently-named entity usually means something weaker: it is one
+// CLIENT LIBRARY for the thing. `Gemini API` carries the alias `@google/genai`
+// and `Apache Kafka` carries `org.apache.kafka:kafka-clients` — reading a
+// registry off either would confine a cross-language API to one language and
+// delete every finding on its Python surface. So an alias speaks only for a
+// `package` entity, where the entity and the artifact are the same object.
 export const deriveEcosystems = ({
   kind,
-  names,
+  canonicalName,
+  aliases = [],
   evidenceUrls = [],
 }: {
   kind: LedgerEntityKind;
-  names: readonly string[];
+  canonicalName: string;
+  aliases?: readonly string[];
   evidenceUrls?: readonly string[];
 }): LedgerEcosystem[] =>
   unionEcosystems(
-    names.flatMap((name) => ecosystemsFromName(name, kind)),
+    ecosystemsFromName(canonicalName, kind),
+    kind === LedgerEntityKind.Package
+      ? aliases.flatMap((alias) => ecosystemsFromName(alias, kind))
+      : [],
     REGISTRY_BEARING_KINDS.has(kind)
       ? evidenceUrls.flatMap(ecosystemsFromEvidenceUrl)
       : [],
