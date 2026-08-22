@@ -46,6 +46,32 @@ describe('evidencePublisher', () => {
     ).toBeNull();
   });
 
+  it('should refuse the dly.to shortener, which redirects into daily.dev', () => {
+    expect(evidencePublisher('https://dly.to/UJZwtiRtu77')).toBeNull();
+  });
+
+  it('should refuse a scraper that republishes under the same slug', () => {
+    expect(
+      evidencePublisher('https://readarticle.at/when-coding-agents-forget'),
+    ).toBeNull();
+  });
+
+  it('should fold the This Week in Rails newsletter onto rubyonrails.org', () => {
+    // One newsletter at two addresses — the largest false-promotion class left
+    // after the daily.dev exclusion, at 113 claims.
+    expect(
+      evidencePublisher('https://world.hey.com/this.week.in.rails/redirect-x'),
+    ).toEqual('rubyonrails.org');
+  });
+
+  it('should keep hey.com/dhh as its own publisher', () => {
+    // The reason that alias is path-qualified: 4 hey.com rows are a genuinely
+    // separate blog, and a domain-level rule would have folded them away too.
+    expect(evidencePublisher('https://world.hey.com/dhh/some-post')).toEqual(
+      'hey.com',
+    );
+  });
+
   it('should treat x.com and twitter.com as one publisher', () => {
     expect(evidencePublisher('https://twitter.com/foo/status/1')).toEqual(
       'x.com',
@@ -110,6 +136,28 @@ describe('corroborationVerdict', () => {
       reason: 'single_publisher',
       publishers: ['cloudflare.com'],
     });
+  });
+
+  it('should NOT corroborate the Rails newsletter beside rubyonrails.org', () => {
+    expect(
+      corroborationVerdict([
+        community('https://rubyonrails.org/2025/9/26/this-week-in-rails'),
+        community('https://world.hey.com/this.week.in.rails/redirect-source'),
+      ]),
+    ).toMatchObject({
+      corroborated: false,
+      reason: 'single_publisher',
+      publishers: ['rubyonrails.org'],
+    });
+  });
+
+  it('should NOT corroborate a dev.to post beside its scraped mirror', () => {
+    expect(
+      corroborationVerdict([
+        community('https://dev.to/rawveg/when-coding-agents-forget-44g0'),
+        community('https://readarticle.at/when-coding-agents-forget'),
+      ]),
+    ).toMatchObject({ corroborated: false, reason: 'single_publisher' });
   });
 
   it('should collapse an RT mirror onto its source tweet (playbook R21)', () => {
