@@ -154,6 +154,7 @@
     "retry": "0.13.1",
     "rss": "1.2.2",
     "slugify": "1.6.6",
+    "tldts": "7.0.19",
     "typebox": "1.1.38",
     "typeorm": "0.3.28",
     "ua-parser-js": "2.0.7",
