@@ -127,7 +127,8 @@ const coverageByKind = (
   rows.forEach((row) => {
     const derived = deriveEcosystems({
       kind: row.kind,
-      names: [row.canonicalName, ...row.aliases, ...row.codeOnlyAliases],
+      canonicalName: row.canonicalName,
+      aliases: [...row.aliases, ...row.codeOnlyAliases],
       evidenceUrls: row.evidenceUrls ?? [],
     });
 

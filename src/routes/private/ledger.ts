@@ -101,7 +101,8 @@ const resolveCandidateEntity = async ({
     // is guessed: an empty answer stays empty, which means unknown.
     ecosystem: deriveEcosystems({
       kind: candidate.entityKind,
-      names,
+      canonicalName: candidate.rawEntityName,
+      aliases: candidate.entityAliases,
       evidenceUrls: evidenceUrl ? [evidenceUrl] : [],
     }),
   });
@@ -715,7 +716,8 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         body.ecosystem,
         deriveEcosystems({
           kind: body.kind,
-          names: [body.canonicalName, ...body.aliases, ...body.codeOnlyAliases],
+          canonicalName: body.canonicalName,
+          aliases: [...body.aliases, ...body.codeOnlyAliases],
         }),
       ),
       keywordValue: body.keywordValue ?? null,
