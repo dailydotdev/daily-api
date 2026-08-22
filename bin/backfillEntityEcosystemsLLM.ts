@@ -40,7 +40,9 @@ import { normalizeEcosystems } from '../src/common/ledgerEcosystem';
 //   --kinds=a,b        default: package,runtime
 //   --model=id         default: claude-sonnet-4-6
 
-const BATCH_SIZE = 40;
+// Small on purpose. The cost of the whole run is ~$2 either way, and a long
+// list is where a model starts renumbering its own answers.
+const BATCH_SIZE = 20;
 const CONCURRENCY = 4;
 
 const arg = (name: string): string | undefined =>
@@ -59,12 +61,15 @@ const ECOSYSTEM_TOOL = {
           type: 'object',
           properties: {
             i: { type: 'integer' },
+            // Echoed back so the row an answer belongs to is verifiable rather
+            // than positional. See `askBatch`.
+            name: { type: 'string' },
             registry: {
               type: 'string',
               enum: [...Object.values(LedgerEcosystem), 'unknown'],
             },
           },
-          required: ['i', 'registry'],
+          required: ['i', 'name', 'registry'],
         },
       },
     },
@@ -108,7 +113,10 @@ Django is pypi, Rails is rubygems, Ecto is hex, serde is crates, Guzzle is packa
 maven, Newtonsoft.Json is nuget, riverpod is pub, cobra is go, Express is npm.
 </answer_confidently>
 
-Return one entry per row, using the row's index. Rows you are not sure about get \`unknown\`.`;
+Return one entry per row: the row's index, the row's name copied EXACTLY as given, and the
+registry. Copy the name character-for-character — it is checked against the row you were given, and
+an entry whose name does not match is discarded. Do not renumber, do not skip rows, do not reorder.
+Rows you are not sure about get \`unknown\`.`;
 
 type Row = {
   id: string;
@@ -129,7 +137,7 @@ const askBatch = async ({
   client: AnthropicClient;
   model: string;
   batch: Row[];
-}): Promise<Map<string, LedgerEcosystem>> => {
+}): Promise<{ resolved: Map<string, LedgerEcosystem>; mismatched: number }> => {
   const rendered = batch
     .map((row, i) => {
       const aliases = row.aliases?.length
@@ -155,12 +163,13 @@ const askBatch = async ({
 
   const input = (response.content?.find(({ input }) => !!input)?.input ??
     {}) as {
-    answers?: { i?: number; registry?: string }[];
+    answers?: { i?: number; name?: string; registry?: string }[];
   };
   const resolved = new Map<string, LedgerEcosystem>();
+  let mismatched = 0;
 
   (Array.isArray(input.answers) ? input.answers : []).forEach(
-    ({ i, registry }) => {
+    ({ i, name, registry }) => {
       const row = typeof i === 'number' ? batch[i] : undefined;
 
       // Anything outside the closed vocabulary — `unknown`, a hallucinated
@@ -170,11 +179,27 @@ const askBatch = async ({
         return;
       }
 
+      // The index alone is not evidence that this answer is ABOUT this row. A
+      // model that renumbers, skips or reorders its answers produces a list
+      // that is individually well-formed and collectively shifted, and the
+      // result is a confident registry written onto a neighbouring entity —
+      // silent, and exactly the failure this column cannot afford. So the row
+      // identifies itself and a name that does not match is dropped, the same
+      // way `claimSignatures.ts` refuses a token that is not in the statement.
+      if (
+        (name ?? '').trim().toLowerCase() !==
+        row.canonicalName.trim().toLowerCase()
+      ) {
+        mismatched += 1;
+
+        return;
+      }
+
       resolved.set(row.id, registry as LedgerEcosystem);
     },
   );
 
-  return resolved;
+  return { resolved, mismatched };
 };
 
 (async (): Promise<void> => {
@@ -228,6 +253,7 @@ const askBatch = async ({
   const resolved = new Map<string, LedgerEcosystem>();
   let asked = 0;
   let failed = 0;
+  let mismatched = 0;
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE * CONCURRENCY) {
     const slice = rows.slice(i, i + BATCH_SIZE * CONCURRENCY);
@@ -249,17 +275,21 @@ const askBatch = async ({
             `  batch failed: ${(err as Error).message.slice(0, 140)}`,
           );
 
-          return new Map<string, LedgerEcosystem>();
+          return {
+            resolved: new Map<string, LedgerEcosystem>(),
+            mismatched: 0,
+          };
         }
       }),
     );
 
-    settled.forEach((answers) =>
-      answers.forEach((registry, id) => resolved.set(id, registry)),
-    );
+    settled.forEach((answer) => {
+      answer.resolved.forEach((registry, id) => resolved.set(id, registry));
+      mismatched += answer.mismatched;
+    });
     asked += slice.length;
     console.log(
-      `${asked}/${rows.length} asked, ${resolved.size} answered, ${failed} in failed batches`,
+      `${asked}/${rows.length} asked, ${resolved.size} answered, ${mismatched} dropped on a name mismatch, ${failed} in failed batches`,
     );
   }
 
@@ -272,6 +302,12 @@ const askBatch = async ({
       registry,
       entities,
     })),
+  );
+  // A non-zero mismatch count is not cosmetic: it means the model was
+  // renumbering, and every answer it gave in that batch is suspect even though
+  // the surviving ones happened to line up.
+  console.log(
+    `${mismatched} answers dropped because the echoed name disagreed`,
   );
   console.log(
     `${resolved.size} of ${rows.length} answered (${(
