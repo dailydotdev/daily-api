@@ -63,7 +63,31 @@ export const REGISTRY_EVIDENCE_HOSTS: Readonly<
 };
 
 // An npm coordinate: `@scope/name`. No other registry mints a leading `@`.
-const NPM_SCOPED = /^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/;
+const NPM_SCOPED = /^@[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+
+// A pub coordinate as `pubspec.yaml` and `dart pub add` write it.
+const PUB_PACKAGE = /^package:[a-z_][a-z0-9_]*$/;
+
+// A Maven coordinate: a dotted groupId, a separator, an artifactId. Both
+// separators are in use — `androidx.core:core-ktx` is how Gradle writes it,
+// `org.fasterxml.jackson.core/jackson-databind` is how Maven Central paths and
+// Clojars/Leiningen write it — and both are in the ledger today.
+//
+// The artifactId must START WITH A LETTER, which is not decoration: Bedrock
+// model ids are the same syntax (`amazon.nova-2-lite-v1:0`,
+// `amazon.nova-2-sonic-v1:0` are both live entities), and a model is never a
+// Maven artifact. `ecosystemsFromName` refuses the colon form for `model`
+// entities outright for the same reason — the letter rule catches `:0` but not
+// a hypothetical `:express`.
+const MAVEN_COLON = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+:[A-Za-z][A-Za-z0-9._-]*$/;
+
+// The slash form is only safe when the group is unmistakably REVERSE-dns, or it
+// would swallow every Go module path — the two are the same shape read in
+// opposite directions. `org.fasterxml.jackson.core/jackson-databind` and
+// `com.billpiel/sayid` (Clojars, a Maven repository) are the live rows this
+// exists for; both were derived as Go before this rule was added.
+const MAVEN_SLASH =
+  /^(com|org|net|io|dev|co|me|app|cloud|edu|gov)\.[a-z0-9.-]+\/[A-Za-z][A-Za-z0-9._-]*$/;
 
 // A Go module path: a HOST (a dotted label) followed by at least one path
 // segment — `github.com/x/y`, `golang.org/x/net`, `k8s.io/api`,
@@ -71,20 +95,53 @@ const NPM_SCOPED = /^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/;
 // path rather than a Packagist `vendor/package`, which is why a bare `x/y`
 // derives nothing here: it is a Composer coordinate, a GitHub slug and a
 // RubyGems namespace all at once, and only the evidence host can separate them.
-const GO_MODULE_PATH = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+\/[a-z0-9._~/-]+$/;
+//
+// The HOST half must be lowercase because DNS is; the path half must not be,
+// because `github.com/GoogleCloudPlatform/...` is a real module path.
+const GO_MODULE_PATH = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+\/[A-Za-z0-9._~/-]+$/;
 
-// A pub coordinate as `pubspec.yaml` and `dart pub add` write it.
-const PUB_PACKAGE = /^package:[a-z_][a-z0-9_]*$/;
+// `host/vN` is a website plus a version, never a module path: Go's `/vN` suffix
+// always FOLLOWS a module path (`github.com/jackc/pgx/v5`), so the segment
+// straight after the host is never a bare major version. The live row this
+// exists for is `xunit.net/v3` — an alias of the .NET test framework, which the
+// unguarded rule confined to Go.
+const WEBSITE_VERSION_PATH = /^[a-z0-9.-]+\/v\d+$/;
 
-// A Maven coordinate: a dotted groupId, a colon, an artifactId. Checked after
-// PUB_PACKAGE, whose `package` groupId carries no dot and so cannot collide.
-const MAVEN_COORDINATE =
-  /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+:[A-Za-z0-9][A-Za-z0-9._-]*$/;
+// An OCI image reference is SYNTACTICALLY IDENTICAL to a Go module path
+// (`ghcr.io/elementary-data/elementary`, `docker.io/bitnami` — both live rows,
+// both `service` entities), so the only way to tell them apart is by naming the
+// container registries. Closed for the same reason the evidence-host table is.
+const CONTAINER_REGISTRY_HOSTS = new Set([
+  'docker.io',
+  'ghcr.io',
+  'quay.io',
+  'gcr.io',
+  'registry.k8s.io',
+  'registry.gitlab.com',
+  'mcr.microsoft.com',
+  'public.ecr.aws',
+  'docker.elastic.co',
+]);
+
+const isContainerImageReference = (value: string): boolean => {
+  const host = value.split('/')[0];
+
+  return (
+    CONTAINER_REGISTRY_HOSTS.has(host) ||
+    host.endsWith('.gcr.io') ||
+    host.endsWith('.pkg.dev') ||
+    host.endsWith('.ecr.aws')
+  );
+};
 
 // The registry a single identifier names by its own syntax. Applies to an
 // entity of ANY kind: the shape IS the coordinate, so a `service` entity named
-// `@scope/pkg` is as npm as a `package` one.
-export const ecosystemsFromName = (name: string): LedgerEcosystem[] => {
+// `@scope/pkg` is as npm as a `package` one. The one exception is the Maven
+// colon form on a `model`, which collides head-on with Bedrock model ids.
+export const ecosystemsFromName = (
+  name: string,
+  kind?: LedgerEntityKind,
+): LedgerEcosystem[] => {
   const value = name.trim();
 
   if (NPM_SCOPED.test(value)) {
@@ -95,11 +152,19 @@ export const ecosystemsFromName = (name: string): LedgerEcosystem[] => {
     return [LedgerEcosystem.Pub];
   }
 
-  if (MAVEN_COORDINATE.test(value)) {
+  if (MAVEN_COLON.test(value)) {
+    return kind === LedgerEntityKind.Model ? [] : [LedgerEcosystem.Maven];
+  }
+
+  if (MAVEN_SLASH.test(value)) {
     return [LedgerEcosystem.Maven];
   }
 
-  if (GO_MODULE_PATH.test(value)) {
+  if (
+    GO_MODULE_PATH.test(value) &&
+    !WEBSITE_VERSION_PATH.test(value) &&
+    !isContainerImageReference(value)
+  ) {
     return [LedgerEcosystem.Go];
   }
 
@@ -170,7 +235,7 @@ export const deriveEcosystems = ({
   evidenceUrls?: readonly string[];
 }): LedgerEcosystem[] =>
   unionEcosystems(
-    names.flatMap(ecosystemsFromName),
+    names.flatMap((name) => ecosystemsFromName(name, kind)),
     REGISTRY_BEARING_KINDS.has(kind)
       ? evidenceUrls.flatMap(ecosystemsFromEvidenceUrl)
       : [],

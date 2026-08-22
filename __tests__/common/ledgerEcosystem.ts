@@ -38,6 +38,57 @@ describe('ledger ecosystem derivation', () => {
     expect(ecosystemsFromName('Next.js')).toEqual([]);
   });
 
+  // Every case below is a live prod row that the unguarded shape rule derived
+  // WRONGLY, which is the whole exposure this column has: unknown costs nothing,
+  // a wrong registry silently deletes real findings for that entity.
+  it('should not read a container image reference as a go module path', () => {
+    expect(ecosystemsFromName('ghcr.io/elementary-data/elementary')).toEqual(
+      [],
+    );
+    expect(ecosystemsFromName('docker.io/bitnami')).toEqual([]);
+    expect(ecosystemsFromName('us.gcr.io/daily-ops/daily-api')).toEqual([]);
+  });
+
+  it('should read a reverse-dns group as maven, not as the go path it looks like', () => {
+    expect(
+      ecosystemsFromName('org.fasterxml.jackson.core/jackson-databind'),
+    ).toEqual([LedgerEcosystem.Maven]);
+    // Clojars is a Maven repository, and Leiningen writes the coordinate with a
+    // slash.
+    expect(ecosystemsFromName('com.billpiel/sayid')).toEqual([
+      LedgerEcosystem.Maven,
+    ]);
+  });
+
+  // Go's `/vN` suffix always follows a module path, so a bare version straight
+  // after the host is a website, not a module.
+  it('should not read a versioned website as a go module path', () => {
+    expect(ecosystemsFromName('xunit.net/v3')).toEqual([]);
+    expect(ecosystemsFromName('github.com/jackc/pgx/v5')).toEqual([
+      LedgerEcosystem.Go,
+    ]);
+  });
+
+  // A Bedrock model id is the Maven colon form exactly, and a model is never a
+  // Maven artifact.
+  it('should not read a model id as a maven coordinate', () => {
+    expect(
+      ecosystemsFromName('amazon.nova-2-lite-v1:0', LedgerEntityKind.Model),
+    ).toEqual([]);
+    expect(
+      ecosystemsFromName('amazon.titan-text:express', LedgerEntityKind.Model),
+    ).toEqual([]);
+    expect(
+      ecosystemsFromName('androidx.core:core-ktx', LedgerEntityKind.Package),
+    ).toEqual([LedgerEcosystem.Maven]);
+    expect(
+      deriveEcosystems({
+        kind: LedgerEntityKind.Model,
+        names: ['Amazon Nova 2 Lite', 'amazon.nova-2-lite-v1:0'],
+      }),
+    ).toEqual([]);
+  });
+
   it('should read the registry off a cited evidence host', () => {
     expect(
       ecosystemsFromEvidenceUrl('https://pypi.org/project/together/1.2.0/'),
