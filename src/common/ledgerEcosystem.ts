@@ -33,11 +33,15 @@ import {
 // pattern like /npm/ would take `blog.npmjs.wtf` with it, and a host table is
 // only defensible while every row names a registry someone publishes to.
 //
-// SYNC NOTE: this map is duplicated in the entity writers — smith
-// (`smith/…/ledger_ecosystem.py`) and bragi (`bragi/ledger/ecosystem.py`) —
-// following the same four-copy discipline as the signature specificity bar
-// (playbook §13). daily-api is the canonical copy; a host added here has to be
-// added there in the same change.
+// NOT SYNCED ANYWHERE, unlike the signature specificity bar's four copies, and
+// that is a fact about the writers rather than a decision: nothing outside this
+// repo builds an entity-creation body. bragi emits claim CANDIDATES, which
+// become entities here in `/candidates/resolve`; smith operates the routes by
+// curl from a skill, with no checked-in body. Verified by grepping both repos
+// for `p/ledger` — zero hits. So this table has exactly one copy, and the
+// closed vocabulary it maps into (`LedgerEcosystem`) is the thing those two
+// have to agree with. If either ever grows an entity-creation client, this map
+// goes with it and this note becomes a sync note.
 export const REGISTRY_EVIDENCE_HOSTS: Readonly<
   Record<string, LedgerEcosystem>
 > = {
