@@ -48,3 +48,67 @@ describe('isTooGenericToEmit', () => {
     expect(isTooGenericToEmit('required')).toBe(false);
   });
 });
+
+describe('isTooGenericToEmit — standards vocabulary (playbook §13 v5.18)', () => {
+  it('should reject a term a published specification defines, not a product', () => {
+    // The class both shape rules pass: every one of these carries a separator
+    // or is a single word with no space, so the segment bar and the multi-word
+    // bar both call it specific. It is specific — and owned by nobody.
+    for (const token of [
+      // RFC 6749 §3-§6 parameters and §4.1.2.1/§5.2 errors
+      'access_token',
+      'refresh_token',
+      'client_id',
+      'client_secret',
+      'grant_type',
+      'redirect_uri',
+      'code_verifier',
+      'id_token',
+      'invalid_grant',
+      'invalid_client',
+      'unauthorized_client',
+      'unsupported_grant_type',
+      // IANA HTTP field names
+      'Authorization',
+      'Content-Type',
+      'User-Agent',
+      'Cache-Control',
+      'WWW-Authenticate',
+      // IANA media types
+      'application/json',
+      'multipart/form-data',
+      // RFC 7519 registered claims
+      'exp',
+      'aud',
+      'email_verified',
+    ]) {
+      expect({ token, generic: isTooGenericToEmit(token) }).toEqual({
+        token,
+        generic: true,
+      });
+    }
+  });
+
+  it('should keep a vendor-defined token that merely looks like one', () => {
+    // The axis is "a registry defines it", not "it looks protocol-shaped".
+    // `X-RateLimit-Limit` is not in the IANA field-name registry and
+    // `thinking_budget` is one vendor's parameter, so both are real signatures.
+    for (const token of [
+      'X-RateLimit-Limit',
+      'thinking_budget',
+      'anthropic-beta',
+      'S3File.presign',
+      'application/vnd.github.v3.raw',
+    ]) {
+      expect({ token, generic: isTooGenericToEmit(token) }).toEqual({
+        token,
+        generic: false,
+      });
+    }
+  });
+
+  it('should be case- and whitespace-insensitive, like the segment bar', () => {
+    expect(isTooGenericToEmit('INVALID_GRANT')).toBe(true);
+    expect(isTooGenericToEmit(' Access_Token ')).toBe(true);
+  });
+});
