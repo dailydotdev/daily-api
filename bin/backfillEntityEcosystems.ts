@@ -41,13 +41,11 @@ const arg = (name: string): string | undefined =>
 
 // Only registry-host evidence is worth pulling out of the database: every other
 // URL derives nothing, and the ledger's evidence table is far larger than its
-// entity table. Built from the map rather than typed out again, so a host added
-// to the rule is a host this query sees.
-const registryHostPattern = `^https?://(www\\.)?(${Object.keys(
-  REGISTRY_EVIDENCE_HOSTS,
-)
-  .map((host) => host.replace(/\./g, '\\.'))
-  .join('|')})(/|$|\\?)`;
+// entity table. The hosts go down as a PARAMETER and the query extracts the URL's
+// host and compares it — rather than being spliced into a pattern, which would
+// mean escaping hostnames into a regex to reproduce a plain equality test the
+// rule already does in TypeScript.
+const registryHosts = Object.keys(REGISTRY_EVIDENCE_HOSTS);
 
 type Row = {
   id: string;
@@ -100,7 +98,12 @@ const coverageByKind = (
            le.aliases,
            le."codeOnlyAliases",
            le.ecosystem,
-           array_agg(DISTINCT ce.url) FILTER (WHERE ce.url ~* $1) AS "evidenceUrls"
+           array_agg(DISTINCT ce.url) FILTER (
+             WHERE regexp_replace(
+                     lower(substring(ce.url from '^https?://([^/?#]+)')),
+                     '^www\\.', ''
+                   ) = ANY($1::text[])
+           ) AS "evidenceUrls"
       FROM ledger_entity le
       LEFT JOIN claim c ON c."entityId" = le.id
       LEFT JOIN claim_evidence ce ON ce."claimId" = c.id
@@ -110,7 +113,7 @@ const coverageByKind = (
      ORDER BY le.id ASC
      ${limit ? `LIMIT ${limit}` : ''}
   `,
-    [registryHostPattern, force, kinds ?? null],
+    [registryHosts, force, kinds ?? null],
   );
 
   console.log(`${rows.length} entities to consider`);
