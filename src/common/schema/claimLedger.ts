@@ -1,10 +1,14 @@
 import z from 'zod';
 import { ClaimChangeType, ClaimStatus } from '../../entity/claim/Claim';
 import { ClaimCandidateStatus } from '../../entity/claim/ClaimCandidate';
-import { LedgerEntityKind } from '../../entity/claim/LedgerEntity';
+import {
+  LedgerEcosystem,
+  LedgerEntityKind,
+} from '../../entity/claim/LedgerEntity';
 import { ClaimEvidenceSourceClass } from '../../entity/claim/ClaimEvidence';
 import { enumValues } from './utils';
 import { isTooGenericToEmit } from '../signatureSpecificity';
+import { normalizeEcosystems } from '../ledgerEcosystem';
 
 const entityName = z.string().trim().min(1).max(200);
 const keywordValue = z.string().trim().min(1).max(200);
@@ -27,6 +31,17 @@ const signatures = z
   .array(z.string().trim().min(1).max(200))
   .max(50)
   .transform((tokens) => tokens.filter((token) => !isTooGenericToEmit(token)));
+
+// The registries an entity installs from, as the closed `LedgerEcosystem`
+// vocabulary. An unknown string is REJECTED rather than dropped: a typo'd
+// registry that silently became `[]` would read as "unknown, matches
+// everything" and hide the writer's bug for as long as it took someone to
+// notice the entity never narrowed. Deduped and ordered so two equal sets are
+// equal arrays.
+const ecosystem = z
+  .array(z.enum(enumValues(LedgerEcosystem)))
+  .max(enumValues(LedgerEcosystem).length)
+  .transform(normalizeEcosystems);
 
 const commaSeparated = z
   .union([z.string(), z.array(z.string())])
@@ -143,6 +158,9 @@ export const ledgerEntityCreateSchema = z.strictObject({
   aliases: z.array(entityName).max(50).default([]),
   codeOnlyAliases: z.array(entityName).max(50).default([]),
   codeOnlyCanonical: z.boolean().default(false),
+  // Absent means unknown, which is the safe value: an entity with no ecosystem
+  // matches every language exactly as it did before the column existed.
+  ecosystem: ecosystem.default([]),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
   description: description.nullish(),
@@ -157,6 +175,10 @@ export const ledgerEntityUpdateSchema = z.strictObject({
   // re-filed the way an alias can.
   codeOnlyCanonical: z.boolean().optional(),
   kind: z.enum(enumValues(LedgerEntityKind)).optional(),
+  // Set outright, not appended to: the whole point of a reviewer touching this
+  // column is to correct a derivation, and an append-only field could never
+  // take a wrong registry back off. `[]` clears it back to unknown.
+  ecosystem: ecosystem.optional(),
   keywordValue: keywordValue.nullish(),
   parentId: z.uuid().nullish(),
   description: description.nullish(),

@@ -51,6 +51,10 @@ import {
 } from '../../entity/claim/ClaimCandidate';
 import { ClaimEvidence } from '../../entity/claim/ClaimEvidence';
 import { LedgerEntity } from '../../entity/claim/LedgerEntity';
+import {
+  deriveEcosystems,
+  unionEcosystems,
+} from '../../common/ledgerEcosystem';
 import { Post } from '../../entity/posts/Post';
 import { ConflictError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
@@ -65,9 +69,11 @@ const statusRank = [
 const resolveCandidateEntity = async ({
   manager,
   candidate,
+  evidenceUrl,
 }: {
   manager: EntityManager;
   candidate: ClaimCandidate;
+  evidenceUrl: string | null;
 }): Promise<{ entity: LedgerEntity; created: boolean }> => {
   const names = [candidate.rawEntityName, ...candidate.entityAliases];
   const matches = await findLedgerEntitiesByName({ con: manager, names });
@@ -89,6 +95,15 @@ const resolveCandidateEntity = async ({
     canonicalName: candidate.rawEntityName,
     kind: candidate.entityKind,
     aliases: candidate.entityAliases,
+    // The registry is derivable here from data the request already holds, so
+    // the entity is born with it rather than waiting for a backfill pass — the
+    // same reason the effective date is read off the cited post below. Nothing
+    // is guessed: an empty answer stays empty, which means unknown.
+    ecosystem: deriveEcosystems({
+      kind: candidate.entityKind,
+      names,
+      evidenceUrls: evidenceUrl ? [evidenceUrl] : [],
+    }),
   });
 
   return { entity, created: true };
@@ -238,17 +253,19 @@ const createClaimFromCandidate = async ({
   candidate,
   body,
   source,
+  evidenceUrl,
 }: {
   manager: EntityManager;
   candidate: ClaimCandidate;
   body: z.infer<typeof claimCandidateResolveSchema>;
   source: { publishedAt: Date | null; createdAt: Date | null } | null;
+  evidenceUrl: string | null;
 }): Promise<{ claimId: string; entityId: string; entityCreated: boolean }> => {
   // An explicit entityId settles what the raw names cannot: a claim about a
   // child product named after its parent, or names shared by two entities.
   const resolved = body.entityId
     ? null
-    : await resolveCandidateEntity({ manager, candidate });
+    : await resolveCandidateEntity({ manager, candidate, evidenceUrl });
   const entityId =
     body.entityId ?? (resolved as { entity: LedgerEntity }).entity.id;
   const effectiveDate = pickOverride(
@@ -449,6 +466,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
             candidate,
             body,
             source: source ?? null,
+            evidenceUrl: url,
           });
       const targetClaimId =
         body.claimId ?? (created as { claimId: string }).claimId;
@@ -621,6 +639,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         .select('le.id', 'id')
         .addSelect('le."canonicalName"', 'canonicalName')
         .addSelect('le.kind', 'kind')
+        .addSelect('le.ecosystem', 'ecosystem')
         .addSelect('le.description', 'description')
         .addSelect('1 - (le."descriptionEmbedding" <=> :vector)', 'similarity')
         .where('le."descriptionEmbedding" IS NOT NULL')
@@ -690,6 +709,15 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       aliases: body.aliases,
       codeOnlyAliases: body.codeOnlyAliases,
       codeOnlyCanonical: body.codeOnlyCanonical,
+      // A writer that names no registry still gets whatever the coordinate's
+      // own shape says: `@scope/pkg` is npm whoever files it.
+      ecosystem: unionEcosystems(
+        body.ecosystem,
+        deriveEcosystems({
+          kind: body.kind,
+          names: [body.canonicalName, ...body.aliases, ...body.codeOnlyAliases],
+        }),
+      ),
       keywordValue: body.keywordValue ?? null,
       parentId: body.parentId ?? null,
       ...(await describedColumns({ description: body.description ?? null })),
@@ -729,6 +757,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         codeOnlyCanonical: body.codeOnlyCanonical,
       }),
       ...(typeof body.kind !== 'undefined' && { kind: body.kind }),
+      ...(typeof body.ecosystem !== 'undefined' && {
+        ecosystem: body.ecosystem,
+      }),
       ...(typeof body.keywordValue !== 'undefined' && {
         keywordValue: body.keywordValue,
       }),
@@ -957,6 +988,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       await entityRepo.update(into.id, {
         aliases,
         codeOnlyAliases,
+        // Each row saw part of the evidence, so the survivor keeps both
+        // answers. Union is the only direction that cannot narrow an entity
+        // that was correctly scoped on one side and unknown on the other.
+        ecosystem: unionEcosystems(into.ecosystem, from.ecosystem),
         ...(!into.description && from.description
           ? await describedColumns({ description: from.description })
           : {}),
@@ -973,6 +1008,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
           'aliases',
           'codeOnlyAliases',
           'codeOnlyCanonical',
+          'ecosystem',
           'parentId',
         ],
         where: { id: into.id },
