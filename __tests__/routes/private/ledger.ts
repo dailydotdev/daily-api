@@ -27,6 +27,7 @@ import {
   ClaimEvidenceSourceClass,
 } from '../../../src/entity/claim/ClaimEvidence';
 import {
+  LedgerEcosystem,
   LedgerEntity,
   LedgerEntityKind,
 } from '../../../src/entity/claim/LedgerEntity';
@@ -376,6 +377,163 @@ describe('private ledger routes', () => {
     expect(cleared.codeOnlyCanonical).toBe(false);
   });
 
+  it('should file the registries a writer names and answer them back on lookup', async () => {
+    const { body: created } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({
+        canonicalName: 'Ecto',
+        kind: LedgerEntityKind.Package,
+        ecosystem: [LedgerEcosystem.Hex],
+      })
+      .expect(201);
+
+    expect(created.ecosystem).toEqual([LedgerEcosystem.Hex]);
+
+    const { body } = await request(app.server)
+      .get('/p/ledger/entities')
+      .query({ name: 'ecto' })
+      .set(serviceHeaders)
+      .expect(200);
+
+    expect(body.entities).toEqual([
+      expect.objectContaining({ ecosystem: [LedgerEcosystem.Hex] }),
+    ]);
+  });
+
+  // The coordinate names its own registry, so a writer that sends nothing still
+  // gets the answer the shape already carries.
+  it('should derive the registry from the coordinate when the writer names none', async () => {
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({
+        canonicalName: '@nextcloud/vue',
+        kind: LedgerEntityKind.Package,
+      })
+      .expect(201);
+
+    expect(body.ecosystem).toEqual([LedgerEcosystem.Npm]);
+  });
+
+  it('should default an entity to no registry, which means unknown', async () => {
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({ canonicalName: 'Fastify', kind: LedgerEntityKind.Package })
+      .expect(201);
+
+    expect(body.ecosystem).toEqual([]);
+  });
+
+  // Dropping the bad value instead would leave `[]`, which reads as "unknown,
+  // matches everything" — the writer's bug would be invisible.
+  it('should reject a registry outside the closed vocabulary', () =>
+    request(app.server)
+      .post('/p/ledger/entities')
+      .set(serviceHeaders)
+      .send({
+        canonicalName: 'Bundler',
+        kind: LedgerEntityKind.Package,
+        ecosystem: ['homebrew'],
+      })
+      .expect(400));
+
+  it('should set the registries outright on update and clear them back to unknown', async () => {
+    await seedHierarchy();
+
+    const { body: set } = await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({
+        entityId: parentEntityId,
+        ecosystem: [LedgerEcosystem.Npm, LedgerEcosystem.Npm],
+      })
+      .expect(200);
+
+    expect(set.ecosystem).toEqual([LedgerEcosystem.Npm]);
+
+    const { body: cleared } = await request(app.server)
+      .post('/p/ledger/entities/update')
+      .set(serviceHeaders)
+      .send({ entityId: parentEntityId, ecosystem: [] })
+      .expect(200);
+
+    expect(cleared.ecosystem).toEqual([]);
+  });
+
+  // Each row saw part of the evidence; intersecting them could empty a column
+  // that was right on one side and merely unknown on the other.
+  it('should keep the union of both registries on merge', async () => {
+    await seedHierarchy();
+    const duplicateEntityId = '11111111-1111-4111-8111-111111111117';
+    await con
+      .getRepository(LedgerEntity)
+      .update(childEntityId, { ecosystem: [LedgerEcosystem.Npm] });
+    await con.getRepository(LedgerEntity).save({
+      id: duplicateEntityId,
+      canonicalName: 'App Router (npm package)',
+      kind: LedgerEntityKind.Package,
+      aliases: [],
+      ecosystem: [LedgerEcosystem.Go],
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/entities/merge')
+      .set(serviceHeaders)
+      .send({ fromEntityId: duplicateEntityId, intoEntityId: childEntityId })
+      .expect(200);
+
+    expect(body.ecosystem).toEqual([LedgerEcosystem.Npm, LedgerEcosystem.Go]);
+  });
+
+  // Most entities are born on this route, not on /entities, so the registry has
+  // to be read here or the column would only ever fill by backfill.
+  it('should mint an entity carrying the registry its cited evidence names', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        url: 'https://www.npmjs.com/package/next',
+        sourceClass: ClaimEvidenceSourceClass.Registry,
+      })
+      .expect(200);
+
+    expect(body.entityCreated).toBe(true);
+
+    const entity = await con
+      .getRepository(LedgerEntity)
+      .findOneBy({ id: body.entityId });
+
+    expect(entity?.ecosystem).toEqual([LedgerEcosystem.Npm]);
+  });
+
+  // A blog post is the ordinary case and it names no registry, so the entity is
+  // born unknown rather than born wrong.
+  it('should mint an entity with no registry when the evidence names none', async () => {
+    await seedCandidate();
+
+    const { body } = await request(app.server)
+      .post('/p/ledger/candidates/resolve')
+      .set(serviceHeaders)
+      .send({
+        candidateId,
+        action: 'merge',
+        url: 'https://nextjs.org/blog/next-16',
+      })
+      .expect(200);
+
+    const entity = await con
+      .getRepository(LedgerEntity)
+      .findOneBy({ id: body.entityId });
+
+    expect(entity?.ecosystem).toEqual([]);
+  });
+
   it('should reject removing an alias from an entity that does not exist', () =>
     request(app.server)
       .post('/p/ledger/entities/alias/remove')
@@ -422,6 +580,7 @@ describe('private ledger routes', () => {
       aliases: ['App Router', 'app-router'],
       codeOnlyAliases: [],
       codeOnlyCanonical: false,
+      ecosystem: [],
       parentId: parentEntityId,
     });
     expect(
@@ -542,6 +701,7 @@ describe('private ledger routes', () => {
         aliases: ['nextjs'],
         codeOnlyAliases: [],
         codeOnlyCanonical: false,
+        ecosystem: [],
         parentId: null,
       },
     ]);

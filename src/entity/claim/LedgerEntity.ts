@@ -20,6 +20,32 @@ export enum LedgerEntityKind {
   Concept = 'concept',
 }
 
+// The closed vocabulary of package REGISTRIES an entity can be installed from.
+// Registries, not languages, because the registry is the thing an evidence URL
+// and a coordinate actually name — and because one language can install from
+// two (Kotlin from Maven, Dart from pub) while one registry serves several.
+//
+// This enum is THE list. rot-bench's detector carries the other half of the
+// rule as a language -> registries map (`python -> {pypi}`, `javascript ->
+// {npm}`, `go -> {go}`, `ruby -> {rubygems}`, `php -> {packagist}`, `elixir ->
+// {hex}`, `rust -> {crates}`, `csharp -> {nuget}`, `dart -> {pub}`, `java`/
+// `kotlin` -> `{maven}`), and smith and bragi send values from it when they
+// file an entity. Adding a value here without the matching language on the
+// detector side makes entities carrying it resolve from NO code token at all,
+// so the two changes ship together or not at all.
+export enum LedgerEcosystem {
+  Npm = 'npm',
+  Pypi = 'pypi',
+  RubyGems = 'rubygems',
+  Go = 'go',
+  Crates = 'crates',
+  Maven = 'maven',
+  Packagist = 'packagist',
+  Hex = 'hex',
+  NuGet = 'nuget',
+  Pub = 'pub',
+}
+
 @Entity()
 // Unique on lower("canonicalName"), a GIN index over the normalized lookup
 // names and a trigram index for near-miss matching, all created in the
@@ -58,6 +84,18 @@ export class LedgerEntity {
   // an alias marker cannot express because a canonical name is not an alias.
   @Column({ type: 'boolean', default: false })
   codeOnlyCanonical: boolean;
+
+  // The package registries this artifact is installed from. EMPTY MEANS
+  // UNKNOWN AND MATCHES EVERYTHING — the column can only ever remove a match as
+  // it fills, which is what makes it safe to ship over a half-populated ledger.
+  // A consumer resolving a code token compares the token's language against
+  // this set and skips the entity only when both sides are known and disjoint;
+  // that is how `import json` in a `.py` file stops matching the Ruby `json`
+  // gem. Derived mechanically from the coordinate's shape and the registry host
+  // its evidence cites (`src/common/ledgerEcosystem.ts`), never from prose
+  // saying which language something is "for".
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  ecosystem: LedgerEcosystem[];
 
   // What the entity is and, above all, what approach it displaced, written the
   // way someone would describe the problem before they knew this thing existed.
