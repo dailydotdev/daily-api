@@ -13,8 +13,9 @@ export const CONSUMABLE_STATUSES = [
   ClaimStatus.Verified,
 ];
 
-// The playbook's R24 marker, and the only sanctioned maturity wording in
-// `versionScope` (§13 forbids the rest). A claim about an unreleased line must
+// The playbook's (smith-brain/docs/claim-ledger-review-playbook.md) R24
+// marker, and the only sanctioned maturity wording in `versionScope` (§13
+// forbids the rest). A claim about an unreleased line must
 // keep `effectiveDate` NULL: nothing bites before GA, so a date here would
 // place a change that has not happened.
 //

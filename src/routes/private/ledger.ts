@@ -397,8 +397,9 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       throw new ConflictError('Claim candidate is already resolved');
     }
 
-    // The playbook asks for a rule-citing rationale per decision, and it is only
-    // worth anything to the recall audit if it sits on the row it explains.
+    // The playbook (smith-brain/docs/claim-ledger-review-playbook.md) asks
+    // for a rule-citing rationale per decision, and it is only worth anything
+    // to the recall audit if it sits on the row it explains.
     const note = typeof body.note === 'undefined' ? {} : { note: body.note };
 
     if (body.action === 'deny') {

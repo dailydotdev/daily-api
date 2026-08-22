@@ -184,8 +184,9 @@ describe('extractClaims worker', () => {
       directness: ClaimDirectness.Announcement,
       status: ClaimCandidateStatus.Pending,
       // "name" and "default parameters" fall below the specificity bar
-      // (playbook §13 v5.9) — every segment common — and are dropped before
-      // the write; exact-equality matching would fire them on any codebase.
+      // (smith-brain/docs/claim-ledger-review-playbook.md §13, v5.9) — every
+      // segment common — and are dropped before the write; exact-equality
+      // matching would fire them on any codebase.
       affected: ['defaultProps'],
       superseding: [],
     });
